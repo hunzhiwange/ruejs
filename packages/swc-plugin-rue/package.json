@@ -1,12 +1,12 @@
 {
   "name": "@rue-js/swc-plugin-rue",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "通过 SWC 实现 JSX 中转化为原生DOM",
   "keywords": [
+    "@rue-js/swc-plugin-rue",
     "jsx",
     "swc",
-    "swc-plugin",
-    "@rue-js/swc-plugin-rue"
+    "swc-plugin"
   ],
   "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/swc-plugin-rue#readme",
   "bugs": {
