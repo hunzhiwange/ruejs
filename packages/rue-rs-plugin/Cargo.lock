@@ -49,7 +49,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "@rue-js/plugin"
+name = "rue-rs-plugin"
 version = "0.0.1"
 dependencies = [
  "js-sys",
