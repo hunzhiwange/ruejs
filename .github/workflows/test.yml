@@ -32,8 +32,8 @@ jobs:
         uses: jetli/wasm-pack-action@v0.4.0
 
       - run: pnpm install
-      - run: pnpm --filter swc-plugin-rue build
-      - run: pnpm --filter @rue/runtime-vapor build-node
+      - run: pnpm --filter @rue-js/swc-plugin-rue build
+      - run: pnpm --filter @rue-js/runtime-vapor build-node
 
       - name: Run unit tests
         run: pnpm run test-unit
@@ -64,8 +64,8 @@ jobs:
         uses: jetli/wasm-pack-action@v0.4.0
 
       - run: pnpm install
-      - run: pnpm --filter swc-plugin-rue build
-      - run: pnpm --filter @rue/runtime-vapor build-node
+      - run: pnpm --filter @rue-js/swc-plugin-rue build
+      - run: pnpm --filter @rue-js/runtime-vapor build-node
 
       - name: Run unit tests
         run: pnpm run test-unit
@@ -100,8 +100,8 @@ jobs:
         uses: jetli/wasm-pack-action@v0.4.0
 
       - run: pnpm install
-      - run: pnpm --filter swc-plugin-rue build
-      - run: pnpm --filter @rue/runtime-vapor build-node
+      - run: pnpm --filter @rue-js/swc-plugin-rue build
+      - run: pnpm --filter @rue-js/runtime-vapor build-node
 
       - name: Run e2e tests
         run: pnpm run test-e2e
@@ -149,8 +149,8 @@ jobs:
       - name: Run tsc
         run: pnpm run check
 
-      - run: pnpm --filter swc-plugin-rue build
-      - run: pnpm --filter @rue/runtime-vapor build-node
+      - run: pnpm --filter @rue-js/swc-plugin-rue build
+      - run: pnpm --filter @rue-js/runtime-vapor build-node
 
       - name: Run type declaration tests
         run: pnpm run test-dts

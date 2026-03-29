@@ -77,7 +77,7 @@ export default function VitePluginRue(options = {}) {
       // 选择 wasm 插件路径：优先环境变量回退到默认路径
       if (!process.env.RUE_SWC_PLUGIN) {
         const req = createRequire(import.meta.url)
-        process.env.RUE_SWC_PLUGIN = req.resolve('swc-plugin-rue')
+        process.env.RUE_SWC_PLUGIN = req.resolve('@rue-js/swc-plugin-rue')
       }
 
       // 匹配处理的文件类型：仅 TSX/JSX

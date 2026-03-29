@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@rue-js/rue": "workspace:*",
-    "swc-plugin-rue": "workspace:*"
+    "@rue-js/swc-plugin-rue": "workspace:*"
   },
   "devDependencies": {
     "@swc/cli": "^0.7.9",

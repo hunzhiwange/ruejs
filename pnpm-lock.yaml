@@ -315,7 +315,7 @@ importers:
       '@rue-js/rue':
         specifier: workspace:*
         version: link:../rue
-      swc-plugin-rue:
+      '@rue-js/swc-plugin-rue':
         specifier: workspace:*
         version: link:../swc-plugin-rue
     devDependencies:
