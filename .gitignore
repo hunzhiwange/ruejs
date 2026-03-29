@@ -39,7 +39,6 @@ coverage/
 src/vite-plugin-rue/rue_transform/target/
 .swc
 .vat/
-.DS_Store
 temp/
 target/
 *.wasm
