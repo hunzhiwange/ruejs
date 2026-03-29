@@ -1,6 +1,6 @@
 {
   "name": "@rue-js/rue",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "description": "后悔药 Rue.js - The Wasm Framework For Vapor Native DOM.",
   "keywords": [
     "rue"

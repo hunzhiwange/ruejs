@@ -1,3 +1,9 @@
+## [0.0.25](https://github.com/hunzhiwange/ruejs/compare/v0.0.24...v0.0.25) (2026-03-29)
+
+
+### Bug Fixes
+
+* ci ([cd2fd20](https://github.com/hunzhiwange/ruejs/commit/cd2fd202e0a0b7093bc8483c516897353f96d479))
 ## [0.0.24](https://github.com/hunzhiwange/ruejs/compare/v0.0.23...v0.0.24) (2026-03-29)
 
 
