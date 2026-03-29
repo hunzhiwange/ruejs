@@ -1,4 +1,14 @@
-import { type FC, computed, emitted, h, reactive, ref, useState, watch, watchEffect } from '@rue-js/rue'
+import {
+  type FC,
+  computed,
+  emitted,
+  h,
+  reactive,
+  ref,
+  useState,
+  watch,
+  watchEffect,
+} from '@rue-js/rue'
 import { extend } from '@rue-js/shared'
 import { RouterLink } from '@rue-js/router'
 
