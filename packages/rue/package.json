@@ -31,13 +31,12 @@
   "exports": {
     ".": {
       "development": "./src/index.ts",
+      "types": "./dist/rue.d.ts",
       "import": {
-        "types": "./dist/rue.d.mts",
         "node": "./index.mjs",
         "default": "./dist/rue.runtime.esm-bundler.js"
       },
       "require": {
-        "types": "./dist/rue.d.ts",
         "node": {
           "production": "./dist/rue.cjs.prod.js",
           "development": "./dist/rue.cjs.js",
