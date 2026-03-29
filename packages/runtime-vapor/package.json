@@ -1,6 +1,6 @@
 {
   "name": "@rue-js/runtime-vapor",
-  "version": "0.0.1",
+  "version": "0.0.26",
   "description": "Rue runtime implemented in Rust and compiled to WebAssembly",
   "keywords": [
     "rue",
@@ -18,13 +18,10 @@
     "url": "git+https://github.com/hunzhiwange/ruejs.git",
     "directory": "packages/runtime-vapor"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "type": "module",
   "files": [
     "pkg"
   ],
+  "type": "module",
   "types": "./pkg/rue_runtime_vapor.d.ts",
   "exports": {
     ".": {
@@ -33,6 +30,9 @@
       "import": "./pkg/rue_runtime_vapor.js",
       "default": "./pkg/rue_runtime_vapor.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev",
