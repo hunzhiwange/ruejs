@@ -1,14 +1,34 @@
 {
   "name": "@rue-js/runtime-vapor",
   "version": "0.0.1",
-  "private": true,
   "description": "Rue runtime implemented in Rust and compiled to WebAssembly",
+  "keywords": [
+    "rue",
+    "runtime",
+    "wasm"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/runtime-vapor#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git",
+    "directory": "packages/runtime-vapor"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
   "files": [
     "pkg"
   ],
   "types": "./pkg/rue_runtime_vapor.d.ts",
   "exports": {
     ".": {
+      "types": "./pkg/rue_runtime_vapor.d.ts",
       "development": "./pkg/rue_runtime_vapor.js",
       "import": "./pkg/rue_runtime_vapor.js",
       "default": "./pkg/rue_runtime_vapor.js"
@@ -18,7 +38,7 @@
     "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev",
     "build": "wasm-pack build --release --target bundler --out-dir pkg --features log --features dev",
     "build-node": "wasm-pack build --release --target nodejs --out-dir pkg-node --features log --features dev",
-    "postinstall": "npm run build",
+    "prepublishOnly": "npm run build",
     "dev": "wasm-pack watch",
     "docs": "cargo doc --no-deps",
     "test": "wasm-pack test --node",
