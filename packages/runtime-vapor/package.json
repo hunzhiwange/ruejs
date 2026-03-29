@@ -36,7 +36,7 @@
   },
   "scripts": {
     "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev",
-    "build": "wasm-pack build --release --target bundler --out-dir pkg --features log --features dev",
+    "build": "wasm-pack build --release --target bundler --out-dir pkg",
     "build-node": "wasm-pack build --release --target nodejs --out-dir pkg-node --features log --features dev",
     "prepublishOnly": "npm run build",
     "dev": "wasm-pack watch",
