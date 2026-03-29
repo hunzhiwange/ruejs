@@ -1,3 +1,10 @@
+## [0.0.28](https://github.com/hunzhiwange/ruejs/compare/v0.0.27...v0.0.28) (2026-03-29)
+
+
+### Bug Fixes
+
+* ci ([7a2ab3d](https://github.com/hunzhiwange/ruejs/commit/7a2ab3d119621324b12a9ba5690876ea38d8f228))
+* remove ([d17a5ad](https://github.com/hunzhiwange/ruejs/commit/d17a5adc7a29362a2d6ae04b3dc65879511df64e))
 ## [0.0.27](https://github.com/hunzhiwange/ruejs/compare/v0.0.26...v0.0.27) (2026-03-29)
 
 
