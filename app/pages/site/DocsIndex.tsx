@@ -1,4 +1,4 @@
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 import { RouterLink } from '@rue-js/router'
 
 const DocSidebar: FC = () => (
@@ -61,7 +61,7 @@ const DocsIndex: FC = () => (
           </h2>
           <pre className="bg-base-200 rounded-box p-4 text-sm overflow-auto">
             <code>{`pnpm add rue @rue-js/router
-import { mount, FC } from 'rue-js';
+import { mount, FC } from '@rue-js/rue';
 import { createRouter, createWebHashHistory } from '@rue-js/router';
 
 // 创建路由与挂载

@@ -23,8 +23,8 @@ Rue 的响应式系统可以与不同输入类型的输入框、`<textarea>` 和
 ### 文本 {#text}
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const TextInput: FC = () => {
   const message = ref('')
@@ -49,8 +49,8 @@ const TextInput: FC = () => {
 ### 多行文本 {#multiline-text}
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const TextArea: FC = () => {
   const message = ref('')
@@ -88,8 +88,8 @@ const TextArea: FC = () => {
 单个复选框，布尔值：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Checkbox: FC = () => {
   const checked = ref(false)
@@ -111,8 +111,8 @@ const Checkbox: FC = () => {
 我们也可以将多个复选框绑定到同一个数组或 [Set](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set) 值：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MultiCheckbox: FC = () => {
   const checkedNames = ref<string[]>([])
@@ -168,8 +168,8 @@ const MultiCheckbox: FC = () => {
 ### 单选框 {#radio}
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Radio: FC = () => {
   const picked = ref('')
@@ -205,8 +205,8 @@ const Radio: FC = () => {
 单选：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Select: FC = () => {
   const selected = ref('')
@@ -238,8 +238,8 @@ const Select: FC = () => {
 多选（绑定到数组）：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MultiSelect: FC = () => {
   const selected = ref<string[]>([])
@@ -275,8 +275,8 @@ const MultiSelect: FC = () => {
 可以使用 `map()` 动态渲染选择器选项：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const DynamicSelect: FC = () => {
   const selected = ref('A')

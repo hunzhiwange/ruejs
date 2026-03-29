@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn multi_nested_finally_with_whitelist_chains_and_mixed_params() {
     let src = r##"
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 function Comp(): JSX.Element {
   const a = ref(1)
@@ -35,7 +35,7 @@ function Comp(): JSX.Element {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { ref, onBeforeUnmount, watchEffect, _$vaporWithHookId, useSetup } from 'rue-js';
+import { ref, onBeforeUnmount, watchEffect, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 function Comp(): JSX.Element {
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = _$vaporWithHookId("ref:1.2:0", ()=>ref(1));

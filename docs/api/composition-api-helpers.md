@@ -72,7 +72,7 @@
 - **示例**
 
   ```tsx
-  import { useTemplateRef, useEffect } from 'rue-js'
+  import { useTemplateRef, useEffect } from '@rue-js/rue'
 
   const inputRef = useTemplateRef<HTMLInputElement>('input')
 
@@ -101,7 +101,7 @@
 - **示例**
 
   ```tsx
-  import { useId } from 'rue-js'
+  import { useId } from '@rue-js/rue'
 
   const id = useId()
 

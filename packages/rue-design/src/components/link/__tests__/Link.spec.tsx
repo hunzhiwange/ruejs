@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { h, render } from 'rue-js'
+import { h, render } from '@rue-js/rue'
 import { Link } from '@rue-js/design'
 
 afterEach(() => {

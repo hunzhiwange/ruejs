@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec41() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const HelloWorld: FC = () => {
   console.log('--------start')
@@ -41,7 +41,7 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper } from '@rue-js/rue';
 const HelloWorld: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             console.log('--------start');

@@ -110,7 +110,7 @@
   `toRef()` 在你想要将 prop 的 ref 传递给组合式函数时很有用：
 
   ```js
-  import { toRef } from 'rue-js'
+  import { toRef } from '@rue-js/rue'
 
   const props = defineProps(/* ... */)
 
@@ -149,7 +149,7 @@
   在组合式函数中规范化参数：
 
   ```ts
-  import type { MaybeRefOrGetter } from 'rue-js'
+  import type { MaybeRefOrGetter } from '@rue-js/rue'
 
   function useFeature(id: MaybeRefOrGetter<number>) {
     watch(

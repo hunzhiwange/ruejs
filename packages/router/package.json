@@ -40,7 +40,7 @@
     "./*": "./*"
   },
   "dependencies": {
-    "rue-js": "workspace:*"
+    "@rue-js/rue": "workspace:*"
   },
   "buildOptions": {
     "name": "RueRouterCore",

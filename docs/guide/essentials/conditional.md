@@ -5,8 +5,8 @@
 在 Rue 中使用 JSX 进行条件渲染非常直观。你可以使用 JavaScript 的逻辑与运算符 `&&` 或三元运算符来条件性地渲染块。只有当条件表达式返回真值时，块才会被渲染。
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const awesome = ref(true)
@@ -20,8 +20,8 @@ const App: FC = () => {
 你可以使用三元运算符来指示 `if` 的"else 块"：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const awesome = ref(true)
@@ -40,8 +40,8 @@ const App: FC = () => {
 三元运算符也可以链式使用来实现"else if"逻辑：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const type = ref('A')
@@ -67,8 +67,8 @@ const App: FC = () => {
 在 JSX 中，如果你想切换多个元素，可以使用 fragment（片段）作为隐式包装器：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const ok = ref(true)
@@ -92,8 +92,8 @@ const App: FC = () => {
 条件性显示元素的另一个选项是使用 `style` 属性直接控制 `display` CSS 属性：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const ok = ref(true)

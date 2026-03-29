@@ -15,8 +15,8 @@
 内联处理器通常用于简单的情况，例如：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Counter: FC = () => {
   const count = ref(0)
@@ -37,8 +37,8 @@ const Counter: FC = () => {
 例如：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Greeter: FC = () => {
   const name = ref('Rue.js')
@@ -68,7 +68,7 @@ const Greeter: FC = () => {
 除了直接绑定到方法名，我们也可以在内联处理器中调用方法。这允许我们向方法传递自定义参数而不是原生事件：
 
 ```tsx
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 const Messenger: FC = () => {
   function say(message: string) {
@@ -89,7 +89,7 @@ const Messenger: FC = () => {
 有时我们也需要在内联处理器中访问原始 DOM 事件。你可以将事件作为参数传递给方法：
 
 ```tsx
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 const Form: FC = () => {
   function warn(message: string, event?: Event) {
@@ -111,7 +111,7 @@ const Form: FC = () => {
 Rue 提供了一些工具函数来处理常见的事件修饰需求：
 
 ```tsx
-import { withModifiers } from 'rue-js'
+import { withModifiers } from '@rue-js/rue'
 
 // 阻止事件冒泡
 <button onClick={withModifiers(() => doThis(), ['stop'])}>

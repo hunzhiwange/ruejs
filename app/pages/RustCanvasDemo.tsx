@@ -1,4 +1,4 @@
-import { type FC, useComponent } from 'rue-js'
+import { type FC, useComponent } from '@rue-js/rue'
 
 // const RustCanvasComp = useComponent(async () => {
 //   const mod = await import('@rue-js/app-rust')

@@ -19,7 +19,7 @@
   使用内联根组件：
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
 
   const app = createApp({
     /* 根组件选项 */
@@ -29,7 +29,7 @@
   使用导入的组件：
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
   import App from './App.js'
 
   const app = createApp(App)
@@ -66,7 +66,7 @@
 - **示例**
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
   const app = createApp(/* ... */)
 
   app.mount('#app')
@@ -118,7 +118,7 @@
 - **示例**
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
 
   const app = createApp({})
 
@@ -149,7 +149,7 @@
 - **示例**
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
 
   const app = createApp({
     /* ... */
@@ -194,7 +194,7 @@
 - **示例**
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
   import MyPlugin from './plugins/MyPlugin'
 
   const app = createApp({
@@ -243,7 +243,7 @@ Mixin 在 Rue 3 中主要是为了向后兼容而被支持，因为生态系统�
 - **示例**
 
   ```js
-  import { createApp } from 'rue-js'
+  import { createApp } from '@rue-js/rue'
 
   const app = createApp(/* ... */)
 
@@ -255,7 +255,7 @@ Mixin 在 Rue 3 中主要是为了向后兼容而被支持，因为生态系统�
   <div class="composition-api">
 
   ```js
-  import { inject } from 'rue-js'
+  import { inject } from '@rue-js/rue'
 
   export default {
     setup() {
@@ -302,7 +302,7 @@ Mixin 在 Rue 3 中主要是为了向后兼容而被支持，因为生态系统�
 - **示例**
 
   ```js
-  import { inject } from 'rue-js'
+  import { inject } from '@rue-js/rue'
 
   app.provide('id', 1)
 
@@ -347,7 +347,7 @@ Mixin 在 Rue 3 中主要是为了向后兼容而被支持，因为生态系统�
 每个应用实例都暴露一个 `config` 对象，其中包含该应用的配置设置。你可以在挂载应用之前修改其属性（见下文）。
 
 ```js
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp(/* ... */)
 

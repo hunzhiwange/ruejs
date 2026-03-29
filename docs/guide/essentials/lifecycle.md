@@ -7,8 +7,8 @@
 例如，`onMounted` 钩子可用于在组件完成初始渲染并创建 DOM 节点后运行代码：
 
 ```tsx
-import { onMounted, ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { onMounted, ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   onMounted(() => {
@@ -50,8 +50,8 @@ setTimeout(() => {
 在组件挂载后调用。此时 DOM 元素已经可用：
 
 ```tsx
-import { onMounted, ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { onMounted, ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   const elementRef = ref<HTMLDivElement>(null)
@@ -71,8 +71,8 @@ const MyComponent: FC = () => {
 在响应式状态变更导致组件更新其 DOM 树之后调用：
 
 ```tsx
-import { onUpdated, ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { onUpdated, ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   const count = ref(0)
@@ -100,8 +100,8 @@ const MyComponent: FC = () => {
 在组件实例被卸载之后调用：
 
 ```tsx
-import { onMounted, onUnmounted, ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { onMounted, onUnmounted, ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   const timer = ref<number | null>(null)
@@ -135,7 +135,7 @@ import {
   onMounted,
   onUpdated,
   onUnmounted,
-} from 'rue-js'
+} from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   onBeforeMount(() => {
@@ -173,8 +173,8 @@ const MyComponent: FC = () => {
 在捕获到来自后代组件的错误时被调用：
 
 ```tsx
-import { onErrorCaptured, ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { onErrorCaptured, ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   const error = ref<Error | null>(null)
@@ -199,8 +199,8 @@ const MyComponent: FC = () => {
 用于调试响应式依赖：
 
 ```tsx
-import { onRenderTracked, onRenderTriggered, ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { onRenderTracked, onRenderTriggered, ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   const count = ref(0)

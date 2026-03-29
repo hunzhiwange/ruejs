@@ -3,7 +3,7 @@ Divider 组件概述
 - 形态：支持方向、颜色与位置（start/end）控制。
 - 用途：在内容中增加分隔与标题区域。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Divider 组件签名 */
 
 type DividerVariant =

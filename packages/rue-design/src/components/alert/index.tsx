@@ -3,7 +3,7 @@ Alert 组件概述
 - 通过 variant/direction/outline/dash/soft 等 props 组合类名，渲染语义化的提示框。
 - 使用 role="alert" 提示可访问性；className 可追加自定义类。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Alert 组件签名 */
 
 type AlertVariant = 'info' | 'success' | 'warning' | 'error'

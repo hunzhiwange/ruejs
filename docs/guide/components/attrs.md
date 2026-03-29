@@ -55,7 +55,7 @@ function MyButton({ children, ...attrs }: MyButtonProps & JSX.HTMLAttributes<HTM
 注意：在 Rue/TSX 中，后续属性会覆盖前面的属性。要正确合并 class，你需要使用辅助函数：
 
 ```tsx
-import { clsx } from 'rue-js'
+import { clsx } from '@rue-js/rue'
 
 function MyButton({
   children,

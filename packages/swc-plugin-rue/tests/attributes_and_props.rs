@@ -7,7 +7,7 @@ mod utils;
 #[test]
 fn transforms_attributes_and_props() {
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const Badge: FC<{ label: string; color?: string }> = (props) => (
@@ -34,7 +34,7 @@ export default AttributesAndProps;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$setStyle, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$setClassName } from 'rue-js';
+import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$setStyle, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Badge: FC<{
     label: string;

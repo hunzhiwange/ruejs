@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec10() {
     let src = r##"
-import { type FC, ref, h } from 'rue-js';
+import { type FC, ref, h } from '@rue-js/rue';
 
 const Hello: FC = (props) => {
   return (
@@ -36,7 +36,7 @@ export default Goods;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from 'rue-js';
+import { type FC, ref, h, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
 const Hello: FC = (props)=>{
     return vapor(()=>{
         const _root = _$createElement("div");

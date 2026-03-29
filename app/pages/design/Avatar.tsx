@@ -1,5 +1,5 @@
-import type { FC } from 'rue-js'
-import { ref } from 'rue-js'
+import type { FC } from '@rue-js/rue'
+import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Avatar, Tabs } from '@rue-js/design'

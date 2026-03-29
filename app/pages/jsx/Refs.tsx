@@ -1,4 +1,4 @@
-import { type FC, ref, useRef } from 'rue-js'
+import { type FC, ref, useRef } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -42,7 +42,7 @@ const Refs: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, useRef } from 'rue-js';
+                code={`import { type FC, useRef } from '@rue-js/rue';
 
 const Refs: FC = () => {
   const inputRef = useRef<HTMLInputElement>();

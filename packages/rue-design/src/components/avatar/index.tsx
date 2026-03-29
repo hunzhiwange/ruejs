@@ -3,7 +3,7 @@ Avatar 组件概述
 - 状态：online/offline/placeholder 三种状态类名。
 - 群组：Avatar.Group 支持数据驱动或 children 渲染多个头像。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Avatar 组件签名 */
 
 type AvatarStatus = 'online' | 'offline' | 'placeholder'

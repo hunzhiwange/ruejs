@@ -31,7 +31,7 @@
     "./*": "./*"
   },
   "dependencies": {
-    "rue-js": "workspace:*",
+    "@rue-js/rue": "workspace:*",
     "swc-plugin-rue": "workspace:*"
   },
   "devDependencies": {

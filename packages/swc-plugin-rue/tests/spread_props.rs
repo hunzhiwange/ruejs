@@ -7,7 +7,7 @@ mod utils;
 #[test]
 fn transforms_spread_props() {
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const Button: FC<{ text: string; className?: string }> = (props) => (
@@ -33,7 +33,7 @@ export default SpreadProps;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from 'rue-js';
+import { type FC, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Button: FC<{
     text: string;

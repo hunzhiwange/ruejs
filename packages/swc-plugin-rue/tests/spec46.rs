@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec46() {
     let src = r##"
-import { type FC, useError, useApp } from 'rue-js'
+import { type FC, useError, useApp } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
 
@@ -38,7 +38,7 @@ useApp(RootApp).use(router).mount('#app')
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useError, useApp, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from 'rue-js';
+import { type FC, useError, useApp, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
 import { RouterView } from '@rue-js/router';
 import router from './router';
 useError({

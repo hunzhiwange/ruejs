@@ -86,7 +86,7 @@ Rue 支持使用与 Rue 组件 API 完全相同的方式创建自定义元素，
 ```
 
 ```js
-import { defineCustomElement } from 'rue-js'
+import { defineCustomElement } from '@rue-js/rue'
 
 const MyRueElement = defineCustomElement({
   // 普通 Rue 组件选项在这里
@@ -187,7 +187,7 @@ defineCustomElement(MyComponent, {
 要选择加入此模式，只需将组件文件名以 `.ce.rue` 结尾：
 
 ```js
-import { defineCustomElement } from 'rue-js'
+import { defineCustomElement } from '@rue-js/rue'
 import Example from './Example.ce.rue'
 
 console.log(Example.styles) // ["/* 内联 css */"]
@@ -202,18 +202,18 @@ customElements.define('my-example', ExampleElement)
 如果你希望自定义哪些文件应以自定义元素模式导入（例如，将所有 SFC 视为自定义元素），你可以将 `customElement` 选项传递给相应的构建插件：
 
 - [@vitejs/plugin-rue](https://github.com/vitejs/@rue-js/vite-plugin-rue/tree/main/packages/plugin-rue#using-rue-sfcs-as-custom-elements)
-- [rue-loader](https://github.com/rue-jsjs/rue-loader/tree/next#v16-only-options)
+- [rue-loader](https://github.com/@rue-js/ruejs/rue-loader/tree/next#v16-only-options)
 
 ### Rue 自定义元素库技巧 {#tips-for-a-rue-custom-elements-library}
 
-使用 Rue 构建自定义元素时，元素将依赖 Rue 的运行时。根据使用的功能数量，有约 16kb 的基线大小成本。这意味着如果你要交付单个自定义元素，使用 Rue 并不理想——你可能希望使用纯 JavaScript、[petite-rue](https://github.com/rue-jsjs/petite-rue)，或专门优化小运行时大小的框架。然而，如果你要交付一组具有复杂逻辑的自定义元素，基线大小是合理的，因为 Rue 将允许每个组件用更少的代码编写。一起交付的元素越多，权衡就越好。
+使用 Rue 构建自定义元素时，元素将依赖 Rue 的运行时。根据使用的功能数量，有约 16kb 的基线大小成本。这意味着如果你要交付单个自定义元素，使用 Rue 并不理想——你可能希望使用纯 JavaScript、[petite-rue](https://github.com/@rue-js/ruejs/petite-rue)，或专门优化小运行时大小的框架。然而，如果你要交付一组具有复杂逻辑的自定义元素，基线大小是合理的，因为 Rue 将允许每个组件用更少的代码编写。一起交付的元素越多，权衡就越好。
 
 如果自定义元素将在也使用 Rue 的应用程序中使用，你可以选择将 Rue 从构建包中外部化，以便元素将使用主机应用程序中的相同 Rue 副本。
 
 建议导出单个元素构造函数，以给用户按需导入并使用所需标签名注册的灵活性。你还可以导出一个便利函数来自动注册所有元素。以下是 Rue 自定义元素库的入口点示例：
 
 ```js [elements.js]
-import { defineCustomElement } from 'rue-js'
+import { defineCustomElement } from '@rue-js/rue'
 import Foo from './MyFoo.ce.rue'
 import Bar from './MyBar.ce.rue'
 
@@ -265,12 +265,12 @@ export function MyComponent() {
 
 编写 Rue SFC 模板时，你可能希望[类型检查](/guide/scaling-up/tooling.html#typescript)你的 Rue 组件，包括那些定义为自定义元素的组件。
 
-自定义元素使用浏览器内置 API 全局注册，默认情况下在 Rue 模板中使用它们时没有类型推断。要为注册为自定义元素的 Rue 组件提供类型支持，我们可以通过扩充 [`GlobalComponents` 接口](https://github.com/rue-jsjs/language-tools/wiki/Global-Component-Types)来注册全局组件类型以在 Rue 模板中进行类型检查（JSX 用户可以改为扩充 [JSX.IntrinsicElements](https://www.typescriptlang.org/docs/handbook/jsx.html#intrinsic-elements) 类型，此处未展示）。
+自定义元素使用浏览器内置 API 全局注册，默认情况下在 Rue 模板中使用它们时没有类型推断。要为注册为自定义元素的 Rue 组件提供类型支持，我们可以通过扩充 [`GlobalComponents` 接口](https://github.com/@rue-js/ruejs/language-tools/wiki/Global-Component-Types)来注册全局组件类型以在 Rue 模板中进行类型检查（JSX 用户可以改为扩充 [JSX.IntrinsicElements](https://www.typescriptlang.org/docs/handbook/jsx.html#intrinsic-elements) 类型，此处未展示）。
 
 以下是如何为使用 Rue 制作的自定义元素定义类型：
 
 ```typescript
-import { defineCustomElement } from 'rue-js'
+import { defineCustomElement } from '@rue-js/rue'
 
 // 导入 Rue 组件。
 import SomeComponent from './src/components/SomeComponent.ce.rue'
@@ -282,7 +282,7 @@ export const SomeElement = defineCustomElement(SomeComponent)
 customElements.define('some-element', SomeElement)
 
 // 将新元素类型添加到 Rue 的 GlobalComponents 类型。
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface GlobalComponents {
     // 确保在此处传入 Rue 组件类型
     //（SomeComponent，*不是* SomeElement）。
@@ -382,11 +382,11 @@ type RueEmit<T extends EventMap> = EmitFn<{
 
 ```ts [some-lib/src/SomeElement.rue.ts]
 import { SomeElement, SomeElementAttributes, SomeElementEvents } from './SomeElement.js'
-import type { Component } from 'rue-js'
+import type { Component } from '@rue-js/rue'
 import type { DefineCustomElement } from './DefineCustomElement'
 
 // 将新元素类型添加到 Rue 的 GlobalComponents 类型。
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface GlobalComponents {
     'some-element': DefineCustomElement<SomeElement, SomeElementAttributes, SomeElementEvents>
   }
@@ -405,7 +405,7 @@ import 'some-lib/dist/SomeElement.js'
 // 导入其他框架特定的类型定义）。
 import type {} from 'some-lib/dist/SomeElement.rue.js'
 
-import { useTemplateRef, onMounted } from 'rue-js'
+import { useTemplateRef, onMounted } from '@rue-js/rue'
 
 const el = useTemplateRef('el')
 
@@ -452,7 +452,7 @@ interface AppleFellEvent extends Event {
 }
 
 // 将新元素类型添加到 Rue 的 GlobalComponents 类型。
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface GlobalComponents {
     'some-element': DefineCustomElement<SomeElementProps, SomeElementEvents>
   }

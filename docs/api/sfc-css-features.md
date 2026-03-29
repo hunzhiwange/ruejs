@@ -120,7 +120,7 @@ export default function MyComponent() {
 注入的类可以在 `setup()` 和 `<script setup>` 中通过直接导入 CSS 模块来访问：
 
 ```tsx
-import { useCssModule } from 'rue-js'
+import { useCssModule } from '@rue-js/rue'
 
 // 在 setup() 作用域内...
 // 默认，返回 <style module> 的类
@@ -133,7 +133,7 @@ const classes = useCssModule('classes')
 - **示例**
 
 ```tsx
-import { useCssModule } from 'rue-js'
+import { useCssModule } from '@rue-js/rue'
 
 const classes = useCssModule()
 
@@ -154,7 +154,7 @@ export default function MyComponent() {
 Rue SFC `<style>` 标签支持使用 CSS 变量将 CSS 值链接到动态组件状态：
 
 ```tsx
-import { useState } from 'rue-js'
+import { useState } from '@rue-js/rue'
 
 export default function MyComponent() {
   const [color, setColor] = useState('red')
@@ -175,7 +175,7 @@ export default function MyComponent() {
 该语法适用于 [`<script setup>`](./sfc-script-setup)，并支持 JavaScript 表达式（必须包裹在引号中）：
 
 ```tsx
-import { useState } from 'rue-js'
+import { useState } from '@rue-js/rue'
 
 export default function MyComponent() {
   const [theme, setTheme] = useState({ color: 'red' })

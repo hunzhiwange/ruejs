@@ -19,7 +19,7 @@ Rue 非常适合构建 SPA。对于大多数 SPA，建议使用官方支持的 [
 以下是一个最简单的示例：
 
 ```tsx
-import { ref, computed, type FC } from 'rue-js'
+import { ref, computed, type FC } from '@rue-js/rue'
 import Home from './Home'
 import About from './About'
 import NotFound from './NotFound'
@@ -53,7 +53,7 @@ export const App: FC = () => {
 这是一个使用 History API 的改进版本：
 
 ```tsx
-import { ref, computed, type FC } from 'rue-js'
+import { ref, computed, type FC } from '@rue-js/rue'
 import Home from './Home'
 import About from './About'
 import NotFound from './NotFound'
@@ -122,7 +122,7 @@ export const App: FC = () => {
 
 ```tsx
 import { createRouter, createWebHistory, type RouteRecordRaw } from '@rue-js/router'
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 import Home from './views/Home'
 import About from './views/About'
 
@@ -144,7 +144,7 @@ app.mount('#app')
 在组件中使用路由：
 
 ```tsx
-import { useRoute, useRouter, type FC } from 'rue-js'
+import { useRoute, useRouter, type FC } from '@rue-js/rue'
 
 export const UserProfile: FC = () => {
   const route = useRoute()

@@ -7,7 +7,7 @@
 在 Rue 中，Props 通过 TypeScript 接口来声明，这样可以获得更好的类型支持和 IDE 自动补全：
 
 ```tsx
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 // 使用 TypeScript 接口声明 props
 interface BlogPostProps {
@@ -210,7 +210,7 @@ function MyComponent(props: MyComponentProps) {
 1. **prop 用于传递初始值；子组件希望之后将其用作本地数据属性。** 在这种情况下，最好定义一个使用 prop 作为初始值的本地数据属性：
 
    ```tsx
-   import { ref } from 'rue-js'
+   import { ref } from '@rue-js/rue'
 
    interface CounterProps {
      initialCounter: number
@@ -228,7 +228,7 @@ function MyComponent(props: MyComponentProps) {
 2. **prop 作为需要转换的原始值传递。** 在这种情况下，最好使用 prop 的值定义一个计算属性：
 
    ```tsx
-   import { computed } from 'rue-js'
+   import { computed } from '@rue-js/rue'
 
    interface SizeProps {
      size: string

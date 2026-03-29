@@ -7,7 +7,7 @@ mod utils;
 #[test]
 fn transforms_fragments_tsx() {
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const Fragments: FC = () => (
@@ -35,7 +35,7 @@ export default Fragments;
     // - 片段：<>...</> 被展开为两个 span 节点顺序插入
     // - 组件：使用注释锚点占位并 renderBetween 插入 RouterLink
     let expected = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setClassName } from 'rue-js';
+import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Fragments: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");

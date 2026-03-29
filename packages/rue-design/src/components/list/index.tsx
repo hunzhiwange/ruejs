@@ -3,7 +3,7 @@ List 组件概述
 - 数据驱动：items 支持 item 与 row 两种类型，cols 可用 ColGrow/ColWrap。
 - 复合组件：Row/ColGrow/ColWrap/Item 组合行与列。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 List 组件签名 */
 
 interface ListColDataItem {

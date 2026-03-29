@@ -16,8 +16,8 @@ Rue 提供了 [`<Transition>`](/guide/built-ins/transition) 和 [`<TransitionGro
 <div class="composition-api">
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const disabled = ref(false)
@@ -79,8 +79,8 @@ const App: FC = () => {
 <div class="composition-api">
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const x = ref(0)
@@ -123,9 +123,9 @@ const App: FC = () => {
 <div class="composition-api">
 
 ```tsx
-import { ref, reactive, watch } from 'rue-js'
+import { ref, reactive, watch } from '@rue-js/rue'
 import gsap from 'gsap'
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const number = ref(0)
@@ -159,6 +159,6 @@ const App: FC = () => {
 
 <div class="composition-api">
 
-[在 Playground 中尝试](https://play.rue-jsjs.org/#eNpNUstygzAM/BWNLyEzBDKd6YWSdHrpsacefSGgJG7xY7BImhL+vTKv9ILllXYlr+jEm3PJpUWRidyXjXIEHql1e2mUdrYh6KDBY8yfoiR1wRiuBZVn6OHYWA0r5q6W2pMv3ISHkBPSlNZ4AtPqAzawC2LRdj3DdEU0WA34qB910sBUnsFWmp6LpRmaRo9UHMLIrGG3h4EBQ/OEbDRpxjx51TYFKWtYKHmOF9WP4Qzs+x22EDoA9NLwmaejC/x+vhBqVxeEfAPIK3WBsi6830lRobZSDDjA580hFIt8roxrCS4bbSuskxFmzhhIAenEy92id1CnzZzfd91szETmZ72rH6zYOej7PA3rYXrKE3GUp//m5KunWx3C5CE6enS0hjZXVKczZXCwdfWyoF79YgZPqBliJ9iGSUTEYlzuRrO9X94a/lUGNTklvBTZvAMpwhYCIMWZyPksTVvjvk9JaXUacq9sSlujFJPnvej/AElH3FQ=)
+[在 Playground 中尝试](https://play.@rue-js/ruejs.org/#eNpNUstygzAM/BWNLyEzBDKd6YWSdHrpsacefSGgJG7xY7BImhL+vTKv9ILllXYlr+jEm3PJpUWRidyXjXIEHql1e2mUdrYh6KDBY8yfoiR1wRiuBZVn6OHYWA0r5q6W2pMv3ISHkBPSlNZ4AtPqAzawC2LRdj3DdEU0WA34qB910sBUnsFWmp6LpRmaRo9UHMLIrGG3h4EBQ/OEbDRpxjx51TYFKWtYKHmOF9WP4Qzs+x22EDoA9NLwmaejC/x+vhBqVxeEfAPIK3WBsi6830lRobZSDDjA580hFIt8roxrCS4bbSuskxFmzhhIAenEy92id1CnzZzfd91szETmZ72rH6zYOej7PA3rYXrKE3GUp//m5KunWx3C5CE6enS0hjZXVKczZXCwdfWyoF79YgZPqBliJ9iGSUTEYlzuRrO9X94a/lUGNTklvBTZvAMpwhYCIMWZyPksTVvjvk9JaXUacq9sSlujFJPnvej/AElH3FQ=)
 
 </div>

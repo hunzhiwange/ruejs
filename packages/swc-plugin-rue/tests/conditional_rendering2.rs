@@ -7,7 +7,7 @@ mod utils;
 #[test]
 fn transforms_conditional_jsx_branch2() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const ReactConditionalDemo: FC = () => {
    const show = ref(true)
@@ -62,7 +62,7 @@ export default ReactConditionalDemo;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$addEventListener, _$setClassName } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$addEventListener, _$setClassName } from '@rue-js/rue';
 const ReactConditionalDemo: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const show = _$vaporWithHookId("ref:1:0", ()=>ref(true));

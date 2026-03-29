@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_props_children_fragment2() {
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 
 const Box: FC<{ title: string }> = (props) => (
   <div className="border p-2 rounded-md space-y-1">
@@ -33,7 +33,7 @@ export default Children;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setClassName } from 'rue-js';
+import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
 const Box: FC<{
     title: string;
 }> = (props)=>vapor(()=>{

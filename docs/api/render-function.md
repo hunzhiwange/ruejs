@@ -39,7 +39,7 @@
   创建原生元素：
 
   ```js
-  import { h } from 'rue-js'
+  import { h } from '@rue-js/rue'
 
   // 除 type 外的所有参数都是可选的
   h('div')
@@ -116,7 +116,7 @@
 - **示例**
 
   ```js
-  import { mergeProps } from 'rue-js'
+  import { mergeProps } from '@rue-js/rue'
 
   const one = {
     class: 'foo',
@@ -158,7 +158,7 @@
 - **示例**
 
   ```js
-  import { h, cloneVNode } from 'rue-js'
+  import { h, cloneVNode } from '@rue-js/rue'
 
   const original = h('div')
   const cloned = cloneVNode(original, { id: 'foo' })
@@ -197,7 +197,7 @@
   <div class="composition-api">
 
   ```js
-  import { h, resolveComponent } from 'rue-js'
+  import { h, resolveComponent } from '@rue-js/rue'
 
   export default {
     setup() {
@@ -214,7 +214,7 @@
   <div class="options-api">
 
   ```js
-  import { h, resolveComponent } from 'rue-js'
+  import { h, resolveComponent } from '@rue-js/rue'
 
   export default {
     render() {
@@ -273,7 +273,7 @@
 - **示例**
 
   ```js
-  import { h, withDirectives } from 'rue-js'
+  import { h, withDirectives } from '@rue-js/rue'
 
   // 自定义指令
   const pin = {
@@ -304,7 +304,7 @@
 - **示例**
 
   ```js
-  import { h, withModifiers } from 'rue-js'
+  import { h, withModifiers } from '@rue-js/rue'
 
   const vnode = h('button', {
     // 相当于 v-on:click.stop.prevent

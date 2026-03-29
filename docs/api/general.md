@@ -9,7 +9,7 @@
 - **示例**
 
   ```js
-  import { version } from 'rue-js'
+  import { version } from '@rue-js/rue'
 
   console.log(version)
   ```
@@ -35,7 +35,7 @@
   <div class="composition-api">
 
   ```js
-  import { ref, nextTick } from 'rue-js'
+  import { ref, nextTick } from '@rue-js/rue'
 
   const count = ref(0)
 
@@ -55,7 +55,7 @@
   <div class="options-api">
 
   ```js
-  import { nextTick } from 'rue-js'
+  import { nextTick } from '@rue-js/rue'
 
   export default {
     data() {
@@ -122,7 +122,7 @@
   不是传递选项对象，而是期望一个函数。此函数的工作方式与组合式 API [`setup()`](/api/composition-api-setup.html#composition-api-setup) 函数相同：它接收 props 和 setup 上下文。返回值应该是一个渲染函数——支持 `h()` 和 JSX：
 
   ```js
-  import { ref, h } from 'rue-js'
+  import { ref, h } from '@rue-js/rue'
 
   const Comp = defineComponent(
     props => {

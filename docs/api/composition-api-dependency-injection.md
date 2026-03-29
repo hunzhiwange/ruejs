@@ -21,7 +21,7 @@
 - **示例**
 
   ```tsx
-  import { useSignal, provide } from 'rue-js'
+  import { useSignal, provide } from '@rue-js/rue'
   import { countSymbol } from './injectionSymbols'
 
   // 提供静态值
@@ -77,7 +77,7 @@
   假设父组件已按照前面 `provide()` 示例中显示的方式提供了值：
 
   ```tsx
-  import { inject } from 'rue-js'
+  import { inject } from '@rue-js/rue'
   import { countSymbol } from './injectionSymbols'
 
   // 注入没有默认值的静态值

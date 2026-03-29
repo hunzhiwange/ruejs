@@ -5,7 +5,7 @@
 在大型应用中，我们可能需要将应用分成更小的块，并且只在需要时从服务器加载组件。为了实现这一点，Rue 提供了 `defineAsyncComponent` 函数：
 
 ```tsx
-import { defineAsyncComponent } from 'rue-js'
+import { defineAsyncComponent } from '@rue-js/rue'
 
 const AsyncComp = defineAsyncComponent(() => {
   return new Promise((resolve, reject) => {
@@ -21,7 +21,7 @@ const AsyncComp = defineAsyncComponent(() => {
 [ES 模块动态导入](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import) 也返回一个 Promise，所以大多数时候我们会将它与 `defineAsyncComponent` 结合使用。像 Vite 和 webpack 这样的打包器也支持这种语法（并将其用作代码分割点），所以我们可以用它来导入组件：
 
 ```tsx
-import { defineAsyncComponent } from 'rue-js'
+import { defineAsyncComponent } from '@rue-js/rue'
 
 const AsyncComp = defineAsyncComponent(() => import('./components/MyComponent.tsx'))
 ```
@@ -40,7 +40,7 @@ app.component(
 它们也可以直接在父组件中定义：
 
 ```tsx
-import { defineAsyncComponent } from 'rue-js'
+import { defineAsyncComponent } from '@rue-js/rue'
 
 const AdminPage = defineAsyncComponent(() => import('./components/AdminPageComponent.tsx'))
 
@@ -89,7 +89,7 @@ const AsyncComp = defineAsyncComponent({
 通过 `requestIdleCallback` 进行水合：
 
 ```tsx
-import { defineAsyncComponent, hydrateOnIdle } from 'rue-js'
+import { defineAsyncComponent, hydrateOnIdle } from '@rue-js/rue'
 
 const AsyncComp = defineAsyncComponent({
   loader: () => import('./Comp.tsx'),
@@ -102,7 +102,7 @@ const AsyncComp = defineAsyncComponent({
 当元素通过 `IntersectionObserver` 可见时进行水合。
 
 ```tsx
-import { defineAsyncComponent, hydrateOnVisible } from 'rue-js'
+import { defineAsyncComponent, hydrateOnVisible } from '@rue-js/rue'
 
 const AsyncComp = defineAsyncComponent({
   loader: () => import('./Comp.tsx'),
@@ -121,7 +121,7 @@ hydrateOnVisible({ rootMargin: '100px' })
 当指定的媒体查询匹配时进行水合。
 
 ```tsx
-import { defineAsyncComponent, hydrateOnMediaQuery } from 'rue-js'
+import { defineAsyncComponent, hydrateOnMediaQuery } from '@rue-js/rue'
 
 const AsyncComp = defineAsyncComponent({
   loader: () => import('./Comp.tsx'),
@@ -134,7 +134,7 @@ const AsyncComp = defineAsyncComponent({
 当在组件元素上触发指定事件时进行水合。触发水合的事件也会在水合完成后重放。
 
 ```tsx
-import { defineAsyncComponent, hydrateOnInteraction } from 'rue-js'
+import { defineAsyncComponent, hydrateOnInteraction } from '@rue-js/rue'
 
 const AsyncComp = defineAsyncComponent({
   loader: () => import('./Comp.tsx'),
@@ -151,7 +151,7 @@ hydrateOnInteraction(['wheel', 'mouseover'])
 ### 自定义策略 {#custom-strategy}
 
 ```tsx
-import { defineAsyncComponent, type HydrationStrategy } from 'rue-js'
+import { defineAsyncComponent, type HydrationStrategy } from '@rue-js/rue'
 
 const myStrategy: HydrationStrategy = (hydrate, forEachElement) => {
   // forEachElement 是一个辅助函数，用于遍历组件非水合 DOM 中的所有根元素，

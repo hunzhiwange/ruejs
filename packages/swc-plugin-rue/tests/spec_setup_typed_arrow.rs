@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn injects_use_setup_for_typed_arrow_return_jsx() {
     let src = r##"
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 const Comp = (): JSX.Element => {
   const count = ref(0)
@@ -21,7 +21,7 @@ const Comp = (): JSX.Element => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Comp = (): JSX.Element =>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));

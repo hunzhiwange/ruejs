@@ -1,4 +1,4 @@
-import { type FC, useState, computed } from 'rue-js'
+import { type FC, useState, computed } from '@rue-js/rue'
 import { extend } from '@rue-js/shared'
 import { RouterLink, useRoute } from '@rue-js/router'
 

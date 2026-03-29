@@ -3,7 +3,7 @@ Card 组件概述
 - 形态：size/border/dash/side/imageFull 等组合类名。
 - 复合组件：Body/Title/Actions/Figure 子组件拼装卡片内容结构。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 type CardSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 

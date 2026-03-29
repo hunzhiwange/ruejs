@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'rue-js'
+import { ref, onMounted } from '@rue-js/rue'
 import { data } from './errors.data.ts'
 import ErrorsTable from './ErrorsTable.vue'
 

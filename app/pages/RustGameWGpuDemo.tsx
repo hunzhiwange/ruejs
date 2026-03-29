@@ -1,4 +1,4 @@
-import { type FC, useEffect } from 'rue-js'
+import { type FC, useEffect } from '@rue-js/rue'
 
 const RustWebGpuDemo: FC = () => {
   // useEffect(() => {

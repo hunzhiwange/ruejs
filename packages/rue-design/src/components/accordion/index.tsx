@@ -4,7 +4,7 @@ Accordion 组件概述
 - 形态：icon/force/use 控制箭头/加号、强制开关、radio 或 details 两种实现。
 - 复合组件：提供 Title/Content 子组件便于组合。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Accordion 组件签名 */
 
 type AccordionIcon = 'arrow' | 'plus'

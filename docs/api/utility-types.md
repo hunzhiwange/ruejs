@@ -11,7 +11,7 @@
 - **示例**
 
   ```ts
-  import type { PropType } from 'rue-js'
+  import type { PropType } from '@rue-js/rue'
 
   interface Book {
     title: string
@@ -115,7 +115,7 @@
   ```ts
   import axios from 'axios'
 
-  declare module 'rue-js' {
+  declare module '@rue-js/rue' {
     interface ComponentCustomProperties {
       $http: typeof axios
       $translate: (key: string) => string
@@ -138,7 +138,7 @@
   ```ts
   import { Route } from '@rue-js/router'
 
-  declare module 'rue-js' {
+  declare module '@rue-js/rue' {
     interface ComponentCustomOptions {
       beforeRouteEnter?(to: any, from: any, next: () => void): void
     }
@@ -158,7 +158,7 @@
 - **示例**
 
   ```ts
-  declare module 'rue-js' {
+  declare module '@rue-js/rue' {
     interface ComponentCustomProps {
       hello?: string
     }
@@ -185,7 +185,7 @@
   允许任何自定义 CSS 属性
 
   ```ts
-  declare module 'rue-js' {
+  declare module '@rue-js/rue' {
     interface CSSProperties {
       [key: `--${string}`]: string
     }

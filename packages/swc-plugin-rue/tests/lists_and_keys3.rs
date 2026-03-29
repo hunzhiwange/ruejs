@@ -11,7 +11,7 @@ import {
   FC,
   reactive,
   computed,
-} from 'rue-js'
+} from '@rue-js/rue'
 interface Todo {
   id: number
   text: string
@@ -102,7 +102,7 @@ export default TodoApp
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, reactive, computed, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from 'rue-js';
+import { FC, reactive, computed, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 interface Todo {
     id: number;
     text: string;

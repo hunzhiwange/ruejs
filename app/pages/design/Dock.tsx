@@ -1,5 +1,5 @@
-import type { FC } from 'rue-js'
-import { ref } from 'rue-js'
+import type { FC } from '@rue-js/rue'
+import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Dock, Tabs } from '@rue-js/design'
@@ -1096,7 +1096,7 @@ const DockDemo: FC = () => {
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { ref } from 'rue-js';
+              code={`import { ref } from '@rue-js/rue';
 import { Dock } from '@rue-js/design';
 const activeAuto = ref(1);
 <Dock

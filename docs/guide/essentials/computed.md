@@ -5,7 +5,7 @@
 在 JSX 中表达式非常方便，但它们只适用于简单操作。在模板中放入太多逻辑会使其臃肿且难以维护。例如，如果我们有一个带有嵌套数组的对象：
 
 ```js
-import { reactive } from 'rue-js'
+import { reactive } from '@rue-js/rue'
 
 const author = reactive({
   name: 'John Doe',
@@ -25,8 +25,8 @@ const author = reactive({
 这就是为什么对于包含响应式数据的复杂逻辑，推荐使用**计算属性**。下面是重构后的示例：
 
 ```tsx
-import { reactive, computed } from 'rue-js'
-import type { FC } from 'rue-js'
+import { reactive, computed } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const AuthorInfo: FC = () => {
   const author = reactive({
@@ -59,8 +59,8 @@ const AuthorInfo: FC = () => {
 你可能注意到我们可以通过调用方法在表达式中达到相同的结果：
 
 ```tsx
-import { reactive } from 'rue-js'
-import type { FC } from 'rue-js'
+import { reactive } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const AuthorInfo: FC = () => {
   const author = reactive({
@@ -97,8 +97,8 @@ const now = computed(() => Date.now())
 计算属性默认是只读的 getter。如果你尝试为计算属性赋新值，会收到运行时警告。在极少数需要"可写"计算属性的情况下，你可以通过提供 getter 和 setter 来创建一个：
 
 ```tsx
-import { ref, computed } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const FullNameEditor: FC = () => {
   const firstName = ref('John')
@@ -132,8 +132,8 @@ const FullNameEditor: FC = () => {
 如果需要，你可以在 getter 的第一个参数中访问计算属性返回的前一个值：
 
 ```tsx
-import { ref, computed } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Counter: FC = () => {
   const count = ref(2)

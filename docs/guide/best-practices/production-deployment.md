@@ -40,7 +40,7 @@
 可以使用 [应用级错误处理程序](/api/application#app-config-errorhandler) 向跟踪服务报告错误：
 
 ```tsx
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp(App)
 

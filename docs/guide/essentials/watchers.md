@@ -7,8 +7,8 @@
 使用组合式 API，我们可以使用 [`watch` 函数](/api/reactivity-core#watch) 在响应式状态发生变化时触发回调：
 
 ```tsx
-import { ref, watch } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, watch } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const QuestionWatcher: FC = () => {
   const question = ref('')
@@ -235,7 +235,7 @@ watch(id, newId => {
 我们可以使用 [`onWatcherCleanup()`](/api/reactivity-core#onwatchercleanup) API 注册一个清理函数，该函数将在侦听器失效并即将重新运行时调用：
 
 ```js
-import { watch, onWatcherCleanup } from 'rue-js'
+import { watch, onWatcherCleanup } from '@rue-js/rue'
 
 watch(id, newId => {
   const controller = new AbortController()
@@ -298,7 +298,7 @@ watchEffect(callback, {
 Post-flush `watchEffect()` 还有一个便捷的别名 `watchPostEffect()`：
 
 ```js
-import { watchPostEffect } from 'rue-js'
+import { watchPostEffect } from '@rue-js/rue'
 
 watchPostEffect(() => {
   /* 在 Rue 更新后执行 */
@@ -322,7 +322,7 @@ watchEffect(callback, {
 Sync `watchEffect()` 还有一个便捷的别名 `watchSyncEffect()`：
 
 ```js
-import { watchSyncEffect } from 'rue-js'
+import { watchSyncEffect } from '@rue-js/rue'
 
 watchSyncEffect(() => {
   /* 在响应式数据变化时同步执行 */
@@ -340,7 +340,7 @@ watchSyncEffect(() => {
 关键是侦听器必须**同步**创建：如果侦听器是在异步回调中创建的，它不会绑定到拥有组件，必须手动停止以避免内存泄漏。以下是一个示例：
 
 ```tsx
-import { watchEffect } from 'rue-js'
+import { watchEffect } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   // 这个会自动停止

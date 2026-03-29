@@ -1,4 +1,4 @@
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const count = ref(0)
 

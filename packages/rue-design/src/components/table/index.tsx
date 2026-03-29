@@ -4,7 +4,7 @@ Table 组件概述
 - 固定布局：当列开启 ellipsis 或指定 tableLayout/fixed 时，自动使用固定布局优化。
 - 复合组件：Head/Body/Foot/TR/TH/TD 便于自定义结构；也可直接传 children。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Table 组件签名 */
 
 type TableSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'

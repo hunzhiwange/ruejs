@@ -7,7 +7,7 @@
 ### 实现自定义输入组件
 
 ```tsx [Child.tsx]
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 interface ChildProps {
   modelValue?: number
@@ -31,7 +31,7 @@ function Child({ modelValue = 0, onUpdateModelValue }: ChildProps) {
 父组件可以通过 props 和回调绑定一个值：
 
 ```tsx [Parent.tsx]
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 function Parent() {
   const countModel = ref(0)
@@ -58,7 +58,7 @@ function CustomInput({ modelValue = '', onUpdateModelValue }: CustomInputProps) 
 Rue 提供了 `useVModel` 组合式函数来简化 v-model 的实现：
 
 ```tsx
-import { useVModel } from 'rue-js'
+import { useVModel } from '@rue-js/rue'
 
 interface CustomInputProps {
   modelValue?: string

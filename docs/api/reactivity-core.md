@@ -315,7 +315,7 @@
   副作用清理（版本）：
 
   ```js
-  import { onWatcherCleanup } from 'rue-js'
+  import { onWatcherCleanup } from '@rue-js/rue'
 
   watchEffect(async () => {
     const { response, cancel } = doAsyncWork(newId)
@@ -535,7 +535,7 @@
   副作用清理：
 
   ```js
-  import { onWatcherCleanup } from 'rue-js'
+  import { onWatcherCleanup } from '@rue-js/rue'
 
   watch(id, async newId => {
     const { response, cancel } = doAsyncWork(newId)
@@ -561,7 +561,7 @@
 - **示例**
 
   ```ts
-  import { watch, onWatcherCleanup } from 'rue-js'
+  import { watch, onWatcherCleanup } from '@rue-js/rue'
 
   watch(id, newId => {
     const { response, cancel } = doAsyncWork(newId)

@@ -1,4 +1,4 @@
-import { type FC, TransitionGroup, ref } from 'rue-js'
+import { type FC, TransitionGroup, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -36,7 +36,7 @@ const ListTransitionExample: FC = () => {
     if (i > -1) items.value.splice(i, 1)
   }
 
-  const code = `import { type FC, ref, TransitionGroup } from 'rue-js';
+  const code = `import { type FC, ref, TransitionGroup } from '@rue-js/rue';
 
 const ListTransitionExample: FC = () => {
   const items = ref<number[]>([1, 2, 3, 4, 5]);

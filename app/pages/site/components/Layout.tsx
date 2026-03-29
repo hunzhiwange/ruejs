@@ -1,4 +1,4 @@
-import { type FC, useState, watch, useEffect } from 'rue-js'
+import { type FC, useState, watch, useEffect } from '@rue-js/rue'
 import { RouterLink, useRoute } from '@rue-js/router'
 
 const ThemePicker: FC = () => {

@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec34() {
     let src = r##"
-import { type FC, useEffect, useState } from 'rue-js'
+import { type FC, useEffect, useState } from '@rue-js/rue'
 import { RouterLink, useRoute } from '@rue-js/router'
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlayground'
 // @ts-ignore
@@ -164,7 +164,7 @@ export default DocDetail
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useEffect, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setClassName, _$setInnerHTML } from 'rue-js';
+import { type FC, useEffect, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setClassName, _$setInnerHTML } from '@rue-js/rue';
 import { RouterLink, useRoute } from '@rue-js/router';
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlayground';
 import MarkdownIt from 'markdown-it';

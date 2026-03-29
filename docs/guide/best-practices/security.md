@@ -12,7 +12,7 @@
 
 ```tsx
 // 永远不要这样做！
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp({
   template: `<div>${userProvidedString}</div>`, // 永远不要这样做

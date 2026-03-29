@@ -95,7 +95,7 @@
   此选项的运行时值不会被使用。实际类型应使用 `SlotsType` 类型辅助工具通过类型转换声明：
 
   ```ts
-  import { SlotsType } from 'rue-js'
+  import { SlotsType } from '@rue-js/rue'
 
   defineComponent({
     slots: Object as SlotsType<{

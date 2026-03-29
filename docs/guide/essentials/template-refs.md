@@ -13,8 +13,8 @@
 要获取引用，我们可以在组件中使用 `ref()`：
 
 ```tsx
-import { ref, onMounted } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, onMounted } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const InputFocus: FC = () => {
   // 声明一个 ref 来保存元素引用
@@ -34,7 +34,7 @@ const InputFocus: FC = () => {
 如果你试图观察模板 ref 的变化，请务必考虑 ref 值为 `null` 的情况：
 
 ```tsx
-import { watchEffect } from 'rue-js'
+import { watchEffect } from '@rue-js/rue'
 
 watchEffect(() => {
   if (input.value) {
@@ -54,8 +54,8 @@ watchEffect(() => {
 `ref` 也可以在子组件上使用。在这种情况下，引用将是组件实例：
 
 ```tsx
-import { ref, onMounted } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, onMounted } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 import Child from './Child'
 
 const Parent: FC = () => {
@@ -77,8 +77,8 @@ const Parent: FC = () => {
 默认情况下，组件是**私有的**：引用子组件的父组件无法访问任何东西，除非子组件选择使用导出暴露公共接口：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 // 子组件
 const Child: FC = () => {
@@ -110,8 +110,8 @@ export default Child
 当在列表渲染中使用 `ref` 时，相应的 ref 应该包含一个数组值，在挂载后会被填充元素：
 
 ```tsx
-import { ref, onMounted } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, onMounted } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const ListWithRefs: FC = () => {
   const list = ref([

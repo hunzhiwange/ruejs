@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_refs_tsx() {
     let src = r##"
-import { type FC, useRef } from 'rue-js';
+import { type FC, useRef } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const Refs: FC = () => {
@@ -35,7 +35,7 @@ export default Refs;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useRef, _$vaporWithHookId, useSetup, vapor, onBeforeUnmount, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$vaporBindUseRef, _$setAttribute, _$addEventListener, _$setClassName } from 'rue-js';
+import { type FC, useRef, _$vaporWithHookId, useSetup, vapor, onBeforeUnmount, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$vaporBindUseRef, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Refs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{

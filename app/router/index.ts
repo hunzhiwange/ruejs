@@ -1,4 +1,4 @@
-import { useComponent } from 'rue-js'
+import { useComponent } from '@rue-js/rue'
 import { createRouter, createWebHashHistory } from '@rue-js/router'
 
 type RouteRecord = { path: string; component: any }

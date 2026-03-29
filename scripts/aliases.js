@@ -31,5 +31,5 @@ for (const dir of dirs) {
 
 export { entries }
 
-// additional alias for legacy 'rue-js' import path
-entries.push({ find: 'rue-js', replacement: resolveEntryForPkg('rue') })
+// additional alias for legacy '@rue-js/rue' import path
+entries.push({ find: '@rue-js/rue', replacement: resolveEntryForPkg('rue') })

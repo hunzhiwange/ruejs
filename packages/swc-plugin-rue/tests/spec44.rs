@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec44() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const OrCases: FC = () => {
   const show = ref(false)
@@ -28,7 +28,7 @@ export default OrCases
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
 const OrCases: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const show = _$vaporWithHookId("ref:1:0", ()=>ref(false));

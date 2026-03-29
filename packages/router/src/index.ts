@@ -16,7 +16,7 @@ import {
   vapor,
   watchEffect,
   useSetup,
-} from 'rue-js'
+} from '@rue-js/rue'
 import { extend } from '@rue-js/shared'
 
 /** 路由静态记录：

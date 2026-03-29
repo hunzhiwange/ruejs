@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec16() {
     let src = r##"
-import { type FC, TransitionGroup, ref } from 'rue-js'
+import { type FC, TransitionGroup, ref } from '@rue-js/rue'
 
 const ListTransitionExample: FC = () => {
   const items = ref<number[]>([1, 2, 3, 4, 5])
@@ -123,7 +123,7 @@ export default ListTransitionExample
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$addEventListener, _$setClassName } from 'rue-js';
+import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$addEventListener, _$setClassName } from '@rue-js/rue';
 const ListTransitionExample: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const items = _$vaporWithHookId("ref:1:0", ()=>ref<number[]>([

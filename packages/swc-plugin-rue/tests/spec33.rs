@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec33() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const ThemePicker: FC<{ value: string; onChange: (t: string) => void }> = props => {
   const themes = [
@@ -125,7 +125,7 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 const ThemePicker: FC<{
     value: string;
     onChange: (t: string) => void;

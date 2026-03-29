@@ -27,7 +27,7 @@ impl Runner {
 fn transforms_static_literals_without_watchers() {
     let r = Runner;
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 
 const StaticLiterals: FC = () => (
   <div>

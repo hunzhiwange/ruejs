@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn setup_return_uses_inner_bindings_consistently() {
     let src = r##"
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const ThemePicker: FC = () => {
   const themes = ['light', 'dark']
@@ -25,7 +25,7 @@ const ThemePicker: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const ThemePicker: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const themes = [

@@ -1,4 +1,4 @@
-import { type FC, computed, ref } from 'rue-js'
+import { type FC, computed, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -104,7 +104,7 @@ const TreeView: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, ref, computed } from 'rue-js';
+                code={`import { type FC, ref, computed } from '@rue-js/rue';
 
 type Node = { name: string; children?: Node[] };
 

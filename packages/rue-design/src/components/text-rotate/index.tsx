@@ -2,7 +2,7 @@
 TextRotate 组件概述
 - 行为：在容器内轮换显示多段文本；支持自定义 inner 容器类。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 TextRotate 组件签名 */
 
 interface TextRotateItem {

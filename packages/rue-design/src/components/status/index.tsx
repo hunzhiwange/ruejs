@@ -2,7 +2,7 @@
 Status 组件概述
 - 形态：span 或 div 标签；支持尺寸与颜色类名。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Status 组件签名 */
 
 type StatusAs = 'span' | 'div'

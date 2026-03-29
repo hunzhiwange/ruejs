@@ -22,8 +22,8 @@
 这是 `<MyModal>` 的实现：
 
 ```tsx
-import { useState } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useState } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyModal: FC = () => {
   const [open, setOpen] = useState(false)
@@ -67,9 +67,9 @@ export default MyModal
 `<Teleport>` 提供了一种干净的方法来解决这些问题，允许我们跳出嵌套的 DOM 结构。让我们修改 `<MyModal>` 以使用 `<Teleport>`：
 
 ```tsx
-import { useState } from 'rue-js'
-import { Teleport } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useState } from '@rue-js/rue'
+import { Teleport } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyModal: FC = () => {
   const [open, setOpen] = useState(false)

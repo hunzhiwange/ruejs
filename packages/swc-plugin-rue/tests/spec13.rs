@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec13() {
     let src = r##"
-import { FC, ref } from 'rue-js';
+import { FC, ref } from '@rue-js/rue';
 import MarkdownIt from 'markdown-it';
 
 const md = new MarkdownIt({ html: true, linkify: true, breaks: true });
@@ -51,7 +51,7 @@ export default MarkdownEditor;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, ref, _$vaporWithHookId, useSetup, vapor, _$createElement, _$appendChild, watchEffect, _$addEventListener, _$setClassName, _$setInnerHTML, _$setValue } from 'rue-js';
+import { FC, ref, _$vaporWithHookId, useSetup, vapor, _$createElement, _$appendChild, watchEffect, _$addEventListener, _$setClassName, _$setInnerHTML, _$setValue } from '@rue-js/rue';
 import MarkdownIt from 'markdown-it';
 const md = new MarkdownIt({
     html: true,

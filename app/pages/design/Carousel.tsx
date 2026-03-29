@@ -1,4 +1,4 @@
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Button, Carousel, Tabs } from '@rue-js/design'

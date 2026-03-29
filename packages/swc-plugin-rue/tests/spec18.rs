@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec18() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const Hello: FC = () => {
   const color = ref("blue")
@@ -37,7 +37,7 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporShowStyle, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild, watchEffect } from 'rue-js';
+import { type FC, ref, _$vaporShowStyle, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild, watchEffect } from '@rue-js/rue';
 const Hello: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));

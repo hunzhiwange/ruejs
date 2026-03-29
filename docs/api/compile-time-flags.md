@@ -1,7 +1,7 @@
 # 编译时标志 {#compile-time-flags}
 
 :::tip
-编译时标志仅在使用 Rue 的 `esm-bundler` 构建时适用（即 `rue-js/dist/rue.esm-bundler.js`）。
+编译时标志仅在使用 Rue 的 `esm-bundler` 构建时适用（即 `@rue-js/rue/dist/rue.esm-bundler.js`）。
 :::
 
 使用 Rue 进行构建时，可以配置许多编译时标志以启用/禁用某些功能。使用编译时标志的好处是，通过这种方式禁用的功能可以通过 tree-shaking 从最终包中移除。

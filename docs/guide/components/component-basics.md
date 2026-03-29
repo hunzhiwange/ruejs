@@ -70,7 +70,7 @@ function App() {
 
 ```tsx
 // Counter.tsx
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 interface CounterProps {
   onIncrement?: () => void
@@ -138,7 +138,7 @@ function App() {
 有时我们需要动态切换不同的组件：
 
 ```tsx
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 import { Home } from './Home'
 import { About } from './About'
 import { Posts } from './Posts'

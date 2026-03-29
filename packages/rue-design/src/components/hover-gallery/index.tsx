@@ -3,7 +3,7 @@ HoverGallery 组件概述
 - 数据驱动：支持字符串 src、对象项或自定义节点 node。
 - 标签：可渲染为 figure 或 div。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 HoverGallery 组件签名 */
 
 interface HoverGalleryItem {

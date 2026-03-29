@@ -58,7 +58,7 @@
   在组合式 API 中，引用将存储在同名的 ref 中：
 
   ```tsx
-  import { useTemplateRef } from 'rue-js'
+  import { useTemplateRef } from '@rue-js/rue'
 
   const pRef = useTemplateRef('p')
   ```

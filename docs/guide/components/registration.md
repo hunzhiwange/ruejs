@@ -9,7 +9,7 @@ Rue 组件需要被"注册"以便 Rue 知道在模板中遇到它们时去哪里
 我们可以使用 `app.component()` 方法使组件在当前 [Rue 应用](/guide/essentials/application) 中全局可用：
 
 ```tsx
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp({})
 

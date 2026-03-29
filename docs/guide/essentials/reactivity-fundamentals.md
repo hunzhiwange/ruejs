@@ -7,7 +7,7 @@
 在 Rue 中，声明响应式状态推荐使用 [`ref()`](/api/reactivity-core#ref) 函数：
 
 ```js
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 const count = ref(0)
 ```
@@ -27,8 +27,8 @@ console.log(count.value) // 1
 在组件的 JSX 中可以直接使用 ref：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Counter: FC = () => {
   const count = ref(0)
@@ -48,8 +48,8 @@ const Counter: FC = () => {
 对于更复杂的逻辑，我们可以在同一作用域声明修改 ref 的函数：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Counter: FC = () => {
   const count = ref(0)
@@ -99,7 +99,7 @@ Refs 可以持有任何值类型，包括深层嵌套的对象、数组或 JavaS
 一个 ref 会使它的值深层响应式。这意味着即使修改嵌套对象或数组，也可以检测到变化：
 
 ```js
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 const obj = ref({
   nested: { count: 0 },
@@ -129,7 +129,7 @@ function mutateDeeply() {
 要等待 DOM 更新在状态更改后完成，可以使用 [nextTick()](/api/general#nexttick) 全局 API：
 
 ```js
-import { nextTick, ref } from 'rue-js'
+import { nextTick, ref } from '@rue-js/rue'
 
 async function increment() {
   count.value++
@@ -143,7 +143,7 @@ async function increment() {
 还有另一种声明响应式状态的方式，使用 `reactive()` API。与将内部值包装在特殊对象中的 ref 不同，`reactive()` 使对象本身成为响应式的：
 
 ```js
-import { reactive } from 'rue-js'
+import { reactive } from '@rue-js/rue'
 
 const state = reactive({ count: 0 })
 ```

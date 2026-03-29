@@ -8,7 +8,7 @@ Teleport 组件概述
 */
 // 参考 Vue3 的 Teleport 设计思想，结合 Rue 的 vapor/renderBetween 机制实现
 
-import { type FC, h, onMounted, onUnmounted, renderBetween, vapor, watchEffect } from 'rue-js'
+import { type FC, h, onMounted, onUnmounted, renderBetween, vapor, watchEffect } from '@rue-js/rue'
 import {
   createComment,
   createDocumentFragment,

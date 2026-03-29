@@ -28,7 +28,7 @@ const vHighlight = {
 自定义指令被定义为一个包含类似于组件生命周期钩子的对象。这些钩子接收指令绑定的元素。以下是一个示例，展示了一个在元素被 Rue 插入 DOM 时为其添加类的指令：
 
 ```tsx
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 // 启用模板中的 v-highlight
 const vHighlight = {
@@ -51,7 +51,7 @@ export const MyComponent: FC = () => {
 也可以在应用级别全局注册自定义指令：
 
 ```ts
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp({})
 
@@ -63,7 +63,7 @@ app.directive('highlight', {
 })
 ```
 
-可以通过扩展 `rue-js` 中的 `ComponentCustomProperties` 接口来为全局自定义指令添加类型支持。
+可以通过扩展 `@rue-js/rue` 中的 `ComponentCustomProperties` 接口来为全局自定义指令添加类型支持。
 
 更多详情：[类型化全局自定义指令](/guide/typescript/composition-api#typing-global-custom-directives) <sup class="vt-badge ts" />
 
@@ -74,7 +74,7 @@ app.directive('highlight', {
 一个常见的例子是 `v-focus` 自定义指令，它将元素带入聚焦状态。
 
 ```tsx
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const vFocus = {
   mounted: (el: HTMLElement) => el.focus(),

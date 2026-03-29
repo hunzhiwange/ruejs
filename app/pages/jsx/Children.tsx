@@ -1,4 +1,4 @@
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -45,7 +45,7 @@ const Children: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC } from 'rue-js';
+                code={`import { type FC } from '@rue-js/rue';
 
 const Box: FC<{ title: string }> = (props) => (
   <div className="border p-2 rounded-md space-y-1">

@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec2() {
     let src = r##"
-import { type FC, ref, h, Fragment } from 'rue-js';
+import { type FC, ref, h, Fragment } from '@rue-js/rue';
 const count = ref(0);
 const Comp: FC = () => (
   <>
@@ -23,7 +23,7 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, Fragment, _$vaporWithHookId, vapor, _$createElement, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from 'rue-js';
+import { type FC, ref, h, Fragment, _$vaporWithHookId, vapor, _$createElement, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));
 const Comp: FC = ()=>vapor(()=>{
         const _root = _$createDocumentFragment();

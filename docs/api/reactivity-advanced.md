@@ -94,7 +94,7 @@
   创建一个防抖 ref，仅在最新 set 调用后的一定超时后才更新值：
 
   ```js
-  import { customRef } from 'rue-js'
+  import { customRef } from '@rue-js/rue'
 
   export function useDebouncedRef(value, delay = 200) {
     let timeout

@@ -3,7 +3,7 @@ Badge 组件概述
 - 形态：variant/size/outline/dash/soft/ghost 等组合类名。
 - 用途：展示状态或标签内容。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Badge 组件签名 */
 
 type BadgeVariant =

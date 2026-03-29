@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec36() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlayground'
 import Code from '../site/components/Code'
 
@@ -64,7 +64,7 @@ const FormBindings: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, ref } from 'rue-js';
+                code={`import { type FC, ref } from '@rue-js/rue';
 
 const FormBindings: FC = () => {
   const text = ref('Edit me');
@@ -349,7 +349,7 @@ export default FormBindings
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const FormBindings: FC = ()=>{
@@ -406,7 +406,7 @@ const FormBindings: FC = ()=>{
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
         {activeTab.value === 'code' && (<div className="card bg-base-100 shadow overflow-auto h-[520px] md:h-[720px]">
             <div className="card-body p-0">
-              <Code className="h-full" lang="tsx" code={`import { type FC, ref } from 'rue-js';
+              <Code className="h-full" lang="tsx" code={`import { type FC, ref } from '@rue-js/rue';
 
 const FormBindings: FC = () => {
   const text = ref('Edit me');

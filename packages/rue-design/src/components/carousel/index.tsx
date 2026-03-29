@@ -4,8 +4,8 @@ Carousel 组件概述
 - 自动播放：auto/interval/loop/autoDirection 控制翻页节奏与循环。
 - 复合组件：Item 子组件表示单个滑块。
 */
-import type { FC } from 'rue-js'
-import { onMounted, onUnmounted, useRef, watch } from 'rue-js'
+import type { FC } from '@rue-js/rue'
+import { onMounted, onUnmounted, useRef, watch } from '@rue-js/rue'
 /* 生命周期钩子与引用：驱动自动播放与滚动定位 */
 
 type CarouselAlign = 'start' | 'center' | 'end'

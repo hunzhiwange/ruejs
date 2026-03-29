@@ -6,7 +6,7 @@ Rue 单文件组件（简称 **SFC**，扩展名为 `*.rue`）是一种特殊的
 
 ```vue
 <script lang="ts">
-import { ref, type FC } from 'rue-js'
+import { ref, type FC } from '@rue-js/rue'
 
 export default {
   setup() {
@@ -32,7 +32,7 @@ Rue 的 Composition API 风格：
 
 ```vue
 <script setup lang="ts">
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 const greeting = ref('Hello World!')
 </script>
@@ -130,7 +130,7 @@ SFC 版本：
 
 ```vue
 <script setup lang="ts">
-import { ref, computed } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
 
 const props = defineProps<{
   items: string[]
@@ -160,7 +160,7 @@ input {
 JSX/TSX 版本：
 
 ```tsx
-import { ref, computed, type FC } from 'rue-js'
+import { ref, computed, type FC } from '@rue-js/rue'
 
 interface Props {
   items: string[]

@@ -313,7 +313,7 @@ npm test
 如果 composable 只使用响应式 API，那么可以通过直接调用它并断言其返回的状态/方法来测试它：
 
 ```ts [counter.ts]
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 export function useCounter() {
   const count = ref(0)
@@ -344,7 +344,7 @@ describe('useCounter', () => {
 依赖于生命周期钩子或 Provide / Inject 的 composable 需要包装在宿主组件中才能进行测试。我们可以创建一个如下所示的辅助函数：
 
 ```ts [test-utils.ts]
-import { createApp, h, type VNode } from 'rue-js'
+import { createApp, h, type VNode } from '@rue-js/rue'
 
 export function withSetup<T>(composable: () => T): [T, ReturnType<typeof createApp>] {
   let result!: T

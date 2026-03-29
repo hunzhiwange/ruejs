@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_components() {
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const Hello: FC<{ name: string }> = (props) => <div>你好，{props.name}</div>;
@@ -33,7 +33,7 @@ export default Components;
     // - 父组件：组件元素以注释锚点占位，renderBetween 插入 <Hello/>
     // - 文本与属性：静态文本使用 _$createTextNode；className 使用 setAttribute
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from 'rue-js';
+import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Hello: FC<{
     name: string;

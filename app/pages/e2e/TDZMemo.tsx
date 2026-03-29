@@ -1,4 +1,4 @@
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 const TDZMemo: FC = () => {
   const themes = ['light', 'dark']

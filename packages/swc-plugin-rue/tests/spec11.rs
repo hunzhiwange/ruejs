@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec11() {
     let src = r##"
-import { FC, ref } from 'rue-js';
+import { FC, ref } from '@rue-js/rue';
 
 const FormBindings: FC = () => {
   const text = ref('Edit me');
@@ -153,7 +153,7 @@ export default FormBindings;
     // - keyedList renderItem：label/input/span 构造每项片段并渲染
     // - 多选 select：watch 中使用 Set 同步 options.selected
     let expected_fragment = r##"
-import { FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from 'rue-js';
+import { FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
 const FormBindings: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const text = _$vaporWithHookId("ref:1:0", ()=>ref('Edit me'));

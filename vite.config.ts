@@ -96,7 +96,7 @@ export default defineConfig({
   resolve: {
     conditions: ['development', 'browser'],
     alias: {
-      'rue-js': path.resolve(rootDir, 'packages/rue/src'),
+      '@rue-js/rue': path.resolve(rootDir, 'packages/rue/src'),
       '@rue-js/router': path.resolve(rootDir, 'packages/router/src'),
       '@rue-js/jsx-runtime': path.resolve(rootDir, 'packages/jsx-runtime/src'),
       '@rue-js/jsx-dev-runtime': path.resolve(rootDir, 'packages/jsx-dev-runtime/src'),

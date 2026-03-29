@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_events() {
     let src = r##"
-import { type FC, useState } from 'rue-js';
+import { type FC, useState } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const DEC_FORMAT = (n: number) => String(n);
@@ -120,7 +120,7 @@ export default Events;
     // - disabled：基于 list.length 的 watch 控制
     // - 函数状态：调用 valueOf() 的格式化函数再 watch 更新
     let expected_fragment = r##"
-import { type FC, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setDisabled } from 'rue-js';
+import { type FC, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setDisabled } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const DEC_FORMAT = (n: number)=>String(n);
 const HEX_FORMAT = (n: number)=>'0x' + n.toString(16);

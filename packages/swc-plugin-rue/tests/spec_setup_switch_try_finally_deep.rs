@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn deep_switch_try_finally_with_nested_whitelist_and_complex_params() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const Comp: FC = () => {
   const a = ref(0)
@@ -42,7 +42,7 @@ const Comp: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, onBeforeUnmount, watchEffect, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, onBeforeUnmount, watchEffect, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Comp: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const a = _$vaporWithHookId("ref:1:0", ()=>ref(0));

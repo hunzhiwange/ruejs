@@ -5,13 +5,13 @@
 ```bash
 pnpm create vite@latest my-app -- --template vanilla
 cd my-app
-pnpm add rue-js @rue-js/router
+pnpm add @rue-js/rue @rue-js/router
 ```
 
 在 `app.tsx` 中创建应用：
 
 ```tsx
-import { type FC, useApp, useError } from 'rue-js'
+import { type FC, useApp, useError } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
 

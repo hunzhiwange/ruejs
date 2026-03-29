@@ -20,7 +20,7 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "rue-js": ["packages/rue/src"],
+      "@rue-js/rue": ["packages/rue/src"],
       "@rue-js/router": ["packages/router/src"],
       "@rue-js/jsx-runtime": ["packages/jsx-runtime/src"],
       "@rue-js/jsx-dev-runtime": ["packages/jsx-dev-runtime/src"],

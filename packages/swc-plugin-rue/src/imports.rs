@@ -15,7 +15,7 @@ use swc_core::ecma::visit::{Visit, VisitWith};
 /// 运行时导入收集与按需注入：
 /// - `RuntimeUseCollector` 通过遍历表达式与类型引用，收集使用到的运行时符号与类型（如 `FC`）。
 /// - `ensure_runtime_imports` 在模块级：
-///   - 若已有从 `rue-js` 的 import，则仅追加缺失的 specifier；
+///   - 若已有从 `@rue-js/rue` 的 import，则仅追加缺失的 specifier；
 ///   - 若不存在，则在顶部插入新的 import，并保持稳定的导入顺序以便测试断言与可读性。
 /// - 设计权衡：按需导入避免“全量导入”造成的未使用警告与打包体积波动，同时保证多次转换只产生一次导入。
 struct RuntimeUseCollector {
@@ -84,11 +84,11 @@ impl Visit for RuntimeUseCollector {
     }
 }
 
-/// 基于模块实际使用情况按需从 `rue-js` 注入运行时导入。
+/// 基于模块实际使用情况按需从 `@rue-js/rue` 注入运行时导入。
 /// 若已存在相同源的 import，则仅追加缺失的 specifier；否则在模块顶部插入新的 import。
 pub fn ensure_runtime_imports(m: &mut Module) {
     crate::log::debug("rue-swc: ensure_runtime_imports start");
-    let import_source = Str { span: DUMMY_SP, value: Atom::from("rue-js").into(), raw: None };
+    let import_source = Str { span: DUMMY_SP, value: Atom::from("@rue-js/rue").into(), raw: None };
 
     let mut collector = RuntimeUseCollector::new();
     m.visit_with(&mut collector);
@@ -143,7 +143,7 @@ pub fn ensure_runtime_imports(m: &mut Module) {
     let mut merged = false;
     for item in &mut m.body {
         if let ModuleItem::ModuleDecl(ModuleDecl::Import(ref mut decl)) = item {
-            if decl.src.value.as_str() == Some("rue-js") {
+            if decl.src.value.as_str() == Some("@rue-js/rue") {
                 // 先追加类型导入，再按排序后的值导入
                 // 去重策略：若已存在同名 specifier（默认/命名/命名空间），则跳过追加
                 for (name, is_type_only) in need_type.iter().chain(need.iter()) {
@@ -166,14 +166,14 @@ pub fn ensure_runtime_imports(m: &mut Module) {
                     }
                 }
                 merged = true;
-                crate::log::debug("rue-swc: merge existing rue-js import");
+                crate::log::debug("rue-swc: merge existing @rue-js/rue import");
                 break;
             }
         }
     }
 
     if !merged {
-        crate::log::debug("rue-swc: insert new rue-js import");
+        crate::log::debug("rue-swc: insert new @rue-js/rue import");
         let mut specifiers: Vec<ImportSpecifier> = Vec::new();
         // 先类型，再值导入（已排序）
         for (name, is_type_only) in need_type.into_iter().chain(need.into_iter()) {
@@ -184,7 +184,7 @@ pub fn ensure_runtime_imports(m: &mut Module) {
                 is_type_only,
             }));
         }
-        // 在模块顶部插入新的 import，保持导入源一致（'rue-js'）
+        // 在模块顶部插入新的 import，保持导入源一致（'@rue-js/rue'）
         let import = ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
             span: DUMMY_SP,
             specifiers,

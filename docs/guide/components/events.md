@@ -50,7 +50,7 @@ function MyButton({ onIncreaseBy }: MyButtonProps) {
 然后，当我们在父组件中监听事件时，可以直接在回调中访问事件参数：
 
 ```tsx
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 function Parent() {
   const count = ref(0)
@@ -163,7 +163,7 @@ function MyComponent({ onClick, onSubmit }: MyComponentProps) {
 对于更复杂的场景，Rue 提供了 `emitted` 辅助函数：
 
 ```tsx
-import { emitted } from 'rue-js'
+import { emitted } from '@rue-js/rue'
 
 interface MyComponentProps {
   onSubmit?: (payload: { email: string; password: string }) => void

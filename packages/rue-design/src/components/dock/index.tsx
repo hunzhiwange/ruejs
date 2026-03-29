@@ -3,7 +3,7 @@ Dock 组件概述
 - 形态：size 控制大小，activeIndex 或 item.active 控制选中状态。
 - 复合组件：Item/Label 子组件构建停靠项结构，支持 a/button/div。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Dock 组件签名 */
 
 type DockSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'

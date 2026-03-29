@@ -1,4 +1,4 @@
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const About: FC<{ theme: string; setTheme: (t: string) => void }> = _p => {
   return <div>关于</div>

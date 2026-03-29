@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec47() {
     let src = r##"
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const About: FC = () => {
   return (
@@ -166,7 +166,7 @@ export default About
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$setStyle, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from 'rue-js';
+import { type FC, vapor, _$createElement, _$createTextNode, _$setStyle, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from '@rue-js/rue';
 const About: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");

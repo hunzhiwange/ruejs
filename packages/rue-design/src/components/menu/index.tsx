@@ -3,7 +3,7 @@ Menu 组件概述
 - 形态：方向与尺寸控制菜单布局（vertical/horizontal、xs~xl）。
 - 数据驱动：支持 Title/Item/Dropdown/Submenu 组合；或使用复合子组件。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 import { RouterLink } from '@rue-js/router'
 /* 引入 RouterLink 以支持路由内部跳转 */
 

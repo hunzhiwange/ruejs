@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec14() {
     let src = r##"
-import { FC, ref, useEffect } from 'rue-js';
+import { FC, ref, useEffect } from '@rue-js/rue';
 
 type CommitItem = {
   html_url: string;
@@ -119,7 +119,7 @@ export default FetchingData;
     // - 文本插值：_$createTextWrapper + _$settextContent + watch
     // - 条件插槽：commits.length > 0 → vapor 片段；否则 ""；统一转为 vnode 并 renderBetween
     let expected_fragment = r##"
-import { FC, ref, useEffect, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from 'rue-js';
+import { FC, ref, useEffect, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
 type CommitItem = {
     html_url: string;
     sha: string;

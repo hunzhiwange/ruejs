@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn does_not_inject_use_setup_when_no_names() {
     let src = r##"
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const Comp: FC = () => {
   console.log('setup only')
@@ -20,7 +20,7 @@ const Comp: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Comp: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             console.log('setup only');

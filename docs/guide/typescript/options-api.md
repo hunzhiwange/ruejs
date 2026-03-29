@@ -11,8 +11,8 @@
 Options API 中的 props 类型推断需要用 `defineComponent()` 包装组件。有了它，Rue 能够基于 `props` 选项推断类型，并考虑额外的选项如 `required: true` 和 `default`：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = defineComponent({
   // 启用类型推断
@@ -36,9 +36,9 @@ const App: FC = defineComponent({
 要为复杂 props 类型添加注解，我们可以使用 `PropType` 工具类型：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { PropType } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { PropType } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 interface Book {
   title: string
@@ -72,9 +72,9 @@ const App: FC = defineComponent({
 如果你的 TypeScript 版本低于 `4.7`，在使用函数值作为 `validator` 和 `default` prop 选项时必须小心——确保使用箭头函数：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { PropType } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { PropType } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 interface Book {
   title: string
@@ -102,8 +102,8 @@ const App: FC = defineComponent({
 我们可以使用 `emits` 选项的对象语法为发出的事件声明预期的 payload 类型。此外，所有未声明的发出事件在调用时将抛出类型错误：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 type Emits = {
   addBook: (payload: { bookName: string }) => void
@@ -133,8 +133,8 @@ const App: FC<{}, Emits> = defineComponent({
 计算属性根据其返回值推断其类型：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = defineComponent({
   data() {
@@ -156,8 +156,8 @@ const App: FC = defineComponent({
 在某些情况下，你可能希望显式地为计算属性添加类型注解以确保其实现正确：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = defineComponent({
   data() {
@@ -192,8 +192,8 @@ const App: FC = defineComponent({
 
 ```vue
 <script lang="ts">
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = defineComponent({
   methods: {
@@ -213,8 +213,8 @@ const App: FC = defineComponent({
 没有类型注解，`event` 参数将隐式具有 `any` 类型。如果在 `tsconfig.json` 中使用 `"strict": true` 或 `"noImplicitAny": true`，这也会导致 TS 错误。因此，建议显式注解事件处理器的参数。此外，在访问 `event` 的属性时，你可能需要使用类型断言：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = defineComponent({
   methods: {
@@ -232,7 +232,7 @@ const App: FC = defineComponent({
 ```ts
 import axios from 'axios'
 
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface ComponentCustomProperties {
     $http: typeof axios
     $translate: (key: string) => string
@@ -242,7 +242,7 @@ declare module 'rue-js' {
 
 另请参阅：
 
-- [组件类型扩展的 TypeScript 单元测试](https://github.com/rue-jsjs/core/blob/main/packages-private/dts-test/componentTypeExtensions.test-d.tsx)
+- [组件类型扩展的 TypeScript 单元测试](https://github.com/@rue-js/ruejs/core/blob/main/packages-private/dts-test/componentTypeExtensions.test-d.tsx)
 
 ### 类型扩充的位置 {#type-augmentation-placement}
 
@@ -252,7 +252,7 @@ declare module 'rue-js' {
 
 ```ts
 // 不起作用，会覆盖原始类型。
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface ComponentCustomProperties {
     $translate: (key: string) => string
   }
@@ -263,7 +263,7 @@ declare module 'rue-js' {
 // 正确工作
 export {}
 
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface ComponentCustomProperties {
     $translate: (key: string) => string
   }
@@ -275,8 +275,8 @@ declare module 'rue-js' {
 一些插件，例如 `@rue-js/router`，为自定义组件选项提供支持，如 `beforeRouteEnter`：
 
 ```ts
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = defineComponent({
   beforeRouteEnter(to, from, next) {
@@ -290,7 +290,7 @@ const App: FC = defineComponent({
 ```ts
 import { Route } from '@rue-js/router'
 
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   interface ComponentCustomOptions {
     beforeRouteEnter?(to: Route, from: Route, next: () => void): void
   }
@@ -303,7 +303,7 @@ declare module 'rue-js' {
 
 另请参阅：
 
-- [组件类型扩展的 TypeScript 单元测试](https://github.com/rue-jsjs/core/blob/main/packages-private/dts-test/componentTypeExtensions.test-d.tsx)
+- [组件类型扩展的 TypeScript 单元测试](https://github.com/@rue-js/ruejs/core/blob/main/packages-private/dts-test/componentTypeExtensions.test-d.tsx)
 
 ## 为全局自定义指令添加类型 {#typing-global-custom-directives}
 

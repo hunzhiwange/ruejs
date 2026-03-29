@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec12() {
     let src = r##"
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const Hello: FC = () => {
   return (
@@ -32,7 +32,7 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$setClassName } from 'rue-js';
+import { type FC, vapor, _$createElement, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$setClassName } from '@rue-js/rue';
 const Hello: FC = ()=>{
     return vapor(()=>{
         const _root = _$createDocumentFragment();

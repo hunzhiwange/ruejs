@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec8() {
     let src = r##"
-import { type FC, ref, h } from 'rue-js';
+import { type FC, ref, h } from '@rue-js/rue';
 const Hello: FC = () => (
   <div>
     <h1 style={{ textAlign: 'center', color: '#e07721ff' }}>Rue 响应式框架示例</h1>
@@ -22,7 +22,7 @@ export default Hello;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild, watchEffect } from 'rue-js';
+import { type FC, ref, h, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild, watchEffect } from '@rue-js/rue';
 const Hello: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         const _el1 = _$createElement("h1");

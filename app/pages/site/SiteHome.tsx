@@ -1,4 +1,4 @@
-import { computed, type FC, reactive, ref, useState } from 'rue-js'
+import { computed, type FC, reactive, ref, useState } from '@rue-js/rue'
 import { RouterLink as Link } from '@rue-js/router'
 import Code from './components/Code'
 
@@ -240,7 +240,7 @@ const SiteHome: FC = () => (
           <Code
             className="h-full"
             lang="tsx"
-            code={`import { type FC } from 'rue-js'
+            code={`import { type FC } from '@rue-js/rue'
 
 const Hello: FC = () => (
   <div className="card bg-primary text-primary-content shadow-sm">
@@ -373,7 +373,7 @@ export default HelloWorld`}
             lang="ts"
             code={`/* RUE_VAPOR_TRANSFORMED */
 import { jsxDEV as _jsxDEV } from "@rue-js/jsx-dev-runtime";
-import { vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setClassName } from "rue-js";
+import { vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setClassName } from "@rue-js/rue";
 const Hello = ()=>vapor(()=>{
         const _root = _$createElement("div");
         _$setClassName(_root, "card bg-primary text-primary-content shadow-sm");
@@ -517,7 +517,7 @@ export default HelloWorld;`}
           <Code
             className="h-full"
             lang="tsx"
-            code={`import { type FC, useState, ref, reactive, computed } from 'rue-js';
+            code={`import { type FC, useState, ref, reactive, computed } from '@rue-js/rue';
 
 type Video = { title: string; desc: string };
 const videos: Video[] = [

@@ -1,4 +1,4 @@
-import { type FC, computed, reactive, ref } from 'rue-js'
+import { type FC, computed, reactive, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -115,7 +115,7 @@ const SVGGraph: FC = () => {
             <Code
               className="h-full"
               lang="tsx"
-              code={`import { type FC, ref, reactive, computed } from 'rue-js';
+              code={`import { type FC, ref, reactive, computed } from '@rue-js/rue';
 
 type Stat = { label: string; value: number };
 

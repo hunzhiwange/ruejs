@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec24() {
     let src = r##"
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const Chain: FC = () => {
   return <div>
@@ -32,7 +32,7 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild } from 'rue-js';
+import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild } from '@rue-js/rue';
 const Chain: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");

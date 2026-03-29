@@ -7,7 +7,7 @@ mod utils;
 #[test]
 fn transforms_conditional_jsx_branch() {
     let src = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const showA = true;
@@ -37,7 +37,7 @@ export default ConditionalRendering;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from 'rue-js';
+import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const showA = true;
 const showB = false;

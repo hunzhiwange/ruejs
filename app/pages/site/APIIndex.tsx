@@ -1,4 +1,4 @@
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 const APIIndex: FC = () => (
   <div className="card bg-base-100 border shadow">

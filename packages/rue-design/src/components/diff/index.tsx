@@ -3,7 +3,7 @@ Diff 组件概述
 - 结构：Diff 容器 + Item1/Item2 两侧内容 + Resizer 分隔条。
 - 用途：对比两段内容，支持键盘可访问性与自定义类。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Diff 组件签名 */
 
 interface DiffProps {

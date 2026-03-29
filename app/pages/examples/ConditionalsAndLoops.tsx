@@ -1,4 +1,4 @@
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -55,7 +55,7 @@ const ConditionalsAndLoops: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, ref } from 'rue-js';
+                code={`import { type FC, ref } from '@rue-js/rue';
 
 const ConditionalsAndLoops: FC = () => {
   const show = ref(true);

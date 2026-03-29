@@ -1,5 +1,5 @@
 /** @vapor222 */
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -55,7 +55,7 @@ const FormBindings: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, ref } from 'rue-js';
+                code={`import { type FC, ref } from '@rue-js/rue';
 
 const FormBindings: FC = () => {
   const text = ref('Edit me');

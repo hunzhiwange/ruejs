@@ -3,7 +3,7 @@ Chat 组件概述
 - 形态：按 start/end 布局气泡；支持头像、头部时间与脚注。
 - 数据驱动：items 批量渲染；或使用复合子组件 Bubble/Header/Footer/Image。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Chat 组件签名 */
 
 type ChatPlacement = 'start' | 'end'

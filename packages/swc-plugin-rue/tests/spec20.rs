@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec20() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const Chain: FC = () => {
   const a = ref(true);
@@ -33,7 +33,7 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Chain: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const a = _$vaporWithHookId("ref:1:0", ()=>ref(true));

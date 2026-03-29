@@ -1,4 +1,4 @@
-import { type FC, onBeforeCreate, onBeforeUnmount, onCreated, onMounted } from 'rue-js'
+import { type FC, onBeforeCreate, onBeforeUnmount, onCreated, onMounted } from '@rue-js/rue'
 import { useCart } from '../hooks/useCart'
 const UseCart: FC = () => {
   const cart = useCart()

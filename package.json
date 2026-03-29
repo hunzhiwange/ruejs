@@ -73,7 +73,7 @@
     "markdown-it-container": "^4.0.0",
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
-    "rue-js": "workspace:*",
+    "@rue-js/rue": "workspace:*",
     "shiki": "^3.19.0"
   },
   "devDependencies": {

@@ -47,7 +47,7 @@
   [内置组件](./built-in-components)都可以传递给 `is`，但如果您想通过名称传递，则必须注册它们。例如：
 
   ```tsx
-  import { Transition, TransitionGroup } from 'rue-js'
+  import { Transition, TransitionGroup } from '@rue-js/rue'
 
   // 需要注册
   ;<component is={isGroup ? TransitionGroup : Transition}>...</component>
@@ -58,7 +58,7 @@
   如果在 `<component>` 标签上使用 `v-model` 等效模式，模板编译器会将其扩展为 `modelValue` prop 和 `onUpdate:modelValue` 事件监听器，就像对其他任何组件一样。但是，这不适用于原生 HTML 元素，例如 `<input>` 或 `<select>`。因此，使用动态创建的原生元素将无法工作：
 
   ```tsx
-  import { useState } from 'rue-js'
+  import { useState } from '@rue-js/rue'
 
   const [tag, setTag] = useState('input')
   const [username, setUsername] = useState('')

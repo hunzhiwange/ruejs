@@ -5,7 +5,7 @@
 从技术上讲，每个 Rue 组件实例已经"管理"着自己的响应式状态。以一个简单的计数器组件为例：
 
 ```tsx
-import { ref, type FC } from 'rue-js'
+import { ref, type FC } from '@rue-js/rue'
 
 export const Counter: FC = () => {
   // 状态
@@ -49,7 +49,7 @@ export const Counter: FC = () => {
 如果你有一块应该由多个实例共享的状态，你可以使用 [`reactive()`](/api/reactivity-core#reactive) 创建一个响应式对象，然后将其导入多个组件：
 
 ```ts [store.ts]
-import { reactive } from 'rue-js'
+import { reactive } from '@rue-js/rue'
 
 export const store = reactive({
   count: 0,
@@ -57,7 +57,7 @@ export const store = reactive({
 ```
 
 ```tsx [ComponentA.tsx]
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 import { store } from './store'
 
 export const ComponentA: FC = () => {
@@ -66,7 +66,7 @@ export const ComponentA: FC = () => {
 ```
 
 ```tsx [ComponentB.tsx]
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 import { store } from './store'
 
 export const ComponentB: FC = () => {
@@ -85,7 +85,7 @@ export const ComponentB: FC = () => {
 虽然这在简单情况下有效，但长期而言，任何组件都可以任意改变的全局状态并不是非常可维护的。为了确保改变状态的逻辑像状态本身一样集中，建议在 store 上定义表达动作意图的方法名：
 
 ```ts{5-7} [store.ts]
-import { reactive } from 'rue-js'
+import { reactive } from '@rue-js/rue'
 
 export const store = reactive({
   count: 0,
@@ -108,7 +108,7 @@ export const store = reactive({
 虽然这里我们使用单个响应式对象作为 store，但你也可以使用其他 [响应式 API](/api/reactivity-core)（如 `ref()` 或 `computed()`）创建共享的响应式状态，甚至从 [Composable](/guide/reusability/composables) 返回全局状态：
 
 ```ts
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 // 全局状态，在模块作用域中创建
 const globalCount = ref(1)
@@ -151,7 +151,7 @@ Pinia 最初是作为 Vuex 下一个迭代的探索，包含了核心团队对 V
 
 ```ts [stores/counter.ts]
 import { defineStore } from 'pinia'
-import { ref, computed } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
 
 export const useCounterStore = defineStore('counter', () => {
   const count = ref(0)
@@ -166,7 +166,7 @@ export const useCounterStore = defineStore('counter', () => {
 ```
 
 ```tsx [Counter.tsx]
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 import { useCounterStore } from '../stores/counter'
 
 export const Counter: FC = () => {
@@ -186,7 +186,7 @@ export const Counter: FC = () => {
 
 ```ts [stores/user.ts]
 import { defineStore } from 'pinia'
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(null)

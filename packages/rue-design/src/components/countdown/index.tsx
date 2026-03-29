@@ -3,7 +3,7 @@ Countdown 组件概述
 - 数据驱动：支持文本项与数值项混合渲染。
 - 数值项：通过 CSS 变量 --value/--digits 控制显示，支持 aria 属性。
 */
-import { h, type FC } from 'rue-js'
+import { h, type FC } from '@rue-js/rue'
 /* 引入 h 用于默认回退渲染；FC 约束组件签名 */
 
 interface CountdownTextItem {

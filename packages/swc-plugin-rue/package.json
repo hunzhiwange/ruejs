@@ -8,15 +8,15 @@
     "swc-plugin",
     "swc-plugin-rue"
   ],
-  "homepage": "https://github.com/rue-js/swc-plugin-rue#readme",
+  "homepage": "https://github.com/@rue-js/rue/swc-plugin-rue#readme",
   "bugs": {
-    "url": "https://github.com/rue-js/swc-plugin-rue/issues"
+    "url": "https://github.com/@rue-js/rue/swc-plugin-rue/issues"
   },
   "license": "MIT",
   "author": "Xiangmin Liu",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rue-js/swc-plugin-rue.git"
+    "url": "git+https://github.com/@rue-js/rue/swc-plugin-rue.git"
   },
   "files": [
     "swc-plugin-rue.wasm",

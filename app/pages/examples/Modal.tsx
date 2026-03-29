@@ -1,4 +1,4 @@
-import { type FC, Teleport, Transition, onMounted, onUnmounted, ref, useState } from 'rue-js'
+import { type FC, Teleport, Transition, onMounted, onUnmounted, ref, useState } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -160,7 +160,7 @@ const ModalExample: FC = () => {
             <Code
               className="h-full"
               lang="tsx"
-              code={`import { type FC, useState, onMounted, onUnmounted, Transition, Teleport, ref } from 'rue-js';
+              code={`import { type FC, useState, onMounted, onUnmounted, Transition, Teleport, ref } from '@rue-js/rue';
             
 // Modal component with customizable header/body/footer and CSS transitions
 const Modal: FC<{

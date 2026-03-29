@@ -3,7 +3,7 @@ Button 组件概述
 - 通过 variant/size/outline/dash/soft/ghost/link 等 props 组合类名，渲染按钮。
 - 支持形态与布局（active/block/wide/square/circle）及禁用/加载态；onClick 事件。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Button 组件签名 */
 
 type BtnVariant =

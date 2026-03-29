@@ -6,7 +6,7 @@
 
 Rue 可以用作独立脚本文件——无需构建步骤！如果你已经有后端框架渲染大部分 HTML，或者你的前端逻辑不足以证明构建步骤的合理性，这是将 Rue 集成到你的技术栈中最简单的方法。你可以将 Rue 视为 jQuery 的更具声明性的替代品。
 
-我们之前提供了一个名为 [petite-rue](https://github.com/rue-jsjs/petite-rue) 的替代发行版，专门针对渐进式增强现有 HTML 进行了优化。然而，petite-rue 不再积极维护，最后一个版本发布于 Rue 3.2.27。
+我们之前提供了一个名为 [petite-rue](https://github.com/@rue-js/ruejs/petite-rue) 的替代发行版，专门针对渐进式增强现有 HTML 进行了优化。然而，petite-rue 不再积极维护，最后一个版本发布于 Rue 3.2.27。
 
 ## 嵌入式 Web 组件 {#embedded-web-components}
 

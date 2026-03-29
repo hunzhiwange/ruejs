@@ -3,7 +3,7 @@ Stat 组件概述
 - 列表容器：水平/垂直布局；数据驱动或 children 渲染。
 - 复合组件：Item/Title/Value/Desc/Figure/Actions 组合统计卡。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Stat 组件签名 */
 
 type StatsDirection = 'horizontal' | 'vertical'

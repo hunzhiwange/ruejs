@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec21() {
     let src = r##"
-import { type FC } from 'rue-js'
+import { type FC } from '@rue-js/rue'
 
 const Chain: FC = () => {
   return (
@@ -26,7 +26,7 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC } from 'rue-js';
+import { type FC } from '@rue-js/rue';
 const Chain: FC = ()=>{
     return (<div>
       {"5" ? <div>A</div> : <div>Else</div>}</div>);

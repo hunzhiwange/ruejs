@@ -3,7 +3,7 @@ Timeline 组件概述
 - 形态：方向（horizontal/vertical）、紧凑与图标吸附。
 - 复合组件：Start/Middle/End 三段内容，支持前后分隔线。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Timeline 组件签名 */
 
 type TimelineDirection = 'horizontal' | 'vertical'

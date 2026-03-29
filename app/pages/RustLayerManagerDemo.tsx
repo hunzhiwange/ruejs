@@ -1,4 +1,4 @@
-import { type FC, useComponent } from 'rue-js'
+import { type FC, useComponent } from '@rue-js/rue'
 
 // const RustLayerManagerComp = useComponent(async () => {
 //   const mod: any = await import('@rue-js/app-rust')

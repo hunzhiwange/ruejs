@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { h, render } from 'rue-js'
+import { h, render } from '@rue-js/rue'
 import { Collapse } from '@rue-js/design'
 
 afterEach(() => {

@@ -1,4 +1,4 @@
-import { type FC, useState, watch, useEffect } from 'rue-js'
+import { type FC, useState, watch, useEffect } from '@rue-js/rue'
 import { useRoute } from '@rue-js/router'
 import SidebarPlayground from './SidebarPlaygroundPage'
 // @ts-ignore

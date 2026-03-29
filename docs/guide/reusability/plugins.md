@@ -5,7 +5,7 @@
 插件是自包含的代码，通常为应用添加全局级功能。以下是我们安装插件的方式：
 
 ```ts
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp({})
 
@@ -41,7 +41,7 @@ const myPlugin = {
 让我们从设置插件对象开始。建议在一个单独的文件中创建并导出它，如下所示，以保持逻辑独立和分离。
 
 ```ts [plugins/i18n.ts]
-import type { App } from 'rue-js'
+import type { App } from '@rue-js/rue'
 
 export default {
   install: (app: App, options: Record<string, any>) => {
@@ -109,7 +109,7 @@ export default {
 插件用户现在可以使用 `i18n` 键将插件选项注入到他们的组件中：
 
 ```tsx
-import { inject, type FC } from 'rue-js'
+import { inject, type FC } from '@rue-js/rue'
 
 export const MyComponent: FC = () => {
   const i18n = inject<Record<string, any>>('i18n')

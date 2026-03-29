@@ -5,7 +5,7 @@
 每个 Rue 应用都通过 [`useApp`](/api/application#useapp) 函数创建一个新的**应用实例**：
 
 ```tsx
-import { type FC, useApp } from 'rue-js'
+import { type FC, useApp } from '@rue-js/rue'
 
 const App: FC = () => {
   return <div>Hello Rue!</div>
@@ -21,7 +21,7 @@ const app = useApp(App)
 如果应用使用 JSX/TSX，我们通常从另一个文件导入根组件：
 
 ```tsx
-import { useApp } from 'rue-js'
+import { useApp } from '@rue-js/rue'
 import App from './App'
 
 const app = useApp(App)
@@ -63,7 +63,7 @@ app.mount('#app')
 应用实例暴露了一个 `.config` 对象，允许我们配置一些应用级选项。例如，定义一个应用级错误处理器来捕获所有后代组件的错误：
 
 ```tsx
-import { useError } from 'rue-js'
+import { useError } from '@rue-js/rue'
 
 useError({
   overlay: true, // 显示错误遮罩层
@@ -74,7 +74,7 @@ useError({
 应用实例还提供了一些用于注册应用范围资源的方法。例如，注册一个插件：
 
 ```tsx
-import { useApp } from 'rue-js'
+import { useApp } from '@rue-js/rue'
 import router from './router'
 import { createPlugin } from '@rue-js/plugin'
 
@@ -110,7 +110,7 @@ app2.mount('#container-2')
 
 ```tsx
 // main.tsx
-import { type FC, useApp, useError } from 'rue-js'
+import { type FC, useApp, useError } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
 

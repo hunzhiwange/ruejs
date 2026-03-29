@@ -2,7 +2,7 @@
 Modal 组件概述
 - 行为：open 控制显隐；提供标题、主体与动作区域，默认附带“关闭”按钮。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 
 interface ModalProps {
   open: boolean

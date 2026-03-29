@@ -2,7 +2,7 @@
 Kbd 组件概述
 - 形态：size 控制大小，className 追加样式。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Kbd 组件签名 */
 
 type KbdSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'

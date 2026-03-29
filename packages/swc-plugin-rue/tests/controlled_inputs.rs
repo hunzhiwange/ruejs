@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_controlled_inputs_tsx() {
     let src = r##"
-import { type FC, useState } from 'rue-js';
+import { type FC, useState } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 
 const ControlledInputs: FC = () => {
@@ -39,7 +39,7 @@ export default ControlledInputs;
     // - 受控 input：value 走 watch；onInput 绑定更新 state
     // - 文本回显：_$createTextWrapper + _$settextContent + watch
     let expected_fragment = r##"
-import { type FC, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from 'rue-js';
+import { type FC, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const ControlledInputs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{

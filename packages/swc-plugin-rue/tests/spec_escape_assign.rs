@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn blocks_external_member_assign_and_object_assign_from_lift() {
     let src = r##"
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 const Comp = () => {
   const count = ref(0)
@@ -25,7 +25,7 @@ const Comp = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Comp = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));

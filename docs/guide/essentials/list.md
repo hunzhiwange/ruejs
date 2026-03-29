@@ -5,8 +5,8 @@
 我们可以使用 JavaScript 的数组 `map()` 方法来基于数组渲染列表。这是一种更灵活、更符合 JavaScript 习惯的方式：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const ItemList: FC = () => {
   const items = ref([{ message: 'Foo' }, { message: 'Bar' }])
@@ -24,8 +24,8 @@ const ItemList: FC = () => {
 在 `map()` 回调中，模板表达式可以访问所有父作用域的属性。此外，`map()` 还支持使用第二个参数作为当前项的索引：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const ItemList: FC = () => {
   const parentMessage = ref('Parent')
@@ -100,8 +100,8 @@ items.forEach((item, index) => {
 你也可以使用 `Object.entries()` 或 `Object.values()` 来遍历对象的属性。遍历顺序将基于 `Object.values()` 的结果：
 
 ```tsx
-import { reactive } from 'rue-js'
-import type { FC } from 'rue-js'
+import { reactive } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const ObjectList: FC = () => {
   const myObject = reactive({
@@ -193,8 +193,8 @@ const range = (start: number, end: number) =>
 要过滤列表项（例如只显示活跃的用户），使用计算属性：
 
 ```tsx
-import { ref, computed } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const FilteredList: FC = () => {
   const users = ref([
@@ -321,8 +321,8 @@ items.value = items.value.filter(item => item.message.match(/Foo/))
 例如：
 
 ```tsx
-import { ref, computed } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const FilteredNumbers: FC = () => {
   const numbers = ref([1, 2, 3, 4, 5])
@@ -344,8 +344,8 @@ const FilteredNumbers: FC = () => {
 在计算属性不可行的情况下（例如在嵌套列表渲染中），你可以使用方法：
 
 ```tsx
-import { ref } from 'rue-js'
-import type { FC } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const SetsList: FC = () => {
   const sets = ref([

@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec7() {
     let src = r##"
-import { type FC, ref, h } from 'rue-js';
+import { type FC, ref, h } from '@rue-js/rue';
 const count = ref(2);
 const Child: FC<{ label: number }> = (p) => (
   <span id="child">{p.label}</span>
@@ -26,7 +26,7 @@ export default Parent;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute } from 'rue-js';
+import { type FC, ref, h, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(2));
 const Child: FC<{
     label: number;

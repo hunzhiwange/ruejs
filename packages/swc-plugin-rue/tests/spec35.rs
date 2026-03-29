@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec35() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlayground'
 import Code from '../site/components/Code'
 
@@ -65,7 +65,7 @@ const HandlingInput: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, ref } from 'rue-js';
+                code={`import { type FC, ref } from '@rue-js/rue';
 
 const HandlingInput: FC = () => {
   const message = ref('Hello World!');
@@ -141,7 +141,7 @@ export default HandlingInput
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const HandlingInput: FC = ()=>{
@@ -198,7 +198,7 @@ const HandlingInput: FC = ()=>{
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
         {activeTab.value === 'code' && (<div className="card bg-base-100 shadow overflow-auto h-[260px] md:h-[560px]">
             <div className="card-body p-0">
-              <Code className="h-full" lang="tsx" code={`import { type FC, ref } from 'rue-js';
+              <Code className="h-full" lang="tsx" code={`import { type FC, ref } from '@rue-js/rue';
 
 const HandlingInput: FC = () => {
   const message = ref('Hello World!');

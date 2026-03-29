@@ -54,7 +54,7 @@
 - **示例**
 
   ```js
-  import { defineCustomElement } from 'rue-js'
+  import { defineCustomElement } from '@rue-js/rue'
 
   const MyRueElement = defineCustomElement({
     /* 组件选项 */

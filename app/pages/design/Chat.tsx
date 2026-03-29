@@ -1,5 +1,5 @@
-import type { FC } from 'rue-js'
-import { ref } from 'rue-js'
+import type { FC } from '@rue-js/rue'
+import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Chat, Tabs } from '@rue-js/design'
@@ -178,7 +178,7 @@ const ChatDemo: FC = () => {
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { ref } from 'rue-js';
+              code={`import { ref } from '@rue-js/rue';
 import { Chat } from '@rue-js/design';
 const tabArray = ref<'preview' | 'code'>('preview');
 const chatData = [

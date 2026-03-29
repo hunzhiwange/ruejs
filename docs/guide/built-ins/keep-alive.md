@@ -7,9 +7,9 @@
 在组件基础章节中，我们介绍了 [动态组件](/guide/essentials/component-basics#dynamic-components) 的语法，使用特殊的 `<Dynamic>` 组件：
 
 ```tsx
-import { useState } from 'rue-js'
-import { Dynamic } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useState } from '@rue-js/rue'
+import { Dynamic } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const [activeComponent, setActiveComponent] = useState('ComponentA')
@@ -27,9 +27,9 @@ const App: FC = () => {
 在切换时创建新的组件实例通常是有用的行为，但在这种情况下，我们真的希望即使在组件处于非活动状态时也能保留两个组件实例。为了解决这个问题，我们可以使用 `<KeepAlive>` 内置组件包装我们的动态组件：
 
 ```tsx
-import { useState } from 'rue-js'
-import { Dynamic, KeepAlive } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useState } from '@rue-js/rue'
+import { Dynamic, KeepAlive } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const [activeComponent, setActiveComponent] = useState('ComponentA')
@@ -94,8 +94,8 @@ const App: FC = () => {
 被 keep-alive 的组件可以使用生命周期钩子注册这两个状态：
 
 ```tsx
-import { useEffect } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useEffect } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const MyComponent: FC = () => {
   useEffect(() => {

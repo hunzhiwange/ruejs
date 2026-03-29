@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_function_component_setup() {
     let src = r##"
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 function PostDetail() {
   console.log('我是setup')
@@ -91,7 +91,7 @@ export default PostDetail
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 function PostDetail() {
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         console.log('我是setup');

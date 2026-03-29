@@ -23,9 +23,9 @@
 以下是对 `v-for` 列表应用进入/离开过渡的示例：
 
 ```tsx
-import { useState } from 'rue-js'
-import { TransitionGroup } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useState } from '@rue-js/rue'
+import { TransitionGroup } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const [items, setItems] = useState(['Item 1', 'Item 2', 'Item 3'])

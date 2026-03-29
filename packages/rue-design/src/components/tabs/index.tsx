@@ -3,7 +3,7 @@ Tabs 组件概述
 - 形态：样式风格（box/border/lift）、位置（top/bottom）、尺寸（xs~xl）。
 - 行为：activeKey 控制当前标签，onChange 回调。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Tabs 组件签名 */
 
 interface TabItem {

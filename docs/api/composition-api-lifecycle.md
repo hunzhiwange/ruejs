@@ -30,7 +30,7 @@
   通过模板 ref 访问元素：
 
   ```js
-  import { ref, onMounted } from 'rue-js'
+  import { ref, onMounted } from '@rue-js/rue'
 
   const el = ref()
 
@@ -66,7 +66,7 @@
   访问更新的 DOM：
 
   ```js
-  import { ref, onUpdated } from 'rue-js'
+  import { ref, onUpdated } from '@rue-js/rue'
 
   const count = ref(0)
 
@@ -100,7 +100,7 @@
 - **示例**
 
   ```js
-  import { onMounted, onUnmounted } from 'rue-js'
+  import { onMounted, onUnmounted } from '@rue-js/rue'
 
   let intervalId
   onMounted(() => {
@@ -302,7 +302,7 @@
 - **示例**
 
   ```js
-  import { ref, onServerPrefetch, onMounted } from 'rue-js'
+  import { ref, onServerPrefetch, onMounted } from '@rue-js/rue'
 
   const data = ref(null)
 

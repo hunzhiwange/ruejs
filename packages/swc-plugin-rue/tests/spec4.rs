@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec4() {
     let src = r##"
-import { type FC, h, ref } from 'rue-js';
+import { type FC, h, ref } from '@rue-js/rue';
 const C: FC = () => <div>ok</div>;
 export default C;
 "##;
@@ -18,7 +18,7 @@ export default C;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, h, ref, vapor, _$createElement, _$createTextNode, _$appendChild } from 'rue-js';
+import { type FC, h, ref, vapor, _$createElement, _$createTextNode, _$appendChild } from '@rue-js/rue';
 const C: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("ok"));

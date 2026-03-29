@@ -3,7 +3,7 @@ JSX Dev Runtime 概述
 - 目标：面向开发模式的 JSX 运行时，提供 jsx、jsxDEV 与 Fragment。
 - 行为：jsxDEV 在此直接调用 jsx，保留签名以兼容编译器输出。
 */
-import { Fragment as RueFragment, h } from 'rue-js'
+import { Fragment as RueFragment, h } from '@rue-js/rue'
 
 export function jsx(type: any, props: any, key?: any) {
   const p =

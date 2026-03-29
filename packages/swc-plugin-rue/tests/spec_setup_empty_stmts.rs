@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn preserves_empty_statements_inside_use_setup() {
     let src = r##"
-import { type FC, ref } from 'rue-js'
+import { type FC, ref } from '@rue-js/rue'
 
 const Comp: FC = () => {
   ;
@@ -22,7 +22,7 @@ const Comp: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Comp: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         ;

@@ -2,7 +2,7 @@
 Footer 组件概述
 - 形态：direction 控制纵/横布局；center 居中内容。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Footer 组件签名 */
 
 type FooterDirection = 'vertical' | 'horizontal'

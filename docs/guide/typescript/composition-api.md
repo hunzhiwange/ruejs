@@ -108,8 +108,8 @@ const props = withDefaults(defineProps<Props>(), {
 如果不使用 `<script setup>`，需要使用 `defineComponent()` 来启用 props 类型推断。传递给 `setup()` 的 props 对象的类型是从 `props` 选项推断的。
 
 ```tsx
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 interface Props {
   message: string
@@ -146,7 +146,7 @@ const props = defineProps<{
 对于运行时声明，我们可以使用 `PropType` 工具类型：
 
 ```ts
-import type { PropType } from 'rue-js'
+import type { PropType } from '@rue-js/rue'
 
 interface Book {
   title: string
@@ -162,9 +162,9 @@ const props = defineProps({
 如果我们直接指定 `props` 选项，工作方式大致相同：
 
 ```tsx
-import { defineComponent } from 'rue-js'
-import type { PropType } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { PropType } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 interface Book {
   title: string
@@ -226,8 +226,8 @@ const emit = defineEmits<{
 不使用 `<script setup>` 时，`defineComponent()` 能够推断在 setup 上下文中暴露的 `emit` 函数的允许事件：
 
 ```tsx
-import { defineComponent } from 'rue-js'
-import type { FC } from 'rue-js'
+import { defineComponent } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 type Emits = {
   change: () => void
@@ -246,7 +246,7 @@ const App: FC<{}, Emits> = defineComponent({
 Refs 从初始值推断类型：
 
 ```ts
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 // 推断类型: Ref<number>
 const year = ref(2020)
@@ -258,8 +258,8 @@ year.value = '2020'
 有时我们可能需要为 ref 的内部值指定复杂类型。我们可以使用 `Ref` 类型来实现：
 
 ```ts
-import { ref } from 'rue-js'
-import type { Ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
+import type { Ref } from '@rue-js/rue'
 
 const year: Ref<string | number> = ref('2020')
 
@@ -287,7 +287,7 @@ const n = ref<number>()
 `reactive()` 也隐式地从其参数推断类型：
 
 ```ts
-import { reactive } from 'rue-js'
+import { reactive } from '@rue-js/rue'
 
 // 推断类型: { title: string }
 const book = reactive({ title: 'Rue 3 Guide' })
@@ -296,7 +296,7 @@ const book = reactive({ title: 'Rue 3 Guide' })
 要为 `reactive` 属性显式添加类型，我们可以使用接口：
 
 ```ts
-import { reactive } from 'rue-js'
+import { reactive } from '@rue-js/rue'
 
 interface Book {
   title: string
@@ -315,7 +315,7 @@ const book: Book = reactive({ title: 'Rue 3 Guide' })
 `computed()` 根据其 getter 的返回值推断其类型：
 
 ```ts
-import { ref, computed } from 'rue-js'
+import { ref, computed } from '@rue-js/rue'
 
 const count = ref(0)
 
@@ -364,8 +364,8 @@ function handleChange(event: Event) {
 Provide 和 inject 通常在单独的组件中执行。为了正确地为注入的值添加类型，Rue 提供了一个 `InjectionKey` 接口，它是一个扩展 `Symbol` 的泛型类型。它可用于在提供者和消费者之间同步注入值的类型：
 
 ```ts
-import { provide, inject } from 'rue-js'
-import type { InjectionKey } from 'rue-js'
+import { provide, inject } from '@rue-js/rue'
+import type { InjectionKey } from '@rue-js/rue'
 
 const key = Symbol() as InjectionKey<string>
 
@@ -413,7 +413,7 @@ const el = useTemplateRef<HTMLInputElement>('el')
 
 ```vue
 <script setup lang="ts">
-import { ref, onMounted } from 'rue-js'
+import { ref, onMounted } from '@rue-js/rue'
 
 const el = ref<HTMLInputElement | null>(null)
 
@@ -443,7 +443,7 @@ onMounted(() => {
 
 ```vue{6,7} [App.vue]
 <script setup lang="ts">
-import { useTemplateRef } from 'rue-js'
+import { useTemplateRef } from '@rue-js/rue'
 import Foo from './Foo.vue'
 import Bar from './Bar.vue'
 
@@ -461,8 +461,8 @@ const compRef = useTemplateRef<FooType | BarType>('comp')
 在组件的确切类型不可用或不重要的情况下，可以使用 `ComponentPublicInstance`。这将仅包含所有组件共享的属性，例如 `$el`：
 
 ```ts
-import { useTemplateRef } from 'rue-js'
-import type { ComponentPublicInstance } from 'rue-js'
+import { useTemplateRef } from '@rue-js/rue'
+import type { ComponentPublicInstance } from '@rue-js/rue'
 
 const child = useTemplateRef<ComponentPublicInstance>('child')
 ```
@@ -471,7 +471,7 @@ const child = useTemplateRef<ComponentPublicInstance>('child')
 
 ```vue [MyGenericModal.vue]
 <script setup lang="ts" generic="ContentType extends string | number">
-import { ref } from 'rue-js'
+import { ref } from '@rue-js/rue'
 
 const content = ref<ContentType | null>(null)
 
@@ -487,7 +487,7 @@ defineExpose({
 
 ```vue [App.vue]
 <script setup lang="ts">
-import { useTemplateRef } from 'rue-js'
+import { useTemplateRef } from '@rue-js/rue'
 import MyGenericModal from './MyGenericModal.vue'
 import type { ComponentExposed } from 'vue-component-type-helpers'
 
@@ -506,11 +506,11 @@ const openModal = () => {
 为了获取使用 `app.directive()` 声明的全局自定义指令的类型提示和类型检查，你可以扩展 `ComponentCustomProperties`
 
 ```ts [src/directives/highlight.ts]
-import type { Directive } from 'rue-js'
+import type { Directive } from '@rue-js/rue'
 
 export type HighlightDirective = Directive<HTMLElement, string>
 
-declare module 'rue-js' {
+declare module '@rue-js/rue' {
   export interface ComponentCustomProperties {
     // 前缀为 v (v-highlight)
     vHighlight: HighlightDirective

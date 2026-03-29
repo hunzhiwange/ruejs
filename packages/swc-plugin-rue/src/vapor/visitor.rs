@@ -129,7 +129,7 @@ impl VisitMut for VaporTransform {
         }
     }
 
-    /// 模块级处理：在发生 Vapor 转换后，按需注入 `rue-js` 运行时 import
+    /// 模块级处理：在发生 Vapor 转换后，按需注入 `@rue-js/rue` 运行时 import
     fn visit_mut_module(&mut self, m: &mut Module) {
         log::debug("rue-swc: visit module");
         // propagate into children first
@@ -139,9 +139,9 @@ impl VisitMut for VaporTransform {
         }
         log::info("rue-swc: ensure runtime imports");
         // 注入导入集合包含：`vapor`, `renderBetween`, `_$createElement`, `_$appendChild`, `watchEffect` 等，
-        // 以及类型导入 `FC`；若已存在从 `rue-js` 的 import，则合并缺失的 specifier，保持一次导入。
+        // 以及类型导入 `FC`；若已存在从 `@rue-js/rue` 的 import，则合并缺失的 specifier，保持一次导入。
         // 细节：
-        // - import 源：固定为 'rue-js'
+        // - import 源：固定为 '@rue-js/rue'
         // - 类型导入优先插入（如 FC），值导入按稳定序列排序，保证快照稳定
         // - 采用 DUMMY_SP 与 SyntaxContext::empty() 构造 importdecl/specifier，避免位置信息干扰
         ensure_runtime_imports(m);

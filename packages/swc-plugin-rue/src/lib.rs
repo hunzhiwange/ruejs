@@ -41,7 +41,7 @@ mod utils;
      - 将 `() => <JSX/>` 或 `return <JSX/>` 改写为 `vapor(() => { ... })`，在块体中生成原生 `createElement/appendChild` 等调用
      - 动态表达式与属性用 `watchEffect` 包裹，以微任务批量更新
      - 列表渲染使用 `_$vaporKeyedList` + `renderBetween`，通过注释锚点实现片段插入与复用
-- Import 注入策略：仅在发生 Vapor 转换或预处理使用到运行时符号时，按需向模块顶部插入或合并来自 `rue-js` 的导入。
+- Import 注入策略：仅在发生 Vapor 转换或预处理使用到运行时符号时，按需向模块顶部插入或合并来自 `@rue-js/rue` 的导入。
 - 关键命名约定：
   - `_elX` 原生元素，`_listX` 注释锚点，`__childX` 组件 children 片段，`_mapX_*` 列表内部标识符
 

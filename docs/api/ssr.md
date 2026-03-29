@@ -2,7 +2,7 @@
 
 ## renderToString() {#rendertostring}
 
-- **从 `rue-js/server-renderer` 导出**
+- **从 `@rue-js/rue/server-renderer` 导出**
 
 - **类型**
 
@@ -13,8 +13,8 @@
 - **示例**
 
   ```js
-  import { createSSRApp } from 'rue-js'
-  import { renderToString } from 'rue-js/server-renderer'
+  import { createSSRApp } from '@rue-js/rue'
+  import { renderToString } from '@rue-js/rue/server-renderer'
 
   const app = createSSRApp({
     data: () => ({ msg: 'hello' }),
@@ -46,7 +46,7 @@
 
 将输入渲染为 [Node.js 可读流](https://nodejs.org/api/stream.html#stream_class_stream_readable)。
 
-- **从 `rue-js/server-renderer` 导出**
+- **从 `@rue-js/rue/server-renderer` 导出**
 
 - **类型**
 
@@ -62,14 +62,14 @@
   ```
 
   :::tip 注意
-  此方法在从 Node.js 环境解耦的 `rue-js/server-renderer` 的 ESM 构建中不受支持。请改用 [`pipeToNodeWritable`](#pipetonodewritable)。
+  此方法在从 Node.js 环境解耦的 `@rue-js/rue/server-renderer` 的 ESM 构建中不受支持。请改用 [`pipeToNodeWritable`](#pipetonodewritable)。
   :::
 
 ## pipeToNodeWritable() {#pipetonodewritable}
 
 渲染并管道传输到现有的 [Node.js 可写流](https://nodejs.org/api/stream.html#stream_writable_streams) 实例。
 
-- **从 `rue-js/server-renderer` 导出**
+- **从 `@rue-js/rue/server-renderer` 导出**
 
 - **类型**
 
@@ -92,7 +92,7 @@
 
 将输入渲染为 [Web ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API)。
 
-- **从 `rue-js/server-renderer` 导出**
+- **从 `@rue-js/rue/server-renderer` 导出**
 
 - **类型**
 
@@ -115,7 +115,7 @@
 
 渲染并管道传输到现有的 [Web WritableStream](https://developer.mozilla.org/en-US/docs/Web/API/WritableStream) 实例。
 
-- **从 `rue-js/server-renderer` 导出**
+- **从 `@rue-js/rue/server-renderer` 导出**
 
 - **类型**
 
@@ -144,7 +144,7 @@
 
 使用简单的可读接口以流模式渲染输入。
 
-- **从 `rue-js/server-renderer` 导出**
+- **从 `@rue-js/rue/server-renderer` 导出**
 
 - **类型**
 
@@ -200,7 +200,7 @@
   检索到的上下文可用于附加渲染最终 HTML 所需的信息（例如 head 元数据）。
 
   ```tsx
-  import { useSSRContext } from 'rue-js'
+  import { useSSRContext } from '@rue-js/rue'
 
   // 确保只在 SSR 期间调用它
   // https://vitejs.dev/guide/ssr.html#conditional-logic

@@ -1,4 +1,4 @@
-import { computed, ref } from 'rue-js'
+import { computed, ref } from '@rue-js/rue'
 import { extend } from '@rue-js/shared'
 
 export type CartItem = { id: number; name: string; price: number; qty: number }

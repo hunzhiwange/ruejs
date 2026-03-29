@@ -23,7 +23,7 @@
 要向组件的后代提供数据，使用 [`provide()`](/api/composition-api-dependency-injection#provide) 函数：
 
 ```tsx
-import { provide } from 'rue-js'
+import { provide } from '@rue-js/rue'
 
 provide(/* key */ 'message', /* value */ 'hello!')
 ```
@@ -33,7 +33,7 @@ provide(/* key */ 'message', /* value */ 'hello!')
 第二个参数是提供的值。该值可以是任何类型，包括响应式状态，如 refs：
 
 ```tsx
-import { ref, provide } from 'rue-js'
+import { ref, provide } from '@rue-js/rue'
 
 const count = ref(0)
 provide('key', count)
@@ -46,7 +46,7 @@ provide('key', count)
 除了在组件中提供数据，我们还可以在应用级别提供：
 
 ```tsx
-import { createApp } from 'rue-js'
+import { createApp } from '@rue-js/rue'
 
 const app = createApp({})
 
@@ -60,7 +60,7 @@ app.provide(/* key */ 'message', /* value */ 'hello!')
 要注入由祖先组件提供的数据，使用 [`inject()`](/api/composition-api-dependency-injection#inject) 函数：
 
 ```tsx
-import { inject } from 'rue-js'
+import { inject } from '@rue-js/rue'
 
 const message = inject('message')
 ```
@@ -69,7 +69,7 @@ const message = inject('message')
 
 如果提供的值是 ref，它将被原样注入，并且**不会**自动解包。这允许注入器组件保留与提供者组件的响应式连接。
 
-[完整的 provide + inject 响应式示例](https://play.rue-jsjs.org/#eNqFUUFugzAQ/MrKF1IpxfeIVKp66Kk/8MWFDXYFtmUbpArx967BhURRU9/WOzO7MzuxV+fKcUB2YlWovXYRAsbBvQije2d9hAk8Xo7gvB11gzDDxdseCuIUG+ZN6a7JjZIvVRIlgDCcw+d3pmvTglz1okJ499I0C3qB1dJQT9YRooVaSdNiACWdQ5OICj2WwtTWhAg9hiBbhHNSOxQKu84WT8LkNQ9FBhTHXyg1K75aJHNUROxdJyNSBVBp44YI43NvG+zOgmWWYGt7dcipqPhGZEe2ef07wN3lltD+lWN6tNkV/37+rdKjK2rzhRTt7f3u41xhe37/xJZGAL2PLECXa9NKdD/a6QTTtGnP88LgiXJtYv4BaLHhvg==)
+[完整的 provide + inject 响应式示例](https://play.@rue-js/ruejs.org/#eNqFUUFugzAQ/MrKF1IpxfeIVKp66Kk/8MWFDXYFtmUbpArx967BhURRU9/WOzO7MzuxV+fKcUB2YlWovXYRAsbBvQije2d9hAk8Xo7gvB11gzDDxdseCuIUG+ZN6a7JjZIvVRIlgDCcw+d3pmvTglz1okJ499I0C3qB1dJQT9YRooVaSdNiACWdQ5OICj2WwtTWhAg9hiBbhHNSOxQKu84WT8LkNQ9FBhTHXyg1K75aJHNUROxdJyNSBVBp44YI43NvG+zOgmWWYGt7dcipqPhGZEe2ef07wN3lltD+lWN6tNkV/37+rdKjK2rzhRTt7f3u41xhe37/xJZGAL2PLECXa9NKdD/a6QTTtGnP88LgiXJtYv4BaLHhvg==)
 
 ### 注入默认值 {#injection-default-values}
 
@@ -99,7 +99,7 @@ const value = inject('key', () => new ExpensiveClass(), true)
 
 ```tsx{7-9,13}
 <!-- 在提供者组件内部 -->
-import { provide, ref } from 'rue-js'
+import { provide, ref } from '@rue-js/rue'
 
 const location = ref('North Pole')
 
@@ -115,7 +115,7 @@ provide('location', {
 
 ```tsx{5}
 <!-- 在注入器组件中 -->
-import { inject } from 'rue-js'
+import { inject } from '@rue-js/rue'
 
 const { location, updateLocation } = inject('location')
 ```
@@ -123,7 +123,7 @@ const { location, updateLocation } = inject('location')
 最后，如果你想确保通过 `provide` 传递的数据不能被注入器组件更改，可以使用 [`readonly()`](/api/reactivity-core#readonly) 包装提供的值：
 
 ```tsx
-import { ref, provide, readonly } from 'rue-js'
+import { ref, provide, readonly } from '@rue-js/rue'
 
 const count = ref(0)
 provide('read-only-count', readonly(count))
@@ -141,7 +141,7 @@ export const myInjectionKey = Symbol()
 
 ```tsx
 // 在提供者组件中
-import { provide } from 'rue-js'
+import { provide } from '@rue-js/rue'
 import { myInjectionKey } from './keys.ts'
 
 provide(myInjectionKey, {
@@ -151,7 +151,7 @@ provide(myInjectionKey, {
 
 ```tsx
 // 在注入器组件中
-import { inject } from 'rue-js'
+import { inject } from '@rue-js/rue'
 import { myInjectionKey } from './keys.ts'
 
 const injected = inject(myInjectionKey)
@@ -164,7 +164,7 @@ const injected = inject(myInjectionKey)
 Rue 也支持 React 风格的 Context API，这在某些场景下可能更直观：
 
 ```tsx
-import { createContext, useContext } from 'rue-js'
+import { createContext, useContext } from '@rue-js/rue'
 
 // 创建 Context
 const ThemeContext = createContext({

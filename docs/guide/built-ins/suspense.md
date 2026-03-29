@@ -35,8 +35,8 @@
 组件可以使用 hooks 获取异步数据：
 
 ```tsx
-import { useEffect, useState } from 'rue-js'
-import type { FC } from 'rue-js'
+import { useEffect, useState } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const Posts: FC = () => {
   const [posts, setPosts] = useState([])
@@ -68,8 +68,8 @@ const Posts: FC = () => {
 `<Suspense>` 组件有两个插槽：`children` 和 `fallback`。当异步依赖正在解析时，将显示 `fallback` 内容。
 
 ```tsx
-import { Suspense } from 'rue-js'
-import type { FC } from 'rue-js'
+import { Suspense } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   return (
@@ -100,8 +100,8 @@ const App: FC = () => {
 `<Suspense>` 目前本身不提供错误处理 - 但是，您可以使用错误边界来捕获和处理 `<Suspense>` 中的异步错误。
 
 ```tsx
-import { Suspense, ErrorBoundary } from 'rue-js'
-import type { FC } from 'rue-js'
+import { Suspense, ErrorBoundary } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   return (
@@ -123,9 +123,9 @@ const App: FC = () => {
 以下示例显示如何嵌套这些组件以使它们都按预期工作。对于更简单的组合，您可以移除不需要的组件：
 
 ```tsx
-import { Suspense, KeepAlive, Transition } from 'rue-js'
-import { RouterView } from 'rue-js-router'
-import type { FC } from 'rue-js'
+import { Suspense, KeepAlive, Transition } from '@rue-js/rue'
+import { RouterView } from '@rue-js/rue-router'
+import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   return (

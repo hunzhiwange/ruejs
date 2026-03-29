@@ -23,7 +23,7 @@ use crate::utils::unwrap_expr;
 - 性能与一致性：尽量一次性设置静态值，避免不必要的 watch；使用运行时辅助函数保持不同类型元素的行为统一并便于优化。
 */
 /// JSX 属性到原生 DOM 的编译细节（逐调用解释）：
-/// - 所有更新均通过运行时适配器完成：来源统一为 `rue-js/runtime-vapor`，便于优化与跨环境适配。
+/// - 所有更新均通过运行时适配器完成：来源统一为 `@rue-js/rue/runtime-vapor`，便于优化与跨环境适配。
 /// - `$appendChild(parent, child)`：来源 emit::append_child 封装；用于把子节点插入父节点，抽象原生 `appendChild`，便于统一移动/批量插入策略。
 /// - `$setAttribute(el, name, value)`：来源运行时适配层；统一封装不同浏览器行为与边界情况（如 `null/undefined` 清理、命名空间）。
 /// - `$setClassName(el, class)`：专为 className 适配；避免直接写 `el.setAttribute('class', ...)` 的差异。

@@ -3,7 +3,7 @@ Breadcrumbs 组件概述
 - 数据驱动：支持 items 渲染链接或文本。
 - 复合组件：提供 Item 子组件，便于自定义 children 形式。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Breadcrumbs 组件签名 */
 
 interface BreadcrumbsProps {

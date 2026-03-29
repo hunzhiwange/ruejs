@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec6() {
     let src = r##"
-import { type FC, ref, h } from 'rue-js';
+import { type FC, ref, h } from '@rue-js/rue';
 const count = ref(22);
 const Comp: FC = () => (
   <div>
@@ -30,7 +30,7 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute } from 'rue-js';
+import { type FC, ref, h, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(22));
 const Comp: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");

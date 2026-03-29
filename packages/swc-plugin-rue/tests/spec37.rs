@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec37() {
     let src = r##"
-import { type FC, ref, useState } from 'rue-js'
+import { type FC, ref, useState } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlayground'
 import Code from '../site/components/Code'
 
@@ -48,7 +48,7 @@ const ControlledInputs: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, useState } from 'rue-js';
+                code={`import { type FC, useState } from '@rue-js/rue';
 
 const ControlledInputs: FC = () => {
   const [text, setText] = useState('');
@@ -98,7 +98,7 @@ export default ControlledInputs
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, useState, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, useState, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const ControlledInputs: FC = ()=>{
@@ -137,7 +137,7 @@ const ControlledInputs: FC = ()=>{
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
         {activeTab.value === 'code' && (<div className="card bg-base-100 shadow overflow-auto h-[220px] md:h-[420px]">
             <div className="card-body p-0">
-              <Code className="h-full" lang="tsx" code={`import { type FC, useState } from 'rue-js';
+              <Code className="h-full" lang="tsx" code={`import { type FC, useState } from '@rue-js/rue';
 
 const ControlledInputs: FC = () => {
   const [text, setText] = useState('');

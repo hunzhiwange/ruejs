@@ -3,7 +3,7 @@ Hover3D 组件概述
 - 行为：提供 3D 悬浮视觉效果，可选叠加 overlay divs。
 - 标签：支持渲染为 div 或 a。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 引入 FC 类型用于定义函数式组件 */
 
 type Hover3DAs = 'div' | 'a'

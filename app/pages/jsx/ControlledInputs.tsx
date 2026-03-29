@@ -1,4 +1,4 @@
-import { type FC, ref, useState } from 'rue-js'
+import { type FC, ref, useState } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -36,7 +36,7 @@ const ControlledInputs: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, useState } from 'rue-js';
+                code={`import { type FC, useState } from '@rue-js/rue';
 
 const ControlledInputs: FC = () => {
   const [text, setText] = useState('');

@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec39() {
     let src = r##"
-import { type FC, ref, useEffect } from 'rue-js'
+import { type FC, ref, useEffect } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlayground'
 import Code from '../site/components/Code'
 
@@ -93,7 +93,7 @@ const FetchingData: FC = () => {
               <Code
                 className="h-full"
                 lang="tsx"
-                code={`import { type FC, ref, useEffect } from 'rue-js';
+                code={`import { type FC, ref, useEffect } from '@rue-js/rue';
 
 type CommitItem = {
   html_url: string;
@@ -271,7 +271,7 @@ export default FetchingData
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, useEffect, watchEffect, _$vaporWithHookId, useSetup } from 'rue-js';
+import { type FC, ref, useEffect, watchEffect, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 type CommitItem = {
@@ -358,7 +358,7 @@ const FetchingData: FC = ()=>{
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
         {activeTab.value === 'code' && (<div className="card bg-base-100 shadow overflow-auto h-[420px] md:h-[620px]">
             <div className="card-body p-0">
-              <Code className="h-full" lang="tsx" code={`import { type FC, ref, useEffect } from 'rue-js';
+              <Code className="h-full" lang="tsx" code={`import { type FC, ref, useEffect } from '@rue-js/rue';
 
 type CommitItem = {
   html_url: string;

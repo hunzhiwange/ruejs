@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec1() {
     let src = r##"
-import { type FC, ref, h } from 'rue-js';
+import { type FC, ref, h } from '@rue-js/rue';
 const count = ref(0);
 const VaporJSXDemo: FC = () => (
     <div className="container">
@@ -29,7 +29,7 @@ export default VaporJSXDemo;
     // - 受控文本：span 内使用 _$createTextWrapper + _$settextContent + watch 显示 count.value
     // - hook：ref(0) 被 _$vaporWithHookId 包裹，生成稳定作用域与索引
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from 'rue-js';
+import { type FC, ref, h, _$vaporWithHookId, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));
 const VaporJSXDemo: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");

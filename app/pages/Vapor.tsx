@@ -1,4 +1,4 @@
-import { type FC, onBeforeUnmount, ref, vapor, watchEffect } from 'rue-js'
+import { type FC, onBeforeUnmount, ref, vapor, watchEffect } from '@rue-js/rue'
 
 const count = ref(0)
 

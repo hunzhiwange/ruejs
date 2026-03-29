@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn transforms_spec5() {
     let src = r##"
-import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated } from 'rue-js'
+import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated } from '@rue-js/rue'
 import { useCart } from '../hooks/useCart'
 const UseCart: FC = () => {
   const cart = useCart()
@@ -85,7 +85,7 @@ export default UseCart
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from 'rue-js';
+import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { useCart } from '../hooks/useCart';
 const UseCart: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{

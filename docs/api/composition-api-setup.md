@@ -14,7 +14,7 @@
 我们可以使用[响应式 API](./reactivity-core)声明响应式状态，并通过从 `setup()` 返回一个对象将它们暴露给模板。返回对象上的属性也将在组件实例上可用（如果使用其他选项）：
 
 ```js
-import { useState } from 'rue-js'
+import { useState } from '@rue-js/rue'
 
 export default {
   setup() {
@@ -57,7 +57,7 @@ export default {
 如果您确实需要解构 props，或者需要将 prop 传递给外部函数同时保持响应性，可以使用 [toRefs()](./reactivity-utilities#torefs) 和 [toRef()](/api/reactivity-utilities#toref) 实用 API：
 
 ```js
-import { toRefs, toRef } from 'rue-js'
+import { toRefs, toRef } from '@rue-js/rue'
 
 export default {
   setup(props) {
@@ -130,7 +130,7 @@ export default {
 `setup` 还可以返回一个[渲染函数](/guide/extras/render-function)，该函数可以直接使用在同一作用域中声明的响应式状态：
 
 ```js{6}
-import { h, useState } from 'rue-js'
+import { h, useState } from '@rue-js/rue'
 
 export default {
   setup() {
@@ -145,7 +145,7 @@ export default {
 我们可以通过调用 [`expose()`](#exposing-public-properties) 来解决这个问题：
 
 ```js{8-10}
-import { h, useState } from 'rue-js'
+import { h, useState } from '@rue-js/rue'
 
 export default {
   setup(props, { expose }) {

@@ -3,7 +3,7 @@ Collapse 组件概述
 - 形态：arrow/plus/open/close 类名控制视觉与初始状态。
 - 标签：支持渲染为 div 或 details；Title/Content 子组件组合内容。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Collapse 组件签名 */
 
 interface CollapseProps {

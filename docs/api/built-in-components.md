@@ -10,7 +10,7 @@ pageClass: api
 在[渲染函数](/guide/extras/render-function)中使用它们时，需要显式导入。例如：
 
 ```js
-import { h, Transition } from 'rue-js'
+import { h, Transition } from '@rue-js/rue'
 
 h(Transition, {
   /* props */

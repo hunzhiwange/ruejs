@@ -173,7 +173,7 @@ defineProps({
 
 ```jsx
 <script>
-import { getCurrentInstance } from 'rue-js'
+import { getCurrentInstance } from '@rue-js/rue'
 
 const props = defineProps({
   todo: {

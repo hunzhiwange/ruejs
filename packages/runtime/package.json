@@ -44,7 +44,7 @@
     "@rue-js/runtime-vapor": "workspace:*",
     "@rue-js/shared": "workspace:*",
     "csstype": "^3.1.3",
-    "rue-js": "workspace:*"
+    "@rue-js/rue": "workspace:*"
   },
   "devDependencies": {
     "@types/trusted-types": "^2.0.7"

@@ -315,7 +315,7 @@ const style = { color: 'red', fontSize: '16px' }
 使用 `Fragment` 或简写 `<>` 渲染多个元素而不添加额外 DOM 节点：
 
 ```tsx
-import { Fragment } from 'rue-js'
+import { Fragment } from '@rue-js/rue'
 
 const App: FC = () => {
   return (
@@ -331,7 +331,7 @@ const App: FC = () => {
 或者显式使用 Fragment：
 
 ```tsx
-import { Fragment } from 'rue-js'
+import { Fragment } from '@rue-js/rue'
 
 const App: FC = () => {
   return (

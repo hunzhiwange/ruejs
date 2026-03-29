@@ -3,7 +3,7 @@ Link 组件概述
 - 形态：支持外链 a 或基于路由的 RouterLink。
 - 样式：variant/hover 组合类名；className 追加。
 */
-import type { FC } from 'rue-js'
+import type { FC } from '@rue-js/rue'
 /* 函数组件类型：约束 Link 组件签名 */
 import { RouterLink } from '@rue-js/router'
 
