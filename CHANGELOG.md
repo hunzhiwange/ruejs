@@ -1,3 +1,9 @@
+## [0.0.21](https://github.com/hunzhiwange/ruejs/compare/v0.0.20...v0.0.21) (2026-03-29)
+
+
+### Bug Fixes
+
+* npm ([26aa7a2](https://github.com/hunzhiwange/ruejs/commit/26aa7a2a3e8903987ea00d0c6be1950cdd4bdf65))
 ## 0.0.20 (2026-03-29)
 
 

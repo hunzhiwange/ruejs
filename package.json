@@ -1,6 +1,6 @@
 {
   "name": "rue-site",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "private": true,
   "description": "",
   "keywords": [],
@@ -63,6 +63,7 @@
     "@rue-js/learn-wgpu": "workspace:*",
     "@rue-js/plugin": "workspace:*",
     "@rue-js/router": "workspace:*",
+    "@rue-js/rue": "workspace:*",
     "@rue-js/runtime": "workspace:*",
     "@rue-js/runtime-vapor": "workspace:*",
     "@rue-js/shared": "workspace:*",
@@ -73,7 +74,6 @@
     "markdown-it-container": "^4.0.0",
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
-    "@rue-js/rue": "workspace:*",
     "shiki": "^3.19.0"
   },
   "devDependencies": {
