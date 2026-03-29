@@ -272,7 +272,7 @@ declare module 'rue-js' {
 
 ## 扩展自定义选项 {#augmenting-custom-options}
 
-一些插件，例如 `rue-router`，为自定义组件选项提供支持，如 `beforeRouteEnter`：
+一些插件，例如 `@rue-js/router`，为自定义组件选项提供支持，如 `beforeRouteEnter`：
 
 ```ts
 import { defineComponent } from 'rue-js'
@@ -288,7 +288,7 @@ const App: FC = defineComponent({
 没有适当的类型扩充，此钩子的参数将隐式具有 `any` 类型。我们可以扩充 `ComponentCustomOptions` 接口以支持这些自定义选项：
 
 ```ts
-import { Route } from 'rue-router'
+import { Route } from '@rue-js/router'
 
 declare module 'rue-js' {
   interface ComponentCustomOptions {
@@ -297,7 +297,7 @@ declare module 'rue-js' {
 }
 ```
 
-现在 `beforeRouteEnter` 选项将被正确类型化。注意这只是一个示例——像 `rue-router` 这样的良好类型化库应该在其自己的类型定义中自动执行这些扩充。
+现在 `beforeRouteEnter` 选项将被正确类型化。注意这只是一个示例——像 `@rue-js/router` 这样的良好类型化库应该在其自己的类型定义中自动执行这些扩充。
 
 此扩充的放置受与[全局属性扩充](#type-augmentation-placement)相同的限制。
 

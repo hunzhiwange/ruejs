@@ -136,7 +136,7 @@
 - **示例**
 
   ```ts
-  import { Route } from 'rue-router'
+  import { Route } from '@rue-js/router'
 
   declare module 'rue-js' {
     interface ComponentCustomOptions {

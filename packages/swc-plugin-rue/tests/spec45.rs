@@ -9,7 +9,7 @@ mod utils;
 fn transforms_spec45() {
     let src = r##"
 import { type FC, useError, useApp } from 'rue-js'
-import { RouterView } from 'rue-router'
+import { RouterView } from '@rue-js/router'
 import router from './router'
 import SiteLayout from './pages/site/components/Layout'
 
@@ -31,7 +31,7 @@ useApp(RootApp).use(router).mount('#app')
 
     let expected_fragment = r##"
 import { type FC, useError, useApp, vapor, renderBetween, _$createComment, _$createDocumentFragment, _$appendChild } from 'rue-js';
-import { RouterView } from 'rue-router';
+import { RouterView } from '@rue-js/router';
 import router from './router';
 import SiteLayout from './pages/site/components/Layout';
 useError({

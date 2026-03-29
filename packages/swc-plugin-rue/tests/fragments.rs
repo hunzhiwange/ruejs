@@ -8,7 +8,7 @@ mod utils;
 fn transforms_fragments_tsx() {
     let src = r##"
 import { type FC } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 
 const Fragments: FC = () => (
   <div className="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm">
@@ -36,7 +36,7 @@ export default Fragments;
     // - 组件：使用注释锚点占位并 renderBetween 插入 RouterLink
     let expected = r##"
 import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setClassName } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 const Fragments: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         _$setClassName(_root, "max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm");

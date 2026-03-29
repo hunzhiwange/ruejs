@@ -9,7 +9,7 @@ fn transforms_classname_and_text() {
     // 输入包含静态属性、文本节点与组件子节点
     let src = r##"
 import { type FC } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 
 const BasicElements: FC = () => (
   <div className="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm">
@@ -38,7 +38,7 @@ export default BasicElements;
     // - 组件：使用注释锚点 + renderBetween 进行插槽渲染
     let expected_fragment = r##"
 import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setAttribute, _$setClassName } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 const BasicElements: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         _$setClassName(_root, "max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm");
@@ -93,7 +93,7 @@ fn transforms_expressions() {
     // 表达式插值与组件渲染
     let src = r#"
 import { type FC } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 
 const n = 7;
 const user = { name: 'Alice', age: 20 };
@@ -117,7 +117,7 @@ export default Expressions;
 
     let expected_fragment = r##"
 import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 const n = 7;
 const user = {
     name: 'Alice',

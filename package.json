@@ -65,6 +65,8 @@
     "@rue-js/router": "workspace:*",
     "@rue-js/runtime": "workspace:*",
     "@rue-js/runtime-vapor": "workspace:*",
+    "@rue-js/shared": "workspace:*",
+    "@rue-js/vite-plugin-rue": "workspace:*",
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-attrs": "^4.3.1",
@@ -72,9 +74,7 @@
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
     "rue-js": "workspace:*",
-    "@rue-js/shared": "workspace:*",
-    "shiki": "^3.19.0",
-    "@rue-js/vite-plugin-rue": "workspace:*"
+    "shiki": "^3.19.0"
   },
   "devDependencies": {
     "@babel/parser": "catalog:",

@@ -1,5 +1,5 @@
 import { type FC, useState, watch, useEffect } from 'rue-js'
-import { RouterLink, useRoute } from 'rue-router'
+import { RouterLink, useRoute } from '@rue-js/router'
 
 const ThemePicker: FC = () => {
   const [theme, setTheme] = useState<string>(() => {

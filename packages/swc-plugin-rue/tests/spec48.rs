@@ -9,7 +9,7 @@ mod utils;
 fn transforms_spec48() {
     let src = r##"
 import { useState, type FC } from 'rue-js'
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 
 const About: FC<{ theme: string; setTheme: (t: string) => void }> = p => {
   const [open, setOpen] = useState<boolean>(false)
@@ -65,7 +65,7 @@ export default About
 
     let expected_fragment = r##"
 import { useState, type FC, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 const About: FC<{
     theme: string;
     setTheme: (t: string) => void;

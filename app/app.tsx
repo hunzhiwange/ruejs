@@ -5,7 +5,7 @@
 - 启动流程：useApp 创建应用，挂载到 #app，并安装路由插件。
 */
 import { type FC, useError, useApp } from 'rue-js'
-import { RouterView, useRoute } from 'rue-router'
+import { RouterView, useRoute } from '@rue-js/router'
 import router from './router'
 import SiteLayout from './pages/site/components/Layout'
 import { createPlugin } from '@rue-js/plugin'

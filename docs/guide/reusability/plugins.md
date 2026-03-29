@@ -32,7 +32,7 @@ const myPlugin = {
 
 3. 通过将它们附加到 [`app.config.globalProperties`](/api/application#app-config-globalproperties) 来添加一些全局实例属性或方法。
 
-4. 需要执行上述某些组合的库（例如 [rue-router](https://github.com/ruejs/router)）。
+4. 需要执行上述某些组合的库（例如 [@rue-js/router](https://github.com/ruejs/router)）。
 
 ## 编写插件 {#writing-a-plugin}
 

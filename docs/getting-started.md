@@ -5,14 +5,14 @@
 ```bash
 pnpm create vite@latest my-app -- --template vanilla
 cd my-app
-pnpm add rue-js rue-router
+pnpm add rue-js @rue-js/router
 ```
 
 在 `app.tsx` 中创建应用：
 
 ```tsx
 import { type FC, useApp, useError } from 'rue-js'
-import { RouterView } from 'rue-router'
+import { RouterView } from '@rue-js/router'
 import router from './router'
 
 // 启用错误处理
@@ -34,7 +34,7 @@ useApp(App).use(router).mount('#app')
 在 `router/index.ts` 中配置路由：
 
 ```ts
-import { createRouter } from 'rue-router'
+import { createRouter } from '@rue-js/router'
 import Home from '../pages/Home'
 import About from '../pages/About'
 

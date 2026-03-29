@@ -111,7 +111,7 @@ app2.mount('#container-2')
 ```tsx
 // main.tsx
 import { type FC, useApp, useError } from 'rue-js'
-import { RouterView } from 'rue-router'
+import { RouterView } from '@rue-js/router'
 import router from './router'
 
 // 启用错误处理

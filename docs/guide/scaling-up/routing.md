@@ -116,12 +116,12 @@ export const App: FC = () => {
 }
 ```
 
-## 使用 rue-router {#using-rue-router}
+## 使用 @rue-js/router {#using-@rue-js/router}
 
-对于生产环境应用，推荐使用 `rue-router`。以下是一个基本示例：
+对于生产环境应用，推荐使用 `@rue-js/router`。以下是一个基本示例：
 
 ```tsx
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'rue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from '@rue-js/router'
 import { createApp } from 'rue-js'
 import Home from './views/Home'
 import About from './views/About'
@@ -168,7 +168,7 @@ export const UserProfile: FC = () => {
 ### 路由守卫
 
 ```tsx
-import { useRouter } from 'rue-router'
+import { useRouter } from '@rue-js/router'
 
 const router = useRouter()
 
@@ -195,8 +195,8 @@ const routes = [
 ### 路由配置
 
 ```tsx
-import { createRouter, createWebHistory } from 'rue-router'
-import type { RouteRecordRaw } from 'rue-router'
+import { createRouter, createWebHistory } from '@rue-js/router'
+import type { RouteRecordRaw } from '@rue-js/router'
 
 const routes: RouteRecordRaw[] = [
   {

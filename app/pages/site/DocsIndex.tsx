@@ -1,5 +1,5 @@
 import type { FC } from 'rue-js'
-import { RouterLink } from 'rue-router'
+import { RouterLink } from '@rue-js/router'
 
 const DocSidebar: FC = () => (
   <aside className="md:w-64 shrink-0">
@@ -60,9 +60,9 @@ const DocsIndex: FC = () => (
             快速上手
           </h2>
           <pre className="bg-base-200 rounded-box p-4 text-sm overflow-auto">
-            <code>{`pnpm add rue rue-router
+            <code>{`pnpm add rue @rue-js/router
 import { mount, FC } from 'rue-js';
-import { createRouter, createWebHashHistory } from 'rue-router';
+import { createRouter, createWebHashHistory } from '@rue-js/router';
 
 // 创建路由与挂载
 `}</code>
@@ -71,7 +71,7 @@ import { createRouter, createWebHashHistory } from 'rue-router';
             路由与页面
           </h2>
           <p className="text-base-content/70">
-            使用 <code className="bg-base-200 px-1 rounded">rue-router</code>{' '}
+            使用 <code className="bg-base-200 px-1 rounded">@rue-js/router</code>{' '}
             创建路由；每个页面为一个 JSX 组件。
           </p>
         </div>

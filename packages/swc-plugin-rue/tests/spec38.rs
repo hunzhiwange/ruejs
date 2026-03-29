@@ -9,7 +9,7 @@ mod utils;
 fn transforms_spec38() {
     let src = r##"
 import { type FC, useEffect, useState } from 'rue-js'
-import { RouterLink, useRoute } from 'rue-router'
+import { RouterLink, useRoute } from '@rue-js/router'
 
 const ThemePicker: FC<{ value: string; onChange: (t: string) => void }> = props => {
   const themes = [
@@ -404,7 +404,7 @@ export default SiteLayout
 
     let expected_fragment = r##"
 import { type FC, useEffect, useState, _$vaporWithHookId, useSetup } from 'rue-js';
-import { RouterLink, useRoute } from 'rue-router';
+import { RouterLink, useRoute } from '@rue-js/router';
 const ThemePicker: FC<{
     value: string;
     onChange: (t: string) => void;

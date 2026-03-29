@@ -1,5 +1,5 @@
 import { computed, type FC, reactive, ref, useState } from 'rue-js'
-import { RouterLink as Link } from 'rue-router'
+import { RouterLink as Link } from '@rue-js/router'
 import Code from './components/Code'
 
 const FeatureCard: FC<{

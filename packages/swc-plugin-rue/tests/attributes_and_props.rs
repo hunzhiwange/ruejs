@@ -8,7 +8,7 @@ mod utils;
 fn transforms_attributes_and_props() {
     let src = r##"
 import { type FC } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 
 const Badge: FC<{ label: string; color?: string }> = (props) => (
   <span className="px-2 py-1 rounded-md" style={{ backgroundColor: props.color ?? '#eee' }}>
@@ -35,7 +35,7 @@ export default AttributesAndProps;
 
     let expected_fragment = r##"
 import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$setStyle, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$setClassName } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 const Badge: FC<{
     label: string;
     color?: string;

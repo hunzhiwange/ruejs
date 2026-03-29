@@ -9,7 +9,7 @@ mod utils;
 fn transforms_spec46() {
     let src = r##"
 import { type FC, useError, useApp } from 'rue-js'
-import { RouterView } from 'rue-router'
+import { RouterView } from '@rue-js/router'
 import router from './router'
 
 useError({ overlay: true, console: true })
@@ -39,7 +39,7 @@ useApp(RootApp).use(router).mount('#app')
 
     let expected_fragment = r##"
 import { type FC, useError, useApp, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from 'rue-js';
-import { RouterView } from 'rue-router';
+import { RouterView } from '@rue-js/router';
 import router from './router';
 useError({
     overlay: true,

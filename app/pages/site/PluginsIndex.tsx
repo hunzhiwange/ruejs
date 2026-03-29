@@ -1,5 +1,5 @@
 import type { FC } from 'rue-js'
-import { RouterLink } from 'rue-router'
+import { RouterLink } from '@rue-js/router'
 
 const PluginsIndex: FC = () => (
   <>

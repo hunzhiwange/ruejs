@@ -1,5 +1,5 @@
 import { type FC, useState, watch, useEffect } from 'rue-js'
-import { useRoute } from 'rue-router'
+import { useRoute } from '@rue-js/router'
 import SidebarPlayground from './SidebarPlaygroundPage'
 // @ts-ignore
 import MarkdownIt from 'markdown-it'

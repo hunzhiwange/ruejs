@@ -1,5 +1,5 @@
 import type { FC } from 'rue-js'
-import { RouterLink, useRoute } from 'rue-router'
+import { RouterLink, useRoute } from '@rue-js/router'
 
 const PostDetail: FC = () => {
   const route = useRoute()

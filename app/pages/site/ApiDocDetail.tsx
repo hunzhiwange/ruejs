@@ -1,5 +1,5 @@
 import { type FC, useState, watch, computed, signal, useEffect } from 'rue-js'
-import { RouterLink, useRoute } from 'rue-router'
+import { RouterLink, useRoute } from '@rue-js/router'
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlaygroundApi'
 // @ts-ignore
 import MarkdownIt from 'markdown-it'

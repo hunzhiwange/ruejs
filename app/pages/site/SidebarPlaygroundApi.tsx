@@ -1,6 +1,6 @@
 import { type FC, useState, computed } from 'rue-js'
 import { extend } from '@rue-js/shared'
-import { RouterLink, useRoute } from 'rue-router'
+import { RouterLink, useRoute } from '@rue-js/router'
 
 type Item = { id: string; title: string; href?: string; children?: Item[] }
 type Section = { id: string; title: string; items: Item[] }

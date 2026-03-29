@@ -8,7 +8,7 @@ mod utils;
 fn transforms_lists_and_keys() {
     let src = r##"
 import { type FC } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 
 const list = ['Apple', 'Banana', 'Cherry'];
 
@@ -36,7 +36,7 @@ export default ListsAndKeys;
     // - 更新：watch 中对 elements 引用进行复用更新
     let expected_fragment = r##"
 import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$setClassName } from 'rue-js';
-import { RouterLink } from 'rue-router';
+import { RouterLink } from '@rue-js/router';
 const list = [
     'Apple',
     'Banana',
