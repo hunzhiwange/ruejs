@@ -28,7 +28,7 @@
       "@rue-js/vite-plugin-rue": ["packages/vite-plugin-rue/index.mjs"],
       "@rue-js/shared": ["packages/shared/src"],
       "@rue-js/design": ["packages/rue-design/src"],
-      "@rue-js/runtime-vapor": ["packages/runtime-vapor/src"]
+      "@rue-js/runtime-vapor": ["packages/runtime-vapor/pkg/rue_runtime_vapor.d.ts"]
       // "@rue-js/learn-wgpu": [
       //   "packages/learn-wgpu/index.js"
       // ],

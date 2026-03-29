@@ -146,6 +146,9 @@ jobs:
       - name: Build @rue-js/plugin (wasm)
         run: pnpm --filter @rue-js/plugin build
 
+      - name: Build @rue-js/runtime-vapor (wasm)
+        run: pnpm --filter @rue-js/runtime-vapor build
+
       - name: Run tsc
         run: pnpm run check
 
