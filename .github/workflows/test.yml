@@ -1,0 +1,156 @@
+name: 'test'
+
+on: workflow_call
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown,wasm32-wasip1
+          components: rustfmt
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - run: pnpm install
+      - run: pnpm --filter swc-plugin-rue build
+      - run: pnpm --filter @rue/runtime-vapor build-node
+
+      - name: Run unit tests
+        run: pnpm run test-unit
+
+  unit-test-windows:
+    runs-on: windows-latest
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown,wasm32-wasip1
+          components: rustfmt
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - run: pnpm install
+      - run: pnpm --filter swc-plugin-rue build
+      - run: pnpm --filter @rue/runtime-vapor build-node
+
+      - name: Run unit tests
+        run: pnpm run test-unit
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup cache for Chromium binary
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown,wasm32-wasip1
+          components: rustfmt
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - run: pnpm install
+      - run: pnpm --filter swc-plugin-rue build
+      - run: pnpm --filter @rue/runtime-vapor build-node
+
+      - name: Run e2e tests
+        run: pnpm run test-e2e
+
+      - name: verify treeshaking
+        if: ${{ hashFiles('scripts/verify-treeshaking.js') != '' }}
+        run: node scripts/verify-treeshaking.js
+
+  lint-and-test-dts:
+    runs-on: ubuntu-latest
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5.0.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown,wasm32-wasip1
+          components: rustfmt
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - run: pnpm install
+
+      - name: Run eslint
+        run: pnpm run lint
+
+      - name: Run prettier
+        run: pnpm run format-check
+
+      - name: Build @rue/rue-rs-plugin (wasm)
+        run: pnpm --filter @rue/rue-rs-plugin build
+
+      - name: Run tsc
+        run: pnpm run check
+
+      - run: pnpm --filter swc-plugin-rue build
+      - run: pnpm --filter @rue/runtime-vapor build-node
+
+      - name: Run type declaration tests
+        run: pnpm run test-dts
