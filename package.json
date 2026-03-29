@@ -72,9 +72,9 @@
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-task-lists": "^2.1.1",
     "rue-js": "workspace:*",
-    "rue-shared": "workspace:*",
+    "@rue-js/shared": "workspace:*",
     "shiki": "^3.19.0",
-    "vite-plugin-rue": "workspace:*"
+    "@rue-js/vite-plugin-rue": "workspace:*"
   },
   "devDependencies": {
     "@babel/parser": "catalog:",

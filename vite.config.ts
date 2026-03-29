@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import tailwindcss from '@tailwindcss/vite'
-import VitePluginRue from 'vite-plugin-rue'
+import VitePluginRue from '@rue-js/vite-plugin-rue'
 import { resolve } from 'node:path'
 import topLevelAwait from 'vite-plugin-top-level-await'
 import wasm from 'vite-plugin-wasm'
@@ -97,20 +97,19 @@ export default defineConfig({
     conditions: ['development', 'browser'],
     alias: {
       'rue-js': path.resolve(rootDir, 'packages/rue/src'),
-      'rue-router': path.resolve(rootDir, 'packages/router/src'),
       '@rue-js/router': path.resolve(rootDir, 'packages/router/src'),
       '@rue-js/jsx-runtime': path.resolve(rootDir, 'packages/jsx-runtime/src'),
       '@rue-js/jsx-dev-runtime': path.resolve(rootDir, 'packages/jsx-dev-runtime/src'),
       '@rue-js/runtime': path.resolve(rootDir, 'packages/runtime/src'),
-      'vite-plugin-rue': path.resolve(rootDir, 'packages/vite-plugin-rue/index.mjs'),
-      'rue-shared': path.resolve(rootDir, 'packages/shared/src'),
-      '@rue-js/design': path.resolve(rootDir, 'packages/@rue-js/design/src'),
+      '@rue-js/vite-plugin-rue': path.resolve(rootDir, 'packages/vite-plugin-rue/index.mjs'),
+      '@rue-js/shared': path.resolve(rootDir, 'packages/shared/src'),
+      '@rue-js/design': path.resolve(rootDir, 'packages/rue-design/src'),
       '@rue-js/runtime-vapor': process.env.VITEST
         ? path.resolve(rootDir, 'packages/runtime-vapor/pkg-node/rue_runtime_vapor.js')
         : path.resolve(rootDir, 'packages/runtime-vapor/pkg/rue_runtime_vapor.js'),
       // '@rue-js/learn-wgpu': path.resolve(rootDir, 'packages/learn-wgpu/index.js'),
       // '@rue-js/app-rust': path.resolve(rootDir, 'packages/app-rust/pkg/app_rust.js'),
-      // '@rue-js/plugin': path.resolve(rootDir, 'packages/@rue-js/plugin/pkg/rue_rs_plugin.js'),
+      // '@rue-js/plugin': path.resolve(rootDir, 'packages/rue-rs-plugin/pkg/rue_rs_plugin.js'),
     },
   },
 })

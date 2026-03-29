@@ -21,13 +21,12 @@
     "baseUrl": ".",
     "paths": {
       "rue-js": ["packages/rue/src"],
-      "rue-router": ["packages/router/src"],
       "@rue-js/router": ["packages/router/src"],
       "@rue-js/jsx-runtime": ["packages/jsx-runtime/src"],
       "@rue-js/jsx-dev-runtime": ["packages/jsx-dev-runtime/src"],
       "@rue-js/runtime": ["packages/runtime/src"],
-      "vite-plugin-rue": ["packages/vite-plugin-rue/index.mjs"],
-      "rue-shared": ["packages/shared/src"],
+      "@rue-js/vite-plugin-rue": ["packages/vite-plugin-rue/index.mjs"],
+      "@rue-js/shared": ["packages/shared/src"],
       "@rue-js/design": ["packages/rue-design/src"],
       "@rue-js/runtime-vapor": ["packages/runtime-vapor/src"]
       // "@rue-js/learn-wgpu": [
@@ -37,7 +36,7 @@
       //   "packages/app-rust/pkg/app_rust.js"
       // ],
       // "@rue-js/plugin": [
-      //   "packages/@rue-js/plugin/pkg/rue_rs_plugin.js"
+      //   "packages/rue-rs-plugin/pkg/rue_rs_plugin.js"
       // ],
     },
     "noImplicitAny": true,

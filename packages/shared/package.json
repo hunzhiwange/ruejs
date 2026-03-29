@@ -1,5 +1,5 @@
 {
-  "name": "rue-shared",
+  "name": "@rue-js/shared",
   "version": "0.0.16",
   "description": "internal utils shared across rue packages",
   "keywords": [

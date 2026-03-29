@@ -54,7 +54,7 @@ This could be e.g. documentation for the component.
 可以为任何项目特定的需要在 `*.tsx` 文件中包含附加自定义块，例如 `<docs>` 块。自定义块的一些实际示例包括：
 
 - [Gridsome: `<page-query>`](https://gridsome.org/docs/querying-data/)
-- [vite-plugin-rue-gql: `<gql>`](https://github.com/wheatjs/vite-plugin-rue-gql)
+- [@rue-js/vite-plugin-rue-gql: `<gql>`](https://github.com/wheatjs/@rue-js/vite-plugin-rue-gql)
 - [rue-i18n: `<i18n>`](https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-rue-i18n#i18n-custom-block)
 
 自定义块的处理将取决于工具 - 如果您想构建自己的自定义块集成，请参见 [SFC 自定义块集成工具部分](/guide/scaling-up/tooling#sfc-custom-block-integrations) 了解更多详细信息。

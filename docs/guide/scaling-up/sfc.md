@@ -90,7 +90,7 @@ SFC 内部的 `<style>` 标签通常在开发期间作为原生 `<style>` 标签
 
 你可以在 [Rue SFC Playground](https://play.ruejs.org/) 中试用 SFC 并探索它们是如何编译的。
 
-在实际项目中，我们通常将 SFC 编译器与构建工具（如 [Vite](https://vitejs.dev/)）集成，Rue 通过 `vite-plugin-rue` 提供官方插件支持。查看 [SFC 工具链](/guide/scaling-up/tooling) 部分了解更多详情。
+在实际项目中，我们通常将 SFC 编译器与构建工具（如 [Vite](https://vitejs.dev/)）集成，Rue 通过 `@rue-js/vite-plugin-rue` 提供官方插件支持。查看 [SFC 工具链](/guide/scaling-up/tooling) 部分了解更多详情。
 
 ## 关注点分离怎么办？ {#what-about-separation-of-concerns}
 

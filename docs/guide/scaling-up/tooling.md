@@ -27,32 +27,32 @@ $ pnpm serve
 ```sh [npm]
 $ npm create vite@latest my-rue-app -- --template vanilla-ts
 $ cd my-rue-app
-$ npm i @rue-js/runtime vite-plugin-rue
+$ npm i @rue-js/runtime @rue-js/vite-plugin-rue
 ```
 
 ```sh [pnpm]
 $ pnpm create vite@latest my-rue-app -- --template vanilla-ts
 $ cd my-rue-app
-$ pnpm add @rue-js/runtime vite-plugin-rue
+$ pnpm add @rue-js/runtime @rue-js/vite-plugin-rue
 ```
 
 ```sh [yarn]
 $ yarn create vite my-rue-app --template vanilla-ts
 $ cd my-rue-app
-$ yarn add @rue-js/runtime vite-plugin-rue
+$ yarn add @rue-js/runtime @rue-js/vite-plugin-rue
 ```
 
 ```sh [bun]
 $ bun create vite my-rue-app --template vanilla-ts
 $ cd my-rue-app
-$ bun add @rue-js/runtime vite-plugin-rue
+$ bun add @rue-js/runtime @rue-js/vite-plugin-rue
 ```
 
 在 `vite.config.ts` 中启用 Rue 插件：
 
 ```ts
 import { defineConfig } from 'vite'
-import rue from 'vite-plugin-rue'
+import rue from '@rue-js/vite-plugin-rue'
 
 export default defineConfig({
   plugins: [rue()],
@@ -60,7 +60,7 @@ export default defineConfig({
 ```
 
 - 了解 Vite：参见 [Vite 文档](https://vitejs.dev)
-- Rue 的编译与指令由 `vite-plugin-rue` 负责集成与优化
+- Rue 的编译与指令由 `@rue-js/vite-plugin-rue` 负责集成与优化
 
 在线沙盒通常支持将项目打包为 Vite 工程下载。
 
@@ -143,15 +143,15 @@ $ pnpm format-check
 Rue 的 SFC 可包含自定义块。它们会在构建时按资源查询被转换为同文件的导入，由底层构建工具 Vite 负责处理。
 
 - 使用 Vite 时，建议通过自定义插件将匹配的块转换为可执行 JS
-- Rue 官方提供的 `vite-plugin-rue` 覆盖了常见用例，扩展场景可自行添加插件
+- Rue 官方提供的 `@rue-js/vite-plugin-rue` 覆盖了常见用例，扩展场景可自行添加插件
 
 ## 底层包与生态
 
 以下包在 Rue 项目中常用：
 
 - `@rue-js/runtime`：Rue 运行时核心
-- `rue-shared`：通用工具与类型
-- `vite-plugin-rue`：Rue 与 Vite 集成的官方插件
+- `@rue-js/shared`：通用工具与类型
+- `@rue-js/vite-plugin-rue`：Rue 与 Vite 集成的官方插件
 - `rue-router`：路由能力
 - `@rue-js/jsx-runtime`：JSX 相关运行时支持
 - `@rue-js/runtime-vapor`：针对特定运行模式的优化实现

@@ -201,7 +201,7 @@ customElements.define('my-example', ExampleElement)
 
 如果你希望自定义哪些文件应以自定义元素模式导入（例如，将所有 SFC 视为自定义元素），你可以将 `customElement` 选项传递给相应的构建插件：
 
-- [@vitejs/plugin-rue](https://github.com/vitejs/vite-plugin-rue/tree/main/packages/plugin-rue#using-rue-sfcs-as-custom-elements)
+- [@vitejs/plugin-rue](https://github.com/vitejs/@rue-js/vite-plugin-rue/tree/main/packages/plugin-rue#using-rue-sfcs-as-custom-elements)
 - [rue-loader](https://github.com/rue-jsjs/rue-loader/tree/next#v16-only-options)
 
 ### Rue 自定义元素库技巧 {#tips-for-a-rue-custom-elements-library}

@@ -59,7 +59,7 @@ export default function VitePluginRue(options = {}) {
 
   return {
     /** 插件名称 */
-    name: 'vite-plugin-rue',
+    name: '@rue-js/vite-plugin-rue',
     /** 插件执行阶段：前置，优先于其他转换 */
     enforce: 'pre',
     /**

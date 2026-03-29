@@ -17,7 +17,7 @@ import {
   watchEffect,
   useSetup,
 } from 'rue-js'
-import { extend } from 'rue-shared'
+import { extend } from '@rue-js/shared'
 
 /** 路由静态记录：
  * - path：形如 '/users/:id(\\d+)' 的匹配模式（支持命名参数与可选正则）

@@ -62,7 +62,7 @@
   },
   "dependencies": {
     "@rue-js/runtime": "workspace:*",
-    "rue-shared": "workspace:*"
+    "@rue-js/shared": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "*"

@@ -244,7 +244,7 @@ npm install -D vitest happy-dom @testing-library/rue
 
 ```ts{5-11} [vite.config.ts]
 import { defineConfig } from 'vite'
-import rue from 'vite-plugin-rue'
+import rue from '@rue-js/vite-plugin-rue'
 
 export default defineConfig({
   plugins: [rue()],

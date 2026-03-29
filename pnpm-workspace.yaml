@@ -9,8 +9,8 @@ catalog:
   'source-map-js': ^1.2.1
   'vite': 8.0.0-beta.0,
   'rue-js': ^0.0.1
-  'vite-plugin-rue': ^0.0.1
-  'rue-shared': ^0.0.1
+  '@rue-js/vite-plugin-rue': ^0.0.1
+  '@rue-js/shared': ^0.0.1
   '@rue-js/runtime': ^0.0.1
   '@rue-js/jsx-dev-runtime': ^0.0.1
   '@rue-js/jsx-runtime': ^0.0.1

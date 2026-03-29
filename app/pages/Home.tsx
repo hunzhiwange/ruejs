@@ -1,5 +1,5 @@
 import { type FC, computed, emitted, h, reactive, ref, useState, watch, watchEffect } from 'rue-js'
-import { extend } from 'rue-shared'
+import { extend } from '@rue-js/shared'
 import { RouterLink } from 'rue-router'
 
 interface Todo {

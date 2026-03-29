@@ -34,7 +34,7 @@ export default defineConfig(
         },
         {
           selector: 'ObjectExpression > SpreadElement',
-          message: 'Use the `extend` helper from rue-shared instead of object spread.',
+          message: 'Use the `extend` helper from @rue-js/shared instead of object spread.',
         },
       ],
       'sort-imports': ['error', { ignoreDeclarationSort: true }],
