@@ -1,6 +1,6 @@
 {
   "name": "swc-plugin-rue",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "通过 SWC 实现 JSX 中转化为原生DOM",
   "keywords": [
     "jsx",
