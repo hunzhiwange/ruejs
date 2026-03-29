@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  RUST_VERSION: 1.92
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1.10.1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt, clippy
+          override: true
+      - name: Install Alsa
+        run: sudo apt-get install libasound2-dev
+      - name: Build
+        run: cargo build --verbose --workspace --exclude tutorial13-terrain --exclude wgpu_in_web
+      - name: Run tests
+        run: cargo test --verbose --workspace --exclude tutorial13-terrain --exclude wgpu_in_web

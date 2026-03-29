@@ -1,0 +1,25 @@
+{
+  "name": "@rue-js/learn-wgpu",
+  "version": "0.0.1",
+  "private": true,
+  "description": "学习 wgpu：下一代跨平台图形接口 WebGPU 的 Rust 实现",
+  "license": "MIT",
+  "author": "Jinlei Li",
+  "files": [
+    "pkg"
+  ],
+  "exports": {
+    ".": {
+      "development": "./index.js",
+      "import": "./index.js",
+      "default": "./index.js"
+    }
+  },
+  "scripts": {
+    "dev": "./build-wasm.sh",
+    "build": "./build-wasm.sh"
+  },
+  "engines": {
+    "node": ">=20.0"
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "name": "rue-js",
+  "version": "0.0.16",
+  "description": "后悔药 Rue.js - The Wasm Framework For Vapor Native DOM.",
+  "keywords": [
+    "rue"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/rue#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git"
+  },
+  "files": [
+    "index.js",
+    "index.mjs",
+    "dist",
+    "jsx-runtime",
+    "jsx-dev-runtime",
+    "jsx.d.ts"
+  ],
+  "main": "index.js",
+  "module": "dist/rue.runtime.esm-bundler.js",
+  "types": "dist/rue.d.ts",
+  "unpkg": "dist/rue.global.js",
+  "jsdelivr": "dist/rue.global.js",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "import": {
+        "types": "./dist/rue.d.mts",
+        "node": "./index.mjs",
+        "default": "./dist/rue.runtime.esm-bundler.js"
+      },
+      "require": {
+        "types": "./dist/rue.d.ts",
+        "node": {
+          "production": "./dist/rue.cjs.prod.js",
+          "development": "./dist/rue.cjs.js",
+          "default": "./index.js"
+        },
+        "default": "./index.js"
+      }
+    },
+    "./jsx-runtime": {
+      "types": "./jsx-runtime/index.d.ts",
+      "import": "./jsx-runtime/index.mjs",
+      "require": "./jsx-runtime/index.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./jsx-runtime/index.d.ts",
+      "import": "./jsx-runtime/index.mjs",
+      "require": "./jsx-runtime/index.js"
+    },
+    "./jsx": "./jsx.d.ts",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@rue-js/runtime": "workspace:*",
+    "rue-shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "typescript": "*"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "buildOptions": {
+    "name": "rue",
+    "formats": [
+      "esm-bundler",
+      "esm-bundler-runtime",
+      "cjs",
+      "global",
+      "global-runtime",
+      "esm-browser",
+      "esm-browser-runtime"
+    ]
+  }
+}

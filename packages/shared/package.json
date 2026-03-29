@@ -1,0 +1,48 @@
+{
+  "name": "rue-shared",
+  "version": "0.0.16",
+  "description": "internal utils shared across rue packages",
+  "keywords": [
+    "rue"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/shared#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git",
+    "directory": "packages/shared"
+  },
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "sideEffects": false,
+  "main": "index.js",
+  "module": "dist/shared.esm-bundler.js",
+  "types": "dist/shared.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/shared.d.ts",
+      "development": "./src/index.ts",
+      "node": {
+        "production": "./dist/shared.cjs.prod.js",
+        "development": "./dist/shared.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/shared.esm-bundler.js",
+      "import": "./dist/shared.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  }
+}

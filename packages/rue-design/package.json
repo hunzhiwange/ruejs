@@ -1,0 +1,61 @@
+{
+  "name": "@rue-js/design",
+  "version": "0.0.16",
+  "description": "@rue-js/design",
+  "keywords": [
+    "rue"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/design#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git",
+    "directory": "src/packages/design"
+  },
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "sideEffects": false,
+  "main": "index.js",
+  "module": "dist/design.esm-bundler.js",
+  "types": "dist/design.d.ts",
+  "unpkg": "dist/design.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/design.d.ts",
+      "development": "./src/index.ts",
+      "node": {
+        "production": "./dist/design.cjs.prod.js",
+        "development": "./dist/design.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/design.esm-bundler.js",
+      "import": "./dist/design.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "dependencies": {
+    "@rue-js/router": "workspace:*",
+    "csstype": "^3.1.3",
+    "rue-js": "workspace:*",
+    "rue-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/trusted-types": "^2.0.7"
+  },
+  "buildOptions": {
+    "name": "RueRuntimeDOM",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  }
+}

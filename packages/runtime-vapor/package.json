@@ -1,0 +1,33 @@
+{
+  "name": "@rue-js/runtime-vapor",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Rue runtime implemented in Rust and compiled to WebAssembly",
+  "files": [
+    "pkg"
+  ],
+  "types": "./pkg/rue_runtime_vapor.d.ts",
+  "exports": {
+    ".": {
+      "development": "./pkg/rue_runtime_vapor.js",
+      "import": "./pkg/rue_runtime_vapor.js",
+      "default": "./pkg/rue_runtime_vapor.js"
+    }
+  },
+  "scripts": {
+    "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev",
+    "build": "wasm-pack build --release --target bundler --out-dir pkg --features log --features dev",
+    "build-node": "wasm-pack build --release --target nodejs --out-dir pkg-node --features log --features dev",
+    "postinstall": "npm run build",
+    "dev": "wasm-pack watch",
+    "docs": "cargo doc --no-deps",
+    "test": "wasm-pack test --node",
+    "check": "cargo check",
+    "fmt": "cargo fmt",
+    "test-coverage": "cargo llvm-cov  --html --open",
+    "test-coverage-js": "c8 --reporter=lcov --reporter=text wasm-pack test --node"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3"
+  }
+}

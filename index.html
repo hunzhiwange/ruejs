@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>后悔药 Rue.js - The Wasm Framework For Vapor Native DOM</title>
+    <script>
+      ;(function () {
+        try {
+          var theme = localStorage.getItem('rue.theme') || 'light'
+          document.documentElement.setAttribute('data-theme', theme)
+        } catch (e) {}
+      })()
+    </script>
+    <style>
+      /* 取消 body 的宽度与背景限制，交由应用布局控制 */
+      body {
+        margin: 0;
+      }
+
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+    </style>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/app/app.tsx"></script>
+  </body>
+</html>

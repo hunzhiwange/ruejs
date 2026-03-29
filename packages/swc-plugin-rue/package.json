@@ -1,0 +1,41 @@
+{
+  "name": "swc-plugin-rue",
+  "version": "0.0.16",
+  "description": "通过 SWC 实现 JSX 中转化为原生DOM",
+  "keywords": [
+    "jsx",
+    "swc",
+    "swc-plugin",
+    "swc-plugin-rue"
+  ],
+  "homepage": "https://github.com/rue-js/swc-plugin-rue#readme",
+  "bugs": {
+    "url": "https://github.com/rue-js/swc-plugin-rue/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rue-js/swc-plugin-rue.git"
+  },
+  "files": [
+    "swc-plugin-rue.wasm",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "swc-plugin-rue.wasm",
+  "exports": {
+    ".": "./swc-plugin-rue.wasm"
+  },
+  "scripts": {
+    "build": "cargo fmt --all && cargo build --release --target wasm32-wasip1",
+    "postbuild": "node -e \"const fs=require('fs');fs.copyFileSync('target/wasm32-wasip1/release/swc_plugin_rue.wasm','swc-plugin-rue.wasm')\"",
+    "test": "cargo test",
+    "format": "cargo fmt --all",
+    "docs": "cargo doc --no-deps",
+    "prepublishOnly": "npm run build",
+    "check": "cargo check",
+    "fmt": "cargo fmt",
+    "test-coverage": "cargo llvm-cov  --html --open"
+  }
+}

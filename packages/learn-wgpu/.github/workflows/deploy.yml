@@ -1,0 +1,47 @@
+name: Deploy to GH Pages
+
+on:
+  push:
+    branches: [master]
+env:
+  RUST_VERSION: 1.92
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1.10.1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt, clippy
+          override: true
+
+      - name: Install wasm target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version=0.2.105
+
+      - name: Download Binaryen
+        run: |
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_120_b/binaryen-version_120_b-x86_64-linux.tar.gz
+          tar -xzf binaryen-version_120_b-x86_64-linux.tar.gz
+          sudo mv binaryen-version_120_b/bin/* /usr/local/bin/
+
+      - name: Build WASM
+        run: |
+          sh build-wasm.sh
+
+      - name: Install and Build vitepress
+        run: |
+          npm install
+          npm run just-build
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: docs/.vitepress/dist

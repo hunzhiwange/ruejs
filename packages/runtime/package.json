@@ -1,0 +1,61 @@
+{
+  "name": "@rue-js/runtime",
+  "version": "0.0.16",
+  "description": "@rue-js/runtime",
+  "keywords": [
+    "rue"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/runtime#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git",
+    "directory": "src/packages/runtime"
+  },
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "sideEffects": false,
+  "main": "index.js",
+  "module": "dist/runtime.esm-bundler.js",
+  "types": "dist/runtime.d.ts",
+  "unpkg": "dist/runtime.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/runtime.d.ts",
+      "development": "./src/index.ts",
+      "node": {
+        "production": "./dist/runtime.cjs.prod.js",
+        "development": "./dist/runtime.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/runtime.esm-bundler.js",
+      "import": "./dist/runtime.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "dependencies": {
+    "@rue-js/runtime-vapor": "workspace:*",
+    "csstype": "^3.1.3",
+    "rue-js": "workspace:*",
+    "rue-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/trusted-types": "^2.0.7"
+  },
+  "buildOptions": {
+    "name": "RueRuntimeDOM",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+packages:
+  - 'packages/*'
+
+catalog:
+  '@babel/parser': ^7.28.5
+  '@babel/types': ^7.28.5
+  'estree-walker': ^2.0.2
+  'magic-string': ^0.30.21
+  'source-map-js': ^1.2.1
+  'vite': 8.0.0-beta.0,
+  'rue-js': ^0.0.1
+  'vite-plugin-rue': ^0.0.1
+  'rue-shared': ^0.0.1
+  '@rue-js/runtime': ^0.0.1
+  '@rue-js/jsx-dev-runtime': ^0.0.1
+  '@rue-js/jsx-runtime': ^0.0.1
+  '@rue-js/router': ^0.0.1
+  '@rue-js/design': ^0.0.1
+  '@rue-js/runtime-vapor': ^0.0.1
+  '@rue-js/learn-wgpu': ^0.0.1
+  '@rue-js/app-rust': ^0.0.1
+  '@rue-js/plugin': ^0.0.1
+
+onlyBuiltDependencies:
+  - '@swc/core'
+  - 'esbuild'
+  - 'puppeteer'
+  - 'simple-git-hooks'
+  - 'unrs-resolver'
+  - '@rue-js/jsx-dev-runtime'
+
+peerDependencyRules:
+  allowedVersions:
+    'typescript-eslint>eslint': '^9.0.0'
+    '@typescript-eslint/eslint-plugin>eslint': '^9.0.0'
+    '@typescript-eslint/parser>eslint': '^9.0.0'
+    '@typescript-eslint/type-utils>eslint': '^9.0.0'
+    '@typescript-eslint/utils>eslint': '^9.0.0'

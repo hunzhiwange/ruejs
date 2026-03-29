@@ -1,0 +1,41 @@
+{
+  "name": "vite-plugin-rue",
+  "version": "0.0.16",
+  "description": "vite-plugin-rue",
+  "keywords": [
+    "rue"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/runtime#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git",
+    "directory": "packages/vite-plugin-rue"
+  },
+  "files": [
+    "index.mjs",
+    "dist"
+  ],
+  "sideEffects": false,
+  "main": "index.mjs",
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.mjs",
+      "default": "./index.mjs"
+    },
+    "./*": "./*"
+  },
+  "dependencies": {
+    "rue-js": "workspace:*",
+    "swc-plugin-rue": "workspace:*"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.7.9",
+    "@swc/core": "^1.15.3"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": false,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@rue-js",
+    "types": ["vitest/globals"],
+    "declaration": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "rue-js": ["packages/rue/src"],
+      "rue-router": ["packages/router/src"],
+      "@rue-js/router": ["packages/router/src"],
+      "@rue-js/jsx-runtime": ["packages/jsx-runtime/src"],
+      "@rue-js/jsx-dev-runtime": ["packages/jsx-dev-runtime/src"],
+      "@rue-js/runtime": ["packages/runtime/src"],
+      "vite-plugin-rue": ["packages/vite-plugin-rue/index.mjs"],
+      "rue-shared": ["packages/shared/src"],
+      "@rue-js/design": ["packages/rue-design/src"],
+      "@rue-js/runtime-vapor": ["packages/runtime-vapor/src"]
+      // "@rue-js/learn-wgpu": [
+      //   "packages/learn-wgpu/index.js"
+      // ],
+      // "@rue-js/app-rust": [
+      //   "packages/app-rust/pkg/app_rust.js"
+      // ],
+      // "@rue-js/plugin": [
+      //   "packages/@rue-js/plugin/pkg/rue_rs_plugin.js"
+      // ],
+    },
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "app/app.tsx",
+    "app/**/*",
+    "tailwind.config.ts",
+    "packages/global.d.ts",
+    "packages/rue/env.d.ts",
+    "packages/*/src",
+    "packages/*/__tests__",
+    "packages/rue/jsx-runtime",
+    "packages/rue/jsx.d.ts",
+    "scripts/*",
+    "rollup.*.js",
+    "packages/runtime-virtual/rue-bak.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

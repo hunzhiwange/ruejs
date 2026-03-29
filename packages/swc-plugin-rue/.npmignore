@@ -1,0 +1,19 @@
+# Source
+src/
+tests/
+target/
+
+# Rust specific
+Cargo.lock
+Cargo.toml
+
+# Dev files
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+
+# Test files
+**/*.test.js
+**/*.spec.js

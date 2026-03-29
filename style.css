@@ -1,0 +1,499 @@
+@import 'tailwindcss';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply text-base-content;
+  }
+  .prose {
+    @apply text-base-content;
+  }
+  .prose a {
+    @apply text-base-content;
+  }
+}
+
+@plugin "daisyui" {
+  themes: all;
+}
+
+@plugin "@tailwindcss/typography";
+
+/* 菜单 */
+.sidebar-playground aside .menu li > a {
+  position: relative;
+  @apply block px-1 py-1 rounded-md transition-all;
+}
+
+.sidebar-playground aside .menu li > a:hover,
+.sidebar-playground aside .menu li > a.active,
+.sidebar-playground aside .menu li > a[aria-current='page'] {
+  @apply bg-base-200 text-base-content font-semibold rounded-md shadow-sm ring-1 ring-base-300;
+}
+
+.sidebar-playground aside .menu li + li {
+  @apply mt-2;
+}
+
+.component-preview {
+  width: 848px;
+}
+
+.component-preview > .prose {
+  max-width: 100%;
+}
+
+/* 自定义炫酷动效：轻微霓虹呼吸光晕 */
+@keyframes glow-pulse {
+  0% {
+    box-shadow: 0 0 0px rgba(99, 102, 241, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.45);
+  }
+}
+
+/* 为需要强调的元素添加霓虹光晕动画 */
+.neon-ring {
+  animation: glow-pulse 3s ease-in-out infinite alternate;
+}
+
+/* 炫酷 R 徽标容器 */
+.logo-badge {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: radial-gradient(
+    120% 120% at 0% 0%,
+    rgba(124, 58, 237, 0.15) 0%,
+    rgba(236, 72, 153, 0.15) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 背景环形流光 */
+.logo-badge::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    transparent 0 30%,
+    rgba(124, 58, 237, 0.25) 40%,
+    rgba(236, 72, 153, 0.25) 60%,
+    transparent 70% 100%
+  );
+  filter: blur(18px);
+  transform: rotate(0deg);
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* R 字样本体 */
+.logo-r {
+  position: relative;
+  z-index: 1;
+  font-weight: 900;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #7c3aed, #d946ef 55%, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow:
+    0 2px 12px rgba(124, 58, 237, 0.35),
+    0 4px 24px rgba(236, 72, 153, 0.25);
+  transform: translateY(0);
+  animation:
+    float 3.5s ease-in-out infinite alternate,
+    shimmer 5s linear infinite;
+}
+
+@keyframes float {
+  to {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    filter: saturate(110%) brightness(1);
+  }
+
+  100% {
+    filter: saturate(120%) brightness(1.08);
+  }
+}
+
+/* 前景高光扫光效果 */
+.logo-r::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -10%;
+  width: 120%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shine 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* 纯 CSS R 形状（无文字、无 SVG） */
+.logo-r-css {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: inline-block;
+}
+
+.logo-r-css .r-stem,
+.logo-r-css .r-bowl,
+.logo-r-css .r-leg {
+  position: absolute;
+  background: linear-gradient(135deg, #7c3aed, #d946ef 55%, #ec4899);
+  box-shadow:
+    0 2px 12px rgba(124, 58, 237, 0.35),
+    0 4px 24px rgba(236, 72, 153, 0.25);
+}
+
+/* 优化徽标容器：完全透明，无边框与背景 */
+.logo-badge {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 紫色渐变更漂亮，带轻微柔光 */
+.logo-r-css .r-stem,
+.logo-r-css .r-bowl,
+.logo-r-css .r-leg {
+  background: linear-gradient(135deg, #6d28d9, #a78bfa 55%, #c4b5fd);
+  box-shadow: 0 4px 14px rgba(109, 40, 217, 0.28);
+}
+
+/* 取消扫光与摇摆，保持干净 */
+/* 强制关闭 LOGO 动画，避免旧样式覆盖 */
+.logo-r-css {
+  animation: none !important;
+}
+
+.logo-r-css::after {
+  content: none !important;
+  animation: none !important;
+}
+
+/* R 形状尺寸与定位（确保可见） */
+.logo-r-css .r-stem {
+  left: 8px;
+  top: 6px;
+  width: 8px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.logo-r-css .r-bowl {
+  left: 16px;
+  top: 6px;
+  width: 16px;
+  height: 12px;
+  border-radius: 8px;
+}
+
+.logo-r-css .r-leg {
+  left: 16px;
+  top: 22px;
+  width: 18px;
+  height: 8px;
+  border-radius: 4px;
+  transform: rotate(32deg);
+  transform-origin: left center;
+}
+
+/* 轻微动效与高光扫光 */
+.logo-r-css {
+  animation: float 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+  to {
+    transform: translateY(-1px);
+  }
+}
+
+.logo-r-css::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -10%;
+  width: 120%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shine 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.shiki,
+pre.shiki {
+  border: 1px solid hsl(var(--bc) / 0.08);
+  border-radius: var(--rounded-box);
+  background-color: hsl(var(--b2));
+  color: hsl(var(--bc));
+  position: relative;
+  padding: 1rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.shiki::after,
+pre.shiki::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, hsl(var(--p) / 0.35), hsl(var(--s) / 0.35));
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  pointer-events: none;
+}
+
+pre.shiki code,
+.shiki code {
+  display: block;
+}
+
+/* 在文件末尾追加，覆盖旧 Logo 样式 */
+/* 简洁圆形紫色渐变徽标（覆盖旧样式） */
+.logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  /* 完全圆形 */
+  background: radial-gradient(
+    circle at 30% 30%,
+    #a78bfa 0%,
+    #7c3aed 48%,
+    #6d28d9 75%,
+    #5b21b6 100%
+  );
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.25);
+}
+
+/* 去掉旧的环形流光与动画 */
+.logo-badge::before {
+  content: none !important;
+}
+
+/* 居中的 “R” 文本样式 */
+.logo-mark {
+  display: inline-block;
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: none;
+}
+
+/* 站点头部（site-header）暗黑模式优化：更稳重的玻璃拟态与阴影 */
+.site-header {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.1) 0%,
+    rgba(217, 70, 239, 0.1) 50%,
+    rgba(236, 72, 153, 0.1) 100%
+  );
+  backdrop-filter: blur(12px) saturate(1.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* 头部导航交互：暗色下更清晰的悬停背景与过渡 */
+.site-header nav a {
+  color: hsl(var(--bc));
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+  border-radius: 10px;
+}
+
+.site-header nav a:hover {
+  background-color: rgba(99, 102, 241, 0.08);
+}
+
+/* 下拉面板统一玻璃模糊与阴影（需配合 .dropdown-panel 类） */
+.dropdown-panel {
+  backdrop-filter: blur(12px);
+  border-radius: 14px;
+}
+
+/* 顶部导航下拉：纯 CSS 保持子菜单悬停与轻微延迟隐藏 */
+.site-header .dropdown {
+  position: relative;
+}
+
+/* 统一采用可见性与透明度控制，而不是 display 切换 */
+.site-header .dropdown .dropdown-content {
+  display: none;
+  position: absolute;
+  overflow: visible;
+}
+
+.site-header .dropdown .dropdown-content::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 12px solid rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  z-index: 51;
+}
+
+.site-header .dropdown .dropdown-content::after {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-bottom: 11px solid hsl(var(--b1));
+  pointer-events: none;
+  z-index: 52;
+}
+
+/* 触发区或子菜单自身被悬停时均保持展开 */
+.site-header .dropdown:hover .dropdown-content,
+.site-header .dropdown:focus-within .dropdown-content,
+.site-header .dropdown .dropdown-content:hover {
+  display: block;
+}
+
+/* 一级菜单右侧箭头，指向二级菜单（纯 CSS） */
+.site-header .dropdown > a::after {
+  content: '';
+  display: inline-block;
+  margin-left: 6px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+  opacity: 0.45;
+  vertical-align: middle;
+}
+
+.site-header .dropdown:hover > a::after,
+.site-header .dropdown:focus-within > a::after {
+  transform: rotate(180deg);
+  opacity: 0.7;
+}
+
+/* 顶部与二级菜单之间的悬停桥接区域，避免移入间隙时折叠 */
+.site-header .dropdown::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% - 4px);
+  height: 0;
+  background: transparent;
+  z-index: 50;
+  pointer-events: auto;
+  transition: height 0.15s ease;
+}
+
+/* 一级菜单底部的弱化指示箭头，指向二级菜单 */
+.site-header .dropdown::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 0px);
+  left: 50%;
+  transform: translate(-50%, 0) scale(0.92);
+  width: 50px;
+  height: 18px;
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+  z-index: 51;
+  pointer-events: auto;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.site-header .dropdown:hover::after,
+.site-header .dropdown:focus-within::after {
+  opacity: 0;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.site-header .dropdown:hover::before,
+.site-header .dropdown:focus-within::before {
+  height: 16px;
+}
+
+.component-preview .preview {
+  box-shadow: 0 0 0 1px var(--color-base-100) inset;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-base-100),
+    var(--color-base-100) 13px,
+    var(--color-base-200) 13px,
+    var(--color-base-200) 14px
+  );
+  background-size: 40px 40px;
+  @apply relative flex min-h-[6rem] max-w-4xl min-w-[18rem] flex-wrap items-center justify-center gap-2 overflow-x-hidden bg-cover bg-top p-4 xl:py-10;
+}

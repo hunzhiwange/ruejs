@@ -1,0 +1,52 @@
+{
+  "name": "@rue-js/jsx-dev-runtime",
+  "version": "0.0.16",
+  "description": "@rue-js/jsx-dev-runtime",
+  "keywords": [
+    "rue"
+  ],
+  "homepage": "https://github.com/hunzhiwange/ruejs/tree/main/packages/runtime-core#readme",
+  "bugs": {
+    "url": "https://github.com/hunzhiwange/ruejs/issues"
+  },
+  "license": "MIT",
+  "author": "Xiangmin Liu",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunzhiwange/ruejs.git",
+    "directory": "packages/jsx-dev-runtime"
+  },
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "sideEffects": false,
+  "main": "index.js",
+  "module": "dist/jsx-dev-runtime.esm-bundler.js",
+  "types": "dist/jsx-dev-runtime.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "development": "./src/index.ts",
+      "node": {
+        "production": "./dist/jsx-dev-runtime.cjs.prod.js",
+        "development": "./dist/jsx-dev-runtime.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/jsx-dev-runtime.esm-bundler.js",
+      "import": "./dist/jsx-dev-runtime.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "dependencies": {
+    "rue-js": "workspace:*"
+  },
+  "buildOptions": {
+    "name": "RueJsxDevRuntimeCore",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  }
+}

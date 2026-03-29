@@ -1,0 +1,25 @@
+{
+  "name": "@rue-js/plugin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Rue plugin written in Rust (WASM)",
+  "files": [
+    "pkg"
+  ],
+  "types": "./pkg/rue_rs_plugin.d.ts",
+  "exports": {
+    ".": {
+      "development": "./pkg/rue_rs_plugin.js",
+      "import": "./pkg/rue_rs_plugin.js",
+      "default": "./pkg/rue_rs_plugin.js"
+    }
+  },
+  "scripts": {
+    "build": "wasm-pack build --release --target bundler --out-dir pkg --features dev",
+    "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev",
+    "dev": "wasm-pack watch",
+    "docs": "cargo doc --no-deps",
+    "check": "cargo check",
+    "fmt": "cargo fmt"
+  }
+}

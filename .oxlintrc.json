@@ -1,0 +1,11 @@
+{
+  "ignorePatterns": [
+    "**/.doc/**",
+    "**/dist/**",
+    "**/temp/**",
+    "**/coverage/**",
+    "packages/**/pkg/**",
+    "packages/**/pkg-node/**",
+    "packages/swc-plugin-rue/target/**"
+  ]
+}

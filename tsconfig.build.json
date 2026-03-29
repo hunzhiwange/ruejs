@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "stripInternal": true,
+    "composite": false
+  },
+  "include": [
+    "packages/global.d.ts",
+    "packages/rue/jsx.d.ts",
+    "packages/rue/src",
+    "packages/router/src",
+    "packages/jsx-runtime/src",
+    "packages/jsx-dev-runtime/src",
+    "packages/runtime/src",
+    "packages/rue-design/src",
+    "packages/shared/src"
+  ]
+}
