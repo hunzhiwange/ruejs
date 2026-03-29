@@ -143,8 +143,8 @@ jobs:
       - name: Run prettier
         run: pnpm run format-check
 
-      - name: Build @rue/rue-rs-plugin (wasm)
-        run: pnpm --filter @rue/rue-rs-plugin build
+      - name: Build @rue-js/plugin (wasm)
+        run: pnpm --filter @rue-js/plugin build
 
       - name: Run tsc
         run: pnpm run check
