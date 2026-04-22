@@ -8,7 +8,8 @@ Teleport 组件概述
 */
 // 参考 Vue3 的 Teleport 设计思想，结合 Rue 的 vapor/renderBetween 机制实现
 
-import { type FC, h, onMounted, onUnmounted, renderBetween, vapor, watchEffect } from '@rue-js/rue'
+import { type FC, h, onMounted, onUnmounted, renderBetween, vapor } from '../rue'
+import { watchEffect } from '../reactivity'
 import {
   createComment,
   createDocumentFragment,
@@ -115,10 +116,9 @@ export const Teleport: FC<TeleportProps> = props => {
   }
 
   onMounted(() => {
-    // 初次解析目标并挂载一次，避免 children 初始为空后状态变化不触发 effect 的情况
+    // 先解析目标；首次渲染交给 watchEffect 的立即首跑，避免同一轮重复提交 renderBetween。
     const disabled0 = !!props.disabled
     target = disabled0 ? null : resolveTarget(props.to)
-    mountChildren(target)
 
     const eh = watchEffect(() => {
       // 显式读取 children 建立依赖，以便 children 变化触发更新

@@ -1,0 +1,1 @@
+module.exports = require('./pkg-node/rue_runtime_vapor.js')

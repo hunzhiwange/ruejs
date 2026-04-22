@@ -69,6 +69,60 @@ where
         self.invoke_unmounted_vnode(&mut vnode);
     }
 
+    /// 若某个待删除的片段节点本身是 renderBetween 管理的 start 锚点，
+    /// 需要先完整卸载该范围关联的 vnode，再移除 start/end 与范围内容。
+    fn clear_range_entry_if_present(&mut self, parent: &mut A::Element, start: &A::Element)
+    where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        let idx = {
+            let start_js: JsValue = start.clone().into();
+            let mut hit = None;
+            for (i, (s, _)) in self.range_map.iter().enumerate() {
+                let sv: JsValue = s.clone().into();
+                if js_sys::Object::is(&sv, &start_js) {
+                    hit = Some(i);
+                    break;
+                }
+                if let Some(adapter) = self.get_dom_adapter() {
+                    if adapter.contains(s, start) && adapter.contains(start, s) {
+                        hit = Some(i);
+                        break;
+                    }
+                }
+            }
+            hit
+        };
+
+        let Some(idx) = idx else {
+            return;
+        };
+
+        let taken = {
+            let entry = self.range_map.get_mut(idx).unwrap();
+            entry.1.take()
+        };
+
+        let Some(mut vnode) = taken else {
+            return;
+        };
+
+        self.invoke_before_unmount_vnode(&mut vnode);
+
+        self.clear_vapor_frag_nodes(parent, &mut vnode);
+        if let Some(ref el_old) = vnode.el {
+            self.clear_old_el_if_present(parent, el_old);
+        }
+        if let Some(sub) = vnode.comp_subtree.as_deref_mut() {
+            self.clear_vapor_frag_nodes(parent, sub);
+            if let Some(ref sub_el) = sub.el {
+                self.clear_old_el_if_present(parent, sub_el);
+            }
+        }
+
+        self.invoke_unmounted_vnode(&mut vnode);
+    }
+
     // 片段子节点插入（优先 end 锚点）：
     // - 设计目的：RouterView 等区间渲染场景中，确保片段的真实子节点严格插入到 end 注释之前，
     //   避免因父为片段或 contains(end) 为 false 而错误地追加到区间外部。
@@ -286,8 +340,9 @@ where
                         dest_parent = pn.into();
                     }
                 }
-            } else if let Some(anchor) = anchor_opt {
-                // 同理：若父为片段或父不包含锚点，尝试从锚点解析真实父节点
+            }
+            if let Some(anchor) = anchor_opt {
+                // 旧 el 可能是已脱离的 DocumentFragment，无法提供真实父节点；此时继续回退到锚点的 parentNode。
                 if adapter.is_fragment(&dest_parent) || !adapter.contains(&dest_parent, &anchor) {
                     let pn = js_sys::Reflect::get(
                         &anchor.clone().into(),
@@ -357,6 +412,7 @@ where
                 }
                 for node_el in nodes.into_iter() {
                     self.clear_anchor_entry_if_present(parent, &node_el);
+                    self.clear_range_entry_if_present(parent, &node_el);
                     if let Some(adapter) = self.get_dom_adapter_mut() {
                         if adapter.contains(parent, &node_el) {
                             let mut p2 = parent.clone();

@@ -289,7 +289,23 @@ where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
         // 替换入口：先触发卸载前钩子，再创建新真实节点，最后按类型分派具体替换策略
+        let eager_unmounted = matches!(
+            &old.r#type,
+            super::super::types::VNodeType::Vapor
+                | super::super::types::VNodeType::VaporWithSetup(_)
+        );
         self.invoke_before_unmount_vnode(old);
+        if eager_unmounted {
+            let anchor_opt = self.current_anchor.clone();
+            let mut preclear_parent =
+                self.resolve_dest_parent(parent, old.el.clone(), anchor_opt.clone());
+            // 旧 vapor 根若以 fragment 形式存在，先把 __fragNodes 代表的旧 DOM 与内部锚点子树摘掉，
+            // 避免新 setup 执行时与旧的 renderAnchor/renderBetween 子树并存。
+            self.clear_vapor_frag_nodes(&mut preclear_parent, old);
+            // Vapor 类替换需要先完成旧副作用与跨容器清理，再创建新的子树。
+            // 否则旧 Teleport/onUnmounted 这类清理逻辑可能会把刚挂上的新内容一并清掉。
+            self.invoke_unmounted_vnode(old);
+        }
         if let Some(el_new) = self.create_real_dom(new) {
             let anchor_opt = self.current_anchor.clone();
             let mut dest_parent =
@@ -322,6 +338,8 @@ where
             new.el = Some(el_new);
         }
         // 替换完成：触发卸载完成钩子
-        self.invoke_unmounted_vnode(old);
+        if !eager_unmounted {
+            self.invoke_unmounted_vnode(old);
+        }
     }
 }

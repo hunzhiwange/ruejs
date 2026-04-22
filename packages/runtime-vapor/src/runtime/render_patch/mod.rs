@@ -237,6 +237,9 @@ where
             } else {
                 anchor_opt.clone()
             };
+            // 当前 fragment 的同类更新是“整段替换 children”而不是逐项 patch，
+            // 因此必须先递归卸载旧子树，避免内部 vapor/component 副作用泄漏。
+            self.invoke_before_unmount_vnode(old);
             // 先清理旧片段的子节点（片段只负责子节点内容，不直接替换占位）
             self.clear_vapor_frag_nodes(&mut dest_parent, old);
             // 插入新片段的子节点到目标父节点；必要时参照锚点前插
@@ -247,6 +250,7 @@ where
             }
             // 记录新的占位引用（el），供后续递归或替换使用
             new.el = Some(el_new);
+            self.invoke_unmounted_vnode(old);
         }
     }
 

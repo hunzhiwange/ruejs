@@ -7,7 +7,7 @@ Transition 组件概述
 // 参考 Vue3 的 Transition 设计思路，结合 Rue 的信号与 vapor 渲染机制
 import { type FC, type VNode, onMounted, onUnmounted, renderBetween, vapor } from '../rue'
 import { watchEffect } from '../reactivity'
-import { type BaseTransitionProps, createTransitionRunner } from '@rue-js/runtime'
+import { type BaseTransitionProps, createTransitionRunner } from './BaseTransition'
 import { createElement, createComment, appendChild, createDocumentFragment } from '../dom'
 import type { DomNodeLike } from '../dom'
 

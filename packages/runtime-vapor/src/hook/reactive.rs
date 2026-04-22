@@ -49,7 +49,17 @@ fn same_vnode(a: &JsValue, b: &JsValue) -> bool {
     }
     let ak = Reflect::get(&ao, &JsValue::from_str("key")).unwrap_or(JsValue::UNDEFINED);
     let bk = Reflect::get(&bo, &JsValue::from_str("key")).unwrap_or(JsValue::UNDEFINED);
-    js_sys::Object::is(&ak, &bk)
+    if !js_sys::Object::is(&ak, &bk) {
+        return false;
+    }
+    let ap = Reflect::get(&ao, &JsValue::from_str("props")).unwrap_or(JsValue::UNDEFINED);
+    let bp = Reflect::get(&bo, &JsValue::from_str("props")).unwrap_or(JsValue::UNDEFINED);
+    if !js_sys::Object::is(&ap, &bp) {
+        return false;
+    }
+    let ac = Reflect::get(&ao, &JsValue::from_str("children")).unwrap_or(JsValue::UNDEFINED);
+    let bc = Reflect::get(&bo, &JsValue::from_str("children")).unwrap_or(JsValue::UNDEFINED);
+    js_sys::Object::is(&ac, &bc)
 }
 
 // props / children 的浅相等判断：

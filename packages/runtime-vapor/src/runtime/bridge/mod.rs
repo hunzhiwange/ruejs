@@ -74,7 +74,14 @@ impl WasmRue {
     /// 若借用失败（重入），将任务放回队列并终止本次处理
     fn process_queues(&self) {
         loop {
-            let r = { self.pending_render.borrow_mut().pop() };
+            let r = {
+                let mut queue = self.pending_render.borrow_mut();
+                if queue.is_empty() {
+                    None
+                } else {
+                    Some(queue.remove(0))
+                }
+            };
             if let Some((vnode_r, cont_r)) = r {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_r) => {
@@ -88,7 +95,14 @@ impl WasmRue {
                 }
                 continue;
             }
-            let b = { self.pending_between.borrow_mut().pop() };
+            let b = {
+                let mut queue = self.pending_between.borrow_mut();
+                if queue.is_empty() {
+                    None
+                } else {
+                    Some(queue.remove(0))
+                }
+            };
             if let Some((vnode_b, p_b, s_b, e_b)) = b {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_b) => {
@@ -102,7 +116,14 @@ impl WasmRue {
                 }
                 continue;
             }
-            let a = { self.pending_anchor.borrow_mut().pop() };
+            let a = {
+                let mut queue = self.pending_anchor.borrow_mut();
+                if queue.is_empty() {
+                    None
+                } else {
+                    Some(queue.remove(0))
+                }
+            };
             if let Some((vnode_a, p_a, anchor_a)) = a {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_a) => {
@@ -116,7 +137,14 @@ impl WasmRue {
                 }
                 continue;
             }
-            let s = { self.pending_static.borrow_mut().pop() };
+            let s = {
+                let mut queue = self.pending_static.borrow_mut();
+                if queue.is_empty() {
+                    None
+                } else {
+                    Some(queue.remove(0))
+                }
+            };
             if let Some((vnode_s, p_s, a_s)) = s {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_s) => {

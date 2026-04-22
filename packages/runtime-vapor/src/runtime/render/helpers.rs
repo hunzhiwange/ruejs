@@ -75,6 +75,46 @@ where
     where
         <A as DomAdapter>::Element: Into<JsValue>,
     {
+        fn in_detached_fragment(node: &JsValue) -> bool {
+            let mut cur = node.clone();
+            for _ in 0..16 {
+                let pn = js_sys::Reflect::get(&cur, &JsValue::from_str("parentNode"))
+                    .unwrap_or(JsValue::UNDEFINED);
+                if pn.is_undefined() || pn.is_null() {
+                    return false;
+                }
+                let nt = js_sys::Reflect::get(&pn, &JsValue::from_str("nodeType"))
+                    .unwrap_or(JsValue::UNDEFINED)
+                    .as_f64()
+                    .unwrap_or(0.0) as i32;
+                if nt == 11 {
+                    let has_host =
+                        js_sys::Reflect::has(&pn, &JsValue::from_str("host")).unwrap_or(false);
+                    return !has_host;
+                }
+                cur = pn;
+            }
+            false
+        }
+
+        fn has_detached_fragment_ancestor_by_adapter<B: DomAdapter>(
+            adapter: &B,
+            anchor: &B::Element,
+        ) -> bool {
+            let mut cur = anchor.clone();
+            for _ in 0..16 {
+                let parent = match adapter.get_parent_node(&cur) {
+                    Some(p) => p,
+                    None => return false,
+                };
+                if adapter.is_fragment(&parent) {
+                    return true;
+                }
+                cur = parent;
+            }
+            false
+        }
+
         let adapter_owned = self.get_dom_adapter().cloned();
         let drained = std::mem::take(&mut self.anchor_map);
         let mut kept: Vec<(A::Element, Option<VNode<A>>)> = Vec::with_capacity(drained.len());
@@ -90,10 +130,11 @@ where
                 None => {
                     if let Some(adapter) = adapter_owned.as_ref() {
                         adapter.get_parent_node(&anchor).is_some()
+                            && !has_detached_fragment_ancestor_by_adapter(adapter, &anchor)
                     } else {
                         let ret = js_sys::Reflect::get(&av, &JsValue::from_str("parentNode"))
                             .unwrap_or(JsValue::UNDEFINED);
-                        !ret.is_undefined() && !ret.is_null()
+                        !ret.is_undefined() && !ret.is_null() && !in_detached_fragment(&av)
                     }
                 }
             };
