@@ -22,30 +22,11 @@ pub fn render_between_for_slot(
     is_children: bool,
     stmts: &mut Vec<Stmt>,
 ) {
-    let use_anchor = vt.optimize_component_anchors;
-
     let anchor = vt.next_list_ident();
-    let anchor_marker: &str = if is_children {
-        if use_anchor { "rue:children:anchor" } else { "rue:children:start" }
-    } else if use_anchor {
-        "rue:slot:anchor"
-    } else {
-        "rue:slot:start"
-    };
+    let anchor_marker: &str = if is_children { "rue:children:anchor" } else { "rue:slot:anchor" };
     let make_anchor = call_ident("_$createComment", vec![string_expr(anchor_marker)]);
     stmts.push(const_decl(anchor.clone(), make_anchor));
     stmts.push(append_child(el_ident.clone(), Expr::Ident(anchor.clone())));
-
-    let end = if use_anchor {
-        None
-    } else {
-        let end = vt.next_list_ident();
-        let marker_end: &str = if is_children { "rue:children:end" } else { "rue:slot:end" };
-        let make_end = call_ident("_$createComment", vec![string_expr(marker_end)]);
-        stmts.push(const_decl(end.clone(), make_end));
-        stmts.push(append_child(el_ident.clone(), Expr::Ident(end.clone())));
-        Some(end)
-    };
 
     // 槽值：对于标识符/成员表达式使用括号包裹以保证后续判断
     let expr_for_slot = match inner_expr.clone() {
@@ -61,33 +42,17 @@ pub fn render_between_for_slot(
         call_ident("_$vaporCreateVNode", vec![Expr::Ident(ident("__slot"))]),
     );
 
-    // 在锚点前渲染 vnode，并放入 watchEffect 中
-    let render_call = if let Some(end_ident) = end.clone() {
-        Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Callee::Expr(Box::new(Expr::Ident(ident("renderBetween")))),
-            args: vec![
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__vnode"))) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(el_ident.clone())) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(end_ident)) },
-            ],
-            type_args: None,
-            ctxt: SyntaxContext::empty(),
-        })
-    } else {
-        Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
-            args: vec![
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__vnode"))) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(el_ident.clone())) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-            ],
-            type_args: None,
-            ctxt: SyntaxContext::empty(),
-        })
-    };
+    let render_call = Expr::Call(CallExpr {
+        span: DUMMY_SP,
+        callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
+        args: vec![
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__vnode"))) },
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(el_ident.clone())) },
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
+        ],
+        type_args: None,
+        ctxt: SyntaxContext::empty(),
+    });
     let arrow = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![],

@@ -103,7 +103,7 @@ export default TodoApp
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, reactive, computed, Fragment, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { FC, reactive, computed, Fragment, _$vaporWithHookId, useSetup, vapor, renderAnchor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 interface Todo {
     id: number;
     text: string;
@@ -206,10 +206,8 @@ const TodoApp: FC = ()=>{
                 renderItem: (todo, parent, start, end, _idx)=>{
                     const __slot = vapor(()=>{
                         const _root = _$createDocumentFragment();
-                        const _list3 = _$createComment("rue:component:start");
-                        const _list4 = _$createComment("rue:component:end");
+                        const _list3 = _$createComment("rue:component:anchor");
                         _$appendChild(_root, _list3);
-                        _$appendChild(_root, _list4);
                         const __child1 = vapor(()=>{
                             const _root = _$createDocumentFragment();
                             const _el6 = _$createElement("p");
@@ -245,8 +243,8 @@ const TodoApp: FC = ()=>{
                             };
                         });
                         watchEffect(()=>{
-                            const __slot5 = <Fragment key={todo.id} children={__child1}/>;
-                            renderBetween(__slot5, _root, _list3, _list4);
+                            const __slot4 = <Fragment key={todo.id} children={__child1}/>;
+                            renderAnchor(__slot4, _root, _list3);
                         });
                         return {
                             vaporElement: _root

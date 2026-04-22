@@ -396,7 +396,7 @@ const About: FC = ()=>{
         const _el66 = _$createElement("div");
         _$appendChild(_el64, _el66);
         _$setStyle(_el66, {
-          whiteSpace: 'normal'
+            whiteSpace: 'normal'
         });
         _$appendChild(_el66, _$createTextNode("A    B      C "));
         const _el67 = _$createTextWrapper(_el66);
@@ -417,7 +417,7 @@ const About: FC = ()=>{
         const _el71 = _$createElement("div");
         _$appendChild(_el69, _el71);
         _$setStyle(_el71, {
-          whiteSpace: 'pre'
+            whiteSpace: 'pre'
         });
         _$appendChild(_el71, _$createTextNode("A    B      C "));
         const _el72 = _$createTextWrapper(_el71);
@@ -438,7 +438,7 @@ const About: FC = ()=>{
         const _el76 = _$createElement("div");
         _$appendChild(_el74, _el76);
         _$setStyle(_el76, {
-          whiteSpace: 'pre-wrap'
+            whiteSpace: 'pre-wrap'
         });
         _$appendChild(_el76, _$createTextNode("A    B      C "));
         const _el77 = _$createTextWrapper(_el76);

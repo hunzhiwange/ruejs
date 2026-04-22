@@ -45,15 +45,13 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
 const Chain: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("【"));
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = 0 ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -65,13 +63,11 @@ const Chain: FC = ()=>{
                 };
             }) : 0;
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list1, _list2);
+            renderAnchor(__vnode, _root, _list1);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list3 = _$createComment("rue:slot:start");
-        const _list4 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
+        const _list2 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = ' ' ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -83,13 +79,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list3, _list4);
+            renderAnchor(__vnode, _root, _list2);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list5 = _$createComment("rue:slot:start");
-        const _list6 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list5);
-        _$appendChild(_root, _list6);
+        const _list3 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list3);
         watchEffect(()=>{
             const __slot = '' ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -101,13 +95,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list5, _list6);
+            renderAnchor(__vnode, _root, _list3);
         });
         _$appendChild(_root, _$createTextNode("】 【 "));
-        const _list7 = _$createComment("rue:slot:start");
-        const _list8 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list7);
-        _$appendChild(_root, _list8);
+        const _list4 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list4);
         watchEffect(()=>{
             const __slot = NaN ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -119,13 +111,11 @@ const Chain: FC = ()=>{
                 };
             }) : NaN;
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list7, _list8);
+            renderAnchor(__vnode, _root, _list4);
         });
         _$appendChild(_root, _$createTextNode("】 【 "));
-        const _list9 = _$createComment("rue:slot:start");
-        const _list10 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list9);
-        _$appendChild(_root, _list10);
+        const _list5 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list5);
         watchEffect(()=>{
             const __slot = {} ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -137,13 +127,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list9, _list10);
+            renderAnchor(__vnode, _root, _list5);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list11 = _$createComment("rue:slot:start");
-        const _list12 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list11);
-        _$appendChild(_root, _list12);
+        const _list6 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list6);
         watchEffect(()=>{
             const __slot = false ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -155,13 +143,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list11, _list12);
+            renderAnchor(__vnode, _root, _list6);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list13 = _$createComment("rue:slot:start");
-        const _list14 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list13);
-        _$appendChild(_root, _list14);
+        const _list7 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list7);
         watchEffect(()=>{
             const __slot = null ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -173,13 +159,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list13, _list14);
+            renderAnchor(__vnode, _root, _list7);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list15 = _$createComment("rue:slot:start");
-        const _list16 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list15);
-        _$appendChild(_root, _list16);
+        const _list8 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list8);
         watchEffect(()=>{
             const __slot = undefined ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -191,13 +175,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list15, _list16);
+            renderAnchor(__vnode, _root, _list8);
         });
         _$appendChild(_root, _$createTextNode("】 === 【"));
-        const _list17 = _$createComment("rue:slot:start");
-        const _list18 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list17);
-        _$appendChild(_root, _list18);
+        const _list9 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list9);
         watchEffect(()=>{
             const __slot = !!0 ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -209,13 +191,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list17, _list18);
+            renderAnchor(__vnode, _root, _list9);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list19 = _$createComment("rue:slot:start");
-        const _list20 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list19);
-        _$appendChild(_root, _list20);
+        const _list10 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list10);
         watchEffect(()=>{
             const __slot = !!' ' ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -227,13 +207,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list19, _list20);
+            renderAnchor(__vnode, _root, _list10);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list21 = _$createComment("rue:slot:start");
-        const _list22 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list21);
-        _$appendChild(_root, _list22);
+        const _list11 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list11);
         watchEffect(()=>{
             const __slot = !!'' ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -245,13 +223,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list21, _list22);
+            renderAnchor(__vnode, _root, _list11);
         });
         _$appendChild(_root, _$createTextNode("】 【 "));
-        const _list23 = _$createComment("rue:slot:start");
-        const _list24 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list23);
-        _$appendChild(_root, _list24);
+        const _list12 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list12);
         watchEffect(()=>{
             const __slot = !!NaN ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -263,13 +239,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list23, _list24);
+            renderAnchor(__vnode, _root, _list12);
         });
         _$appendChild(_root, _$createTextNode("】 【 "));
-        const _list25 = _$createComment("rue:slot:start");
-        const _list26 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list25);
-        _$appendChild(_root, _list26);
+        const _list13 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list13);
         watchEffect(()=>{
             const __slot = !!{} ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -281,13 +255,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list25, _list26);
+            renderAnchor(__vnode, _root, _list13);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list27 = _$createComment("rue:slot:start");
-        const _list28 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list27);
-        _$appendChild(_root, _list28);
+        const _list14 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list14);
         watchEffect(()=>{
             const __slot = !!false ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -299,13 +271,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list27, _list28);
+            renderAnchor(__vnode, _root, _list14);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list29 = _$createComment("rue:slot:start");
-        const _list30 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list29);
-        _$appendChild(_root, _list30);
+        const _list15 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list15);
         watchEffect(()=>{
             const __slot = !!null ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -317,13 +287,11 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list29, _list30);
+            renderAnchor(__vnode, _root, _list15);
         });
         _$appendChild(_root, _$createTextNode("】 【"));
-        const _list31 = _$createComment("rue:slot:start");
-        const _list32 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list31);
-        _$appendChild(_root, _list32);
+        const _list16 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list16);
         watchEffect(()=>{
             const __slot = !!undefined ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -335,7 +303,7 @@ const Chain: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list31, _list32);
+            renderAnchor(__vnode, _root, _list16);
         });
         _$appendChild(_root, _$createTextNode("】"));
         return {

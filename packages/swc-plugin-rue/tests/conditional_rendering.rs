@@ -37,7 +37,7 @@ export default ConditionalRendering;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from '@rue-js/rue';
+import { type FC, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const showA = true;
 const showB = false;
@@ -110,13 +110,14 @@ const ConditionalRendering: FC = ()=>vapor(()=>{
         _$appendChild(_el18, _el19);
         _$settextContent(_el19, "0");
         _$appendChild(_el18, _$createTextNode("]--"));
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __child1 = "返回目录";
-        const __slot3 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
-        renderBetween(__slot3, _root, _list1, _list2);
+        const _el20 = _$createElement("a");
+        _$appendChild(_root, _el20);
+        watchEffect(()=>{
+            _$setAttribute(_el20, "href", String(RouterLink.__rueHref("/jsx")));
+        });
+        _$addEventListener(_el20, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
+        _$setClassName(_el20, "text-blue-600 hover:underline");
+        _$appendChild(_el20, _$createTextNode("返回目录"));
         return {
             vaporElement: _root
         };

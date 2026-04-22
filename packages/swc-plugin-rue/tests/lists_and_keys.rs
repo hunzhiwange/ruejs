@@ -32,10 +32,10 @@ export default ListsAndKeys;
     // - 列表锚点：rue:list:start/end 注释创建与插入
     // - 持久 Map：_mapX_elements 保存 key→片段 映射
     // - _$vaporKeyedList：传入 items/getKey/elements/parent/before/start/renderItem
-    // - renderItem：使用 renderBetween(vapor(()=>{...}), parent, start, end) 渲染每项
+    // - renderItem：使用 renderAnchor(vapor(()=>{...}), parent, start) 渲染每项
     // - 更新：watch 中对 elements 引用进行复用更新
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$setClassName } from '@rue-js/rue';
+import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const list = [
     'Apple',
@@ -65,6 +65,7 @@ const ListsAndKeys: FC = ()=>vapor(()=>{
                 elements: _map1_elements,
                 parent: _el2,
                 before: _list2,
+                singleRoot: true,
                 start: _list1,
                 renderItem: (item, parent, start, end, idx)=>{
                     const __slot = vapor(()=>{
@@ -89,18 +90,19 @@ const ListsAndKeys: FC = ()=>vapor(()=>{
                             vaporElement: _root
                         };
                     });
-                    renderBetween(__slot, parent, start, end);
+                    renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;
         });
-        const _list3 = _$createComment("rue:component:start");
-        const _list4 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
-        const __child1 = "返回目录";
-        const __slot5 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
-        renderBetween(__slot5, _root, _list3, _list4);
+        const _el6 = _$createElement("a");
+        _$appendChild(_root, _el6);
+        watchEffect(()=>{
+            _$setAttribute(_el6, "href", String(RouterLink.__rueHref("/jsx")));
+        });
+        _$addEventListener(_el6, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
+        _$setClassName(_el6, "text-blue-600 hover:underline");
+        _$appendChild(_el6, _$createTextNode("返回目录"));
         return {
             vaporElement: _root
         };

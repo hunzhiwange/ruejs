@@ -62,7 +62,7 @@ export default ReactConditionalDemo;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$addEventListener, _$setClassName } from '@rue-js/rue';
 const ReactConditionalDemo: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const show = _$vaporWithHookId("ref:1:0", ()=>ref(true));
@@ -103,10 +103,8 @@ const ReactConditionalDemo: FC = ()=>{
         _$appendChild(_el2, _el6);
         _$setClassName(_el6, "rounded-lg border border-gray-500 bg-gray-500 px-5 py-2.5 text-center text-sm font-medium text-white shadow-sm transition-all hover:border-gray-700 hover:bg-gray-700 focus:ring focus:ring-gray-200");
         _$addEventListener(_el6, "click", (()=>(message.value = message.value ? '' : 'Hello')));
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_el6, _list1);
-        _$appendChild(_el6, _list2);
         watchEffect(()=>{
             const __slot = message.value ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -119,12 +117,10 @@ const ReactConditionalDemo: FC = ()=>{
                 };
             }) : '恢复消息';
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _el6, _list1, _list2);
+            renderAnchor(__vnode, _el6, _list1);
         });
-        const _list3 = _$createComment("rue:slot:start");
-        const _list4 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
+        const _list2 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = show.value ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -140,13 +136,11 @@ const ReactConditionalDemo: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list3, _list4);
+            renderAnchor(__vnode, _root, _list2);
         });
         _$appendChild(_root, _$createTextNode(" "));
-        const _list5 = _$createComment("rue:slot:start");
-        const _list6 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list5);
-        _$appendChild(_root, _list6);
+        const _list3 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list3);
         watchEffect(()=>{
             const __slot = show.value ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -162,16 +156,14 @@ const ReactConditionalDemo: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list5, _list6);
+            renderAnchor(__vnode, _root, _list3);
         });
         const _el12 = _$createElement("p");
         _$appendChild(_root, _el12);
         _$setClassName(_el12, "text-gray-700");
         _$appendChild(_el12, _$createTextNode("等级状态："));
-        const _list7 = _$createComment("rue:slot:start");
-        const _list8 = _$createComment("rue:slot:end");
-        _$appendChild(_el12, _list7);
-        _$appendChild(_el12, _list8);
+        const _list4 = _$createComment("rue:slot:anchor");
+        _$appendChild(_el12, _list4);
         watchEffect(()=>{
             const __slot = level.value >= 3 ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -193,12 +185,10 @@ const ReactConditionalDemo: FC = ()=>{
                 };
             });
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _el12, _list7, _list8);
+            renderAnchor(__vnode, _el12, _list4);
         });
-        const _list9 = _$createComment("rue:slot:start");
-        const _list10 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list9);
-        _$appendChild(_root, _list10);
+        const _list5 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list5);
         watchEffect(()=>{
             const __slot = message.value ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -216,7 +206,7 @@ const ReactConditionalDemo: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list9, _list10);
+            renderAnchor(__vnode, _root, _list5);
         });
         return {
             vaporElement: _root

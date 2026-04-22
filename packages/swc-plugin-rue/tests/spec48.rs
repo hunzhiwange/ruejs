@@ -64,7 +64,7 @@ export default About
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { useState, type FC, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode } from '@rue-js/rue';
+import { useState, type FC, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const About: FC<{
     theme: string;
@@ -81,86 +81,93 @@ const About: FC<{
     return vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("打开状态: "));
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = !!open.value ? '是' : '否';
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list1, _list2);
+            renderAnchor(__vnode, _root, _list1);
         });
         const _el1 = _$createElement("ul");
         _$appendChild(_root, _el1);
         const _el2 = _$createElement("li");
         _$appendChild(_el1, _el2);
-        const _list3 = _$createComment("rue:component:start");
-        const _list4 = _$createComment("rue:component:end");
-        _$appendChild(_el2, _list3);
-        _$appendChild(_el2, _list4);
-        const __child1 = "常见问题";
-        const __slot5 = <RouterLink to="/page/about/faq" onMouseDown={()=>setOpen(false)} children={__child1}/>;
-        renderBetween(__slot5, _el2, _list3, _list4);
-        const _el3 = _$createElement("li");
-        _$appendChild(_el1, _el3);
-        const _list6 = _$createComment("rue:component:start");
-        const _list7 = _$createComment("rue:component:end");
-        _$appendChild(_el3, _list6);
-        _$appendChild(_el3, _list7);
-        const __child2 = "团队";
-        const __slot8 = <RouterLink to="/page/about/team" onMouseDown={()=>setOpen(false)} children={__child2}/>;
-        renderBetween(__slot8, _el3, _list6, _list7);
+        const _el3 = _$createElement("a");
+        _$appendChild(_el2, _el3);
+        watchEffect(()=>{
+            _$setAttribute(_el3, "href", String(RouterLink.__rueHref("/page/about/faq")));
+        });
+        _$addEventListener(_el3, "click", ((e)=>RouterLink.__rueOnClick(e, "/page/about/faq", false)));
+        _$addEventListener(_el3, "mousedown", (()=>setOpen(false)));
+        _$appendChild(_el3, _$createTextNode("常见问题"));
         const _el4 = _$createElement("li");
         _$appendChild(_el1, _el4);
-        const _list9 = _$createComment("rue:component:start");
-        const _list10 = _$createComment("rue:component:end");
-        _$appendChild(_el4, _list9);
-        _$appendChild(_el4, _list10);
-        const __child3 = "版本发布";
-        const __slot11 = <RouterLink to="/page/about/releases" onMouseDown={()=>setOpen(false)} children={__child3}/>;
-        renderBetween(__slot11, _el4, _list9, _list10);
-        const _el5 = _$createElement("li");
-        _$appendChild(_el1, _el5);
-        const _list12 = _$createComment("rue:component:start");
-        const _list13 = _$createComment("rue:component:end");
-        _$appendChild(_el5, _list12);
-        _$appendChild(_el5, _list13);
-        const __child4 = "社区指南";
-        const __slot14 = <RouterLink to="/page/about/community-guide" onMouseDown={()=>setOpen(false)} children={__child4}/>;
-        renderBetween(__slot14, _el5, _list12, _list13);
+        const _el5 = _$createElement("a");
+        _$appendChild(_el4, _el5);
+        watchEffect(()=>{
+            _$setAttribute(_el5, "href", String(RouterLink.__rueHref("/page/about/team")));
+        });
+        _$addEventListener(_el5, "click", ((e)=>RouterLink.__rueOnClick(e, "/page/about/team", false)));
+        _$addEventListener(_el5, "mousedown", (()=>setOpen(false)));
+        _$appendChild(_el5, _$createTextNode("团队"));
         const _el6 = _$createElement("li");
         _$appendChild(_el1, _el6);
-        const _list15 = _$createComment("rue:component:start");
-        const _list16 = _$createComment("rue:component:end");
-        _$appendChild(_el6, _list15);
-        _$appendChild(_el6, _list16);
-        const __child5 = "行为规范";
-        const __slot17 = <RouterLink to="/page/about/coc" onMouseDown={()=>setOpen(false)} hello={()=>console.log('hello')} children={__child5}/>;
-        renderBetween(__slot17, _el6, _list15, _list16);
-        const _el7 = _$createElement("li");
-        _$appendChild(_el1, _el7);
-        const _list18 = _$createComment("rue:component:start");
-        const _list19 = _$createComment("rue:component:end");
-        _$appendChild(_el7, _list18);
-        _$appendChild(_el7, _list19);
-        const __child6 = "隐私政策";
-        const __slot20 = <RouterLink to="/page/about/privacy" onMouseDown={()=>setOpen(false)} children={__child6}/>;
-        renderBetween(__slot20, _el7, _list18, _list19);
-        const _el8 = _$createElement("div");
-        _$appendChild(_root, _el8);
-        _$appendChild(_el8, _$createTextNode("© "));
-        const _el9 = _$createTextWrapper(_el8);
+        const _el7 = _$createElement("a");
+        _$appendChild(_el6, _el7);
+        watchEffect(()=>{
+            _$setAttribute(_el7, "href", String(RouterLink.__rueHref("/page/about/releases")));
+        });
+        _$addEventListener(_el7, "click", ((e)=>RouterLink.__rueOnClick(e, "/page/about/releases", false)));
+        _$addEventListener(_el7, "mousedown", (()=>setOpen(false)));
+        _$appendChild(_el7, _$createTextNode("版本发布"));
+        const _el8 = _$createElement("li");
+        _$appendChild(_el1, _el8);
+        const _el9 = _$createElement("a");
         _$appendChild(_el8, _el9);
         watchEffect(()=>{
-            _$settextContent(_el9, new Date().getFullYear());
+            _$setAttribute(_el9, "href", String(RouterLink.__rueHref("/page/about/community-guide")));
         });
-        _$appendChild(_el8, _$createTextNode(" Rue js "));
-        const _el10 = _$createTextWrapper(_el8);
-        _$appendChild(_el8, _el10);
+        _$addEventListener(_el9, "click", ((e)=>RouterLink.__rueOnClick(e, "/page/about/community-guide", false)));
+        _$addEventListener(_el9, "mousedown", (()=>setOpen(false)));
+        _$appendChild(_el9, _$createTextNode("社区指南"));
+        const _el10 = _$createElement("li");
+        _$appendChild(_el1, _el10);
+        const _el11 = _$createElement("a");
+        _$appendChild(_el10, _el11);
         watchEffect(()=>{
-            _$settextContent(_el10, 1 + 1);
+            _$setAttribute(_el11, "href", String(RouterLink.__rueHref("/page/about/coc")));
         });
-        _$appendChild(_el8, _$createTextNode(" hello world 48"));
+        _$addEventListener(_el11, "click", ((e)=>RouterLink.__rueOnClick(e, "/page/about/coc", false)));
+        _$addEventListener(_el11, "mousedown", (()=>setOpen(false)));
+        watchEffect(()=>{
+            _$setAttribute(_el11, "hello", String(()=>console.log('hello')));
+        });
+        _$appendChild(_el11, _$createTextNode("行为规范"));
+        const _el12 = _$createElement("li");
+        _$appendChild(_el1, _el12);
+        const _el13 = _$createElement("a");
+        _$appendChild(_el12, _el13);
+        watchEffect(()=>{
+            _$setAttribute(_el13, "href", String(RouterLink.__rueHref("/page/about/privacy")));
+        });
+        _$addEventListener(_el13, "click", ((e)=>RouterLink.__rueOnClick(e, "/page/about/privacy", false)));
+        _$addEventListener(_el13, "mousedown", (()=>setOpen(false)));
+        _$appendChild(_el13, _$createTextNode("隐私政策"));
+        const _el14 = _$createElement("div");
+        _$appendChild(_root, _el14);
+        _$appendChild(_el14, _$createTextNode("© "));
+        const _el15 = _$createTextWrapper(_el14);
+        _$appendChild(_el14, _el15);
+        watchEffect(()=>{
+            _$settextContent(_el15, new Date().getFullYear());
+        });
+        _$appendChild(_el14, _$createTextNode(" Rue js "));
+        const _el16 = _$createTextWrapper(_el14);
+        _$appendChild(_el14, _el16);
+        watchEffect(()=>{
+            _$settextContent(_el16, 1 + 1);
+        });
+        _$appendChild(_el14, _$createTextNode(" hello world 48"));
         return {
             vaporElement: _root
         };

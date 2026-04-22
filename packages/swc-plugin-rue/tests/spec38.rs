@@ -410,79 +410,79 @@ const ThemePicker: FC<{
     onChange: (t: string) => void;
 }> = (props)=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const themes = [
-            'light',
-            'dark',
-            'cupcake',
-            'bumblebee',
-            'emerald',
-            'corporate',
-            'synthwave',
-            'retro',
-            'cyberpunk',
-            'valentine',
-            'halloween',
-            'garden',
-            'forest',
-            'aqua',
-            'lofi',
-            'pastel',
-            'fantasy',
-            'wireframe',
-            'black',
-            'luxury',
-            'dracula',
-            'cmyk',
-            'autumn',
-            'business',
-            'acid',
-            'lemonade',
-            'night',
-            'coffee',
-            'winter',
-            'dim',
-            'nord',
-            'sunset'
-        ];
-        const labels: Record<string, string> = {
-            light: '亮色',
-            dark: '暗色',
-            cupcake: '纸杯蛋糕',
-            bumblebee: '大黄蜂',
-            emerald: '祖母绿',
-            corporate: '企业',
-            synthwave: '合成波',
-            retro: '复古',
-            cyberpunk: '赛博朋克',
-            valentine: '情人节',
-            halloween: '万圣节',
-            garden: '花园',
-            forest: '森林',
-            aqua: '海洋蓝',
-            lofi: '低保真',
-            pastel: '粉彩',
-            fantasy: '奇幻',
-            wireframe: '线框',
-            black: '黑色',
-            luxury: '奢华',
-            dracula: '德古拉',
-            cmyk: 'CMYK',
-            autumn: '秋天',
-            business: '商务',
-            acid: '酸性',
-            lemonade: '柠檬水',
-            night: '夜间',
-            coffee: '咖啡',
-            winter: '冬季',
-            dim: '昏暗',
-            nord: '北欧',
-            sunset: '日落'
-        };
-        return {
-            themes: themes,
-            labels: labels
-        };
-    }));
+            const themes = [
+                'light',
+                'dark',
+                'cupcake',
+                'bumblebee',
+                'emerald',
+                'corporate',
+                'synthwave',
+                'retro',
+                'cyberpunk',
+                'valentine',
+                'halloween',
+                'garden',
+                'forest',
+                'aqua',
+                'lofi',
+                'pastel',
+                'fantasy',
+                'wireframe',
+                'black',
+                'luxury',
+                'dracula',
+                'cmyk',
+                'autumn',
+                'business',
+                'acid',
+                'lemonade',
+                'night',
+                'coffee',
+                'winter',
+                'dim',
+                'nord',
+                'sunset'
+            ];
+            const labels: Record<string, string> = {
+                light: '亮色',
+                dark: '暗色',
+                cupcake: '纸杯蛋糕',
+                bumblebee: '大黄蜂',
+                emerald: '祖母绿',
+                corporate: '企业',
+                synthwave: '合成波',
+                retro: '复古',
+                cyberpunk: '赛博朋克',
+                valentine: '情人节',
+                halloween: '万圣节',
+                garden: '花园',
+                forest: '森林',
+                aqua: '海洋蓝',
+                lofi: '低保真',
+                pastel: '粉彩',
+                fantasy: '奇幻',
+                wireframe: '线框',
+                black: '黑色',
+                luxury: '奢华',
+                dracula: '德古拉',
+                cmyk: 'CMYK',
+                autumn: '秋天',
+                business: '商务',
+                acid: '酸性',
+                lemonade: '柠檬水',
+                night: '夜间',
+                coffee: '咖啡',
+                winter: '冬季',
+                dim: '昏暗',
+                nord: '北欧',
+                sunset: '日落'
+            };
+            return {
+                themes: themes,
+                labels: labels
+            };
+        }));
     const { themes: themes, labels: labels } = _$useSetup;
     return (<select aria-label="切换主题" className="select select-bordered select-sm bg-transparent" value={props.value} onChange={(e: Event)=>props.onChange((e.currentTarget as HTMLSelectElement).value)}>
       {themes.map((name)=>(<option key={name} value={name}>
@@ -495,30 +495,30 @@ const Header: FC<{
     setTheme: (t: string) => void;
 }> = (p)=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const [open, setOpen] = _$vaporWithHookId("useState:1:0", ()=>useState<string | null>(null));
-        const route = useRoute();
-        _$vaporWithHookId("useEffect:1:1", ()=>useEffect(()=>{
-                setOpen(null);
-            }, [
-                route.value.path
-            ]));
-        _$vaporWithHookId("useEffect:1:2", ()=>useEffect(()=>{
-                const g: any = globalThis;
-                const handler = (e: any)=>{
-                    const el = e.target as HTMLElement;
-                    if (!el || !(el.closest && el.closest('.dropdown'))) setOpen(null);
-                };
-                if (g && g.addEventListener) g.addEventListener('pointerdown', handler);
-                return ()=>{
-                    if (g && g.removeEventListener) g.removeEventListener('pointerdown', handler);
-                };
-            }, []));
-        return {
-            open: open,
-            setOpen: setOpen,
-            route: route
-        };
-    }));
+            const [open, setOpen] = _$vaporWithHookId("useState:1:0", ()=>useState<string | null>(null));
+            const route = useRoute();
+            _$vaporWithHookId("useEffect:1:1", ()=>useEffect(()=>{
+                    setOpen(null);
+                }, [
+                    route.value.path
+                ]));
+            _$vaporWithHookId("useEffect:1:2", ()=>useEffect(()=>{
+                    const g: any = globalThis;
+                    const handler = (e: any)=>{
+                        const el = e.target as HTMLElement;
+                        if (!el || !(el.closest && el.closest('.dropdown'))) setOpen(null);
+                    };
+                    if (g && g.addEventListener) g.addEventListener('pointerdown', handler);
+                    return ()=>{
+                        if (g && g.removeEventListener) g.removeEventListener('pointerdown', handler);
+                    };
+                }, []));
+            return {
+                open: open,
+                setOpen: setOpen,
+                route: route
+            };
+        }));
     const { open: open, setOpen: setOpen, route: route } = _$useSetup;
     return (<header className="site-header fixed top-0 left-0 right-0 z-50 w-full">
       <div className="navbar bg-transparent max-w-[1400px] mx-auto w-full px-6 items-center">
@@ -761,20 +761,20 @@ const SiteLayout: FC<{
     title?: string;
 }> = (props)=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const [theme, setTheme] = _$vaporWithHookId("useState:1:3", ()=>useState<string>(()=>{
-                const saved = localStorage.getItem('rue.theme');
-                return saved || 'light';
-            }));
-        _$vaporWithHookId("useEffect:1:4", ()=>useEffect(()=>{
-                localStorage.setItem('rue.theme', theme.value);
-            }, [
-                theme.value
-            ]));
-        return {
-            theme: theme,
-            setTheme: setTheme
-        };
-    }));
+            const [theme, setTheme] = _$vaporWithHookId("useState:1:3", ()=>useState<string>(()=>{
+                    const saved = localStorage.getItem('rue.theme');
+                    return saved || 'light';
+                }));
+            _$vaporWithHookId("useEffect:1:4", ()=>useEffect(()=>{
+                    localStorage.setItem('rue.theme', theme.value);
+                }, [
+                    theme.value
+                ]));
+            return {
+                theme: theme,
+                setTheme: setTheme
+            };
+        }));
     const { theme: theme, setTheme: setTheme } = _$useSetup;
     return (<div className="min-h-screen bg-base-100 text-base-content" data-theme={theme.value}>
       <Header theme={theme.value} setTheme={(t)=>setTheme(t)}/>

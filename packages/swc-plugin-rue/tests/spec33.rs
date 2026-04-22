@@ -125,7 +125,7 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 const ThemePicker: FC<{
     value: string;
     onChange: (t: string) => void;
@@ -226,6 +226,7 @@ const ThemePicker: FC<{
                 elements: _map1_elements,
                 parent: _list1.parentNode,
                 before: _list2,
+                singleRoot: true,
                 start: _list1,
                 renderItem: (name, parent, start, end, idx)=>{
                     const __slot = vapor(()=>{
@@ -247,7 +248,7 @@ const ThemePicker: FC<{
                             vaporElement: _root
                         };
                     });
-                    renderBetween(__slot, parent, start, end);
+                    renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;
@@ -282,16 +283,14 @@ const HelloWorld: FC = ()=>{
         const _el6 = _$createElement("div");
         _$appendChild(_el3, _el6);
         _$setClassName(_el6, "flex items-center gap-3");
-        const _list3 = _$createComment("rue:component:start");
-        const _list4 = _$createComment("rue:component:end");
+        const _list3 = _$createComment("rue:component:anchor");
         _$appendChild(_el6, _list3);
-        _$appendChild(_el6, _list4);
         watchEffect(()=>{
-            const __slot5 = <ThemePicker value={theme.value} onChange={(t)=>{
+            const __slot4 = <ThemePicker value={theme.value} onChange={(t)=>{
                 theme.value = t;
                 document.documentElement.setAttribute('data-theme', t);
             }}/>;
-            renderBetween(__slot5, _el6, _list3, _list4);
+            renderAnchor(__slot4, _el6, _list3);
         });
         const _el7 = _$createElement("span");
         _$appendChild(_el6, _el7);

@@ -354,39 +354,39 @@ import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const FormBindings: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const text = _$vaporWithHookId("ref:1:0", ()=>ref('Edit me'));
-        const checked = _$vaporWithHookId("ref:1:1", ()=>ref(true));
-        const checkedNames = _$vaporWithHookId("ref:1:2", ()=>ref<string[]>([
-                'Jack'
-            ]));
-        const picked = _$vaporWithHookId("ref:1:3", ()=>ref<'One' | 'Two'>('One'));
-        const selected = _$vaporWithHookId("ref:1:4", ()=>ref<'A' | 'B' | 'C'>('A'));
-        const multiSelected = _$vaporWithHookId("ref:1:5", ()=>ref<string[]>([
-                'A'
-            ]));
-        const toggleCheckedName = (name: string, nextChecked: boolean)=>{
-            checkedNames.value = nextChecked ? Array.from(new Set([
-                ...checkedNames.value,
-                name
-            ])) : checkedNames.value.filter((n)=>n !== name);
-        };
-        const onMultiSelectChange = (e: any)=>{
-            const opts = Array.from((e.target as HTMLSelectElement).selectedOptions);
-            multiSelected.value = opts.map((o)=>o.value);
-        };
-        const activeTab = _$vaporWithHookId("ref:1:6", ()=>ref<'preview' | 'code'>('preview'));
-        return {
-            text: text,
-            checked: checked,
-            checkedNames: checkedNames,
-            picked: picked,
-            selected: selected,
-            multiSelected: multiSelected,
-            toggleCheckedName: toggleCheckedName,
-            onMultiSelectChange: onMultiSelectChange,
-            activeTab: activeTab
-        };
-    }));
+            const text = _$vaporWithHookId("ref:1:0", ()=>ref('Edit me'));
+            const checked = _$vaporWithHookId("ref:1:1", ()=>ref(true));
+            const checkedNames = _$vaporWithHookId("ref:1:2", ()=>ref<string[]>([
+                    'Jack'
+                ]));
+            const picked = _$vaporWithHookId("ref:1:3", ()=>ref<'One' | 'Two'>('One'));
+            const selected = _$vaporWithHookId("ref:1:4", ()=>ref<'A' | 'B' | 'C'>('A'));
+            const multiSelected = _$vaporWithHookId("ref:1:5", ()=>ref<string[]>([
+                    'A'
+                ]));
+            const toggleCheckedName = (name: string, nextChecked: boolean)=>{
+                checkedNames.value = nextChecked ? Array.from(new Set([
+                    ...checkedNames.value,
+                    name
+                ])) : checkedNames.value.filter((n)=>n !== name);
+            };
+            const onMultiSelectChange = (e: any)=>{
+                const opts = Array.from((e.target as HTMLSelectElement).selectedOptions);
+                multiSelected.value = opts.map((o)=>o.value);
+            };
+            const activeTab = _$vaporWithHookId("ref:1:6", ()=>ref<'preview' | 'code'>('preview'));
+            return {
+                text: text,
+                checked: checked,
+                checkedNames: checkedNames,
+                picked: picked,
+                selected: selected,
+                multiSelected: multiSelected,
+                toggleCheckedName: toggleCheckedName,
+                onMultiSelectChange: onMultiSelectChange,
+                activeTab: activeTab
+            };
+        }));
     const { text: text, checked: checked, checkedNames: checkedNames, picked: picked, selected: selected, multiSelected: multiSelected, toggleCheckedName: toggleCheckedName, onMultiSelectChange: onMultiSelectChange, activeTab: activeTab } = _$useSetup;
     return (<SidebarPlayground type="examples">
       <h1 className="text-5xl font-semibold mb-4 md:mb-4">表单绑定（移植自 Vue）</h1>

@@ -1,15 +1,15 @@
-use swc_plugin_rue::apply_with_options;
+use swc_plugin_rue::apply;
 
 mod utils;
 
 fn transform(src: &str) -> String {
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_options(program, true);
+    let program = apply(program);
     utils::strip_marker(&utils::emit(program, cm))
 }
 
 #[test]
-fn optimizes_static_root_component_to_render_static() {
+fn optimizes_static_root_component_to_render_anchor() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
 
@@ -21,14 +21,15 @@ export default Page;
 
     let out = utils::normalize(&transform(src));
 
-    assert!(out.contains("rue:static:component"));
-    assert!(out.contains(&utils::normalize("renderStatic(__slot")));
+    assert!(out.contains("rue:component:anchor"));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains("rue:component:start"));
     assert!(!out.contains("renderBetween("));
+    assert!(!out.contains("watchEffect("));
 }
 
 #[test]
-fn optimizes_nested_static_component_to_render_static() {
+fn optimizes_nested_static_component_to_render_anchor() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
 
@@ -44,14 +45,15 @@ export default Page;
 
     let out = utils::normalize(&transform(src));
 
-    assert!(out.contains("rue:static:component"));
-    assert!(out.contains(&utils::normalize("renderStatic(__slot")));
+    assert!(out.contains("rue:component:anchor"));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains("rue:component:start"));
     assert!(!out.contains("renderBetween("));
+    assert!(!out.contains("watchEffect("));
 }
 
 #[test]
-fn optimizes_static_jsx_expr_slot_to_render_static() {
+fn optimizes_static_jsx_expr_slot_to_render_anchor() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
 
@@ -63,8 +65,8 @@ export default Page;
 
     let out = utils::normalize(&transform(src));
 
-    assert!(out.contains("rue:static:slot"));
-    assert!(out.contains(&utils::normalize("renderStatic(_$vaporCreateVNode(__slot")));
+    assert!(out.contains("rue:slot:anchor"));
+    assert!(out.contains(&utils::normalize("renderAnchor(_$vaporCreateVNode(__slot")));
     assert!(!out.contains("watchEffect(()"));
     assert!(!out.contains("renderBetween("));
 }

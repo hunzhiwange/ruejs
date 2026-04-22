@@ -29,17 +29,15 @@ export default OrCases
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
 const show = false;
 const a = false;
 const b = false;
 const OrCases: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = show || vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -51,13 +49,11 @@ const OrCases: FC = ()=>{
                 };
             });
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list1, _list2);
+            renderAnchor(__vnode, _root, _list1);
         });
         _$appendChild(_root, _$createTextNode(" "));
-        const _list3 = _$createComment("rue:slot:start");
-        const _list4 = _$createComment("rue:slot:end");
-        _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
+        const _list2 = _$createComment("rue:slot:anchor");
+        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = a ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -77,7 +73,7 @@ const OrCases: FC = ()=>{
                 };
             });
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list3, _list4);
+            renderAnchor(__vnode, _root, _list2);
         });
         return {
             vaporElement: _root

@@ -14,18 +14,10 @@ import { createRequire } from 'node:module'
  * @param {string[]} [options.include] 包含路径关键字（任一命中则处理）
  * @param {string[]} [options.exclude] 排除路径关键字（任一命中则跳过）
  * @param {boolean} [options.debug] 调试日志开关
- * @param {boolean} [options.optimizeStaticSlots] 启用静态插槽/组件轻量挂载优化
- * @param {boolean} [options.optimizeComponentAnchors] 启用组件单锚点渲染优化
  * @returns {import('vite').Plugin} Vite 插件对象
  */
 export default function VitePluginRue(options = {}) {
-  const {
-    include = [],
-    exclude = [],
-    debug = false,
-    optimizeStaticSlots = false,
-    optimizeComponentAnchors = false,
-  } = options
+  const { include = [], exclude = [], debug = false } = options
 
   /**
    * 判断文件是否需要被插件处理
@@ -64,8 +56,6 @@ export default function VitePluginRue(options = {}) {
               process.env.RUE_SWC_PLUGIN,
               {
                 vapor: !!vaporFlag,
-                optimizeStaticSlots: !!optimizeStaticSlots,
-                optimizeComponentAnchors: !!optimizeComponentAnchors,
               },
             ],
           ],

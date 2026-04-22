@@ -14,9 +14,7 @@ Vapor 深编译转换器说明：
 结构体字段说明：
 - next_el/next_list/next_map/next_child：各类计数器用于生成稳定名称；
 - did_transform：标记是否发生 Vapor 转换，模块访问阶段据此注入运行时 import；
-- el_tag_by_ident：记录元素标识符与标签名的映射，便于特殊处理（如 style 文本）；
-- optimize_static_slots：静态插槽/组件优化标志，避免多余的 watch 包裹。
-- optimize_component_anchors：组件单锚点优化标志，减少对 renderBetween 的依赖。
+- el_tag_by_ident：记录元素标识符与标签名的映射，便于特殊处理（如 style 文本）。
 */
 
 /// Vapor 转换器：将箭头函数返回的 JSX 转换为 Vapor DOM 构造代码
@@ -37,12 +35,6 @@ pub struct VaporTransform {
     pub did_transform: bool,
     /// 记录已创建元素的标识符与标签名，用于特殊处理（例如 style 子文本）
     pub el_tag_by_ident: std::collections::HashMap<String, String>,
-    /// 优化：静态插槽/组件不包裹 watchEffect
-    #[allow(dead_code)]
-    pub optimize_static_slots: bool,
-    /// 优化：组件使用单锚点渲染路径
-    #[allow(dead_code)]
-    pub optimize_component_anchors: bool,
 }
 
 impl VaporTransform {}

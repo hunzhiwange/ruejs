@@ -36,21 +36,19 @@ export default Goods;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { type FC, ref, h, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
 const Hello: FC = (props)=>{
     return vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("1"));
         const _el1 = _$createElement("span");
         _$appendChild(_root, _el1);
-        const _list1 = _$createComment("rue:children:start");
-        const _list2 = _$createComment("rue:children:end");
+        const _list1 = _$createComment("rue:children:anchor");
         _$appendChild(_el1, _list1);
-        _$appendChild(_el1, _list2);
         watchEffect(()=>{
             const __slot = (props.children);
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _el1, _list1, _list2);
+            renderAnchor(__vnode, _el1, _list1);
         });
         return {
             vaporElement: _root
@@ -62,10 +60,8 @@ const Goods: FC = ()=>vapor(()=>{
         const _el2 = _$createElement("h1");
         _$appendChild(_root, _el2);
         _$appendChild(_el2, _$createTextNode("Rue 响应式框架示例"));
-        const _list3 = _$createComment("rue:component:start");
-        const _list4 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
+        const _list2 = _$createComment("rue:component:anchor");
+        _$appendChild(_root, _list2);
         const __child1 = vapor(()=>{
             const _root = _$createDocumentFragment();
             const _el3 = _$createElement("p");
@@ -78,8 +74,8 @@ const Goods: FC = ()=>vapor(()=>{
                 vaporElement: _root
             };
         });
-        const __slot5 = <Hello children={__child1}/>;
-        renderBetween(__slot5, _root, _list3, _list4);
+        const __slot3 = <Hello children={__child1}/>;
+        renderAnchor(__slot3, _root, _list2);
         return {
             vaporElement: _root
         };

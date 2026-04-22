@@ -25,7 +25,7 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
 const Chain: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const a = _$vaporWithHookId("ref:1:0", ()=>ref(0));
@@ -40,10 +40,8 @@ const Chain: FC = ()=>{
     const { a: a, b: b, c: c } = _$useSetup;
     return vapor(()=>{
         const _root = _$createElement("div");
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = a ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -79,7 +77,7 @@ const Chain: FC = ()=>{
                 };
             });
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list1, _list2);
+            renderAnchor(__vnode, _root, _list1);
         });
         return {
             vaporElement: _root

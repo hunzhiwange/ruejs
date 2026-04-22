@@ -30,14 +30,12 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
+import { type FC, ref, h, _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(22));
 const Comp: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = count.value === 0 ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -60,7 +58,7 @@ const Comp: FC = ()=>vapor(()=>{
                 };
             });
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list1, _list2);
+            renderAnchor(__vnode, _root, _list1);
         });
         const _el4 = _$createElement("span");
         _$appendChild(_root, _el4);

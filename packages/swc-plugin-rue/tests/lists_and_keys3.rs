@@ -102,7 +102,7 @@ export default TodoApp
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, reactive, computed, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { FC, reactive, computed, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 interface Todo {
     id: number;
     text: string;
@@ -201,6 +201,7 @@ const TodoApp: FC = ()=>{
                 elements: _map1_elements,
                 parent: _el5,
                 before: _list2,
+                singleRoot: true,
                 start: _list1,
                 renderItem: (todo, parent, start, end, _idx)=>{
                     const __slot = vapor(()=>{
@@ -242,7 +243,7 @@ const TodoApp: FC = ()=>{
                             vaporElement: _root
                         };
                     });
-                    renderBetween(__slot, parent, start, end);
+                    renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;

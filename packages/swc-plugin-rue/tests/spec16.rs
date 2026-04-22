@@ -123,7 +123,7 @@ export default ListTransitionExample
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$addEventListener, _$setClassName } from '@rue-js/rue';
 const ListTransitionExample: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const items = _$vaporWithHookId("ref:1:0", ()=>ref<number[]>([
@@ -244,11 +244,9 @@ const ListTransitionExample: FC = ()=>{
         const _el8 = _$createElement("ul");
         _$appendChild(_el3, _el8);
         _$setClassName(_el8, "container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3");
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
+        const _list1 = _$createComment("rue:component:anchor");
         _$appendChild(_el8, _list1);
-        _$appendChild(_el8, _list2);
-        const __slot3 = <TransitionGroup name="fade" keepJSX={true}>
+        const __slot2 = <TransitionGroup name="fade" keepJSX={true}>
             {items.value.map((item)=>(<li className="item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm" key={item}>
                 <span className="text-base-content">{item}</span>
                 <button className="btn btn-sm" onClick={()=>remove(item)}>
@@ -256,7 +254,7 @@ const ListTransitionExample: FC = ()=>{
                 </button>
               </li>))}
           </TransitionGroup>;
-        renderBetween(__slot3, _el8, _list1, _list2);
+        renderAnchor(__slot2, _el8, _list1);
         return {
             vaporElement: _root
         };

@@ -262,9 +262,7 @@ pub(crate) fn try_build_list_from_map(
                             let inner_ret = utils::unwrap_expr(ret_expr.as_ref());
                             match inner_ret {
                                 Expr::JSXElement(jsx_el) => {
-                                    if vt.optimize_component_anchors
-                                        && is_native_single_root_jsx_element(jsx_el)
-                                    {
+                                    if is_native_single_root_jsx_element(jsx_el) {
                                         use_single_root_anchor = true;
                                     }
                                     build_element(vt, jsx_el, &child_root.clone(), &mut child_body);
@@ -286,9 +284,7 @@ pub(crate) fn try_build_list_from_map(
                                     let inner_ret = utils::unwrap_expr(arg.as_ref());
                                     match inner_ret {
                                         Expr::JSXElement(jsx_el) => {
-                                            if vt.optimize_component_anchors
-                                                && is_native_single_root_jsx_element(jsx_el)
-                                            {
+                                            if is_native_single_root_jsx_element(jsx_el) {
                                                 use_single_root_anchor = true;
                                             }
                                             build_element(

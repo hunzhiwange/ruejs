@@ -1,4 +1,4 @@
-use swc_plugin_rue::apply_with_transform_options;
+use swc_plugin_rue::apply;
 
 mod utils;
 
@@ -17,7 +17,7 @@ const Page: FC<{ code: string }> = props => (
 "##;
 
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_transform_options(program, false, true);
+    let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
@@ -36,7 +36,7 @@ const Page: FC<{ code: string }> = props => <Code code={props.code} />
 "##;
 
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_transform_options(program, false, true);
+    let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
@@ -59,7 +59,7 @@ const Page: FC<{ show: boolean }> = props => (
 "##;
 
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_transform_options(program, true, true);
+    let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
@@ -83,7 +83,7 @@ const Page: FC = () => (
 "##;
 
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_transform_options(program, false, true);
+    let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize(

@@ -23,14 +23,12 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, Fragment, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from '@rue-js/rue';
+import { type FC, ref, h, Fragment, _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));
 const Comp: FC = ()=>vapor(()=>{
         const _root = _$createDocumentFragment();
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
+        const _list1 = _$createComment("rue:component:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         const __child1 = vapor(()=>{
             const _root = _$createDocumentFragment();
             const _el1 = _$createElement("span");
@@ -45,8 +43,8 @@ const Comp: FC = ()=>vapor(()=>{
                 vaporElement: _root
             };
         });
-        const __slot3 = <Fragment children={__child1}/>;
-        renderBetween(__slot3, _root, _list1, _list2);
+        const __slot2 = <Fragment children={__child1}/>;
+        renderAnchor(__slot2, _root, _list1);
         return {
             vaporElement: _root
         };

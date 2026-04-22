@@ -146,38 +146,38 @@ import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const HandlingInput: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const message = _$vaporWithHookId("ref:1:0", ()=>ref('Hello World!'));
-        let yes = _$vaporWithHookId("ref:1:1", ()=>ref(message.value));
-        const reverseMessage = ()=>{
-            message.value = message.value.split('').reverse().join('');
-        };
-        let hello = _$vaporWithHookId("ref:1:2", ()=>ref('Hello World!'));
-        let world = _$vaporWithHookId("ref:1:3", ()=>ref(message.value));
-        const notify = ()=>{
-            alert('navigation was prevented.');
-        };
-        var goods = _$vaporWithHookId("ref:1:4", ()=>ref([
-                {
-                    name: '商品1',
-                    price: 100
-                },
-                {
-                    name: '商品2',
-                    price: 200
-                }
-            ]));
-        const activeTab = _$vaporWithHookId("ref:1:5", ()=>ref<'preview' | 'code'>('preview'));
-        return {
-            message: message,
-            reverseMessage: reverseMessage,
-            notify: notify,
-            activeTab: activeTab,
-            yes: yes,
-            hello: hello,
-            world: world,
-            goods: goods
-        };
-    }));
+            const message = _$vaporWithHookId("ref:1:0", ()=>ref('Hello World!'));
+            let yes = _$vaporWithHookId("ref:1:1", ()=>ref(message.value));
+            const reverseMessage = ()=>{
+                message.value = message.value.split('').reverse().join('');
+            };
+            let hello = _$vaporWithHookId("ref:1:2", ()=>ref('Hello World!'));
+            let world = _$vaporWithHookId("ref:1:3", ()=>ref(message.value));
+            const notify = ()=>{
+                alert('navigation was prevented.');
+            };
+            var goods = _$vaporWithHookId("ref:1:4", ()=>ref([
+                    {
+                        name: '商品1',
+                        price: 100
+                    },
+                    {
+                        name: '商品2',
+                        price: 200
+                    }
+                ]));
+            const activeTab = _$vaporWithHookId("ref:1:5", ()=>ref<'preview' | 'code'>('preview'));
+            return {
+                message: message,
+                reverseMessage: reverseMessage,
+                notify: notify,
+                activeTab: activeTab,
+                yes: yes,
+                hello: hello,
+                world: world,
+                goods: goods
+            };
+        }));
     const { message: message, reverseMessage: reverseMessage, notify: notify, activeTab: activeTab } = _$useSetup;
     let { yes: yes, hello: hello, world: world, goods: goods } = _$useSetup;
     return (<SidebarPlayground>

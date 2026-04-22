@@ -120,7 +120,7 @@ export default Events;
     // - disabled：基于 list.length 的 watch 控制
     // - 函数状态：调用 valueOf() 的格式化函数再 watch 更新
     let expected_fragment = r##"
-import { type FC, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setDisabled } from '@rue-js/rue';
+import { type FC, useState, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setDisabled } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const DEC_FORMAT = (n: number)=>String(n);
 const HEX_FORMAT = (n: number)=>'0x' + n.toString(16);
@@ -278,13 +278,14 @@ const Events: FC = ()=>{
         _$setClassName(_el25, "px-3 py-2 rounded-md bg-gray-100 border");
         _$addEventListener(_el25, "click", (()=>setFormat(()=>HEX_FORMAT)));
         _$appendChild(_el25, _$createTextNode("使用十六进制"));
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __child1 = "返回目录";
-        const __slot3 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
-        renderBetween(__slot3, _root, _list1, _list2);
+        const _el26 = _$createElement("a");
+        _$appendChild(_root, _el26);
+        watchEffect(()=>{
+            _$setAttribute(_el26, "href", String(RouterLink.__rueHref("/jsx")));
+        });
+        _$addEventListener(_el26, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
+        _$setClassName(_el26, "text-blue-600 hover:underline");
+        _$appendChild(_el26, _$createTextNode("返回目录"));
         return {
             vaporElement: _root
         };

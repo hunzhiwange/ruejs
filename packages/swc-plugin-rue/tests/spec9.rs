@@ -37,7 +37,7 @@ export default Goods;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild } from '@rue-js/rue';
+import { type FC, ref, h, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild } from '@rue-js/rue';
 const Hello: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
@@ -61,18 +61,14 @@ const Goods: FC = ()=>vapor(()=>{
         const _el1 = _$createElement("h1");
         _$appendChild(_root, _el1);
         _$appendChild(_el1, _$createTextNode("Rue 响应式框架示例"));
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
+        const _list1 = _$createComment("rue:component:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __slot3 = <Hello/>;
-        renderBetween(__slot3, _root, _list1, _list2);
-        const _list4 = _$createComment("rue:component:start");
-        const _list5 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list4);
-        _$appendChild(_root, _list5);
-        const __slot6 = <World/>;
-        renderBetween(__slot6, _root, _list4, _list5);
+        const __slot2 = <Hello/>;
+        renderAnchor(__slot2, _root, _list1);
+        const _list3 = _$createComment("rue:component:anchor");
+        _$appendChild(_root, _list3);
+        const __slot4 = <World/>;
+        renderAnchor(__slot4, _root, _list3);
         return {
             vaporElement: _root
         };

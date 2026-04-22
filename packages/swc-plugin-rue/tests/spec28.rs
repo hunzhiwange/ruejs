@@ -36,17 +36,17 @@ export default Chain
 import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Chain: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const a = _$vaporWithHookId("ref:1:0", ()=>ref(true));
-        const b = _$vaporWithHookId("ref:1:1", ()=>ref(false));
-        const c = _$vaporWithHookId("ref:1:2", ()=>ref(false));
-        const d = _$vaporWithHookId("ref:1:3", ()=>ref(false));
-        return {
-            a: a,
-            b: b,
-            c: c,
-            d: d
-        };
-    }));
+            const a = _$vaporWithHookId("ref:1:0", ()=>ref(true));
+            const b = _$vaporWithHookId("ref:1:1", ()=>ref(false));
+            const c = _$vaporWithHookId("ref:1:2", ()=>ref(false));
+            const d = _$vaporWithHookId("ref:1:3", ()=>ref(false));
+            return {
+                a: a,
+                b: b,
+                c: c,
+                d: d
+            };
+        }));
     const { a: a, b: b, c: c, d: d } = _$useSetup;
     return (<div>
       {a ? <div>A</div> : b ? <div>B</div> : c ? <div>C</div> : d ? <div>D</div> : <div>Else</div>}</div>);

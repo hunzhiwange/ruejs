@@ -1,4 +1,4 @@
-use swc_plugin_rue::apply_with_transform_options;
+use swc_plugin_rue::apply;
 
 mod utils;
 
@@ -11,7 +11,7 @@ const Layout: FC = props => <article>{props.children}</article>
 "##;
 
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_transform_options(program, false, true);
+    let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("rue:children:anchor")));
@@ -28,7 +28,7 @@ const Page: FC<{ ok: boolean }> = props => <section><div>{props.ok ? <span>yes</
 "##;
 
     let (program, cm) = utils::parse(src, "test.tsx");
-    let program = apply_with_transform_options(program, false, true);
+    let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("rue:slot:anchor")));

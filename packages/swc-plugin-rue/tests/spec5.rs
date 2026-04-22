@@ -85,7 +85,7 @@ export default UseCart
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { useCart } from '../hooks/useCart';
 const UseCart: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -148,6 +148,7 @@ const UseCart: FC = ()=>{
                 elements: _map1_elements,
                 parent: _el2,
                 before: _list2,
+                singleRoot: true,
                 start: _list1,
                 renderItem: (pr, parent, start, end, idx)=>{
                     const __slot = vapor(()=>{
@@ -181,7 +182,7 @@ const UseCart: FC = ()=>{
                             vaporElement: _root
                         };
                     });
-                    renderBetween(__slot, parent, start, end);
+                    renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;
@@ -190,10 +191,8 @@ const UseCart: FC = ()=>{
         _$appendChild(_root, _el8);
         _$setClassName(_el8, "mt-6 text-xl font-semibold");
         _$appendChild(_el8, _$createTextNode("购物车"));
-        const _list3 = _$createComment("rue:slot:start");
-        const _list4 = _$createComment("rue:slot:end");
+        const _list3 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
         watchEffect(()=>{
             const __slot = cart.items.value.length === 0 ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -209,10 +208,10 @@ const UseCart: FC = ()=>{
                 const _el10 = _$createElement("ul");
                 _$appendChild(_root, _el10);
                 _$setClassName(_el10, "divide-y divide-gray-200 mt-2");
-                const _list5 = _$createComment("rue:list:start");
-                const _list6 = _$createComment("rue:list:end");
+                const _list4 = _$createComment("rue:list:start");
+                const _list5 = _$createComment("rue:list:end");
+                _$appendChild(_el10, _list4);
                 _$appendChild(_el10, _list5);
-                _$appendChild(_el10, _list6);
                 let _map2_elements = new Map;
                 watchEffect(()=>{
                     const _map2_current = cart.items.value || [];
@@ -221,8 +220,9 @@ const UseCart: FC = ()=>{
                         getKey: (i, idx)=>i.id,
                         elements: _map2_elements,
                         parent: _el10,
-                        before: _list6,
-                        start: _list5,
+                        before: _list5,
+                        singleRoot: true,
+                        start: _list4,
                         renderItem: (i, parent, start, end, idx)=>{
                             const __slot = vapor(()=>{
                                 const _root = _$createDocumentFragment();
@@ -255,7 +255,7 @@ const UseCart: FC = ()=>{
                                     vaporElement: _root
                                 };
                             });
-                            renderBetween(__slot, parent, start, end);
+                            renderAnchor(__slot, parent, start);
                         }
                     });
                     _map2_elements = _map2_newElements;
@@ -265,7 +265,7 @@ const UseCart: FC = ()=>{
                 };
             });
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list3, _list4);
+            renderAnchor(__vnode, _root, _list3);
         });
         const _el16 = _$createElement("p");
         _$appendChild(_root, _el16);

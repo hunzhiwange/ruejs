@@ -44,12 +44,12 @@ export default PostDetail
 import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const PostDetail: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        console.log('我是setup');
-        const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));
-        return {
-            count: count
-        };
-    }));
+            console.log('我是setup');
+            const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));
+            return {
+                count: count
+            };
+        }));
     const { count: count } = _$useSetup;
     if (count.value > 10) {
         return <div>超过5了</div>;

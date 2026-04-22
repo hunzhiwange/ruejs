@@ -45,7 +45,7 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper } from '@rue-js/rue';
+import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper } from '@rue-js/rue';
 const HelloWorld: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const World: FC = ()=>{
@@ -102,18 +102,14 @@ const HelloWorld: FC = ()=>{
     const { World: World, Goods: Goods } = _$useSetup;
     return vapor(()=>{
         const _root = _$createElement("div");
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
+        const _list1 = _$createComment("rue:component:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __slot3 = <World/>;
-        renderBetween(__slot3, _root, _list1, _list2);
-        const _list4 = _$createComment("rue:component:start");
-        const _list5 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list4);
-        _$appendChild(_root, _list5);
-        const __slot6 = <Goods/>;
-        renderBetween(__slot6, _root, _list4, _list5);
+        const __slot2 = <World/>;
+        renderAnchor(__slot2, _root, _list1);
+        const _list3 = _$createComment("rue:component:anchor");
+        _$appendChild(_root, _list3);
+        const __slot4 = <Goods/>;
+        renderAnchor(__slot4, _root, _list3);
         return {
             vaporElement: _root
         };

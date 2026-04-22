@@ -36,14 +36,14 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-  import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Hello: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));
-        return {
-            color: color
-        };
-    }));
+            const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));
+            return {
+                color: color
+            };
+        }));
     const { color: color } = _$useSetup;
     return (<div>
       <div style={{

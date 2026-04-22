@@ -117,9 +117,9 @@ export default FetchingData;
     // - 列表 A：分支上的 ['main','beta','stable'] 使用 keyedList 渲染
     // - 受控 inputs：radio 的 value/checked/onChange 走适配器与事件绑定
     // - 文本插值：_$createTextWrapper + _$settextContent + watch
-    // - 条件插槽：commits.length > 0 → vapor 片段；否则 ""；统一转为 vnode 并 renderBetween
+    // - 条件插槽：commits.length > 0 → vapor 片段；否则 ""；统一转为 vnode 并 renderAnchor
     let expected_fragment = r##"
-import { FC, ref, useEffect, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
+import { FC, ref, useEffect, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
 type CommitItem = {
     html_url: string;
     sha: string;
@@ -201,6 +201,7 @@ const FetchingData: FC = ()=>{
                 elements: _map1_elements,
                 parent: _el3,
                 before: _list2,
+                singleRoot: true,
                 start: _list1,
                 renderItem: (branch, parent, start, end, idx)=>{
                     const __slot = vapor(()=>{
@@ -237,7 +238,7 @@ const FetchingData: FC = ()=>{
                             vaporElement: _root
                         };
                     });
-                    renderBetween(__slot, parent, start, end);
+                    renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;
@@ -251,10 +252,8 @@ const FetchingData: FC = ()=>{
         watchEffect(()=>{
             _$settextContent(_el9, currentBranch.value);
         });
-        const _list7 = _$createComment("rue:slot:start");
-        const _list8 = _$createComment("rue:slot:end");
-        _$appendChild(_el1, _list7);
-        _$appendChild(_el1, _list8);
+        const _list6 = _$createComment("rue:slot:anchor");
+        _$appendChild(_el1, _list6);
         watchEffect(()=>{
             const __slot = commits.value.length > 0 ? vapor(()=>{
                 const _root = _$createDocumentFragment();
@@ -277,6 +276,7 @@ const FetchingData: FC = ()=>{
                         elements: _map2_elements,
                         parent: _el10,
                         before: _list4,
+                        singleRoot: true,
                         start: _list3,
                         renderItem: (item, parent, start, end, idx)=>{
                             const __slot = vapor(()=>{
@@ -320,10 +320,8 @@ const FetchingData: FC = ()=>{
                                 const _el19 = _$createElement("span");
                                 _$appendChild(_el11, _el19);
                                 _$setClassName(_el19, "font-semibold");
-                                const _list5 = _$createComment("rue:slot:start");
-                                const _list6 = _$createComment("rue:slot:end");
+                                const _list5 = _$createComment("rue:slot:anchor");
                                 _$appendChild(_el19, _list5);
-                                _$appendChild(_el19, _list6);
                                 watchEffect(()=>{
                                     const __slot = author && author.html_url ? vapor(()=>{
                                         const _root = _$createDocumentFragment();
@@ -357,7 +355,7 @@ const FetchingData: FC = ()=>{
                                         };
                                     });
                                     const __vnode = _$vaporCreateVNode(__slot);
-                                    renderBetween(__vnode, _el19, _list5, _list6);
+                                    renderAnchor(__vnode, _el19, _list5);
                                 });
                                 const _el24 = _$createElement("span");
                                 _$appendChild(_el11, _el24);
@@ -374,7 +372,7 @@ const FetchingData: FC = ()=>{
                                     vaporElement: _root
                                 };
                             });
-                            renderBetween(__slot, parent, start, end);
+                            renderAnchor(__slot, parent, start);
                         }
                     });
                     _map2_elements = _map2_newElements;
@@ -384,7 +382,7 @@ const FetchingData: FC = ()=>{
                 };
             }) : "";
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _el1, _list7, _list8);
+            renderAnchor(__vnode, _el1, _list6);
         });
         return {
             vaporElement: _root

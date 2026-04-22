@@ -35,7 +35,7 @@ export default Refs;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useRef, _$vaporWithHookId, useSetup, vapor, onBeforeUnmount, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$vaporBindUseRef, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { type FC, useRef, _$vaporWithHookId, useSetup, vapor, onBeforeUnmount, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$vaporBindUseRef, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Refs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -70,13 +70,14 @@ const Refs: FC = ()=>{
         _$setClassName(_el3, "px-3 py-2 rounded-md bg-blue-600 text白");
         _$addEventListener(_el3, "click", (focus));
         _$appendChild(_el3, _$createTextNode("聚焦"));
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __child1 = "返回目录";
-        const __slot3 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
-        renderBetween(__slot3, _root, _list1, _list2);
+        const _el4 = _$createElement("a");
+        _$appendChild(_root, _el4);
+        watchEffect(()=>{
+            _$setAttribute(_el4, "href", String(RouterLink.__rueHref("/jsx")));
+        });
+        _$addEventListener(_el4, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
+        _$setClassName(_el4, "text-blue-600 hover:underline");
+        _$appendChild(_el4, _$createTextNode("返回目录"));
         return {
             vaporElement: _root
         };

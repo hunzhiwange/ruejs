@@ -164,7 +164,7 @@ export default DocDetail
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useEffect, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setClassName, _$setInnerHTML } from '@rue-js/rue';
+import { type FC, useEffect, useState, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setInnerHTML } from '@rue-js/rue';
 import { RouterLink, useRoute } from '@rue-js/router';
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlayground';
 import MarkdownIt from 'markdown-it';
@@ -320,10 +320,8 @@ const DocDetail: FC = ()=>{
     const { route: route, docPath: docPath, _title: _title, setTitle: setTitle, html: html, setHtml: setHtml, _results: _results, _setResults: _setResults, sidebarType: sidebarType, uiBase: uiBase, docBase: docBase, DOCS_META: DOCS_META, currentIndex: currentIndex, prev: prev, next: next } = _$useSetup;
     return vapor(()=>{
         const _root = _$createDocumentFragment();
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
+        const _list4 = _$createComment("rue:component:anchor");
+        _$appendChild(_root, _list4);
         const __child1 = vapor(()=>{
             const _root = _$createDocumentFragment();
             const _el1 = _$createElement("div");
@@ -335,114 +333,94 @@ const DocDetail: FC = ()=>{
                 });
                 _$setInnerHTML(_el1, __obj && "__html" in __obj ? __obj.__html : "");
             });
-            const _list3 = _$createComment("rue:slot:start");
-            const _list4 = _$createComment("rue:slot:end");
-            _$appendChild(_root, _list3);
-            _$appendChild(_root, _list4);
+            const _list1 = _$createComment("rue:slot:anchor");
+            _$appendChild(_root, _list1);
             watchEffect(()=>{
                 const __slot = currentIndex >= 0 ? vapor(()=>{
                     const _root = _$createDocumentFragment();
                     const _el2 = _$createElement("div");
                     _$appendChild(_root, _el2);
                     _$setClassName(_el2, "mt-8 flex justify-between");
-                    const _list8 = _$createComment("rue:slot:start");
-                    const _list9 = _$createComment("rue:slot:end");
-                    _$appendChild(_el2, _list8);
-                    _$appendChild(_el2, _list9);
+                    const _list2 = _$createComment("rue:slot:anchor");
+                    _$appendChild(_el2, _list2);
                     watchEffect(()=>{
                         const __slot = prev ? vapor(()=>{
                             const _root = _$createDocumentFragment();
-                            const _list5 = _$createComment("rue:component:start");
-                            const _list6 = _$createComment("rue:component:end");
-                            _$appendChild(_root, _list5);
-                            _$appendChild(_root, _list6);
-                            const __child2 = vapor(()=>{
-                                const _root = _$createDocumentFragment();
-                                _$appendChild(_root, _$createTextNode("← 上一页："));
-                                const _el3 = _$createTextWrapper(_root);
-                                _$appendChild(_root, _el3);
-                                watchEffect(()=>{
-                                    _$settextContent(_el3, prev.title);
-                                });
-                                return {
-                                    vaporElement: _root
-                                };
-                            });
+                            const _el3 = _$createElement("a");
+                            _$appendChild(_root, _el3);
                             watchEffect(()=>{
-                                const __slot7 = <RouterLink to={`${uiBase}/${prev.id}`} className="btn btn-outline btn-sm" children={__child2}/>;
-                                renderBetween(__slot7, _root, _list5, _list6);
+                                _$setAttribute(_el3, "href", String(RouterLink.__rueHref(`${uiBase}/${prev.id}`)));
+                            });
+                            _$addEventListener(_el3, "click", ((e)=>RouterLink.__rueOnClick(e, `${uiBase}/${prev.id}`, false)));
+                            _$setClassName(_el3, "btn btn-outline btn-sm");
+                            _$appendChild(_el3, _$createTextNode("← 上一页："));
+                            const _el4 = _$createTextWrapper(_el3);
+                            _$appendChild(_el3, _el4);
+                            watchEffect(()=>{
+                                _$settextContent(_el4, prev.title);
                             });
                             return {
                                 vaporElement: _root
                             };
                         }) : vapor(()=>{
                             const _root = _$createDocumentFragment();
-                            const _el4 = _$createElement("span");
-                            _$appendChild(_root, _el4);
+                            const _el5 = _$createElement("span");
+                            _$appendChild(_root, _el5);
                             return {
                                 vaporElement: _root
                             };
                         });
                         const __vnode = _$vaporCreateVNode(__slot);
-                        renderBetween(__vnode, _el2, _list8, _list9);
+                        renderAnchor(__vnode, _el2, _list2);
                     });
                     _$appendChild(_el2, _$createTextNode(" "));
-                    const _list13 = _$createComment("rue:slot:start");
-                    const _list14 = _$createComment("rue:slot:end");
-                    _$appendChild(_el2, _list13);
-                    _$appendChild(_el2, _list14);
+                    const _list3 = _$createComment("rue:slot:anchor");
+                    _$appendChild(_el2, _list3);
                     watchEffect(()=>{
                         const __slot = next ? vapor(()=>{
                             const _root = _$createDocumentFragment();
-                            const _list10 = _$createComment("rue:component:start");
-                            const _list11 = _$createComment("rue:component:end");
-                            _$appendChild(_root, _list10);
-                            _$appendChild(_root, _list11);
-                            const __child3 = vapor(()=>{
-                                const _root = _$createDocumentFragment();
-                                _$appendChild(_root, _$createTextNode("下一页："));
-                                const _el5 = _$createTextWrapper(_root);
-                                _$appendChild(_root, _el5);
-                                watchEffect(()=>{
-                                    _$settextContent(_el5, next.title);
-                                });
-                                _$appendChild(_root, _$createTextNode(" →"));
-                                return {
-                                    vaporElement: _root
-                                };
-                            });
+                            const _el6 = _$createElement("a");
+                            _$appendChild(_root, _el6);
                             watchEffect(()=>{
-                                const __slot12 = <RouterLink to={`${uiBase}/${next.id}`} className="btn btn-outline btn-sm" children={__child3}/>;
-                                renderBetween(__slot12, _root, _list10, _list11);
+                                _$setAttribute(_el6, "href", String(RouterLink.__rueHref(`${uiBase}/${next.id}`)));
                             });
+                            _$addEventListener(_el6, "click", ((e)=>RouterLink.__rueOnClick(e, `${uiBase}/${next.id}`, false)));
+                            _$setClassName(_el6, "btn btn-outline btn-sm");
+                            _$appendChild(_el6, _$createTextNode("下一页："));
+                            const _el7 = _$createTextWrapper(_el6);
+                            _$appendChild(_el6, _el7);
+                            watchEffect(()=>{
+                                _$settextContent(_el7, next.title);
+                            });
+                            _$appendChild(_el6, _$createTextNode(" →"));
                             return {
                                 vaporElement: _root
                             };
                         }) : vapor(()=>{
                             const _root = _$createDocumentFragment();
-                            const _el6 = _$createElement("span");
-                            _$appendChild(_root, _el6);
+                            const _el8 = _$createElement("span");
+                            _$appendChild(_root, _el8);
                             return {
                                 vaporElement: _root
                             };
                         });
                         const __vnode = _$vaporCreateVNode(__slot);
-                        renderBetween(__vnode, _el2, _list13, _list14);
+                        renderAnchor(__vnode, _el2, _list3);
                     });
                     return {
                         vaporElement: _root
                     };
                 }) : "";
                 const __vnode = _$vaporCreateVNode(__slot);
-                renderBetween(__vnode, _root, _list3, _list4);
+                renderAnchor(__vnode, _root, _list1);
             });
             return {
                 vaporElement: _root
             };
         });
         watchEffect(()=>{
-            const __slot = <SidebarPlayground type={sidebarType} children={__child1}/>;
-            renderBetween(__slot, _root, _list1, _list2);
+            const __slot5 = <SidebarPlayground type={sidebarType} children={__child1}/>;
+            renderAnchor(__slot5, _root, _list4);
         });
         return {
             vaporElement: _root

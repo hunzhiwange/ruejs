@@ -30,7 +30,7 @@ useApp(RootApp).use(router).mount('#app')
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useError, useApp, vapor, renderBetween, _$createComment, _$createDocumentFragment, _$appendChild } from '@rue-js/rue';
+import { type FC, useError, useApp, vapor, renderAnchor, _$createComment, _$createDocumentFragment, _$appendChild } from '@rue-js/rue';
 import { RouterView } from '@rue-js/router';
 import router from './router';
 import SiteLayout from './pages/site/components/Layout';
@@ -41,24 +41,20 @@ useError({
 const RootApp: FC = ()=>{
     return vapor(()=>{
         const _root = _$createDocumentFragment();
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
+        const _list3 = _$createComment("rue:component:anchor");
+        _$appendChild(_root, _list3);
         const __child1 = vapor(()=>{
             const _root = _$createDocumentFragment();
-            const _list3 = _$createComment("rue:component:start");
-            const _list4 = _$createComment("rue:component:end");
-            _$appendChild(_root, _list3);
-            _$appendChild(_root, _list4);
-            const __slot5 = <RouterView/>;
-            renderBetween(__slot5, _root, _list3, _list4);
+            const _list1 = _$createComment("rue:component:anchor");
+            _$appendChild(_root, _list1);
+            const __slot2 = <RouterView/>;
+            renderAnchor(__slot2, _root, _list1);
             return {
                 vaporElement: _root
             };
         });
-        const __slot6 = <SiteLayout children={__child1}/>;
-        renderBetween(__slot6, _root, _list1, _list2);
+        const __slot4 = <SiteLayout children={__child1}/>;
+        renderAnchor(__slot4, _root, _list3);
         return {
             vaporElement: _root
         };

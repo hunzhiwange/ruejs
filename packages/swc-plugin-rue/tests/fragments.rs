@@ -33,9 +33,9 @@ export default Fragments;
 
     // 期望输出要点对照：
     // - 片段：<>...</> 被展开为两个 span 节点顺序插入
-    // - 组件：使用注释锚点占位并 renderBetween 插入 RouterLink
+    // - 组件：RouterLink 被快速路径重写为原生 <a> 元素
     let expected = r##"
-import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$appendChild, _$setClassName } from '@rue-js/rue';
+import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Fragments: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -50,13 +50,14 @@ const Fragments: FC = ()=>vapor(()=>{
         const _el3 = _$createElement("span");
         _$appendChild(_root, _el3);
         _$appendChild(_el3, _$createTextNode("片段 2"));
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __child1 = "返回目录";
-        const __slot3 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
-        renderBetween(__slot3, _root, _list1, _list2);
+        const _el4 = _$createElement("a");
+        _$appendChild(_root, _el4);
+        watchEffect(()=>{
+            _$setAttribute(_el4, "href", String(RouterLink.__rueHref("/jsx")));
+        });
+        _$addEventListener(_el4, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
+        _$setClassName(_el4, "text-blue-600 hover:underline");
+        _$appendChild(_el4, _$createTextNode("返回目录"));
         return {
             vaporElement: _root
         };

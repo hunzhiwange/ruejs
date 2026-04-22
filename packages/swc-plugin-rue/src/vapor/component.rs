@@ -21,15 +21,8 @@ use super::VaporTransform;
 pub fn emit_component_root(transform: &mut VaporTransform, el: &JSXElement) -> BlockStmt {
     let root = ident("_root");
     let mut stmts: Vec<Stmt> = Vec::new();
-    let start = transform.next_list_ident();
-    let end = transform.next_list_ident();
-    let make_start = call_ident("_$createComment", vec![string_expr("rue:component:start")]);
-    let make_end = call_ident("_$createComment", vec![string_expr("rue:component:end")]);
 
-    // 组件片段根创建：
-    // - callee：`_$createDocumentFragment`
-    // - args：空
-    // - ctxt：统一 `SyntaxContext::empty()`（由 emit::call_ident 设置）
+    // 组件片段根创建
     let create_root = call_ident("_$createDocumentFragment", vec![]);
     stmts.push(const_decl(root.clone(), create_root));
 
@@ -127,124 +120,15 @@ pub fn emit_component_root(transform: &mut VaporTransform, el: &JSXElement) -> B
         comp_el.closing = None;
     }
 
-    // 静态组件优化：无动态 props/children 的组件直接一次性渲染；否则走 watch 包裹
+    // 静态判断：无动态 props/children 的组件直接一次性渲染（renderAnchor），否则走 watch 包裹
     let is_static = crate::utils::is_static_component_without_props(&comp_el)
         || crate::utils::component_has_no_dynamic_props_excluding_children(&comp_el)
         || crate::utils::is_static_component_children_ident(&comp_el);
-    if is_static && transform.optimize_static_slots && !transform.optimize_component_anchors {
-        let anchor = transform.next_list_ident();
-        let slot_ident = transform.next_slot_ident();
-        stmts.push(const_decl(
-            anchor.clone(),
-            call_ident("_$createComment", vec![string_expr("rue:static:component")]),
-        ));
-        stmts.push(append_child(root.clone(), Expr::Ident(anchor.clone())));
-        if !child_stmts.is_empty() {
-            for s in child_stmts {
-                stmts.push(s);
-            }
-        }
-        stmts.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
-            span: DUMMY_SP,
-            ctxt: SyntaxContext::empty(),
-            decls: vec![VarDeclarator {
-                span: DUMMY_SP,
-                name: Pat::Ident(BindingIdent { id: slot_ident.clone(), type_ann: None }),
-                init: Some(Box::new(Expr::JSXElement(Box::new(comp_el.clone())))),
-                definite: false,
-            }],
-            kind: VarDeclKind::Const,
-            declare: false,
-        }))));
-        stmts.push(Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(ident("renderStatic")))),
-                args: vec![
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident.clone())) },
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(root.clone())) },
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-                ],
-                type_args: None,
-                ctxt: SyntaxContext::empty(),
-            })),
-        }));
-        stmts.push(return_root(root.clone()));
-        return BlockStmt { span: DUMMY_SP, ctxt: SyntaxContext::empty(), stmts };
-    }
 
-    if transform.optimize_component_anchors {
-        let anchor = transform.next_list_ident();
-        let make_anchor = call_ident("_$createComment", vec![string_expr("rue:component:anchor")]);
-        stmts.push(const_decl(anchor.clone(), make_anchor));
-        stmts.push(append_child(root.clone(), Expr::Ident(anchor.clone())));
-
-        if !child_stmts.is_empty() {
-            for s in child_stmts {
-                stmts.push(s);
-            }
-        }
-
-        let slot_ident = transform.next_slot_ident();
-        let render_call = Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
-            args: vec![
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident.clone())) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(root.clone())) },
-                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-            ],
-            type_args: None,
-            ctxt: SyntaxContext::empty(),
-        });
-
-        if is_static {
-            stmts.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
-                span: DUMMY_SP,
-                ctxt: SyntaxContext::empty(),
-                decls: vec![VarDeclarator {
-                    span: DUMMY_SP,
-                    name: Pat::Ident(BindingIdent { id: slot_ident.clone(), type_ann: None }),
-                    init: Some(Box::new(Expr::JSXElement(Box::new(comp_el.clone())))),
-                    definite: false,
-                }],
-                kind: VarDeclKind::Const,
-                declare: false,
-            }))));
-            stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }));
-        } else {
-            let decl_slot =
-                const_decl(slot_ident.clone(), Expr::JSXElement(Box::new(comp_el.clone())));
-            let render_arrow = Expr::Arrow(ArrowExpr {
-                span: DUMMY_SP,
-                params: vec![],
-                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                    span: DUMMY_SP,
-                    ctxt: SyntaxContext::empty(),
-                    stmts: vec![
-                        decl_slot,
-                        Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }),
-                    ],
-                })),
-                is_async: false,
-                is_generator: false,
-                type_params: None,
-                return_type: None,
-                ctxt: SyntaxContext::empty(),
-            });
-            let watch = call_ident("watchEffect", vec![render_arrow]);
-            stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(watch) }));
-        }
-
-        stmts.push(return_root(root.clone()));
-        return BlockStmt { span: DUMMY_SP, ctxt: SyntaxContext::empty(), stmts };
-    }
-
-    stmts.push(const_decl(start.clone(), make_start));
-    stmts.push(const_decl(end.clone(), make_end));
-    stmts.push(append_child(root.clone(), Expr::Ident(start.clone())));
-    stmts.push(append_child(root.clone(), Expr::Ident(end.clone())));
+    let anchor = transform.next_list_ident();
+    let make_anchor = call_ident("_$createComment", vec![string_expr("rue:component:anchor")]);
+    stmts.push(const_decl(anchor.clone(), make_anchor));
+    stmts.push(append_child(root.clone(), Expr::Ident(anchor.clone())));
 
     if !child_stmts.is_empty() {
         for s in child_stmts {
@@ -252,39 +136,20 @@ pub fn emit_component_root(transform: &mut VaporTransform, el: &JSXElement) -> B
         }
     }
 
-    let decl_slot = const_decl(ident("__slot"), Expr::JSXElement(Box::new(comp_el.clone())));
+    let slot_ident = transform.next_slot_ident();
     let render_call = Expr::Call(CallExpr {
         span: DUMMY_SP,
-        callee: Callee::Expr(Box::new(Expr::Ident(ident("renderBetween")))),
+        callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
         args: vec![
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__slot"))) },
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident.clone())) },
             ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(root.clone())) },
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(start.clone())) },
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(end.clone())) },
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
         ],
         type_args: None,
         ctxt: SyntaxContext::empty(),
     });
-    let render_arrow = Expr::Arrow(ArrowExpr {
-        span: DUMMY_SP,
-        params: vec![],
-        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-            span: DUMMY_SP,
-            ctxt: SyntaxContext::empty(),
-            stmts: vec![
-                decl_slot,
-                Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }),
-            ],
-        })),
-        is_async: false,
-        is_generator: false,
-        type_params: None,
-        return_type: None,
-        ctxt: SyntaxContext::empty(),
-    });
 
     if is_static {
-        let slot_ident = transform.next_slot_ident();
         stmts.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
             span: DUMMY_SP,
             ctxt: SyntaxContext::empty(),
@@ -297,31 +162,30 @@ pub fn emit_component_root(transform: &mut VaporTransform, el: &JSXElement) -> B
             kind: VarDeclKind::Const,
             declare: false,
         }))));
-        stmts.push(Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(Expr::Call(CallExpr {
-                span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(ident("renderBetween")))),
-                args: vec![
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident.clone())) },
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(root.clone())) },
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(start.clone())) },
-                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(end.clone())) },
-                ],
-                type_args: None,
-                ctxt: SyntaxContext::empty(),
-            })),
-        }));
+        stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }));
     } else {
-        // 动态组件：包裹在 watchEffect 中，确保更新
-        // - callee：`watchEffect`
-        // - args：renderBetween 箭头函数
-        // - ctxt：统一空上下文
+        let decl_slot = const_decl(slot_ident.clone(), Expr::JSXElement(Box::new(comp_el.clone())));
+        let render_arrow = Expr::Arrow(ArrowExpr {
+            span: DUMMY_SP,
+            params: vec![],
+            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
+                stmts: vec![
+                    decl_slot,
+                    Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }),
+                ],
+            })),
+            is_async: false,
+            is_generator: false,
+            type_params: None,
+            return_type: None,
+            ctxt: SyntaxContext::empty(),
+        });
         let watch = call_ident("watchEffect", vec![render_arrow]);
         stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(watch) }));
     }
-    // 返回块级结果
-    stmts.push(return_root(root.clone()));
 
+    stmts.push(return_root(root.clone()));
     BlockStmt { span: DUMMY_SP, ctxt: SyntaxContext::empty(), stmts }
 }

@@ -153,7 +153,7 @@ export default FormBindings;
     // - keyedList renderItem：label/input/span 构造每项片段并渲染
     // - 多选 select：watch 中使用 Set 同步 options.selected
     let expected_fragment = r##"
-import { FC, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
+import { FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
 const FormBindings: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const text = _$vaporWithHookId("ref:1:0", ()=>ref('Edit me'));
@@ -270,6 +270,7 @@ const FormBindings: FC = ()=>{
                 elements: _map1_elements,
                 parent: _el14,
                 before: _list2,
+                singleRoot: true,
                 start: _list1,
                 renderItem: (name, parent, start, end, idx)=>{
                     const __slot = vapor(()=>{
@@ -301,7 +302,7 @@ const FormBindings: FC = ()=>{
                             vaporElement: _root
                         };
                     });
-                    renderBetween(__slot, parent, start, end);
+                    renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;

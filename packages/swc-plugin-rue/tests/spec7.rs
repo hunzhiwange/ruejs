@@ -26,21 +26,19 @@ export default Parent;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, renderBetween, _$createElement, _$createComment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
+import { type FC, ref, h, _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(2));
 const Child: FC<{
     label: number;
 }> = (p)=>vapor(()=>{
         const _root = _$createElement("span");
         _$setAttribute(_root, "id", "child");
-        const _list1 = _$createComment("rue:slot:start");
-        const _list2 = _$createComment("rue:slot:end");
+        const _list1 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
         watchEffect(()=>{
             const __slot = (p.label);
             const __vnode = _$vaporCreateVNode(__slot);
-            renderBetween(__vnode, _root, _list1, _list2);
+            renderAnchor(__vnode, _root, _list1);
         });
         return {
             vaporElement: _root
@@ -48,13 +46,11 @@ const Child: FC<{
     });
 const Parent: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
-        const _list3 = _$createComment("rue:component:start");
-        const _list4 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list3);
-        _$appendChild(_root, _list4);
+        const _list2 = _$createComment("rue:component:anchor");
+        _$appendChild(_root, _list2);
         watchEffect(()=>{
-            const __slot5 = <Child label={count.value}/>;
-            renderBetween(__slot5, _root, _list3, _list4);
+            const __slot3 = <Child label={count.value}/>;
+            renderAnchor(__slot3, _root, _list2);
         });
         return {
             vaporElement: _root

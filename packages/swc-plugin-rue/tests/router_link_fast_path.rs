@@ -51,6 +51,6 @@ const Page: FC<{ handleClick: () => void }> = props => (
     let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
-    assert!(out.contains("rue:component:start"));
-    assert!(out.contains("renderBetween("));
+    assert!(out.contains("rue:component:anchor"));
+    assert!(out.contains("renderAnchor("));
 }

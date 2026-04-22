@@ -40,11 +40,11 @@ export default Hello
 import { type FC, ref, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild, watchEffect } from '@rue-js/rue';
 const Hello: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));
-        return {
-            color: color
-        };
-    }));
+            const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));
+            return {
+                color: color
+            };
+        }));
     const { color: color } = _$useSetup;
     return vapor(()=>{
         const _root = _$createElement("div");

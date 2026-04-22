@@ -290,55 +290,55 @@ type CommitItem = {
 };
 const FetchingData: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const API_URL = 'https://api.github.com/repos/rust-lang/rust/commits?per_page=10&sha=';
-        const branches = [
-            'main',
-            'beta',
-            'stable'
-        ] as const;
-        const currentBranch = _$vaporWithHookId("ref:1:0", ()=>ref<(typeof branches)[number]>(branches[0]));
-        const commits = _$vaporWithHookId("ref:1:1", ()=>ref<CommitItem[]>([]));
-        const load = (branch: string)=>{
-            const url = API_URL + branch;
-            console.info(url);
-            fetch(url).then((res)=>res.json()).then((data)=>{
-                commits.value = Array.isArray(data) ? data : [];
-                console.info(commits.value);
-            }).catch((e)=>{
-                console.info('请求失败');
-                throw e;
-                commits.value = [];
-            });
-        };
-        _$vaporWithHookId("useEffect:1:2", ()=>useEffect(()=>{
-                console.info(22222);
-                load(currentBranch.value);
-            }, [
-                currentBranch.value
-            ]));
-        watch(currentBranch, (newVal, oldVal)=>{
-            console.log('currentBranch.value changed', newVal, oldVal);
-        });
-        _$vaporWithHookId("watchEffect:1:3", ()=>watchEffect(()=>{
-                console.info('currentBranch.value', currentBranch.value);
-            }));
-        const truncate = (v: string)=>{
-            const newline = v.indexOf('\n');
-            return newline > 0 ? v.slice(0, newline) : v;
-        };
-        const formatDate = (v: string)=>v.replace(/T|Z/g, ' ');
-        const activeTab = _$vaporWithHookId("ref:1:4", ()=>ref<'preview' | 'code'>('preview'));
-        return {
-            API_URL: API_URL,
-            branches: branches,
-            currentBranch: currentBranch,
-            commits: commits,
-            load: load,
-            truncate: truncate,
-            formatDate: formatDate,
-            activeTab: activeTab
-        };
-    }));
+            const API_URL = 'https://api.github.com/repos/rust-lang/rust/commits?per_page=10&sha=';
+            const branches = [
+                'main',
+                'beta',
+                'stable'
+            ] as const;
+            const currentBranch = _$vaporWithHookId("ref:1:0", ()=>ref<(typeof branches)[number]>(branches[0]));
+            const commits = _$vaporWithHookId("ref:1:1", ()=>ref<CommitItem[]>([]));
+            const load = (branch: string)=>{
+                const url = API_URL + branch;
+                console.info(url);
+                fetch(url).then((res)=>res.json()).then((data)=>{
+                    commits.value = Array.isArray(data) ? data : [];
+                    console.info(commits.value);
+                }).catch((e)=>{
+                    console.info('请求失败');
+                    throw e;
+                    commits.value = [];
+                });
+            };
+            _$vaporWithHookId("useEffect:1:2", ()=>useEffect(()=>{
+                    console.info(22222);
+                    load(currentBranch.value);
+                }, [
+                    currentBranch.value
+                ]));
+            _$vaporWithHookId("watch:1:3", ()=>watch(currentBranch, (newVal, oldVal)=>{
+                    console.log('currentBranch.value changed', newVal, oldVal);
+                }));
+            _$vaporWithHookId("watchEffect:1:4", ()=>watchEffect(()=>{
+                    console.info('currentBranch.value', currentBranch.value);
+                }));
+            const truncate = (v: string)=>{
+                const newline = v.indexOf('\n');
+                return newline > 0 ? v.slice(0, newline) : v;
+            };
+            const formatDate = (v: string)=>v.replace(/T|Z/g, ' ');
+            const activeTab = _$vaporWithHookId("ref:1:5", ()=>ref<'preview' | 'code'>('preview'));
+            return {
+                API_URL: API_URL,
+                branches: branches,
+                currentBranch: currentBranch,
+                commits: commits,
+                load: load,
+                truncate: truncate,
+                formatDate: formatDate,
+                activeTab: activeTab
+            };
+        }));
     const { API_URL: API_URL, branches: branches, currentBranch: currentBranch, commits: commits, load: load, truncate: truncate, formatDate: formatDate, activeTab: activeTab } = _$useSetup;
     return (<SidebarPlayground type="examples">
       <h1 className="text-5xl font-semibold mb-4 md:mb-4">获取数据（移植自 Vue）</h1>

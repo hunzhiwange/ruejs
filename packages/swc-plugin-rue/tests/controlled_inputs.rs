@@ -39,7 +39,7 @@ export default ControlledInputs;
     // - 受控 input：value 走 watch；onInput 绑定更新 state
     // - 文本回显：_$createTextWrapper + _$settextContent + watch
     let expected_fragment = r##"
-import { type FC, useState, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { type FC, useState, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const ControlledInputs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -73,13 +73,14 @@ const ControlledInputs: FC = ()=>{
         watchEffect(()=>{
             _$settextContent(_el4, text.value);
         });
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_root, _list1);
-        _$appendChild(_root, _list2);
-        const __child1 = "返回目录";
-        const __slot3 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
-        renderBetween(__slot3, _root, _list1, _list2);
+        const _el5 = _$createElement("a");
+        _$appendChild(_root, _el5);
+        watchEffect(()=>{
+            _$setAttribute(_el5, "href", String(RouterLink.__rueHref("/jsx")));
+        });
+        _$addEventListener(_el5, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
+        _$setClassName(_el5, "text-blue-600 hover:underline");
+        _$appendChild(_el5, _$createTextNode("返回目录"));
         return {
             vaporElement: _root
         };

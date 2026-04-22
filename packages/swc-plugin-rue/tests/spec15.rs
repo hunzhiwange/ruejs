@@ -123,7 +123,7 @@ export default ListTransitionExample
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderBetween, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
 const ListTransitionExample: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const items = _$vaporWithHookId("ref:1:0", ()=>ref<number[]>([
@@ -244,16 +244,14 @@ const ListTransitionExample: FC = ()=>{
         const _el8 = _$createElement("ul");
         _$appendChild(_el3, _el8);
         _$setClassName(_el8, "container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3");
-        const _list1 = _$createComment("rue:component:start");
-        const _list2 = _$createComment("rue:component:end");
-        _$appendChild(_el8, _list1);
-        _$appendChild(_el8, _list2);
+        const _list3 = _$createComment("rue:component:anchor");
+        _$appendChild(_el8, _list3);
         const __child1 = vapor(()=>{
             const _root = _$createDocumentFragment();
-            const _list3 = _$createComment("rue:list:start");
-            const _list4 = _$createComment("rue:list:end");
-            _$appendChild(_root, _list3);
-            _$appendChild(_root, _list4);
+            const _list1 = _$createComment("rue:list:start");
+            const _list2 = _$createComment("rue:list:end");
+            _$appendChild(_root, _list1);
+            _$appendChild(_root, _list2);
             let _map1_elements = new Map;
             watchEffect(()=>{
                 const _map1_current = items.value || [];
@@ -261,9 +259,10 @@ const ListTransitionExample: FC = ()=>{
                     items: _map1_current,
                     getKey: (item, idx)=>item,
                     elements: _map1_elements,
-                    parent: _list3.parentNode,
-                    before: _list4,
-                    start: _list3,
+                    parent: _list1.parentNode,
+                    before: _list2,
+                    singleRoot: true,
+                    start: _list1,
                     renderItem: (item, parent, start, end, idx)=>{
                         const __slot = vapor(()=>{
                             const _root = _$createDocumentFragment();
@@ -290,7 +289,7 @@ const ListTransitionExample: FC = ()=>{
                                 vaporElement: _root
                             };
                         });
-                        renderBetween(__slot, parent, start, end);
+                        renderAnchor(__slot, parent, start);
                     }
                 });
                 _map1_elements = _map1_newElements;
@@ -299,8 +298,8 @@ const ListTransitionExample: FC = ()=>{
                 vaporElement: _root
             };
         });
-        const __slot5 = <TransitionGroup name="fade" children={__child1}/>;
-        renderBetween(__slot5, _el8, _list1, _list2);
+        const __slot4 = <TransitionGroup name="fade" children={__child1}/>;
+        renderAnchor(__slot4, _el8, _list3);
         return {
             vaporElement: _root
         };

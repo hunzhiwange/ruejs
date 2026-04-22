@@ -103,20 +103,20 @@ import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const ControlledInputs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
-        const [text, setText] = _$vaporWithHookId("useState:1:0", ()=>useState(''));
-        const activeTab = _$vaporWithHookId("ref:1:1", ()=>ref<'preview' | 'code'>('code'));
-        var [text2, setText2] = _$vaporWithHookId("useState:1:2", ()=>useState(''));
-        let [text3, setText3] = _$vaporWithHookId("useState:1:3", ()=>useState(''));
-        return {
-            text: text,
-            setText: setText,
-            activeTab: activeTab,
-            text2: text2,
-            setText2: setText2,
-            text3: text3,
-            setText3: setText3
-        };
-    }));
+            const [text, setText] = _$vaporWithHookId("useState:1:0", ()=>useState(''));
+            const activeTab = _$vaporWithHookId("ref:1:1", ()=>ref<'preview' | 'code'>('code'));
+            var [text2, setText2] = _$vaporWithHookId("useState:1:2", ()=>useState(''));
+            let [text3, setText3] = _$vaporWithHookId("useState:1:3", ()=>useState(''));
+            return {
+                text: text,
+                setText: setText,
+                activeTab: activeTab,
+                text2: text2,
+                setText2: setText2,
+                text3: text3,
+                setText3: setText3
+            };
+        }));
     const { text: text, setText: setText, activeTab: activeTab } = _$useSetup;
     let { text2: text2, setText2: setText2, text3: text3, setText3: setText3 } = _$useSetup;
     return (<SidebarPlayground type="examples">
