@@ -1,3 +1,9 @@
+## [0.0.32](https://github.com/hunzhiwange/ruejs/compare/v0.0.31...v0.0.32) (2026-04-22)
+
+
+### Bug Fixes
+
+* 修复svg渲染错误 ([6fe59d7](https://github.com/hunzhiwange/ruejs/commit/6fe59d71e6181d9ce096fd62b1465b86b9a1aa1b))
 ## [0.0.31](https://github.com/hunzhiwange/ruejs/compare/v0.0.30...v0.0.31) (2026-04-22)
 
 
