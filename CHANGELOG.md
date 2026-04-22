@@ -1,3 +1,10 @@
+## [0.0.31](https://github.com/hunzhiwange/ruejs/compare/v0.0.30...v0.0.31) (2026-04-22)
+
+
+### Bug Fixes
+
+* fix bug ([d282236](https://github.com/hunzhiwange/ruejs/commit/d2822363aaa99ca0371b02db0ca7942f856503db))
+* 移除 optimizeStaticSlots和optimizeComponentAnchors配置 ([1ed1f36](https://github.com/hunzhiwange/ruejs/commit/1ed1f3692323584ea04cdd12e7db4c567034ffdf))
 ## [0.0.30](https://github.com/hunzhiwange/ruejs/compare/v0.0.29...v0.0.30) (2026-03-29)
 
 
