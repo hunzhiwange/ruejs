@@ -40,13 +40,16 @@ pub fn unwrap_expr(e: &Expr) -> &Expr {
     x
 }
 
-/// 判断 JSX 元素是否为组件：规则为首字母大写的标识符
+/// 判断 JSX 元素是否为组件：
+/// - 大写标识符视为组件
+/// - JSX 成员表达式（如 `Card.Body` / `Collapse.Title`）也始终视为组件
 pub fn is_component(name: &JSXElementName) -> bool {
     match name {
         JSXElementName::Ident(i) => {
             let s = i.sym.to_string();
             s.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
         }
+        JSXElementName::JSXMemberExpr(_) => true,
         _ => false,
     }
 }
@@ -166,16 +169,6 @@ pub fn is_static_component_children_ident(el: &JSXElement) -> bool {
         }
     }
     false
-}
-
-pub fn is_component_named(el: &JSXElement, name: &str) -> bool {
-    match &el.opening.name {
-        JSXElementName::Ident(i) => {
-            let s = i.sym.to_string();
-            s == name
-        }
-        _ => false,
-    }
 }
 
 fn is_static_literal_expr(e: &Expr) -> bool {

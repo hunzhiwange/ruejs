@@ -1,6 +1,6 @@
 # 全局 API：通用 {#global-api-general}
 
-## version {#version}
+## version {#version} @todo
 
 暴露当前版本的 Rue。
 
@@ -14,7 +14,7 @@
   console.log(version)
   ```
 
-## nextTick() {#nexttick}
+## nextTick() {#nexttick} @todo
 
 等待下一次 DOM 更新刷新的工具。
 
@@ -82,7 +82,7 @@
 
 - **另请参阅** [`this.$nextTick()`](/api/component-instance#nexttick)
 
-## defineComponent() {#definecomponent}
+## defineComponent() {#definecomponent} @todo
 
 用于定义具有类型推断的 Vue 组件的类型帮助函数。
 
@@ -179,7 +179,7 @@
 
 - **另请参阅** [指南 - 使用 TypeScript 配合 Vue](/guide/typescript/overview#general-usage-notes)
 
-## defineAsyncComponent() {#defineasynccomponent}
+## defineAsyncComponent() {#defineasynccomponent} @todo
 
 定义一个仅在渲染时延迟加载的异步组件。参数可以是加载函数，也可以是用于更高级控制加载行为的选项对象。
 

@@ -1,8 +1,62 @@
 use js_sys::{Array, Function, Object, Reflect};
+use rue_runtime_vapor::hook::reactive::props_reactive_js;
 use rue_runtime_vapor::reactive::signal::create_reactive;
+use rue_runtime_vapor::{create_effect, set_reactive_scheduling};
+use std::cell::RefCell;
+use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
+
+/// 代理属性访问应订阅具体分支，而不是把所有中间层都订到根上。
+#[wasm_bindgen_test]
+fn reactive_nested_branch_update_does_not_rerun_sibling_effect() {
+    set_reactive_scheduling("sync");
+
+    let left = Object::new();
+    Reflect::set(&left, &JsValue::from_str("count"), &JsValue::from_f64(1.0)).unwrap();
+    let right = Object::new();
+    Reflect::set(&right, &JsValue::from_str("count"), &JsValue::from_f64(2.0)).unwrap();
+    let root = Object::new();
+    Reflect::set(&root, &JsValue::from_str("left"), &left).unwrap();
+    Reflect::set(&root, &JsValue::from_str("right"), &right).unwrap();
+
+    let state = create_reactive(root.into(), None);
+
+    let left_hits = Rc::new(RefCell::new(0));
+    let left_hits2 = left_hits.clone();
+    let state_left = state.clone();
+    let left_effect = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *left_hits2.borrow_mut() += 1;
+        let left_branch = Reflect::get(&state_left, &JsValue::from_str("left")).unwrap();
+        let _ = Reflect::get(&left_branch, &JsValue::from_str("count")).unwrap();
+    }) as Box<dyn FnMut()>);
+    let left_fn: Function = left_effect.as_ref().clone().into();
+    let _left_handle = create_effect(left_fn, None);
+
+    let right_hits = Rc::new(RefCell::new(0));
+    let right_hits2 = right_hits.clone();
+    let state_right = state.clone();
+    let right_effect = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *right_hits2.borrow_mut() += 1;
+        let right_branch = Reflect::get(&state_right, &JsValue::from_str("right")).unwrap();
+        let _ = Reflect::get(&right_branch, &JsValue::from_str("count")).unwrap();
+    }) as Box<dyn FnMut()>);
+    let right_fn: Function = right_effect.as_ref().clone().into();
+    let _right_handle = create_effect(right_fn, None);
+
+    assert_eq!(*left_hits.borrow(), 1);
+    assert_eq!(*right_hits.borrow(), 1);
+
+    let left_branch = Reflect::get(&state, &JsValue::from_str("left")).unwrap();
+    Reflect::set(&left_branch, &JsValue::from_str("count"), &JsValue::from_f64(10.0)).unwrap();
+
+    assert_eq!(*left_hits.borrow(), 2);
+    assert_eq!(*right_hits.borrow(), 1);
+
+    left_effect.forget();
+    right_effect.forget();
+}
 
 /// 对象代理：新增属性后，`ownKeys` 数量增加，且原始对象同步更新
 #[wasm_bindgen_test]
@@ -56,6 +110,138 @@ fn reactive_array_child_proxy_mirror_updates_on_index_set() {
     // `length` 等常规属性仍存在
     let has_len = js_sys::Reflect::has(&items, &JsValue::from_str("length")).unwrap();
     assert!(has_len);
+}
+
+/// 响应式数组方法：`indexOf(proxyChild)` 应命中原始数组项，随后 `splice` 应触发订阅更新
+#[wasm_bindgen_test]
+fn reactive_array_indexof_proxy_child_and_splice_trigger_effect() {
+    set_reactive_scheduling("sync");
+
+    let item_a = Object::new();
+    Reflect::set(&item_a, &JsValue::from_str("label"), &JsValue::from_str("A")).unwrap();
+    let item_b = Object::new();
+    Reflect::set(&item_b, &JsValue::from_str("label"), &JsValue::from_str("B")).unwrap();
+
+    let arr = Array::new();
+    arr.push(&item_a.clone().into());
+    arr.push(&item_b.clone().into());
+
+    let items = create_reactive(arr.into(), None);
+
+    let hits = Rc::new(RefCell::new(0));
+    let hits2 = hits.clone();
+    let items_for_effect = items.clone();
+    let effect = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *hits2.borrow_mut() += 1;
+        let _ = Reflect::get(&items_for_effect, &JsValue::from_str("length")).unwrap();
+    }) as Box<dyn FnMut()>);
+    let effect_fn: Function = effect.as_ref().clone().into();
+    let _handle = create_effect(effect_fn, None);
+
+    assert_eq!(*hits.borrow(), 1);
+
+    let first_item_proxy = Reflect::get(&items, &JsValue::from_f64(0.0)).unwrap();
+    let index_of: Function = Reflect::get(&items, &JsValue::from_str("indexOf"))
+        .unwrap()
+        .unchecked_into();
+    let idx = index_of.call1(&JsValue::NULL, &first_item_proxy).unwrap();
+    assert_eq!(idx.as_f64().unwrap(), 0.0);
+
+    let splice: Function = Reflect::get(&items, &JsValue::from_str("splice"))
+        .unwrap()
+        .unchecked_into();
+    splice
+        .call2(&JsValue::NULL, &JsValue::from_f64(0.0), &JsValue::from_f64(1.0))
+        .unwrap();
+
+    let len = Reflect::get(&items, &JsValue::from_str("length"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(len, 1.0);
+    assert_eq!(*hits.borrow(), 2);
+
+    effect.forget();
+}
+
+/// 响应式数组变异方法：`push` 应通过路径写入触发依赖更新，而不是只改原始数组引用
+#[wasm_bindgen_test]
+fn reactive_array_push_triggers_effect() {
+    set_reactive_scheduling("sync");
+
+    let arr = Array::new();
+    arr.push(&JsValue::from_str("A"));
+    let items = create_reactive(arr.into(), None);
+
+    let hits = Rc::new(RefCell::new(0));
+    let hits2 = hits.clone();
+    let items_for_effect = items.clone();
+    let effect = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *hits2.borrow_mut() += 1;
+        let _ = Reflect::get(&items_for_effect, &JsValue::from_str("length")).unwrap();
+    }) as Box<dyn FnMut()>);
+    let effect_fn: Function = effect.as_ref().clone().into();
+    let _handle = create_effect(effect_fn, None);
+
+    assert_eq!(*hits.borrow(), 1);
+
+    let push: Function = Reflect::get(&items, &JsValue::from_str("push"))
+        .unwrap()
+        .unchecked_into();
+    push.call1(&JsValue::NULL, &JsValue::from_str("B")).unwrap();
+
+    let len = Reflect::get(&items, &JsValue::from_str("length"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(len, 2.0);
+    assert_eq!(*hits.borrow(), 2);
+
+    effect.forget();
+}
+
+/// 响应式数组序列化：`JSON.stringify(proxy)` 在 effect 内应收集依赖，数组变更后重新执行
+#[wasm_bindgen_test]
+fn reactive_array_json_stringify_tracks_mutations() {
+    set_reactive_scheduling("sync");
+
+    let item_a = Object::new();
+    Reflect::set(&item_a, &JsValue::from_str("label"), &JsValue::from_str("A")).unwrap();
+
+    let arr = Array::new();
+    arr.push(&item_a.clone().into());
+    let items = create_reactive(arr.into(), None);
+
+    let hits = Rc::new(RefCell::new(0));
+    let last_json = Rc::new(RefCell::new(String::new()));
+    let hits2 = hits.clone();
+    let last_json2 = last_json.clone();
+    let items_for_effect = items.clone();
+    let effect = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *hits2.borrow_mut() += 1;
+        let text = js_sys::JSON::stringify(&items_for_effect)
+            .unwrap()
+            .as_string()
+            .unwrap_or_default();
+        *last_json2.borrow_mut() = text;
+    }) as Box<dyn FnMut()>);
+    let effect_fn: Function = effect.as_ref().clone().into();
+    let _handle = create_effect(effect_fn, None);
+
+    assert_eq!(*hits.borrow(), 1);
+    assert!(last_json.borrow().contains("\"A\""));
+
+    let push: Function = Reflect::get(&items, &JsValue::from_str("push"))
+        .unwrap()
+        .unchecked_into();
+    let item_b = Object::new();
+    Reflect::set(&item_b, &JsValue::from_str("label"), &JsValue::from_str("B")).unwrap();
+    push.call1(&JsValue::NULL, &item_b.into()).unwrap();
+
+    assert_eq!(*hits.borrow(), 2);
+    assert!(last_json.borrow().contains("\"B\""));
+
+    effect.forget();
 }
 
 /// 原始值代理：`.value` 用于读写；`ownKeys` 隐藏，不暴露键
@@ -126,6 +312,81 @@ fn reactive_get_own_property_descriptor_configurable_true() {
     let cfg0 =
         js_sys::Reflect::get(&d0, &JsValue::from_str("configurable")).unwrap().as_bool().unwrap();
     assert!(cfg0);
+
+    let d_len = js_sys::Object::get_own_property_descriptor(
+        &items.clone().unchecked_into::<Object>(),
+        &JsValue::from_str("length"),
+    );
+    let cfg_len = js_sys::Reflect::get(&d_len, &JsValue::from_str("configurable"))
+        .unwrap()
+        .as_bool()
+        .unwrap();
+    assert!(!cfg_len);
+}
+
+/// propsReactive 包裹 reactive props 时，嵌套数组的 `length` 读取不应触发 Proxy 描述符错误
+#[wasm_bindgen_test]
+fn props_reactive_nested_array_length_accessible() {
+    let children = Array::new();
+    let child1 = Object::new();
+    Reflect::set(&child1, &JsValue::from_str("name"), &JsValue::from_str("hello")).unwrap();
+    let child2 = Object::new();
+    Reflect::set(&child2, &JsValue::from_str("name"), &JsValue::from_str("world")).unwrap();
+    children.push(&child1.into());
+    children.push(&child2.into());
+
+    let model = Object::new();
+    Reflect::set(&model, &JsValue::from_str("name"), &JsValue::from_str("My Tree")).unwrap();
+    Reflect::set(&model, &JsValue::from_str("children"), &children.clone().into()).unwrap();
+    let model_proxy = create_reactive(model.into(), None);
+
+    let props_obj = Object::new();
+    Reflect::set(&props_obj, &JsValue::from_str("model"), &model_proxy).unwrap();
+    Reflect::set(&props_obj, &JsValue::from_str("className"), &JsValue::from_str("item")).unwrap();
+    Reflect::set(&props_obj, &JsValue::from_str("children"), &Array::new().into()).unwrap();
+
+    let props = props_reactive_js(props_obj.into(), Some(true));
+    let props_model = Reflect::get(&props, &JsValue::from_str("model")).unwrap();
+    let props_children = Reflect::get(&props_model, &JsValue::from_str("children")).unwrap();
+    let len = Reflect::get(&props_children, &JsValue::from_str("length"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+
+    assert_eq!(len, 2.0);
+}
+
+/// propsReactive 应保持 VNode-like prop 为原始对象，避免 JSX/VNode 被二次代理后失真。
+#[wasm_bindgen_test]
+fn props_reactive_keeps_tagged_vnode_prop_raw() {
+    let tagged_vnode = Object::new();
+    Reflect::set(
+        &tagged_vnode,
+        &JsValue::from_str("__rue_vnode_id"),
+        &JsValue::from_f64(7.0),
+    )
+    .unwrap();
+
+    let props_obj = Object::new();
+    Reflect::set(&props_obj, &JsValue::from_str("header"), &tagged_vnode).unwrap();
+    Reflect::set(&props_obj, &JsValue::from_str("children"), &Array::new().into()).unwrap();
+
+    let props = props_reactive_js(props_obj.into(), Some(true));
+    let header = Reflect::get(&props, &JsValue::from_str("header")).unwrap();
+
+    assert!(js_sys::Object::is(&header, &tagged_vnode.clone().into()));
+
+    let is_reactive = Reflect::get(&header, &JsValue::from_str("__isReactive__"))
+        .unwrap_or(JsValue::FALSE)
+        .as_bool()
+        .unwrap_or(false);
+    assert!(!is_reactive);
+
+    let vnode_id = Reflect::get(&header, &JsValue::from_str("__rue_vnode_id"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(vnode_id, 7.0);
 }
 
 /// 只读代理：写入被拒绝（返回 false/不生效），原始快照保持不变
@@ -191,6 +452,58 @@ fn reactive_array_methods_push_splice_update_on_reget() {
     let raw_items2 = js_sys::Reflect::get(&raw2, &JsValue::from_str("items")).unwrap();
     let len2 = js_sys::Array::from(&raw_items2).length();
     assert_eq!(len2, 1);
+}
+
+/// 将数组代理重新赋值回宿主对象后，仍应保留数组方法并写回原始 holder。
+#[wasm_bindgen_test]
+fn reactive_array_proxy_self_assignment_preserves_push() {
+    let arr = Array::new();
+    arr.push(&JsValue::from_str("x"));
+    arr.push(&JsValue::from_str("y"));
+
+    let root = Object::new();
+    Reflect::set(&root, &JsValue::from_str("children"), &arr.clone().into()).unwrap();
+
+    let proxy = create_reactive(root.into(), None);
+    let children = Reflect::get(&proxy, &JsValue::from_str("children")).unwrap();
+    Reflect::set(&proxy, &JsValue::from_str("children"), &children).unwrap();
+
+    let push: Function = Reflect::get(&children, &JsValue::from_str("push"))
+        .unwrap()
+        .unchecked_into();
+    push.call1(&JsValue::NULL, &JsValue::from_str("z")).unwrap();
+
+    let raw = Reflect::get(&proxy, &JsValue::from_str("__rue_raw__")).unwrap();
+    let raw_children = Reflect::get(&raw, &JsValue::from_str("children")).unwrap();
+    assert_eq!(Array::from(&raw_children).length(), 3);
+}
+
+/// 数组代理自赋值后，ownKeys 仍需满足 length 不变式，Object.keys 不应抛错。
+#[wasm_bindgen_test]
+fn reactive_array_proxy_self_assignment_keeps_length_in_ownkeys() {
+    let arr = Array::new();
+    arr.push(&JsValue::from_str("x"));
+    arr.push(&JsValue::from_str("y"));
+
+    let root = Object::new();
+    Reflect::set(&root, &JsValue::from_str("children"), &arr.clone().into()).unwrap();
+
+    let proxy = create_reactive(root.into(), None);
+    let children = Reflect::get(&proxy, &JsValue::from_str("children")).unwrap();
+    Reflect::set(&proxy, &JsValue::from_str("children"), &children).unwrap();
+
+    let keys = js_sys::Reflect::own_keys(&children).unwrap();
+    let mut has_length = false;
+    for i in 0..keys.length() {
+        if keys.get(i).as_string().as_deref() == Some("length") {
+            has_length = true;
+            break;
+        }
+    }
+    assert!(has_length);
+
+    let object_keys = js_sys::Object::keys(&children.clone().unchecked_into::<Object>());
+    assert_eq!(object_keys.length(), 2);
 }
 
 /// 只读数组：变更方法（push）不应修改原始数据

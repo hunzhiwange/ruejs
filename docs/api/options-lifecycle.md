@@ -1,4 +1,6 @@
-# 选项：生命周期 {#options-lifecycle}
+# 选项：生命周期 {#options-lifecycle} @todo
+
+> **@todo**: 整个 Options API 尚未实现。Rue 目前仅支持 Composition API / FC 模式。
 
 :::info 另请参阅
 有关生命周期钩子的共享使用，请参阅[指南 - 生命周期钩子](/guide/essentials/lifecycle)

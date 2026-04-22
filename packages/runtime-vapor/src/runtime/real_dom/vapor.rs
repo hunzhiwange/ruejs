@@ -37,7 +37,15 @@ where
                     let v: JsValue = item.into();
                     js_arr.push(&v);
                 }
-                vnode.props.insert("__fragNodes".to_string(), js_arr.into());
+                vnode
+                    .props
+                    .insert("__fragNodes".to_string(), js_arr.clone().into());
+                let el_js: JsValue = el.clone().into();
+                let _ = Reflect::set(
+                    &el_js,
+                    &JsValue::from_str("__rue_frag_nodes_ref"),
+                    &js_arr,
+                );
             }
         }
     }

@@ -45,3 +45,6 @@ target/
 /vibewindow/
 packages/runtime-vapor/pkg/
 packages/runtime-vapor/pkg-node/
+/.vibewindow/
+/memory/
+/state/

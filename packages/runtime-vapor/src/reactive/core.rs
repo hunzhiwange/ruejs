@@ -8,8 +8,8 @@
 - `CURRENT_EFFECT` 记录当前正在执行的副作用 id；当信号被 `get()` 读取时，就能把这个 id 加入订阅集合，完成依赖收集。
 - `BATCH_DEPTH` 提供批量更新的计数（可递归/嵌套）。在批量范围内的变更会先进入 `PENDING_EFFECTS`，
   待批量结束后统一调度。这样可以降低无谓的重复执行、避免中间状态闪烁。
-- `MICROTASK_SCHEDULED` 确保同一轮事件循环只安排一次微任务 drain，避免无穷追加。
-- `SCHEDULING_MODE` 决定默认策略：1 表示尽量同步（但避免自身重入），0 表示统一走微任务。
+- `MICROTASK_SCHEDULED` 记录“是否已经安排了下一次 drain”，无论该 drain 最终落在微任务还是动画帧。
+- `SCHEDULING_MODE` 决定默认策略：1 表示尽量同步（但避免自身重入），0 表示统一走微任务，2 表示按动画帧合并。
 
 为什么用这些 Rust 容器与类型？
 - `HashMap`/`HashSet`：副作用与订阅者集合均需要快速插入/查找；集合去重与遍历也高效。
@@ -46,10 +46,11 @@ thread_local! {
     pub(crate) static BATCH_DEPTH: RefCell<usize> = RefCell::new(0);
     // 等待在微任务中统一刷新执行的副作用 id 集合
     pub(crate) static PENDING_EFFECTS: RefCell<HashSet<usize>> = RefCell::new(HashSet::new());
-    // 是否已安排一次微任务用于 drain 队列，避免重复安排
+    // 是否已安排下一次 drain，避免重复安排（微任务/动画帧共用）
     pub(crate) static MICROTASK_SCHEDULED: RefCell<bool> = RefCell::new(false);
-    // 调度模式：1=同步立即运行，0=统一走默认微任务
-    pub(crate) static SCHEDULING_MODE: RefCell<u8> = RefCell::new(0);
+    // 调度模式：1=同步立即运行，0=统一走默认微任务，2=统一走动画帧。
+    // 默认直接使用 frame：浏览器里按帧合并高频交互；非浏览器环境会自动回退到 microtask。
+    pub(crate) static SCHEDULING_MODE: RefCell<u8> = RefCell::new(2);
 
     /*
     Effect Scope（副作用作用域）
@@ -100,20 +101,26 @@ pub(crate) struct Effect {
     pub(crate) scope_id: Option<usize>,
 }
 
+pub(crate) struct ComputedState {
+    pub(crate) effect_id: Option<usize>,
+    pub(crate) dirty: bool,
+    pub(crate) initialized: bool,
+    pub(crate) evaluating: bool,
+}
+
 /// 创建一个新的 effect scope，并返回 scope id
 ///
 /// 行为：
 /// - 分配一个全局唯一的 id
 /// - 若当前存在父 scope（current_effect_scope），建立父子关系
 /// - 初始化该 scope 的 effects/children 列表（空 vec）
-pub fn create_effect_scope() -> usize {
+fn create_effect_scope_with_parent(parent: Option<usize>) -> usize {
     let id = NEXT_EFFECT_SCOPE_ID.with(|n| {
         let mut v = n.borrow_mut();
         let id = *v;
         *v += 1;
         id
     });
-    let parent = current_effect_scope();
     EFFECT_SCOPES_EFFECTS.with(|m| {
         m.borrow_mut().insert(id, Vec::new());
     });
@@ -137,6 +144,14 @@ pub fn create_effect_scope() -> usize {
         }
     }
     id
+}
+
+pub fn create_effect_scope() -> usize {
+    create_effect_scope_with_parent(current_effect_scope())
+}
+
+pub fn create_detached_effect_scope() -> usize {
+    create_effect_scope_with_parent(None)
 }
 
 /// 将 scope 压入当前执行上下文栈
@@ -271,12 +286,15 @@ pub fn dispose_effect_scope(scope_id: usize) {
 /// 信号实体
 /// value: 当前值（JsValue）
 /// subs: 订阅该信号的副作用 id 集合
+/// path_subs: 按“规范化路径”分桶的订阅集合，用来避免读取某个叶子字段时把整棵根 signal 一起订阅
 /// equals: 可选的等值比较函数（(prev, next) -> bool），返回 true 表示相等（不触发）
 pub(crate) struct Signal {
     pub(crate) value: JsValue,
     pub(crate) subs: Vec<usize>,
+    pub(crate) path_subs: HashMap<String, Vec<usize>>,
     pub(crate) equals: Option<Function>,
     pub(crate) setter: Option<Function>,
+    pub(crate) computed: Option<ComputedState>,
 }
 
 /// run_effect 借用缩小与重入安全
@@ -372,49 +390,110 @@ pub(crate) fn run_effect(id: usize) {
     }
 }
 
-/// 默认的微任务调度：将副作用 id 入队并在 Promise.then 中统一运行
-fn schedule_effect_run_default(id: usize) {
-    PENDING_EFFECTS.with(|p| {
-        // 将副作用 id 入队，等待微任务统一执行
-        p.borrow_mut().insert(id);
-    });
+fn drain_pending_effects() {
+    // 在一次 drain 中把当前队列完整取出并逐个运行。
+    // 这里先复制再清空，目的是允许 effect 运行过程中继续向 PENDING_EFFECTS 里追加新任务，
+    // 而这些新任务会在本轮结束后决定是否补发下一次 drain。
+    #[cfg(feature = "dev")]
+    {
+        if crate::log::want_log("debug", "reactive:schedule drain start") {
+            crate::log::log("debug", &format!("reactive:schedule drain start"));
+        }
+    }
+    let ids: Vec<usize> = PENDING_EFFECTS.with(|p| p.borrow().iter().copied().collect());
+    PENDING_EFFECTS.with(|p| p.borrow_mut().clear());
+    for id in ids {
+        run_effect(id);
+    }
+    MICROTASK_SCHEDULED.with(|s| *s.borrow_mut() = false);
+    // drain 期间可能又产生了新的 pending effect；若有，必须主动续一轮调度，
+    // 不能等下一次外部事件“顺手”把它们带出来。
+    let needs_follow_up = PENDING_EFFECTS.with(|p| !p.borrow().is_empty());
+    if needs_follow_up {
+        #[cfg(feature = "dev")]
+        {
+            if crate::log::want_log("debug", "reactive:schedule drain continue") {
+                let queued = PENDING_EFFECTS.with(|p| p.borrow().len());
+                crate::log::log(
+                    "debug",
+                    &format!("reactive:schedule drain continue queued={}", queued),
+                );
+            }
+        }
+        schedule_pending_effects_drain();
+    }
+    #[cfg(feature = "dev")]
+    {
+        if crate::log::want_log("debug", "reactive:schedule drain end") {
+            crate::log::log("debug", &format!("reactive:schedule drain end"));
+        }
+    }
+}
+
+fn schedule_pending_effects_drain_microtask() {
+    let drain = Closure::wrap(Box::new(move |_v: JsValue| {
+        drain_pending_effects();
+    }) as Box<dyn FnMut(JsValue)>);
+    let _ = Promise::resolve(&JsValue::UNDEFINED).then(&drain);
+    drain.forget();
+}
+
+fn schedule_pending_effects_drain_frame() {
+    // 帧级合并只在浏览器窗口环境中启用；
+    // 在 node/测试环境里回退到微任务，避免因为没有 rAF 而卡住队列。
+    let global: JsValue = js_sys::global().into();
+    let target = Reflect::get(&global, &JsValue::from_str("window")).unwrap_or(global.clone());
+    let raf = Reflect::get(&target, &JsValue::from_str("requestAnimationFrame"))
+        .unwrap_or(JsValue::UNDEFINED);
+    if let Some(func) = raf.dyn_ref::<Function>() {
+        let raf_fn = func.clone();
+        let drain = Closure::wrap(Box::new(move |_ts: JsValue| {
+            drain_pending_effects();
+        }) as Box<dyn FnMut(JsValue)>);
+        let _ = raf_fn.call1(&target, drain.as_ref().unchecked_ref());
+        drain.forget();
+    } else {
+        schedule_pending_effects_drain_microtask();
+    }
+}
+
+/// 安排一次“清空待执行 effect 队列”的异步 drain。
+///
+/// 关键点：
+/// - microtask 模式更偏向“本事件循环末尾尽快合并”；
+/// - frame 模式更偏向“跨多个输入事件按帧合并”，对拖动/滚动类交互更友好。
+///
+/// 无论哪种模式，drain 结束后都会检查是否有新的 pending effect，必要时续下一轮调度。
+fn schedule_pending_effects_drain() {
     MICROTASK_SCHEDULED.with(|s| {
         if !*s.borrow() {
-            // 仅安排一次微任务 drain，避免同轮事件循环重复安排
+            // 仅安排一次下一轮 drain，避免在同一轮里反复追加微任务/动画帧
             *s.borrow_mut() = true;
-            let drain = Closure::wrap(Box::new(move |_v: JsValue| {
-                // 在微任务中统一运行已入队的副作用
-                #[cfg(feature = "dev")]
-                {
-                    if crate::log::want_log("debug", "reactive:schedule drain start") {
-                        crate::log::log("debug", &format!("reactive:schedule drain start"));
-                    }
-                }
-                let ids: Vec<usize> =
-                    PENDING_EFFECTS.with(|p| p.borrow().iter().copied().collect());
-                PENDING_EFFECTS.with(|p| p.borrow_mut().clear());
-                for id in ids {
-                    // 按入队顺序逐个运行（内部会做清理与依赖收集）
-                    run_effect(id);
-                }
-                MICROTASK_SCHEDULED.with(|s| *s.borrow_mut() = false);
-                #[cfg(feature = "dev")]
-                {
-                    if crate::log::want_log("debug", "reactive:schedule drain end") {
-                        crate::log::log("debug", &format!("reactive:schedule drain end"));
-                    }
-                }
-            }) as Box<dyn FnMut(JsValue)>);
-            let _ = Promise::resolve(&JsValue::UNDEFINED).then(&drain);
-            drain.forget();
+            let mode = SCHEDULING_MODE.with(|m| *m.borrow());
+            if mode == 2 {
+                schedule_pending_effects_drain_frame();
+            } else {
+                schedule_pending_effects_drain_microtask();
+            }
         }
     });
+}
+
+/// 默认的异步调度：将副作用 id 入队，并根据当前模式在微任务或动画帧中统一运行。
+/// 返回值表示这个 id 是否是本轮第一次进入 pending 集合。
+fn schedule_effect_run_default(id: usize) -> bool {
+    let inserted = PENDING_EFFECTS.with(|p| {
+        // 将副作用 id 入队，等待微任务统一执行
+        p.borrow_mut().insert(id)
+    });
+    schedule_pending_effects_drain();
+    inserted
 }
 
 /// 安排运行副作用
 /// - 当处于批量更新中（`BATCH_DEPTH>0`）时，先入队等待批量结束
 /// - 若存在自定义调度器，则交由其安排
-/// - 否则根据 `SCHEDULING_MODE` 决定是直接运行还是走默认微任务
+/// - 否则根据 `SCHEDULING_MODE` 决定是直接运行、走默认微任务，还是走动画帧合并
 pub(crate) fn schedule_effect_run(id: usize) {
     // 这个函数是“信号值变化后”的统一入口：Signal.set / trigger 会调用它。
     //
@@ -434,16 +513,16 @@ pub(crate) fn schedule_effect_run(id: usize) {
     }
     let in_batch = BATCH_DEPTH.with(|bd| *bd.borrow() > 0);
     if in_batch {
-        PENDING_EFFECTS.with(|p| {
+        let inserted = PENDING_EFFECTS.with(|p| {
             // 批量模式：仅入队，不立即运行
             //
             // 这里用 HashSet 的语义保证去重：
             // - 同一个 effect 在一个 batch 中被多次触发，只需要在 batch 结束时运行一次
-            p.borrow_mut().insert(id);
+            p.borrow_mut().insert(id)
         });
         #[cfg(feature = "dev")]
         {
-            if crate::log::want_log("debug", "reactive:schedule queued") {
+            if inserted && crate::log::want_log("debug", "reactive:schedule queued") {
                 crate::log::log("debug", &format!("reactive:schedule queued id={}", id));
             }
         }
@@ -457,33 +536,36 @@ pub(crate) fn schedule_effect_run(id: usize) {
         set.remove(&id);
     });
     // 是否已由自定义调度器处理
-    let mut handled = false;
-    EFFECTS.with(|m| {
-        if let Some(e) = m.borrow().get(&id) {
-            if e.disposed {
-                return;
+    let scheduler = EFFECTS.with(|m| {
+        m.borrow().get(&id).and_then(|effect| {
+            if effect.disposed {
+                None
+            } else {
+                effect.scheduler.clone()
             }
-            if let Some(s) = &e.scheduler {
-                #[cfg(feature = "dev")]
-                {
-                    if crate::log::want_log("debug", "reactive:schedule custom") {
-                        crate::log::log("debug", &format!("reactive:schedule custom id={}", id));
-                    }
-                }
-                // 将运行逻辑包装为可供 JS 调度的函数
-                let run_closure = Closure::wrap(Box::new(move || {
-                    run_effect(id);
-                }) as Box<dyn FnMut()>);
-                let run_fn: Function = run_closure.as_ref().clone().unchecked_into();
-                let _ = s.call1(&JsValue::NULL, &run_fn);
-                run_closure.forget();
-                handled = true;
+        })
+    });
+    let mut handled = false;
+    if let Some(s) = scheduler {
+        #[cfg(feature = "dev")]
+        {
+            if crate::log::want_log("debug", "reactive:schedule custom") {
+                crate::log::log("debug", &format!("reactive:schedule custom id={}", id));
             }
         }
-    });
+        // 自定义 scheduler 可能会同步触发其他 effect，因此必须在 EFFECTS 借用之外调用。
+        let run_closure = Closure::wrap(Box::new(move || {
+            run_effect(id);
+        }) as Box<dyn FnMut()>);
+        let run_fn: Function = run_closure.as_ref().clone().unchecked_into();
+        let _ = s.call1(&JsValue::NULL, &run_fn);
+        run_closure.forget();
+        handled = true;
+    }
     if !handled {
         SCHEDULING_MODE.with(|m| {
-            if *m.borrow() == 1 {
+            let mode = *m.borrow();
+            if mode == 1 {
                 // 避免副作用内部触发自身的直接重入
                 let is_self = CURRENT_EFFECT.with(|c| match *c.borrow() {
                     Some(cur) if cur == id => true,
@@ -515,17 +597,24 @@ pub(crate) fn schedule_effect_run(id: usize) {
                     run_effect(id);
                 }
             } else {
+                let inserted = schedule_effect_run_default(id);
                 #[cfg(feature = "dev")]
                 {
-                    if crate::log::want_log("debug", "reactive:schedule default_microtask") {
-                        crate::log::log(
-                            "debug",
-                            &format!("reactive:schedule default_microtask id={}", id),
-                        );
+                    let hint = if mode == 2 {
+                        "reactive:schedule default_frame"
+                    } else {
+                        "reactive:schedule default_microtask"
+                    };
+                    if inserted && crate::log::want_log("debug", hint) {
+                        let label = if mode == 2 {
+                            "reactive:schedule default_frame"
+                        } else {
+                            "reactive:schedule default_microtask"
+                        };
+                        crate::log::log("debug", &format!("{} id={}", label, id));
                     }
                 }
-                // 微任务模式：统一入队等待 drain
-                schedule_effect_run_default(id);
+                // 异步模式：统一入队等待 drain。mode=0 使用微任务，mode=2 使用动画帧。
             }
         });
     }
@@ -569,16 +658,24 @@ pub fn batch_scope<F: FnOnce()>(cb: F) {
 
 /// 设置调度模式
 /// - mode="sync"：信号变更时尽可能同步触发副作用
-/// - 其他值：采用默认微任务合并调度
+/// - mode="microtask" / 其他值：采用默认微任务合并调度
+/// - mode="frame"：在浏览器里按动画帧合并调度，适合拖动/滚动等高频交互
 /// 示例（JavaScript）：
 /// ```javascript
 /// const { setReactiveScheduling } = wasmModule;
 /// setReactiveScheduling('sync'); // 适合少量、快速的更新
-/// // setReactiveScheduling('microtask'); // 使用默认微任务合并（传非 "sync" 即可）
+/// // setReactiveScheduling('microtask'); // 使用默认微任务合并
+/// // setReactiveScheduling('frame'); // 浏览器里按帧合并，适合 slider / drag 等高频输入
 /// ```
 #[wasm_bindgen(js_name = setReactiveScheduling)]
 pub fn set_reactive_scheduling(mode: &str) {
-    let v = if mode == "sync" { 1 } else { 0 };
+    let v = if mode == "sync" {
+        1
+    } else if mode == "frame" {
+        2
+    } else {
+        0
+    };
     SCHEDULING_MODE.with(|m| *m.borrow_mut() = v);
 }
 
@@ -620,15 +717,17 @@ const TS_CORE_DECL: &'static str = r#"
 /**
  * 设置调度模式
  * - mode="sync"：信号变更时尽可能同步触发副作用
- * - 其他值：采用默认微任务合并调度
+ * - mode="microtask" / 其他值：采用默认微任务合并调度
+ * - mode="frame"：在浏览器里按动画帧合并调度，适合拖动/滚动等高频交互
  * 示例（JavaScript）：
  * ```javascript
  * const { setReactiveScheduling } = wasmModule;
  * setReactiveScheduling('sync'); // 适合少量、快速的更新
- * // setReactiveScheduling('microtask'); // 使用默认微任务合并（传非 "sync" 即可）
+ * // setReactiveScheduling('microtask'); // 使用默认微任务合并
+ * // setReactiveScheduling('frame'); // 浏览器里按帧合并，适合 slider / drag 等高频输入
  * ```
  */
-export function setReactiveScheduling(mode: 'sync' | string): void;
+export function setReactiveScheduling(mode: 'sync' | 'microtask' | 'frame' | string): void;
 
 /**
  * 通用取值转换

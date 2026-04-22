@@ -22,17 +22,14 @@ export default Hello;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild, watchEffect } from '@rue-js/rue';
+import { type FC, ref, h, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild } from '@rue-js/rue';
 const Hello: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         const _el1 = _$createElement("h1");
         _$appendChild(_root, _el1);
-        watchEffect(()=>{
-            const _el1_style = ({
-                textAlign: 'center',
-                color: '#e07721ff'
-            });
-            _$setStyle(_el1, _el1_style);
+        _$setStyle(_el1, {
+            textAlign: 'center',
+            color: '#e07721ff'
         });
         _$appendChild(_el1, _$createTextNode("Rue 响应式框架示例"));
         return {

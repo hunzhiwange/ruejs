@@ -26,6 +26,7 @@ mod elements;
 mod imports;
 pub mod log;
 mod pre;
+mod router_link;
 mod text;
 mod utils;
 
@@ -86,11 +87,15 @@ pub fn transform(program: Program, metadata: TransformPluginProgramMetadata) -> 
     if do_vapor {
         log::info("rue-swc: vapor transform start");
         let mut optimize_static_slots = false;
+        let mut optimize_component_anchors = false;
         if let Some(conf) = metadata.get_transform_plugin_config() {
             let s = conf.to_string();
             if let Ok(v) = json::from_str::<json::Value>(&s) {
                 if let Some(b) = v.get("optimizeStaticSlots").and_then(|x| x.as_bool()) {
                     optimize_static_slots = b;
+                }
+                if let Some(b) = v.get("optimizeComponentAnchors").and_then(|x| x.as_bool()) {
+                    optimize_component_anchors = b;
                 }
             }
         }
@@ -103,6 +108,7 @@ pub fn transform(program: Program, metadata: TransformPluginProgramMetadata) -> 
             did_transform: false,
             el_tag_by_ident: std::collections::HashMap::new(),
             optimize_static_slots,
+            optimize_component_anchors,
         });
         log::info("rue-swc: vapor transform done");
     }
@@ -111,6 +117,18 @@ pub fn transform(program: Program, metadata: TransformPluginProgramMetadata) -> 
 
 // 测试入口：在单元测试中直接复用同样的转换逻辑
 pub fn apply(program: Program) -> Program {
+    apply_with_options(program, false)
+}
+
+pub fn apply_with_options(program: Program, optimize_static_slots: bool) -> Program {
+    apply_with_transform_options(program, optimize_static_slots, false)
+}
+
+pub fn apply_with_transform_options(
+    program: Program,
+    optimize_static_slots: bool,
+    optimize_component_anchors: bool,
+) -> Program {
     let mut p = program;
     log::info("rue-swc: apply(pre+vapor) start");
     p.visit_mut_with(&mut pre::PreTransform::default());
@@ -121,7 +139,8 @@ pub fn apply(program: Program) -> Program {
         next_child: 0,
         did_transform: false,
         el_tag_by_ident: std::collections::HashMap::new(),
-        optimize_static_slots: false,
+        optimize_static_slots,
+        optimize_component_anchors,
     });
     log::info("rue-swc: apply(pre+vapor) done");
     p

@@ -1,5 +1,6 @@
 use super::super::{ComponentInternalInstance, Rue, VNode, VNodeType};
 use crate::hook::reactive::props_reactive_js;
+use crate::reactive::core::{pop_effect_scope, push_effect_scope};
 use crate::reactive::context::set_current_instance_ci;
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::{Function, Object, Reflect};
@@ -60,6 +61,7 @@ where
             hooks: super::super::instance::LifecycleHooks(std::collections::HashMap::new()),
             props_ro: props_ro.clone(),
             host: host.clone().into(),
+            render_scope_id: None,
             error: None,
             error_handlers: Vec::new(),
             index: new_idx,
@@ -158,12 +160,15 @@ where
     A::Element: From<JsValue> + Into<JsValue> + Clone,
 {
     // 1) 组件实例准备（宿主、只读 props、实例栈/上下文）
-    let (_host, props_ro, _idx) = prepare_instance(rue, vnode, props_js.clone());
+    let (_host, props_ro, idx) = prepare_instance(rue, vnode, props_js.clone());
+    let render_scope_id = rue.renew_component_render_scope(idx);
+    push_effect_scope(render_scope_id);
     // 2) 调用组件函数：传入只读 propsRO，获取返回值
     let func = f.dyn_ref::<Function>().unwrap();
     let ret = match func.call1(&JsValue::UNDEFINED, &props_ro) {
         Ok(v) => v,
         Err(e) => {
+            let _ = pop_effect_scope();
             // 组件执行报错：记录错误并弹栈恢复上下文
             rue.handle_error(e.clone());
             rue.instance_stack.pop();
@@ -179,6 +184,7 @@ where
             return None;
         }
     };
+    let _ = pop_effect_scope();
     // 3) 合并挂起的 hooks 并触发生命周期（before_create/created/before_mount）
     merge_pending_hooks(rue);
     rue.call_hooks("before_create");
@@ -206,6 +212,7 @@ where
     }
     // 5) 渲染子树：create_real_dom 子 VNode，记录到 comp_subtree 并缓存元素
     let mut sub_vnode = sub_vnode_opt.unwrap();
+    sub_vnode.comp_inst_index = vnode.comp_inst_index;
     let el = rue.create_real_dom(&mut sub_vnode);
     vnode.comp_subtree = Some(Box::new(sub_vnode));
     vnode.el = el.clone();

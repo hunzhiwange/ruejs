@@ -7,6 +7,15 @@ use crate::log;
 use crate::utils;
 use crate::vapor::VaporTransform;
 
+fn is_native_single_root_jsx_element(el: &JSXElement) -> bool {
+    match &el.opening.name {
+        JSXElementName::Ident(id) => {
+            id.sym.chars().next().map(|ch| ch.is_ascii_lowercase()).unwrap_or(false)
+        }
+        _ => false,
+    }
+}
+
 /*
 列表渲染（Array.map(JSX)）设计：
 - 采用“键控片段复用”策略：持久化 `Map<key, { start,end }>`，在更新时重用已存在的 DOM 片段，减少重建与移动。
@@ -20,7 +29,8 @@ use crate::vapor::VaporTransform;
 // - 声明持久 `Map` 保存 key 到片段之间的映射，跨次渲染复用已有 DOM
 // - 在 `watchEffect` 中调用 `_$vaporKeyedList({ items, getKey, elements, parent, before, start, renderItem })`
 // - `getKey(item, idx)`：优先使用 JSX 上的 `key` 表达式；否则回退到索引
-// - `renderItem(item, parent, start, end, idx)`：以 `renderBetween(vapor(()=>{...}), parent, start, end)` 渲染每个项
+// - `renderItem(item, parent, start, end, idx)`：默认以 `renderBetween(vapor(()=>{...}), parent, start, end)` 渲染每个项
+// - 若开启 `optimize_component_anchors` 且列表项为单根原生元素，则改为 `renderAnchor(vapor(()=>{...}), parent, start)`
 // 关键点：当 map 参数使用解构（如 `({ sha })`）且 `key={sha}`，需在 `getKey` 中先对 `item` 进行一次解构，
 // 以确保 `sha` 作用域正确（参考 `tests/spec14.rs`）。
 pub(crate) fn try_build_list_from_map(
@@ -33,7 +43,8 @@ pub(crate) fn try_build_list_from_map(
     // - 在父元素下插入列表 start/end 注释
     // - 使用持久化 `Map` 实现 key => item 片段 的复用
     // - 在 `watchEffect` 中调用 `_$vaporKeyedList({ items, getKey, elements, parent, before, start, renderItem })`
-    // - `renderItem` 内部通过 `renderBetween(vapor(()=>{ ... }), parent, start, end)` 渲染每个项
+    // - `renderItem` 默认通过 `renderBetween(vapor(()=>{ ... }), parent, start, end)` 渲染每个项
+    // - 若项为单根原生元素且开启单锚点优化，则改为 `renderAnchor(vapor(()=>{ ... }), parent, start)`
     // 参考测试：`tests/lists_and_keys.rs`、`tests/spec14.rs`
     // 仅处理 obj.map(cb) 且仅一个参数的情形
     if let Callee::Expr(expr_callee) = &call.callee {
@@ -215,6 +226,8 @@ pub(crate) fn try_build_list_from_map(
                         ctxt: SyntaxContext::empty(),
                     });
 
+                    let mut use_single_root_anchor = false;
+
                     // renderItem(item, start, end)
                     // `_$vaporKeyedList` 的 `renderItem` 约定参数：
                     // - `item`：当前项
@@ -249,6 +262,11 @@ pub(crate) fn try_build_list_from_map(
                             let inner_ret = utils::unwrap_expr(ret_expr.as_ref());
                             match inner_ret {
                                 Expr::JSXElement(jsx_el) => {
+                                    if vt.optimize_component_anchors
+                                        && is_native_single_root_jsx_element(jsx_el)
+                                    {
+                                        use_single_root_anchor = true;
+                                    }
                                     build_element(vt, jsx_el, &child_root.clone(), &mut child_body);
                                 }
                                 Expr::JSXFragment(frag) => {
@@ -268,6 +286,11 @@ pub(crate) fn try_build_list_from_map(
                                     let inner_ret = utils::unwrap_expr(arg.as_ref());
                                     match inner_ret {
                                         Expr::JSXElement(jsx_el) => {
+                                            if vt.optimize_component_anchors
+                                                && is_native_single_root_jsx_element(jsx_el)
+                                            {
+                                                use_single_root_anchor = true;
+                                            }
                                             build_element(
                                                 vt,
                                                 jsx_el,
@@ -306,35 +329,58 @@ pub(crate) fn try_build_list_from_map(
                         ctxt: SyntaxContext::empty(),
                     });
                     let child_vapor_expr = call_ident("vapor", vec![arrow_setup]);
-                    // 将当前项编译为 Vapor 片段并渲染到锚点之间
-                    // renderBetween 调用细节：
-                    // - callee：标识符 `renderBetween`
-                    // - args：slot/vnode、父元素、起止注释
-                    // - ctxt：统一 `SyntaxContext::empty()`
-                    let render_between_call = Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(ident("renderBetween")))),
-                        args: vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(ident("__slot"))),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(ident("parent"))),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(start_param_ident.clone())),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Ident(end_param_ident.clone())),
-                            },
-                        ],
-                        type_args: None,
-                        ctxt: SyntaxContext::empty(),
-                    });
+                    let render_item_call = if use_single_root_anchor {
+                        Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
+                            args: vec![
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(ident("__slot"))),
+                                },
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(ident("parent"))),
+                                },
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(start_param_ident.clone())),
+                                },
+                            ],
+                            type_args: None,
+                            ctxt: SyntaxContext::empty(),
+                        })
+                    } else {
+                        // 将当前项编译为 Vapor 片段并渲染到锚点之间
+                        // renderBetween 调用细节：
+                        // - callee：标识符 `renderBetween`
+                        // - args：slot/vnode、父元素、起止注释
+                        // - ctxt：统一 `SyntaxContext::empty()`
+                        Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: Callee::Expr(Box::new(Expr::Ident(ident("renderBetween")))),
+                            args: vec![
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(ident("__slot"))),
+                                },
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(ident("parent"))),
+                                },
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(start_param_ident.clone())),
+                                },
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: Box::new(Expr::Ident(end_param_ident.clone())),
+                                },
+                            ],
+                            type_args: None,
+                            ctxt: SyntaxContext::empty(),
+                        })
+                    };
                     let render_item_arrow = Expr::Arrow(ArrowExpr {
                         span: DUMMY_SP,
                         params: vec![
@@ -357,7 +403,7 @@ pub(crate) fn try_build_list_from_map(
                                 const_decl(ident("__slot"), child_vapor_expr.clone()),
                                 Stmt::Expr(ExprStmt {
                                     span: DUMMY_SP,
-                                    expr: Box::new(render_between_call),
+                                    expr: Box::new(render_item_call),
                                 }),
                             ],
                         })),
@@ -380,39 +426,56 @@ pub(crate) fn try_build_list_from_map(
                         Expr::Ident(el_ident.clone())
                     };
                     // 传入 keyedList 所需参数：items、key 计算、元素映射以及父/锚点位置
-                    let args_obj = Expr::Object(ObjectLit {
-                        span: DUMMY_SP,
-                        props: vec![
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("items")),
-                                value: Box::new(Expr::Ident(map_current.clone())),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("getKey")),
-                                value: Box::new(get_key_arrow),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("elements")),
-                                value: Box::new(Expr::Ident(elements_ident.clone())),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("parent")),
-                                value: Box::new(parent_expr),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("before")),
-                                value: Box::new(Expr::Ident(end.clone())),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("start")),
-                                value: Box::new(Expr::Ident(start.clone())),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(ident_name("renderItem")),
-                                value: Box::new(render_item_arrow),
-                            }))),
-                        ],
-                    });
+                    let mut keyed_list_props = vec![
+                        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Ident(ident_name("items")),
+                            value: Box::new(Expr::Ident(map_current.clone())),
+                        }))),
+                        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Ident(ident_name("getKey")),
+                            value: Box::new(get_key_arrow),
+                        }))),
+                        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Ident(ident_name("elements")),
+                            value: Box::new(Expr::Ident(elements_ident.clone())),
+                        }))),
+                        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Ident(ident_name("parent")),
+                            value: Box::new(parent_expr),
+                        }))),
+                        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Ident(ident_name("before")),
+                            value: Box::new(Expr::Ident(end.clone())),
+                        }))),
+                    ];
+
+                    if use_single_root_anchor {
+                        keyed_list_props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(
+                            KeyValueProp {
+                                key: PropName::Ident(ident_name("singleRoot")),
+                                value: Box::new(Expr::Lit(Lit::Bool(Bool {
+                                    span: DUMMY_SP,
+                                    value: true,
+                                }))),
+                            },
+                        ))));
+                    }
+
+                    keyed_list_props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(
+                        KeyValueProp {
+                            key: PropName::Ident(ident_name("start")),
+                            value: Box::new(Expr::Ident(start.clone())),
+                        },
+                    ))));
+                    keyed_list_props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(
+                        KeyValueProp {
+                            key: PropName::Ident(ident_name("renderItem")),
+                            value: Box::new(render_item_arrow),
+                        },
+                    ))));
+
+                    let args_obj =
+                        Expr::Object(ObjectLit { span: DUMMY_SP, props: keyed_list_props });
                     // _$vaporKeyedList 调用细节：
                     // - callee：标识符 `_$vaporKeyedList`
                     // - args：对象字面量，包含 `items/getKey/elements/parent/before/start/renderItem`

@@ -1,5 +1,6 @@
 use super::super::Rue;
 use crate::runtime::dom_adapter::DomAdapter;
+use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
 // 区间渲染的原子操作集合：
@@ -14,6 +15,48 @@ impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
+    fn drain_range_entries_within_root(
+        &mut self,
+        root: &A::Element,
+        pending_unmounted: &mut Vec<super::super::types::VNode<A>>,
+    ) where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        let adapter_owned = self.get_dom_adapter().cloned();
+        let root_js: JsValue = root.clone().into();
+
+        let should_remove = |start: &A::Element| {
+            let start_js: JsValue = start.clone().into();
+            if js_sys::Object::is(&root_js, &start_js) {
+                return true;
+            }
+            if let Some(adapter) = adapter_owned.as_ref() {
+                return adapter.contains(root, start);
+            }
+            let contains = js_sys::Reflect::get(&root_js, &JsValue::from_str("contains"))
+                .unwrap_or(JsValue::UNDEFINED);
+            if let Some(func) = contains.dyn_ref::<js_sys::Function>() {
+                let result = func.call1(&root_js, &start_js).unwrap_or(JsValue::FALSE);
+                return result.as_bool().unwrap_or(false);
+            }
+            false
+        };
+
+        let drained = std::mem::take(&mut self.range_map);
+        let mut kept = Vec::with_capacity(drained.len());
+        for (start, mut vnode_opt) in drained.into_iter() {
+            if should_remove(&start) {
+                if let Some(mut vnode) = vnode_opt.take() {
+                    self.invoke_before_unmount_vnode(&mut vnode);
+                    pending_unmounted.push(vnode);
+                }
+            } else {
+                kept.push((start, vnode_opt));
+            }
+        }
+        self.range_map = kept;
+    }
+
     /// Vapor 快速路径：清理旧范围并返回真实父元素
     ///
     /// 参数：
@@ -155,16 +198,7 @@ where
                 .unwrap_or(JsValue::UNDEFINED);
 
             let node_el: A::Element = cur.clone().into();
-            if let Some(idx) = self.find_range_index(&node_el) {
-                let taken = {
-                    let entry = self.range_map.get_mut(idx).unwrap();
-                    entry.1.take()
-                };
-                if let Some(mut vnode) = taken {
-                    self.invoke_before_unmount_vnode(&mut vnode);
-                    pending_unmounted.push(vnode);
-                }
-            }
+            self.drain_range_entries_within_root(&node_el, &mut pending_unmounted);
 
             if let Some(adapter) = self.get_dom_adapter_mut() {
                 if adapter.contains(dest_parent, &node_el) {

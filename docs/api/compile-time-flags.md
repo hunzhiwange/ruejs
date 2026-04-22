@@ -1,4 +1,6 @@
-# 编译时标志 {#compile-time-flags}
+# 编译时标志 {#compile-time-flags} @todo
+
+> **@todo**: 编译时标志尚未在 Rue 中实现。
 
 :::tip
 编译时标志仅在使用 Rue 的 `esm-bundler` 构建时适用（即 `@rue-js/rue/dist/rue.esm-bundler.js`）。

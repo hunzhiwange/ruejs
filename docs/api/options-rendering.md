@@ -1,4 +1,6 @@
-# 选项：渲染 {#options-rendering}
+# 选项：渲染 {#options-rendering} @todo
+
+> **@todo**: 整个 Options API 尚未实现。Rue 目前仅支持 Composition API / FC 模式。
 
 ## template {#template}
 

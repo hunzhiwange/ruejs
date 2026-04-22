@@ -12,6 +12,24 @@ impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
+    fn keyed_first_dom_node_for_vnode(
+        &self,
+        vnode: &super::super::types::VNode<A>,
+    ) -> Option<A::Element> {
+        use super::super::types::VNodeType;
+
+        match vnode.r#type {
+            VNodeType::Fragment => {
+                if let (Some(adapter), Some(ref el)) = (self.get_dom_adapter(), vnode.el.as_ref()) {
+                    adapter.collect_fragment_children(el).first().cloned()
+                } else {
+                    None
+                }
+            }
+            _ => vnode.el.clone(),
+        }
+    }
+
     /// 在 Keyed Diff 中插入文本节点，并更新光标位置
     ///
     /// 参数：
@@ -164,10 +182,14 @@ where
         parent: &mut A::Element,
         old_children: &mut [super::super::types::Child<A>],
         new_key_set: &std::collections::HashSet<String>,
+        reused_old_indexes: &std::collections::HashSet<usize>,
     ) {
         use super::super::types::{Child, VNodeType};
         // 清理旧 children 中键不存在于新集合的节点：触发生命周期卸载并移除 DOM
-        for oc in old_children.iter_mut() {
+        for (idx, oc) in old_children.iter_mut().enumerate() {
+            if reused_old_indexes.contains(&idx) {
+                continue;
+            }
             if let Child::VNode(ov) = oc {
                 let k = ov.key.clone().unwrap_or_default();
                 if k.is_empty() || !new_key_set.contains(&k) {
@@ -216,7 +238,21 @@ where
     {
         use super::super::types::Child;
         // 预备阶段：收集锚点、构建旧 key 映射（便于 O(1) 定位旧节点）
-        let anchor_opt = self.current_anchor.clone();
+        let anchor_opt = match self.current_anchor.clone() {
+            Some(anchor) => {
+                let use_anchor = if let Some(adapter) = self.get_dom_adapter() {
+                    adapter.contains(parent, &anchor)
+                } else {
+                    false
+                };
+                if use_anchor {
+                    Some(anchor)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
         let mut old_key_map = std::collections::HashMap::new();
         for (idx, ch) in old_children.iter_mut().enumerate() {
             if let Child::VNode(v) = ch {
@@ -227,6 +263,7 @@ where
         }
         // 新 key 集用于后续删除判断
         let mut new_key_set = std::collections::HashSet::new();
+        let mut reused_old_indexes = std::collections::HashSet::new();
         let mut cursor: Option<A::Element> = None;
         // 倒序遍历：保证按从尾到头的稳定插入，避免频繁移动
         let mut i: i32 = (new_children.len() as i32) - 1;
@@ -241,6 +278,7 @@ where
                     let key = nc.key.clone().unwrap_or_default();
                     new_key_set.insert(key.clone());
                     if nc.key.is_some() && old_key_map.contains_key(&key) {
+                        reused_old_indexes.insert(*old_key_map.get(&key).unwrap());
                         // 可复用旧节点：执行递归 patch 并移动到目标位置
                         self.keyed_move_or_create_vnode_existing(
                             parent,
@@ -250,6 +288,21 @@ where
                             &mut cursor,
                             &anchor_opt,
                         );
+                    } else if nc.key.is_none() {
+                        if let Some(super::super::types::Child::VNode(oldv)) =
+                            old_children.get_mut(i as usize)
+                        {
+                            if oldv.key.is_none() {
+                                reused_old_indexes.insert(i as usize);
+                                self.patch(oldv, nc, parent);
+                                cursor = self
+                                    .keyed_first_dom_node_for_vnode(nc)
+                                    .or(cursor.clone());
+                                i -= 1;
+                                continue;
+                            }
+                        }
+                        self.keyed_create_vnode_new(parent, nc, &mut cursor, &anchor_opt);
                     } else {
                         // 新节点：创建并插入到正确位置
                         self.keyed_create_vnode_new(parent, nc, &mut cursor, &anchor_opt);
@@ -260,6 +313,6 @@ where
             i -= 1;
         }
         // 遍历结束：清理旧集合中已不在新集合的节点
-        self.keyed_cleanup_old_removed(parent, old_children, &new_key_set);
+        self.keyed_cleanup_old_removed(parent, old_children, &new_key_set, &reused_old_indexes);
     }
 }

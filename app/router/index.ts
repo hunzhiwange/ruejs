@@ -142,6 +142,7 @@ const routes: RouteRecord[] = [
   { path: '/page/:path(.*)', component: useComponent(() => import('../pages/site/PageDocDetail')) },
   { path: '/plugins', component: useComponent(() => import('../pages/site/PluginsIndex')) },
   { path: '/page', component: useComponent(() => import('../pages/site/DocsIndex')) },
+  { path: '/report-data1', component: useComponent(() => import('../pages/report-data1/index')) },
 ]
 
 export default createRouter({

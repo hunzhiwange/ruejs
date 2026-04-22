@@ -19,6 +19,7 @@ Rust 结构与 wasm 选择：
 // 通过 localStorage 键控制：
 // - `rue.logs.enabled`：是否启用日志（true/false/1/0 等）
 // - `rue.logs.level`：最低输出级别（debug/info/notice/warning/error/critical/alert/emergency）
+// - `rue.logs.verboseDebug`：是否重新启用默认静音的高频内部 debug 日志
 // 支持包含/排除关键字过滤，并可选择是否输出到控制台。
 use js_sys::Reflect;
 use wasm_bindgen::JsValue;
@@ -31,10 +32,54 @@ thread_local! {
     static LOG_CONSOLE: std::cell::RefCell<bool> = std::cell::RefCell::new(true);
     // 最低输出级别（数字越大级别越高）；默认 0=debug
     static LOG_LEVEL: std::cell::RefCell<u8> = std::cell::RefCell::new(0);
+    // 是否输出高频内部 debug 日志；默认关闭，避免 effect/scope 生命周期刷屏
+    static LOG_VERBOSE_DEBUG: std::cell::RefCell<bool> = std::cell::RefCell::new(false);
     // 包含过滤：若非空，则仅当消息包含任一关键字时才输出
     static LOG_INCLUDE: std::cell::RefCell<Vec<String>> = std::cell::RefCell::new(Vec::new());
     // 排除过滤：若消息包含其中任意关键字，则不输出
     static LOG_EXCLUDE: std::cell::RefCell<Vec<String>> = std::cell::RefCell::new(Vec::new());
+}
+
+const NOISY_DEBUG_PREFIXES: &[&str] = &[
+    "reactive:scope create",
+    "reactive:scope push",
+    "reactive:scope pop",
+    "reactive:effect create",
+    "reactive:effect run start",
+    "reactive:effect run end",
+    "runtime:createRue adapter_is_object=",
+    "runtime:createRue done",
+    "runtime:setDOMAdapter is_object=",
+    "runtime:use",
+    "runtime:mount has_app_fn=",
+    "runtime:mount pre_flush deferred_queue_len=",
+    "runtime:mount app return type",
+    "runtime:render has_vnode_id=",
+    "runtime:render enter",
+    "runtime:render exit",
+    "runtime:createElement type_tag=",
+    "runtime:createElement function_component",
+    "runtime:createElement vnode_build",
+    "runtime:createElement tag_resolved",
+    "runtime:createElement adapter_present=",
+    "runtime:createElement before rue.create_element",
+    "runtime:createElement vnode_meta",
+    "runtime:createElement after rue.create_element",
+    "runtime:createElement id=",
+    "runtime:createElement id_info",
+    "runtime:createElement build_inline_vnode",
+    "runtime:rue.create_element type=",
+    "runtime:rue.create_element exit",
+    "dom-adapter audit ok",
+    "runtime:renderAnchor anchor_map hit",
+    "runtime:renderAnchor anchor_map miss",
+    "reactive:schedule queued id=",
+    "reactive:schedule default_frame id=",
+    "reactive:schedule default_microtask id=",
+];
+
+fn is_noisy_debug_message(msg: &str) -> bool {
+    NOISY_DEBUG_PREFIXES.iter().any(|prefix| msg.starts_with(prefix))
 }
 
 /// 级别名称映射为数值，便于比较
@@ -89,6 +134,11 @@ fn sync_log_config_from_localstorage() {
         let num = level_to_num(&level_str.trim().to_ascii_lowercase());
         LOG_LEVEL.with(|l| *l.borrow_mut() = num);
     }
+    if let Some(verbose_debug_str) = read_localstorage_value("rue.logs.verboseDebug") {
+        if let Some(b) = parse_bool(&verbose_debug_str) {
+            LOG_VERBOSE_DEBUG.with(|v| *v.borrow_mut() = b);
+        }
+    }
     if let Some(include_str) = read_localstorage_value("rue.logs.include") {
         let parts = include_str
             .split(',')
@@ -125,17 +175,23 @@ fn should_log(level: u8, msg: &str) -> bool {
         return false;
     }
     let includes = LOG_INCLUDE.with(|f| f.borrow().clone());
+    let include_match = if includes.is_empty() {
+        false
+    } else {
+        includes.iter().any(|s| msg.contains(s))
+    };
     if !includes.is_empty() {
-        let mut ok = false;
-        for s in &includes {
-            if msg.contains(s) {
-                ok = true;
-                break;
-            }
-        }
-        if !ok {
+        if !include_match {
             return false;
         }
+    }
+    let verbose_debug = LOG_VERBOSE_DEBUG.with(|v| *v.borrow());
+    if level == level_to_num("debug")
+        && !verbose_debug
+        && !include_match
+        && is_noisy_debug_message(msg)
+    {
+        return false;
     }
     let excludes = LOG_EXCLUDE.with(|f| f.borrow().clone());
     for s in &excludes {

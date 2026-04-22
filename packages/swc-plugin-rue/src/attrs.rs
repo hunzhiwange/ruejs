@@ -9,6 +9,172 @@ use crate::emit::*;
 use crate::log;
 use crate::utils::unwrap_expr;
 
+fn push_expr_stmt(stmts: &mut Vec<Stmt>, expr: Expr) {
+    stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(expr) }));
+}
+
+fn get_static_literal_value_expr(e: &Expr) -> Option<Expr> {
+    match unwrap_expr(e) {
+        Expr::Lit(Lit::Str(s)) => Some(Expr::Lit(Lit::Str(s.clone()))),
+        Expr::Lit(Lit::Num(n)) => Some(Expr::Lit(Lit::Num(n.clone()))),
+        Expr::Lit(Lit::Bool(b)) => Some(Expr::Lit(Lit::Bool(b.clone()))),
+        Expr::Lit(Lit::Null(n)) => Some(Expr::Lit(Lit::Null(n.clone()))),
+        Expr::Ident(id) if id.sym.as_ref() == "undefined" => Some(Expr::Ident(id.clone())),
+        Expr::Unary(u) if matches!(u.op, UnaryOp::Void) => Some(Expr::Unary(u.clone())),
+        _ => None,
+    }
+}
+
+fn get_static_stringified_expr(e: &Expr) -> Option<Expr> {
+    match unwrap_expr(e) {
+        Expr::Lit(Lit::Str(s)) => Some(Expr::Lit(Lit::Str(s.clone()))),
+        Expr::Lit(Lit::Num(n)) => Some(string_expr(&n.value.to_string())),
+        Expr::Lit(Lit::Bool(b)) => Some(string_expr(if b.value { "true" } else { "false" })),
+        Expr::Lit(Lit::Null(_)) => Some(string_expr("null")),
+        Expr::Ident(id) if id.sym.as_ref() == "undefined" => Some(string_expr("undefined")),
+        Expr::Unary(u) if matches!(u.op, UnaryOp::Void) => Some(string_expr("undefined")),
+        _ => None,
+    }
+}
+
+fn get_static_truthy_bool(e: &Expr) -> Option<bool> {
+    match unwrap_expr(e) {
+        Expr::Lit(Lit::Str(s)) => Some(!s.value.is_empty()),
+        Expr::Lit(Lit::Num(n)) => Some(n.value != 0.0 && !n.value.is_nan()),
+        Expr::Lit(Lit::Bool(b)) => Some(b.value),
+        Expr::Lit(Lit::Null(_)) => Some(false),
+        Expr::Ident(id) if id.sym.as_ref() == "undefined" => Some(false),
+        Expr::Unary(u) if matches!(u.op, UnaryOp::Void) => Some(false),
+        _ => None,
+    }
+}
+
+fn get_static_style_object_expr(obj: &ObjectLit) -> Option<Expr> {
+    let mut props = Vec::with_capacity(obj.props.len());
+    for prop in &obj.props {
+        match prop {
+            PropOrSpread::Prop(prop) => match &**prop {
+                Prop::KeyValue(kv) => {
+                    let value = get_static_literal_value_expr(kv.value.as_ref())?;
+                    props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                        key: kv.key.clone(),
+                        value: Box::new(value),
+                    }))));
+                }
+                _ => return None,
+            },
+            PropOrSpread::Spread(_) => return None,
+        }
+    }
+    Some(Expr::Object(ObjectLit { span: obj.span, props }))
+}
+
+fn get_static_style_expr(e: &Expr) -> Option<Expr> {
+    match unwrap_expr(e) {
+        Expr::Object(obj) => get_static_style_object_expr(obj),
+        Expr::Lit(Lit::Str(s)) => Some(Expr::Lit(Lit::Str(s.clone()))),
+        Expr::Lit(Lit::Num(n)) => Some(Expr::Lit(Lit::Num(n.clone()))),
+        Expr::Lit(Lit::Bool(b)) => Some(Expr::Lit(Lit::Bool(b.clone()))),
+        Expr::Lit(Lit::Null(n)) => Some(Expr::Lit(Lit::Null(n.clone()))),
+        Expr::Ident(id) if id.sym.as_ref() == "undefined" => Some(Expr::Ident(id.clone())),
+        Expr::Unary(u) if matches!(u.op, UnaryOp::Void) => Some(Expr::Unary(u.clone())),
+        _ => None,
+    }
+}
+
+fn emit_static_multiple_assign(stmts: &mut Vec<Stmt>, target: &Ident, value: bool) {
+    push_expr_stmt(
+        stmts,
+        Expr::Assign(AssignExpr {
+            span: DUMMY_SP,
+            op: AssignOp::Assign,
+            left: AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(Expr::Ident(target.clone())),
+                prop: MemberProp::Ident(ident_name("multiple")),
+            })),
+            right: Box::new(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value }))),
+        }),
+    );
+}
+
+fn try_emit_static_expr_attr(
+    stmts: &mut Vec<Stmt>,
+    target: &Ident,
+    name: &str,
+    inner: &Expr,
+) -> bool {
+    if name == "style" {
+        if let Some(style_expr) = get_static_style_expr(inner) {
+            push_expr_stmt(
+                stmts,
+                call_ident("_$setStyle", vec![Expr::Ident(target.clone()), style_expr]),
+            );
+            return true;
+        }
+    } else if name == "className" {
+        if let Some(class_name) = get_static_stringified_expr(inner) {
+            push_expr_stmt(
+                stmts,
+                call_ident("_$setClassName", vec![Expr::Ident(target.clone()), class_name]),
+            );
+            return true;
+        }
+    } else if name == "value" {
+        if let Some(value) = get_static_literal_value_expr(inner) {
+            push_expr_stmt(
+                stmts,
+                call_ident("_$setValue", vec![Expr::Ident(target.clone()), value]),
+            );
+            return true;
+        }
+    } else if name == "disabled" {
+        if let Some(disabled) = get_static_truthy_bool(inner) {
+            push_expr_stmt(
+                stmts,
+                call_ident(
+                    "_$setDisabled",
+                    vec![
+                        Expr::Ident(target.clone()),
+                        Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: disabled })),
+                    ],
+                ),
+            );
+            return true;
+        }
+    } else if name == "multiple" {
+        if let Some(multiple) = get_static_truthy_bool(inner) {
+            emit_static_multiple_assign(stmts, target, multiple);
+            return true;
+        }
+    } else if name == "checked" {
+        if let Some(checked) = get_static_truthy_bool(inner) {
+            push_expr_stmt(
+                stmts,
+                call_ident(
+                    "_$setChecked",
+                    vec![
+                        Expr::Ident(target.clone()),
+                        Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: checked })),
+                    ],
+                ),
+            );
+            return true;
+        }
+    } else if let Some(attr_value) = get_static_stringified_expr(inner) {
+        push_expr_stmt(
+            stmts,
+            call_ident(
+                "_$setAttribute",
+                vec![Expr::Ident(target.clone()), string_expr(name), attr_value],
+            ),
+        );
+        return true;
+    }
+
+    false
+}
+
 /*
 属性与事件编译设计：
 - 目标：将 JSX 开标签上的属性转化为稳定的原生 DOM 更新语句，动态值用 `watchEffect` 包裹，实现响应式更新。
@@ -113,6 +279,9 @@ pub fn emit_attrs_for(stmts: &mut Vec<Stmt>, target: &Ident, opening: &JSXOpenin
                     Some(JSXAttrValue::JSXExprContainer(ec)) => {
                         if let JSXExpr::Expr(expr) = &ec.expr {
                             let inner = unwrap_expr(expr.as_ref());
+                            if try_emit_static_expr_attr(stmts, target, &name, inner) {
+                                continue;
+                            }
                             // 动态属性统一进入 watch，具体属性按类别分别处理
                             if name == "dangerouslySetInnerHTML" {
                                 let obj_ident = ident("__obj");

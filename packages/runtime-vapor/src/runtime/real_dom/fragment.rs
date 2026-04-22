@@ -2,6 +2,7 @@ use super::super::{Child, Rue, VNode};
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::Array;
 use wasm_bindgen::JsValue;
+use wasm_bindgen::JsCast;
 
 /// 构建 DocumentFragment 并追加解析后的子节点
 ///
@@ -62,7 +63,15 @@ where
                 let v: JsValue = item.into();
                 js_arr.push(&v);
             }
-            vnode.props.insert("__fragNodes".to_string(), js_arr.into());
+            vnode
+                .props
+                .insert("__fragNodes".to_string(), js_arr.clone().into());
+            let frag_js: JsValue = frag.clone().into();
+            let _ = js_sys::Reflect::set(
+                &frag_js,
+                &JsValue::from_str("__rue_frag_nodes_ref"),
+                js_arr.unchecked_ref(),
+            );
         }
     }
     Some(frag)

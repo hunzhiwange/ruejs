@@ -15,6 +15,10 @@ impl VaporTransform {
     /// - 组件：委托到 component::emit_component_root
     /// - 返回：`return { vaporElement: _root }`
     pub(crate) fn jsx_to_block(&mut self, el: &JSXElement) -> BlockStmt {
+        if let Some(router_link_el) = crate::router_link::rewrite_router_link_fast_path(el) {
+            return self.jsx_to_block(&router_link_el);
+        }
+
         // 声明块级根节点标识符（统一命名为 _root）
         let root = ident("_root");
         let mut stmts: Vec<Stmt> = Vec::new();

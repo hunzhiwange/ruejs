@@ -27,17 +27,11 @@ pub fn build_component_element(
     parent: &Ident,
     stmts: &mut Vec<Stmt>,
 ) {
-    // 为组件渲染生成锚点，renderBetween 在二者之间插入组件输出
+    let mut comp_el = jsx_el.clone();
     let start = vt.next_list_ident();
     let end = vt.next_list_ident();
     let make_start = call_ident("_$createComment", vec![string_expr("rue:component:start")]);
     let make_end = call_ident("_$createComment", vec![string_expr("rue:component:end")]);
-    stmts.push(const_decl(start.clone(), make_start));
-    stmts.push(const_decl(end.clone(), make_end));
-    stmts.push(append_child(parent.clone(), Expr::Ident(start.clone())));
-    stmts.push(append_child(parent.clone(), Expr::Ident(end.clone())));
-
-    let mut comp_el = jsx_el.clone();
 
     // 若存在内联 children，默认使用 vapor(()=>{ ... }) 包裹并作为 children 传入：
     // - 原因：将 JSX children 预编译为原生片段，避免运行时解析 JSX
@@ -167,11 +161,129 @@ pub fn build_component_element(
         comp_el.closing = None;
     }
 
+    let is_static = crate::utils::is_static_component_without_props(&comp_el)
+        || crate::utils::is_static_component_children_ident(&comp_el)
+        || crate::utils::component_has_no_dynamic_props_excluding_children(&comp_el);
+
+    if is_static && vt.optimize_static_slots && !vt.optimize_component_anchors {
+        let anchor = vt.next_list_ident();
+        let slot_ident = vt.next_slot_ident();
+        stmts.push(const_decl(
+            anchor.clone(),
+            call_ident("_$createComment", vec![string_expr("rue:static:component")]),
+        ));
+        stmts.push(append_child(parent.clone(), Expr::Ident(anchor.clone())));
+        if !child_stmts.is_empty() {
+            for s in child_stmts {
+                stmts.push(s);
+            }
+        }
+        stmts.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+            span: DUMMY_SP,
+            ctxt: SyntaxContext::empty(),
+            decls: vec![VarDeclarator {
+                span: DUMMY_SP,
+                name: Pat::Ident(BindingIdent { id: slot_ident.clone(), type_ann: None }),
+                init: Some(Box::new(Expr::JSXElement(Box::new(comp_el.clone())))),
+                definite: false,
+            }],
+            kind: VarDeclKind::Const,
+            declare: false,
+        }))));
+        stmts.push(Stmt::Expr(ExprStmt {
+            span: DUMMY_SP,
+            expr: Box::new(Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                callee: Callee::Expr(Box::new(Expr::Ident(ident("renderStatic")))),
+                args: vec![
+                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident.clone())) },
+                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(parent.clone())) },
+                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
+                ],
+                type_args: None,
+                ctxt: SyntaxContext::empty(),
+            })),
+        }));
+        return;
+    }
+
+    if vt.optimize_component_anchors {
+        let anchor = vt.next_list_ident();
+        let make_anchor = call_ident("_$createComment", vec![string_expr("rue:component:anchor")]);
+        stmts.push(const_decl(anchor.clone(), make_anchor));
+        stmts.push(append_child(parent.clone(), Expr::Ident(anchor.clone())));
+
+        if !child_stmts.is_empty() {
+            for s in child_stmts {
+                stmts.push(s);
+            }
+        }
+
+        let slot_ident = vt.next_slot_ident();
+        let decl_slot = const_decl(slot_ident.clone(), Expr::JSXElement(Box::new(comp_el.clone())));
+        let render_call = Expr::Call(CallExpr {
+            span: DUMMY_SP,
+            callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
+            args: vec![
+                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident.clone())) },
+                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(parent.clone())) },
+                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
+            ],
+            type_args: None,
+            ctxt: SyntaxContext::empty(),
+        });
+
+        if is_static {
+            stmts.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Ident(BindingIdent { id: slot_ident.clone(), type_ann: None }),
+                    init: Some(Box::new(Expr::JSXElement(Box::new(comp_el.clone())))),
+                    definite: false,
+                }],
+                kind: VarDeclKind::Const,
+                declare: false,
+            }))));
+            stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }));
+        } else {
+            let render_arrow = Expr::Arrow(ArrowExpr {
+                span: DUMMY_SP,
+                params: vec![],
+                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                    span: DUMMY_SP,
+                    ctxt: SyntaxContext::empty(),
+                    stmts: vec![
+                        decl_slot,
+                        Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }),
+                    ],
+                })),
+                is_async: false,
+                is_generator: false,
+                type_params: None,
+                return_type: None,
+                ctxt: SyntaxContext::empty(),
+            });
+            let watch = call_ident("watchEffect", vec![render_arrow]);
+            stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(watch) }));
+        }
+        return;
+    }
+
+    stmts.push(const_decl(start.clone(), make_start));
+    stmts.push(const_decl(end.clone(), make_end));
+    stmts.push(append_child(parent.clone(), Expr::Ident(start.clone())));
+    stmts.push(append_child(parent.clone(), Expr::Ident(end.clone())));
+
+    if !child_stmts.is_empty() {
+        for s in child_stmts {
+            stmts.push(s);
+        }
+    }
+
     let slot_ident = vt.next_slot_ident();
     let decl_slot = const_decl(slot_ident.clone(), Expr::JSXElement(Box::new(comp_el.clone())));
-    // 组件渲染：以 renderBetween 在锚点之间插入组件结果（支持静态/动态场景）
-    // - renderBetween：运行时负责在 start/end 注释之间插入/更新片段
-    // - args：vnode 或 JSX 生成的可渲染表达式、父节点、起止注释
     let render_call = Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: Callee::Expr(Box::new(Expr::Ident(ident("renderBetween")))),
@@ -184,9 +296,6 @@ pub fn build_component_element(
         type_args: None,
         ctxt: SyntaxContext::empty(),
     });
-    let is_static = crate::utils::is_static_component_without_props(&comp_el)
-        || crate::utils::is_static_component_children_ident(&comp_el)
-        || crate::utils::component_has_no_dynamic_props_excluding_children(&comp_el);
     let render_arrow = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![],
@@ -204,12 +313,6 @@ pub fn build_component_element(
         return_type: None,
         ctxt: SyntaxContext::empty(),
     });
-
-    if !child_stmts.is_empty() {
-        for s in child_stmts {
-            stmts.push(s);
-        }
-    }
 
     if is_static {
         stmts.push(Stmt::Decl(Decl::Var(Box::new(VarDecl {

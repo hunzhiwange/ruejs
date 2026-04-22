@@ -198,6 +198,14 @@ where
                     }
                 }
                 self.insert_with_end_anchor_opt(dest_parent, new_el, insert_anchor);
+                if let Some(ref el_old) = old.el {
+                    self.clear_old_el_if_present(dest_parent, el_old);
+                }
+                if let Some(sub) = old.comp_subtree.as_deref() {
+                    if let Some(ref sub_el) = sub.el {
+                        self.clear_old_el_if_present(dest_parent, sub_el);
+                    }
+                }
             }
         }
     }

@@ -20,6 +20,9 @@ use crate::ComponentInternalInstance;
 use crate::DomAdapter;
 #[cfg(feature = "dev")]
 use crate::log::{log, want_log};
+use crate::reactive::core::{
+    create_detached_effect_scope, dispose_effect_scope, pop_effect_scope, push_effect_scope,
+};
 use crate::runtime::mark_crashed_from_hook;
 use js_sys::Map;
 use js_sys::{Array, Function, Object, Reflect};
@@ -37,6 +40,8 @@ thread_local! {
     // 组件实例稳定包装：index -> wrapper JS Object（承载 __hooks / propsRO）
     static CI_WRAPPERS: std::cell::RefCell<HashMap<usize, JsValue>> = std::cell::RefCell::new(HashMap::new());
 }
+
+const HOOK_EFFECT_SCOPE_KEY: &str = "__hook_effect_scope_id";
 
 /// 设置当前实例
 /// 传入 `null/undefined` 表示清空；否则记录为 Some(instance)
@@ -117,6 +122,59 @@ pub(crate) fn set_current_instance_ci<A: DomAdapter>(inst: &mut ComponentInterna
     }
 }
 
+pub(crate) fn ensure_current_instance_hook_scope() -> Option<usize> {
+    let inst = CURRENT_INSTANCE.with(|c| c.borrow().clone())?;
+    if !inst.is_object() {
+        return None;
+    }
+    let obj = Object::from(inst);
+    let existing = Reflect::get(&obj, &JsValue::from_str(HOOK_EFFECT_SCOPE_KEY))
+        .unwrap_or(JsValue::UNDEFINED);
+    if let Some(scope_id) = existing.as_f64() {
+        return Some(scope_id as usize);
+    }
+    let scope_id = create_detached_effect_scope();
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str(HOOK_EFFECT_SCOPE_KEY),
+        &JsValue::from_f64(scope_id as f64),
+    );
+    Some(scope_id)
+}
+
+pub(crate) fn with_current_instance_hook_scope<T>(runner: impl FnOnce() -> T) -> T {
+    if let Some(scope_id) = ensure_current_instance_hook_scope() {
+        push_effect_scope(scope_id);
+        let out = runner();
+        let _ = pop_effect_scope();
+        out
+    } else {
+        runner()
+    }
+}
+
+pub(crate) fn dispose_component_hook_scope(inst_index: usize) {
+    let scope_id = CI_WRAPPERS.with(|wr| {
+        wr.borrow().get(&inst_index).and_then(|wrapper| {
+            if !wrapper.is_object() {
+                return None;
+            }
+            let obj = Object::from(wrapper.clone());
+            let value = Reflect::get(&obj, &JsValue::from_str(HOOK_EFFECT_SCOPE_KEY))
+                .unwrap_or(JsValue::UNDEFINED);
+            let _ = Reflect::set(
+                &obj,
+                &JsValue::from_str(HOOK_EFFECT_SCOPE_KEY),
+                &JsValue::UNDEFINED,
+            );
+            value.as_f64().map(|v| v as usize)
+        })
+    });
+    if let Some(scope_id) = scope_id {
+        dispose_effect_scope(scope_id);
+    }
+}
+
 /// 在当前实例上为 Hook 分配/复用一个插槽
 /// - 若无当前实例，则直接执行 factory 返回对象
 /// - 有实例时，依据 `__hooks.index` 或 `__forcedIndex` 计算插槽序号
@@ -180,6 +238,8 @@ pub fn with_hook_slot(factory: Function) -> JsValue {
     let idx_num = idx.as_f64().unwrap_or(0.0);
     // 若存在 __forcedIndex，则使用它；否则使用并自增 index
     let i_slot = if let Some(f) = forced_num {
+        let next = idx_num.max(f + 1.0);
+        Reflect::set(&hooks_obj, &JsValue::from_str("index"), &JsValue::from_f64(next)).unwrap();
         f
     } else {
         // increment index

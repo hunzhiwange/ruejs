@@ -57,6 +57,12 @@ export const renderBetween = (
   start: DomNodeLike,
   end: DomNodeLike,
 ) => getRue().renderBetween(vnode, parent, start, end)
+/** 在单个尾锚点前渲染并复用 vnode */
+export const renderAnchor = (vnode: VNode, parent: DomElementLike, anchor: DomNodeLike) =>
+  getRue().renderAnchor(vnode, parent, anchor)
+/** 在单个临时锚点前执行一次性静态渲染 */
+export const renderStatic = (vnode: VNode, parent: DomElementLike, anchor: DomNodeLike) =>
+  getRue().renderStatic(vnode, parent, anchor)
 /** 挂载应用到容器 */
 export const mount = (App: ComponentInstance, container: string | DomElementLike) =>
   getRue().mount(App, container)

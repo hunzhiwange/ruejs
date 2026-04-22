@@ -1,5 +1,6 @@
 use super::super::Rue;
 use super::super::types::{ComponentProps, VNode};
+use crate::reactive::core::{create_effect_scope, dispose_effect_scope};
 use crate::reactive::signal::signal_from_proxy;
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::{Array, Function, Object, Reflect};
@@ -9,15 +10,41 @@ use wasm_bindgen::throw_str;
 
 // 渲染辅助方法：
 // - reset_hook_index：重置组件宿主上的 hooks 索引，确保从头执行
-// - compact_container_map / compact_range_map：清理容器/区间映射中过期项
+// - compact_container_map / compact_anchor_map / compact_range_map：清理容器/单锚点/区间映射中过期项
 // - sync_props_children：将新 props 与 children 同步到只读 reactive 视图
-// - find_container_index / find_range_index：在映射中定位容器或区间
+// - find_container_index / find_anchor_index / find_range_index：在映射中定位容器、单锚点或区间
 // - get_current_container：读取当前渲染容器
 
 impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
+    /// 为组件开启新一轮渲染作用域，并回收上一轮渲染期间创建的副作用。
+    ///
+    /// 这层作用域专门解决“组件函数每次重跑都再次创建 computed/useEffect/watchEffect，
+    /// 但旧的一轮没有释放”导致的持续堆积问题。
+    pub(crate) fn renew_component_render_scope(&mut self, inst_index: usize) -> usize {
+        if let Some(inst) = self.instance_store.get_mut(&inst_index) {
+            if let Some(prev_scope_id) = inst.render_scope_id.take() {
+                dispose_effect_scope(prev_scope_id);
+            }
+            let scope_id = create_effect_scope();
+            inst.render_scope_id = Some(scope_id);
+            scope_id
+        } else {
+            create_effect_scope()
+        }
+    }
+
+    /// 在组件卸载时释放最后一轮渲染作用域。
+    pub(crate) fn dispose_component_render_scope(&mut self, inst_index: usize) {
+        if let Some(inst) = self.instance_store.get_mut(&inst_index) {
+            if let Some(scope_id) = inst.render_scope_id.take() {
+                dispose_effect_scope(scope_id);
+            }
+        }
+    }
+
     /// 将宿主对象上的 __hooks.index 重置为 0
     ///
     /// 参数：
@@ -41,6 +68,45 @@ where
     where
         <A as DomAdapter>::Element: Into<JsValue>,
     {
+    }
+
+    /// 清理单锚点映射中过期记录，并触发对应 vnode 的卸载生命周期
+    pub(crate) fn compact_anchor_map(&mut self)
+    where
+        <A as DomAdapter>::Element: Into<JsValue>,
+    {
+        let adapter_owned = self.get_dom_adapter().cloned();
+        let drained = std::mem::take(&mut self.anchor_map);
+        let mut kept: Vec<(A::Element, Option<VNode<A>>)> = Vec::with_capacity(drained.len());
+
+        for (anchor, mut vnode_opt) in drained.into_iter() {
+            let av: JsValue = anchor.clone().into();
+            let connected = Reflect::get(&av, &JsValue::from_str("isConnected"))
+                .ok()
+                .and_then(|v| v.as_bool());
+            let keep = match connected {
+                Some(true) => true,
+                Some(false) => false,
+                None => {
+                    if let Some(adapter) = adapter_owned.as_ref() {
+                        adapter.get_parent_node(&anchor).is_some()
+                    } else {
+                        let ret = js_sys::Reflect::get(&av, &JsValue::from_str("parentNode"))
+                            .unwrap_or(JsValue::UNDEFINED);
+                        !ret.is_undefined() && !ret.is_null()
+                    }
+                }
+            };
+
+            if keep {
+                kept.push((anchor, vnode_opt));
+            } else if let Some(mut vnode) = vnode_opt.take() {
+                self.invoke_before_unmount_vnode(&mut vnode);
+                self.invoke_unmounted_vnode(&mut vnode);
+            }
+        }
+
+        self.anchor_map = kept;
     }
 
     /// 清理区间映射中过期记录
@@ -226,7 +292,7 @@ where
         new_props: &ComponentProps,
         new_children: &Vec<super::super::types::Child<A>>,
     ) where
-        <A as DomAdapter>::Element: From<JsValue>,
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
         use super::super::types::Child;
         use crate::hook::reactive::shallow_equal_prop;
@@ -301,6 +367,29 @@ where
             for (i, (c, _)) in self.container_map.iter().enumerate() {
                 // 双向 contains 作为“等价容器”的判定准则
                 if adapter.contains(c, container) && adapter.contains(container, c) {
+                    return Some(i);
+                }
+            }
+        }
+        None
+    }
+
+    /// 在单锚点映射中查找与目标 anchor 等价的记录下标
+    pub(super) fn find_anchor_index(&mut self, anchor: &A::Element) -> Option<usize>
+    where
+        <A as DomAdapter>::Element: Into<JsValue>,
+    {
+        if self.anchor_map.is_empty() {
+            return None;
+        }
+        for (i, (a, _)) in self.anchor_map.iter().enumerate() {
+            let av: JsValue = a.clone().into();
+            let at: JsValue = anchor.clone().into();
+            if js_sys::Object::is(&av, &at) {
+                return Some(i);
+            }
+            if let Some(adapter) = self.get_dom_adapter() {
+                if adapter.contains(a, anchor) && adapter.contains(anchor, a) {
                     return Some(i);
                 }
             }

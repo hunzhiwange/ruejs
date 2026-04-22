@@ -1,5 +1,6 @@
 use super::super::Rue;
 use super::super::types::{VNode, VNodeType};
+use crate::reactive::core::{pop_effect_scope, push_effect_scope};
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::{Array, Function, Object, Reflect};
 use wasm_bindgen::JsCast;
@@ -72,6 +73,7 @@ where
                 ),
                 props_ro: props_ro.clone(),
                 host: host.clone().into(),
+                render_scope_id: None,
                 error: None,
                 error_handlers: Vec::new(),
                 index: new_idx,
@@ -109,15 +111,18 @@ where
     /// - props_ro：只读 props（作为调用参数）
     /// 返回：
     /// - 组件返回的 JS 值（可能是 Vapor Element 或开发态对象）
-    fn comp_execute_and_collect(&mut self, new: &VNode<A>, props_ro: &JsValue) -> JsValue {
+    fn comp_execute_and_collect(&mut self, new: &VNode<A>, props_ro: &JsValue, idx: usize) -> JsValue {
         // 将组件类型解析为 JS 函数并以 propsRO 调用；捕获错误并还原上下文
         let func = match &new.r#type {
             VNodeType::Component(f_new) => f_new.dyn_ref::<Function>().unwrap(),
             _ => unreachable!(),
         };
+        let render_scope_id = self.renew_component_render_scope(idx);
+        push_effect_scope(render_scope_id);
         let ret = match func.call1(&JsValue::UNDEFINED, props_ro) {
             Ok(v) => v,
             Err(e) => {
+                let _ = pop_effect_scope();
                 self.handle_error(e.clone());
                 self.instance_stack.pop();
                 if let Some(top_idx) = self.instance_stack.last() {
@@ -132,6 +137,7 @@ where
                 wasm_bindgen::throw_val(e.clone());
             }
         };
+        let _ = pop_effect_scope();
         {
             // 收集本次执行过程中注册的生命周期钩子，记录到实例 hooks 映射
             let pending = crate::runtime::take_pending_hooks();
@@ -176,7 +182,13 @@ where
                             let v: JsValue = n.into();
                             arr.push(&v);
                         }
-                        props.insert("__fragNodes".to_string(), arr.into());
+                        props.insert("__fragNodes".to_string(), arr.clone().into());
+                        let el_js: JsValue = el.clone().into();
+                        let _ = Reflect::set(
+                            &el_js,
+                            &JsValue::from_str("__rue_frag_nodes_ref"),
+                            &arr,
+                        );
                     }
                 }
                 Some(VNode {
@@ -227,6 +239,7 @@ where
     ) where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
+        new_sub.comp_inst_index = new.comp_inst_index;
         // 若存在旧子树，递归 patch；否则创建并插入新子树到目标父节点（考虑锚点与片段父亲）
         if let Some(old_sub) = old.comp_subtree.as_deref_mut() {
             self.patch(old_sub, &mut new_sub, parent);
@@ -335,8 +348,8 @@ where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
         // 组件更新主流程：准备实例 -> 执行组件函数 -> 生成新子树 -> 挂载/更新 -> 完成
-        let (props_ro, host, _idx) = self.comp_prepare_instance(old, new);
-        let ret = self.comp_execute_and_collect(new, &props_ro);
+        let (props_ro, host, idx) = self.comp_prepare_instance(old, new);
+        let ret = self.comp_execute_and_collect(new, &props_ro, idx);
         let new_sub_opt = self.comp_make_sub_from_ret(&ret);
         if let Some(new_sub) = new_sub_opt {
             self.comp_mount_or_patch_subtree(old, new, parent, new_sub);

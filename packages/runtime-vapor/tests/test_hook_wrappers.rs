@@ -6,6 +6,10 @@ use rue_runtime_vapor::{
     shallow_readonly_js as shallow_readonly_hook, signal_js as signal_hook,
     to_raw_js as to_raw_hook,
 };
+use rue_runtime_vapor::reactive::core::{
+    create_effect_scope, dispose_effect_scope, pop_effect_scope, push_effect_scope,
+};
+use rue_runtime_vapor::reactive::signal::SignalHandle;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
@@ -90,6 +94,71 @@ fn hook_signal_and_computed_work() {
     s.set_js(JsValue::from_f64(3.0));
     let v1 = c2.get_js().as_f64().unwrap();
     assert_eq!(v1, 6.0);
+}
+
+#[wasm_bindgen_test]
+fn hook_computed_reuses_handle_across_render_scopes_and_refreshes_getter() {
+    set_reactive_scheduling("sync");
+    let inst = Object::new();
+    set_current_instance(inst.into());
+
+    let source = signal_hook(JsValue::from_f64(1.0), None, None);
+
+    let scope1 = create_effect_scope();
+    push_effect_scope(scope1);
+    let handle1_store = std::rc::Rc::new(std::cell::RefCell::new(None::<SignalHandle>));
+    let source1 = source.clone();
+    let getter1 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        let value = source1.get_js().as_f64().unwrap();
+        JsValue::from_f64(value + 10.0)
+    }) as Box<dyn FnMut() -> JsValue>);
+    let getter1_fn: Function = getter1.as_ref().clone().unchecked_into();
+    let handle1_store_for_render = handle1_store.clone();
+    let render1 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *handle1_store_for_render.borrow_mut() = Some(computed_hook(getter1_fn.clone().into(), None));
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut() -> JsValue>);
+    let _ = vapor_with_hook_id(
+        JsValue::from_str("computed:reuse"),
+        render1.as_ref().clone().unchecked_into(),
+    );
+    getter1.forget();
+    render1.forget();
+    let handle1 = handle1_store.borrow().as_ref().unwrap().clone();
+    assert_eq!(handle1.get_js().as_f64().unwrap(), 11.0);
+    assert_eq!(pop_effect_scope(), Some(scope1));
+    dispose_effect_scope(scope1);
+
+    let scope2 = create_effect_scope();
+    push_effect_scope(scope2);
+    let handle2_store = std::rc::Rc::new(std::cell::RefCell::new(None::<SignalHandle>));
+    let source2 = source.clone();
+    let getter2 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        let value = source2.get_js().as_f64().unwrap();
+        JsValue::from_f64(value + 100.0)
+    }) as Box<dyn FnMut() -> JsValue>);
+    let getter2_fn: Function = getter2.as_ref().clone().unchecked_into();
+    let handle2_store_for_render = handle2_store.clone();
+    let render2 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *handle2_store_for_render.borrow_mut() = Some(computed_hook(getter2_fn.clone().into(), None));
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut() -> JsValue>);
+    let _ = vapor_with_hook_id(
+        JsValue::from_str("computed:reuse"),
+        render2.as_ref().clone().unchecked_into(),
+    );
+    getter2.forget();
+    render2.forget();
+    let handle2 = handle2_store.borrow().as_ref().unwrap().clone();
+
+    assert_eq!(handle1.get_js().as_f64().unwrap(), 101.0);
+    assert_eq!(handle2.get_js().as_f64().unwrap(), 101.0);
+    assert_eq!(pop_effect_scope(), Some(scope2));
+    dispose_effect_scope(scope2);
+
+    source.set_js(JsValue::from_f64(2.0));
+    assert_eq!(handle1.get_js().as_f64().unwrap(), 102.0);
+    assert_eq!(handle2.get_js().as_f64().unwrap(), 102.0);
 }
 
 #[wasm_bindgen_test]

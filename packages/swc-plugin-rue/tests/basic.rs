@@ -182,3 +182,109 @@ export default Expressions;
         utils::normalize(&utils::strip_marker(expected_fragment))
     );
 }
+
+#[test]
+fn transforms_root_router_link_as_static_component() {
+    let src = r##"
+import { type FC } from '@rue-js/rue';
+import { RouterLink } from '@rue-js/router';
+
+const RootRouterLink: FC = () => (
+  <RouterLink to="/jsx" className="text-blue-600 hover:underline">返回目录</RouterLink>
+);
+
+export default RootRouterLink;
+"##;
+    let (program, cm) = utils::parse(src, "test.tsx");
+    let program = apply(program);
+    let out = utils::emit(program, cm);
+
+    let expected_fragment = r##"
+import { type FC, vapor, renderBetween, _$createComment, _$createDocumentFragment, _$appendChild } from '@rue-js/rue';
+import { RouterLink } from '@rue-js/router';
+const RootRouterLink: FC = ()=>vapor(()=>{
+        const _root = _$createDocumentFragment();
+        const _list1 = _$createComment("rue:component:start");
+        const _list2 = _$createComment("rue:component:end");
+        _$appendChild(_root, _list1);
+        _$appendChild(_root, _list2);
+        const __child1 = "返回目录";
+        const __slot3 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
+        renderBetween(__slot3, _root, _list1, _list2);
+        return {
+            vaporElement: _root
+        };
+    });
+export default RootRouterLink;
+"##;
+
+    std::fs::create_dir_all("target/vapor_outputs").ok();
+    std::fs::write("target/vapor_outputs/root_router_link.out.js", utils::strip_marker(&out)).ok();
+
+    assert_eq!(
+        utils::normalize(&utils::strip_marker(&out)),
+        utils::normalize(&utils::strip_marker(expected_fragment))
+    );
+}
+
+#[test]
+fn transforms_router_link_in_expr_container_as_static_component() {
+    let src = r##"
+import { type FC } from '@rue-js/rue';
+import { RouterLink } from '@rue-js/router';
+
+const InlineRouterLinkExpr: FC = () => (
+  <div className="wrap">
+    {<RouterLink to="/jsx" className="text-blue-600 hover:underline">返回目录</RouterLink>}
+  </div>
+);
+
+export default InlineRouterLinkExpr;
+"##;
+    let (program, cm) = utils::parse(src, "test.tsx");
+    let program = apply(program);
+    let out = utils::emit(program, cm);
+
+    let expected_fragment = r##"
+import { type FC, vapor, renderBetween, _$createElement, _$createComment, _$createDocumentFragment, _$appendChild, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
+import { RouterLink } from '@rue-js/router';
+const InlineRouterLinkExpr: FC = ()=>vapor(()=>{
+        const _root = _$createElement("div");
+        _$setClassName(_root, "wrap");
+        const _list1 = _$createComment("rue:slot:start");
+        const _list2 = _$createComment("rue:slot:end");
+        _$appendChild(_root, _list1);
+        _$appendChild(_root, _list2);
+        const __slot6 = vapor(()=>{
+            const _root = _$createDocumentFragment();
+            const _list3 = _$createComment("rue:component:start");
+            const _list4 = _$createComment("rue:component:end");
+            _$appendChild(_root, _list3);
+            _$appendChild(_root, _list4);
+            const __child1 = "返回目录";
+            const __slot5 = <RouterLink to="/jsx" className="text-blue-600 hover:underline" children={__child1}/>;
+            renderBetween(__slot5, _root, _list3, _list4);
+            return {
+                vaporElement: _root
+            };
+        });
+        renderBetween(_$vaporCreateVNode(__slot6), _root, _list1, _list2);
+        return {
+            vaporElement: _root
+        };
+    });
+export default InlineRouterLinkExpr;
+"##;
+
+    std::fs::create_dir_all("target/vapor_outputs").ok();
+    std::fs::write(
+        "target/vapor_outputs/inline_router_link_expr.out.js",
+        utils::strip_marker(&out),
+    )
+    .ok();
+
+    assert_eq!(
+        utils::normalize(&utils::strip_marker(&out)),
+        utils::normalize(&utils::strip_marker(expected_fragment))
+    );
+}

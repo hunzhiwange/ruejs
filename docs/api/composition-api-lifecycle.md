@@ -160,7 +160,7 @@
 
   **此钩子在服务器端渲染期间不会被调用。**
 
-## onErrorCaptured() {#onerrorcaptured}
+## onErrorCaptured() {#onerrorcaptured} @todo
 
 注册一个钩子，在从后代组件捕获到传播的错误时调用。
 
@@ -206,7 +206,7 @@
 
   - `errorCaptured` 钩子可以返回 `false` 来阻止错误进一步传播。这实质上是说"此错误已处理，应忽略"。它将阻止为此错误调用任何额外的 `errorCaptured` 钩子或 `app.config.errorHandler`。
 
-## onRenderTracked() {#onrendertracked}
+## onRenderTracked() {#onrendertracked} @todo
 
 注册一个调试钩子，在组件的渲染 effect 追踪到响应式依赖时调用。
 
@@ -229,7 +229,7 @@
 
 - **另请参阅** [深入响应式系统](/guide/extras/reactivity-in-depth)
 
-## onRenderTriggered() {#onrendertriggered}
+## onRenderTriggered() {#onrendertriggered} @todo
 
 注册一个调试钩子，在响应式依赖触发组件的渲染 effect 重新运行时调用。
 
@@ -255,7 +255,7 @@
 
 - **另请参阅** [深入响应式系统](/guide/extras/reactivity-in-depth)
 
-## onActivated() {#onactivated}
+## onActivated() {#onactivated} @todo
 
 注册一个回调，在组件实例作为被 [`<KeepAlive>`](/api/built-in-components#keepalive) 缓存的树的一部分插入到 DOM 后调用。
 
@@ -269,7 +269,7 @@
 
 - **另请参阅** [指南 - 缓存实例的生命周期](/guide/built-ins/keep-alive#lifecycle-of-cached-instance)
 
-## onDeactivated() {#ondeactivated}
+## onDeactivated() {#ondeactivated} @todo
 
 注册一个回调，在组件实例作为被 [`<KeepAlive>`](/api/built-in-components#keepalive) 缓存的树的一部分从 DOM 中移除后调用。
 
@@ -283,7 +283,7 @@
 
 - **另请参阅** [指南 - 缓存实例的生命周期](/guide/built-ins/keep-alive#lifecycle-of-cached-instance)
 
-## onServerPrefetch() {#onserverprefetch}
+## onServerPrefetch() {#onserverprefetch} @todo
 
 注册一个异步函数，在组件实例即将在服务器上渲染之前解析。
 

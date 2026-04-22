@@ -23,6 +23,8 @@ export default defineConfig({
     VitePluginRue({
       include: ['/app/'],
       debug: true,
+      optimizeStaticSlots: true,
+      optimizeComponentAnchors: true,
     }),
     dts(),
     {

@@ -203,7 +203,7 @@ where
     /// 从 VNode 生成包含 props 与归一化 children 的 JS 对象
     pub(crate) fn props_with_children_to_jsobject(&mut self, vnode: &VNode<A>) -> JsValue
     where
-        A::Element: From<JsValue>,
+        A::Element: From<JsValue> + Into<JsValue>,
     {
         let obj = Object::new();
         for (k, v) in vnode.props.iter() {
@@ -246,7 +246,7 @@ where
     /// 将 VNode 转换为开发态友好的 JS 对象表示
     pub(crate) fn vnode_to_dev_object(&self, vnode: &VNode<A>) -> Object
     where
-        A::Element: From<JsValue>,
+        A::Element: From<JsValue> + Into<JsValue>,
     {
         let obj = Object::new();
         match &vnode.r#type {
@@ -321,9 +321,32 @@ where
                 }
                 let _ = Reflect::set(&obj, &JsValue::from_str("children"), &carr.into());
             }
-            VNodeType::Vapor | VNodeType::VaporWithSetup(_) => {
+            VNodeType::Vapor => {
+                if let Some(ref el) = vnode.el {
+                    let js_el: JsValue = el.clone().into();
+                    let _ = Reflect::set(&obj, &JsValue::from_str("vaporElement"), &js_el);
+                } else {
+                    let _ = Reflect::set(
+                        &obj,
+                        &JsValue::from_str("type"),
+                        &JsValue::from_str("vapor"),
+                    );
+                    let p = Object::new();
+                    if let Some(key) = vnode.props.get("key") {
+                        let _ = Reflect::set(&p, &JsValue::from_str("key"), key);
+                    }
+                    let _ = Reflect::set(&obj, &JsValue::from_str("props"), &p.into());
+                }
+                let carr = Array::new();
+                let _ = Reflect::set(&obj, &JsValue::from_str("children"), &carr.into());
+            }
+            VNodeType::VaporWithSetup(f) => {
                 let _ = Reflect::set(&obj, &JsValue::from_str("type"), &JsValue::from_str("vapor"));
                 let p = Object::new();
+                let _ = Reflect::set(&p, &JsValue::from_str("setup"), f);
+                if let Some(key) = vnode.props.get("key") {
+                    let _ = Reflect::set(&p, &JsValue::from_str("key"), key);
+                }
                 let _ = Reflect::set(&obj, &JsValue::from_str("props"), &p.into());
                 let carr = Array::new();
                 let _ = Reflect::set(&obj, &JsValue::from_str("children"), &carr.into());
@@ -368,6 +391,11 @@ where
         if let Some(v) = self.take_tagged_vnode::<A>(obj) {
             return v;
         }
+        let ve = Reflect::get(obj, &JsValue::from_str("vaporElement"))
+            .unwrap_or(JsValue::UNDEFINED);
+        if !ve.is_undefined() && !ve.is_null() {
+            return self.child_object_to_vnode(obj);
+        }
         let tt = Reflect::get(obj, &JsValue::from_str("type")).unwrap_or(JsValue::UNDEFINED);
         let mut pp = Reflect::get(obj, &JsValue::from_str("props")).unwrap_or(JsValue::UNDEFINED);
         let mut cc =
@@ -383,5 +411,70 @@ where
         let child_vec = self.children_from_js(&cc);
         let tag = self.tag_from_js(&tt, &props_map);
         self.create_element(tag, Some(props_map), child_vec)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime::types::ComponentProps;
+    use js_sys::{Function, Object as JsObject};
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn vapor_with_setup_roundtrip_preserves_setup_marker() {
+        let mut rue: Rue<JsDomAdapter> = Rue::new();
+        let setup = Function::new_no_args("return 1;");
+        let vnode = VNode {
+            r#type: VNodeType::VaporWithSetup(setup.into()),
+            props: ComponentProps::new(),
+            children: vec![],
+            el: None,
+            key: None,
+            comp_hooks: None,
+            comp_subtree: None,
+            comp_host: None,
+            comp_props_ro: None,
+            comp_inst_index: None,
+        };
+
+        let obj = rue.vnode_to_dev_object(&vnode);
+        let props = Object::from(
+            Reflect::get(&obj, &JsValue::from_str("props")).unwrap_or(JsValue::UNDEFINED),
+        );
+        let setup_value = Reflect::get(&props, &JsValue::from_str("setup"))
+            .unwrap_or(JsValue::UNDEFINED);
+        assert!(setup_value.is_function());
+
+        let roundtrip = rue.dev_object_to_vnode(&obj);
+        assert!(matches!(roundtrip.r#type, VNodeType::VaporWithSetup(_)));
+    }
+
+    #[wasm_bindgen_test]
+    fn vapor_with_existing_element_roundtrip_preserves_element() {
+        let mut rue: Rue<JsDomAdapter> = Rue::new();
+        let el: JsValue = JsObject::new().into();
+        let vnode = VNode {
+            r#type: VNodeType::Vapor,
+            props: ComponentProps::new(),
+            children: vec![],
+            el: Some(el.clone()),
+            key: None,
+            comp_hooks: None,
+            comp_subtree: None,
+            comp_host: None,
+            comp_props_ro: None,
+            comp_inst_index: None,
+        };
+
+        let obj = rue.vnode_to_dev_object(&vnode);
+        let serialized_el = Reflect::get(&obj, &JsValue::from_str("vaporElement"))
+            .unwrap_or(JsValue::UNDEFINED);
+        assert!(js_sys::Object::is(&serialized_el, &el));
+
+        let roundtrip = rue.dev_object_to_vnode(&obj);
+        assert!(matches!(roundtrip.r#type, VNodeType::Vapor));
+        assert!(roundtrip.el.is_some());
+        assert!(js_sys::Object::is(&roundtrip.el.unwrap(), &el));
     }
 }

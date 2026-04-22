@@ -143,7 +143,9 @@ export const MyComponent: FC<Props, Emits> = ({ foo, bar = 0 }, { emit }) => {
 }
 ```
 
-## 暴露属性 {#defineexpose}
+## 暴露属性 {#defineexpose} @todo
+
+> **@todo**: `useImperativeHandle` 和 `forwardRef` 尚未实现。
 
 在 JSX/TSX 中，使用 `useImperativeHandle` 暴露属性：
 
@@ -197,7 +199,9 @@ export const Layout: FC<Props> = ({ children, header, footer, ...attrs }) => {
 }
 ```
 
-## 顶层 await {#top-level-await}
+## 顶层 await {#top-level-await} @todo
+
+> **@todo**: 异步组件需要 `<Suspense>` 支持，当前尚未实现。
 
 在组件函数内部使用 async/await：
 

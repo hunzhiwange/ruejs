@@ -19,7 +19,7 @@ pub(crate) fn emit_children(
     // 遍历并按类型处理每一个子节点：
     // - 文本：规范化空白 + 结合邻居上下文决定是否修剪与插入
     // - 片段：递归展开其 children
-    // - 表达式容器：交由 expr_container 模块做插槽渲染（renderBetween）
+    // - 表达式容器：交由 expr_container 模块做插槽渲染（renderBetween/renderAnchor）
     // - JSX 元素：递归 build 成原生 DOM
     for (i, c) in children.iter().enumerate() {
         match c {
@@ -50,8 +50,8 @@ pub(crate) fn emit_children(
             }
             JSXElementChild::JSXExprContainer(ec) => {
                 // 表达式容器：作为插槽渲染
-                // - 生成起止注释锚点
-                // - 在 watch 中调用 renderBetween
+                // - 生成区间或单锚点注释
+                // - 在 watch 中调用 renderBetween/renderAnchor
                 // - 静态组件场景可直接一次性渲染
                 super::expr_container::handle_expr_container(vt, root, ec, stmts);
             }

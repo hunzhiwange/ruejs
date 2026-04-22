@@ -75,12 +75,9 @@ const AttributesAndProps: FC = ()=>vapor(()=>{
         _$appendChild(_el2, _$createTextNode("className 与 id"));
         const _el3 = _$createElement("div");
         _$appendChild(_root, _el3);
-        watchEffect(()=>{
-            const _el3_style = ({
-                color: 'tomato',
-                fontWeight: 'bold'
-            });
-            _$setStyle(_el3, _el3_style);
+        _$setStyle(_el3, {
+            color: 'tomato',
+            fontWeight: 'bold'
         });
         _$appendChild(_el3, _$createTextNode("内联样式对象"));
         const _list3 = _$createComment("rue:component:start");

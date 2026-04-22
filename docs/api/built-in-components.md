@@ -168,7 +168,7 @@ h(Transition, {
 
 - **另请参阅** [指南 - TransitionGroup](/guide/built-ins/transition-group)
 
-## `<KeepAlive>` {#keepalive}
+## `<KeepAlive>` {#keepalive} @todo
 
 缓存内部动态切换的组件。
 
@@ -312,7 +312,7 @@ h(Transition, {
 
 - **另请参阅** [指南 - Teleport](/guide/built-ins/teleport)
 
-## `<Suspense>` <sup class="vt-badge experimental" /> {#suspense}
+## `<Suspense>` <sup class="vt-badge experimental" /> {#suspense} @todo
 
 用于协调组件树中的嵌套异步依赖项。
 

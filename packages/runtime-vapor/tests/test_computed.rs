@@ -126,3 +126,38 @@ fn computed_writable_calls_setter_and_updates_value() {
     assert_eq!(last.get_js().as_string().unwrap(), "Smith");
     assert_eq!(full.get_js().as_string().unwrap(), "David Smith");
 }
+
+#[wasm_bindgen_test]
+fn computed_is_lazy_and_uses_dirty_cache() {
+    set_reactive_scheduling("sync");
+    let count = create_signal(JsValue::from_f64(1.0), None);
+    let getter_hits = Rc::new(RefCell::new(0));
+    let getter_hits2 = getter_hits.clone();
+    let count_for_getter = count.clone();
+    let getter = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *getter_hits2.borrow_mut() += 1;
+        let value = count_for_getter.get_js().as_f64().unwrap();
+        JsValue::from_f64(value * 2.0)
+    }) as Box<dyn FnMut() -> JsValue>);
+    let getter_fn: Function = getter.as_ref().clone().into();
+    let double = create_computed(getter_fn.into());
+    getter.forget();
+
+    // 首次创建时不应 eager 执行 getter。
+    assert_eq!(*getter_hits.borrow(), 0);
+
+    assert_eq!(double.get_js().as_f64().unwrap(), 2.0);
+    assert_eq!(*getter_hits.borrow(), 1);
+
+    // 未脏化前重复读取应直接命中缓存。
+    assert_eq!(double.get_js().as_f64().unwrap(), 2.0);
+    assert_eq!(*getter_hits.borrow(), 1);
+
+    // 依赖变化后只标脏，不立即重算。
+    count.set_js(JsValue::from_f64(2.0));
+    assert_eq!(*getter_hits.borrow(), 1);
+
+    // 下一次读取才真正重算并刷新缓存。
+    assert_eq!(double.get_js().as_f64().unwrap(), 4.0);
+    assert_eq!(*getter_hits.borrow(), 2);
+}

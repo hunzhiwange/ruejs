@@ -1,6 +1,6 @@
 # 组合式 API：<br>依赖注入 {#composition-api-dependency-injection}
 
-## provide() {#provide}
+## provide() {#provide} @todo
 
 提供一个值，可由后代组件注入。
 
@@ -39,7 +39,7 @@
   - [指南 - Provide / Inject](/guide/components/provide-inject)
   - [指南 - 为 Provide / Inject 添加类型](/guide/typescript/composition-api#typing-provide-inject) <sup class="vt-badge ts" />
 
-## inject() {#inject}
+## inject() {#inject} @todo
 
 注入由祖先组件或应用程序（通过 `app.provide()`）提供的值。
 
@@ -103,7 +103,7 @@
   - [指南 - Provide / Inject](/guide/components/provide-inject)
   - [指南 - 为 Provide / Inject 添加类型](/guide/typescript/composition-api#typing-provide-inject) <sup class="vt-badge ts" />
 
-## hasInjectionContext() {#has-injection-context}
+## hasInjectionContext() {#has-injection-context} @todo
 
 - 仅在 3.3+ 中支持
 

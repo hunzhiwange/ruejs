@@ -4,7 +4,7 @@
 - 信号状态：currentPath/route 使用响应式 signal 保存当前路径与匹配结果。
 - 路由匹配：编译 path 模式为正则与参数键列表，实现 params 提取。
 - 容器绑定：每个应用容器绑定一个 Router，支持通过 attachRouter/useRouter 访问。
-- 视图渲染：RouterView 在锚点区间内渲染匹配到的组件；RouterLink 处理导航行为与 children 归一化。
+- 视图渲染：RouterView 在单锚点前渲染匹配到的组件；RouterLink 处理导航行为与 children 归一化。
 */
 import {
   type FC,
@@ -12,7 +12,7 @@ import {
   signal,
   getCurrentContainer,
   type SignalHandle,
-  renderBetween,
+  renderAnchor,
   vapor,
   watchEffect,
   useSetup,
@@ -232,20 +232,18 @@ export const useRouter = (): Router => {
   return r
 }
 
-/** RouterView：在区间锚点间渲染当前匹配组件 */
+/** RouterView：在单个尾锚点前渲染当前匹配组件 */
 export const RouterView: FC = () => {
   const { container } = useSetup(() => {
     const r = useRouter()
     const container = document.createDocumentFragment()
-    const startEl = document.createComment('rue-router-view-start')
-    const endEl = document.createComment('rue-router-view-end')
-    container.appendChild(startEl)
-    container.appendChild(endEl)
+    const anchorEl = document.createComment('rue-router-view-anchor')
+    container.appendChild(anchorEl)
 
     const clearRange = () => {
       const vnodeLike = vapor(() => ({ vaporElement: document.createDocumentFragment() }))
-      const parent = (startEl as any).parentNode || container
-      renderBetween(vnodeLike as any, parent, startEl, endEl)
+      const parent = (anchorEl as any).parentNode || container
+      renderAnchor(vnodeLike as any, parent, anchorEl)
     }
 
     let lastComponent: RouteRecord['component'] | null = null
@@ -263,8 +261,8 @@ export const RouterView: FC = () => {
 
         lastComponent = comp
         const vnodeLike = h(comp, { params: data.params })
-        const parent = (startEl as any).parentNode || container
-        renderBetween(vnodeLike as any, parent, startEl, endEl)
+        const parent = (anchorEl as any).parentNode || container
+        renderAnchor(vnodeLike as any, parent, anchorEl)
       }
     })
 
@@ -272,57 +270,77 @@ export const RouterView: FC = () => {
   })
 
   return vapor(() => ({ vaporElement: container }))
+}
+
+type RouterLinkProps = { to: string; replace?: boolean } & Record<string, unknown>
+
+type RouterLinkFastPath = FC<RouterLinkProps> & {
+  __rueHref: (to: unknown) => string
+  __rueOnClick: (e: MouseEvent, to: unknown, replace?: unknown) => void
+}
+
+const routerLinkHref = (to: unknown) => '#' + String(to || '')
+
+const routerLinkNavigate = (to: unknown, replace?: unknown) => {
+  const router = __activeRouter
+  if (!router) throw new Error('Router not installed for current application/container')
+
+  const path = String(to || '')
+  const nav = replace ? router.replace : router.push
+  nav(path)
+}
+
+const routerLinkOnClick = (e: MouseEvent, to: unknown, replace?: unknown) => {
+  if (
+    (e as any).defaultPrevented ||
+    e.button !== 0 ||
+    e.metaKey ||
+    e.ctrlKey ||
+    e.shiftKey ||
+    e.altKey
+  ) {
+    return
+  }
+  e.preventDefault()
+  routerLinkNavigate(to, replace)
 }
 
 /** RouterLink：渲染链接并处理导航 */
-export const RouterLink: FC<
-  { to: string; replace?: boolean } & Record<string, unknown>
-> = props => {
-  const { container } = useSetup(() => {
-    const c = getCurrentContainer() as HTMLElement | null
-    const r = (c ? __routerByContainer.get(c) || null : null) || __activeRouter
-    if (!r) throw new Error('Router not installed for current application/container')
+const RouterLinkImpl: FC<RouterLinkProps> = props => {
+  const r = useRouter()
+  const to = String((props as any).to || '')
+  const replace = !!(props as any).replace
+  const { children, to: _to, replace: _replace, ...rest } = props as any
 
-    const container = document.createDocumentFragment()
-    const startEl = document.createComment('rue-router-link-start')
-    const endEl = document.createComment('rue-router-link-end')
-    container.appendChild(startEl)
-    container.appendChild(endEl)
+  const click = (e: MouseEvent) => {
+    if (
+      (e as any).defaultPrevented ||
+      e.button !== 0 ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.shiftKey ||
+      e.altKey
+    ) {
+      return
+    }
+    e.preventDefault()
+    const nav = replace ? r.replace : r.push
+    nav(to)
+  }
 
-    watchEffect(() => {
-      const to = String((props as any).to || '')
-      const replace = !!(props as any).replace
-      const { children, to: _to, replace: _replace, ...rest } = props as any
-      const click = (e: MouseEvent) => {
-        if (
-          (e as any).defaultPrevented ||
-          e.button !== 0 ||
-          e.metaKey ||
-          e.ctrlKey ||
-          e.shiftKey ||
-          e.altKey
-        ) {
-          return
-        }
-        e.preventDefault()
-        const nav = replace ? r.replace : r.push
-        nav(to)
-      }
-      const childList = Array.isArray(children)
-        ? (children as any[])
-        : children != null
-          ? [children]
-          : []
-      const vnodeLike = h('a', { href: '#' + to, onClick: click, ...rest }, ...childList)
-      const parent = (startEl as any).parentNode || container
-      renderBetween(vnodeLike as any, parent, startEl, endEl)
-    })
+  const childList = Array.isArray(children)
+    ? (children as any[])
+    : children != null
+      ? [children]
+      : []
 
-    return { container }
-  })
-
-  return vapor(() => ({ vaporElement: container }))
+  return h('a', { href: routerLinkHref(to), onClick: click, ...rest }, ...childList)
 }
+
+export const RouterLink = Object.assign(RouterLinkImpl, {
+  __rueHref: routerLinkHref,
+  __rueOnClick: routerLinkOnClick,
+}) as RouterLinkFastPath
 
 /** 获取当前路由信号 */
 export const useRoute = () => {

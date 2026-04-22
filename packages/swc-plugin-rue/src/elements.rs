@@ -26,6 +26,11 @@ pub fn build_element(
     stmts: &mut Vec<Stmt>,
 ) {
     log::debug("elements: build_element");
+    if let Some(router_link_el) = crate::router_link::rewrite_router_link_fast_path(jsx_el) {
+        log::debug("elements: RouterLink fast path -> native anchor");
+        build_element(vt, &router_link_el, parent, stmts);
+        return;
+    }
     if is_component(&jsx_el.opening.name) {
         log::debug("elements: component branch");
         crate::element_component::build_component_element(vt, jsx_el, parent, stmts);

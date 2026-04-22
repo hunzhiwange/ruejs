@@ -48,6 +48,8 @@
 
   `ref` 用于注册对元素或子组件的引用。
 
+  > @todo `useTemplateRef()` 尚未实现
+
   在选项式 API 中，引用将在组件的 `this.$refs` 对象下注册：
 
   ```vue-html
@@ -84,7 +86,7 @@
   - [指南 - 为模板 Refs 添加类型](/guide/typescript/composition-api#typing-template-refs) <sup class="vt-badge ts" />
   - [指南 - 为组件模板 Refs 添加类型](/guide/typescript/composition-api#typing-component-template-refs) <sup class="vt-badge ts" />
 
-## is {#is}
+## is {#is} @todo
 
 用于绑定[动态组件](/guide/essentials/component-basics#dynamic-components)。
 

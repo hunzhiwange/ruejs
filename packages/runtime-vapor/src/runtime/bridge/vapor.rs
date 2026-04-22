@@ -80,7 +80,13 @@ impl WasmRue {
                             for n in nodes.into_iter() {
                                 arr.push(&n);
                             }
-                            out.props.insert("__fragNodes".to_string(), arr.into());
+                            out.props.insert("__fragNodes".to_string(), arr.clone().into());
+                            let el_js: JsValue = el.clone().into();
+                            let _ = Reflect::set(
+                                &el_js,
+                                &JsValue::from_str("__rue_frag_nodes_ref"),
+                                &arr,
+                            );
                         }
                     }
                 }

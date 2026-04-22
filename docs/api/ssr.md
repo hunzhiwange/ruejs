@@ -1,4 +1,6 @@
-# 服务器端渲染 API {#server-side-rendering-api}
+# 服务器端渲染 API {#server-side-rendering-api} @todo
+
+> **@todo**: 整个 SSR 子系统尚未实现。以下 API 均为规划中。
 
 ## renderToString() {#rendertostring}
 

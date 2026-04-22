@@ -1,7 +1,7 @@
 //! WASM 侧桥接模块（中文注释增强）
 //!
 //! - 暴露 WasmRue 供 JS 调用（创建、渲染、挂载、卸载等）
-//! - 管理 VNode 注册表与异步渲染队列（render/renderBetween）
+//! - 管理 VNode 注册表与异步渲染队列（render/renderBetween/renderStatic）
 //! - 通过 Promise.then 驱动批处理刷新，避免重入
 //! - 提供 DOM 适配器的设置与读取，以及生命周期 hooks 注册
 use crate::reactive::core::dispose_effect_scope;
@@ -39,7 +39,9 @@ mod on_mounted;
 mod on_unmounted;
 mod on_updated;
 mod render;
+mod render_anchor;
 mod render_between;
+mod render_static;
 mod set_dom_adapter;
 mod unmount;
 mod use_plugin;
@@ -54,8 +56,10 @@ pub struct WasmRue {
     // - 供 getCurrentContainer() 之类的 API 使用
     // - 也便于在某些错误/兜底路径下找到“当前容器上下文”
     last_container: RefCell<Option<JsValue>>,
+    pending_anchor: RefCell<Vec<(VNode<JsDomAdapter>, JsValue, JsValue)>>,
     pending_between: RefCell<Vec<(VNode<JsDomAdapter>, JsValue, JsValue, JsValue)>>,
     pending_render: RefCell<Vec<(VNode<JsDomAdapter>, JsValue)>>,
+    pending_static: RefCell<Vec<(VNode<JsDomAdapter>, JsValue, JsValue)>>,
     // root 级别的 effect 句柄（由 mount 创建）：
     // - mount(app, container) 会用 create_effect 包裹 app 执行，从而实现依赖变化自动重渲染
     // - 需要在 unmount 或再次 mount 时释放，避免多个 root effect 并存导致重复渲染/内存泄漏
@@ -65,7 +69,7 @@ pub struct WasmRue {
 }
 
 impl WasmRue {
-    /// 处理挂起的渲染队列：render 优先，其次 renderBetween
+    /// 处理挂起的渲染队列：render 优先，其次 renderBetween，最后 renderStatic
     ///
     /// 若借用失败（重入），将任务放回队列并终止本次处理
     fn process_queues(&self) {
@@ -98,13 +102,44 @@ impl WasmRue {
                 }
                 continue;
             }
+            let a = { self.pending_anchor.borrow_mut().pop() };
+            if let Some((vnode_a, p_a, anchor_a)) = a {
+                match self.inner.try_borrow_mut() {
+                    Ok(mut inner_a) => {
+                        let mut pa = p_a.clone();
+                        inner_a.render_anchor(vnode_a, (&mut pa).into(), anchor_a.into());
+                    }
+                    Err(_) => {
+                        self.pending_anchor.borrow_mut().push((vnode_a, p_a, anchor_a));
+                        break;
+                    }
+                }
+                continue;
+            }
+            let s = { self.pending_static.borrow_mut().pop() };
+            if let Some((vnode_s, p_s, a_s)) = s {
+                match self.inner.try_borrow_mut() {
+                    Ok(mut inner_s) => {
+                        let mut ps = p_s.clone();
+                        inner_s.render_static(vnode_s, (&mut ps).into(), a_s.into());
+                    }
+                    Err(_) => {
+                        self.pending_static.borrow_mut().push((vnode_s, p_s, a_s));
+                        break;
+                    }
+                }
+                continue;
+            }
             break;
         }
     }
 
-    /// 是否存在挂起任务（render 或 renderBetween）
+    /// 是否存在挂起任务（render / renderBetween / renderStatic）
     fn has_pending(&self) -> bool {
-        !self.pending_render.borrow().is_empty() || !self.pending_between.borrow().is_empty()
+        !self.pending_render.borrow().is_empty()
+            || !self.pending_anchor.borrow().is_empty()
+            || !self.pending_between.borrow().is_empty()
+            || !self.pending_static.borrow().is_empty()
     }
 
     /// 创建一个闭包用于驱动队列处理；在任务未清空时递归调度

@@ -2,43 +2,60 @@ import { type FC, computed, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
-type Node = { name: string; children?: Node[] }
+type Node = { id: string; name: string; open?: boolean; children?: Node[] }
 
 const TreeItem: FC<{ model: Node; className?: string }> = props => {
-  const isOpen = ref(false)
+  const isOpen = computed(() => !!props.model.open)
   const isFolder = computed(() => !!props.model.children && props.model.children.length > 0)
-  const toggle = () => {
-    isOpen.value = !isOpen.value
+
+  const toggle = (e?: any) => {
+    e?.stopPropagation()
+    props.model.open = !isOpen.get()
   }
-  const addChild = () => {
-    ;(props.model.children = props.model.children || []).push({
+
+  const addChild = (e?: any) => {
+    e?.stopPropagation()
+    if (!props.model.children) {
+      props.model.children = []
+    }
+    props.model.children.push({
+      id: `${props.model.id}-new-${props.model.children.length}`,
       name: 'new stuff',
     })
+    props.model.open = true
   }
-  const changeType = () => {
+
+  const changeType = (e?: any) => {
+    e?.stopPropagation()
     if (!isFolder.get()) {
       props.model.children = []
       addChild()
-      isOpen.value = true
+      props.model.open = true
     }
   }
 
   return (
     <li>
       <div
+        data-testid={`label-${props.model.id}`}
         className={`${isFolder.get() ? 'font-bold' : ''} cursor-pointer leading-6 ${props.className || ''}`}
         onClick={toggle}
         onDblClick={changeType}
       >
         {props.model.name}
-        {isFolder.get() ? <span className="ml-2">[{isOpen.value ? '-' : '+'}]</span> : null}
+        {isFolder.get() ? <span className="ml-2">[{isOpen.get() ? '-' : '+'}]</span> : null}
       </div>
-      {isFolder.get() && isOpen.value ? (
+      {isFolder.get() && isOpen.get() ? (
         <ul className="pl-6">
-          {props.model.children!.map((m, idx) => (
-            <TreeItem key={idx} className="item" model={m} />
+          {props.model.children!.map(m => (
+            <TreeItem key={m.id} className="item" model={m} />
           ))}
-          <li className="item text-emerald-600 select-none" onClick={addChild}>
+          <li
+            key={`${props.model.id}-add`}
+            data-testid={`add-${props.model.id}`}
+            className="item text-emerald-600 select-none"
+            onClick={addChild}
+          >
             +
           </li>
         </ul>
@@ -49,22 +66,32 @@ const TreeItem: FC<{ model: Node; className?: string }> = props => {
 
 const TreeView: FC = () => {
   const treeData = ref<Node>({
+    id: 'root',
     name: 'My Tree',
     children: [
-      { name: 'hello' },
-      { name: 'world' },
+      { id: 'hello', name: 'hello' },
+      { id: 'world', name: 'world' },
       {
+        id: 'branch',
         name: 'child folder',
         children: [
           {
+            id: 'branch-deep-1',
             name: 'child folder',
-            children: [{ name: 'hello' }, { name: 'world' }],
+            children: [
+              { id: 'branch-deep-1-hello', name: 'hello' },
+              { id: 'branch-deep-1-world', name: 'world' },
+            ],
           },
-          { name: 'hello' },
-          { name: 'world' },
+          { id: 'branch-hello', name: 'hello' },
+          { id: 'branch-world', name: 'world' },
           {
+            id: 'branch-deep-2',
             name: 'child folder',
-            children: [{ name: 'hello' }, { name: 'world' }],
+            children: [
+              { id: 'branch-deep-2-hello', name: 'hello' },
+              { id: 'branch-deep-2-world', name: 'world' },
+            ],
           },
         ],
       },
@@ -72,6 +99,104 @@ const TreeView: FC = () => {
   })
 
   const activeTab = ref<'preview' | 'code'>('preview')
+  const treeViewExampleCode = [
+    "import { type FC, computed, ref } from '@rue-js/rue';",
+    '',
+    'type Node = { id: string; name: string; open?: boolean; children?: Node[] };',
+    '',
+    'const TreeItem: FC<{ model: Node; className?: string }> = (props) => {',
+    '  const isOpen = computed(() => !!props.model.open);',
+    '  const isFolder = computed(() => !!props.model.children && props.model.children.length > 0);',
+    '  const toggle = (e?: any) => {',
+    '    e?.stopPropagation();',
+    '    props.model.open = !isOpen.get();',
+    '  };',
+    '  const addChild = (e?: any) => {',
+    '    e?.stopPropagation();',
+    '    if (!props.model.children) {',
+    '      props.model.children = [];',
+    '    }',
+    '    props.model.children.push({',
+    '      id: `${props.model.id}-new-${props.model.children.length}`,',
+    "      name: 'new stuff',",
+    '    });',
+    '    props.model.open = true;',
+    '  };',
+    '  const changeType = (e?: any) => {',
+    '    e?.stopPropagation();',
+    '    if (!isFolder.get()) {',
+    '      props.model.children = [];',
+    '      addChild();',
+    '      props.model.open = true;',
+    '    }',
+    '  };',
+    '  return (',
+    '    <li>',
+    '      <div',
+    '        data-testid={`label-${props.model.id}`}',
+    "        className={`${isFolder.get() ? 'font-bold' : ''} cursor-pointer leading-6 ${props.className || ''}`}",
+    '        onClick={toggle}',
+    '        onDblClick={changeType}',
+    '      >',
+    '        {props.model.name}',
+    "        {isFolder.get() ? (<span className=\"ml-2\">[{isOpen.get() ? '-' : '+'}]</span>) : null}",
+    '      </div>',
+    '      {isFolder.get() && isOpen.get() ? (',
+    '        <ul className="pl-6">',
+    '          {props.model.children!.map((m) => (',
+    '            <TreeItem key={m.id} className="item" model={m} />',
+    '          ))}',
+    '          <li data-testid={`add-${props.model.id}`} key={`${props.model.id}-add`} className="item text-emerald-600 select-none" onClick={addChild}>+</li>',
+    '        </ul>',
+    '      ) : null}',
+    '    </li>',
+    '  );',
+    '};',
+    '',
+    'const TreeView: FC = () => {',
+    '  const treeData = ref<Node>({',
+    "    id: 'root',",
+    "    name: 'My Tree',",
+    '    children: [',
+    "      { id: 'hello', name: 'hello' },",
+    "      { id: 'world', name: 'world' },",
+    '      {',
+    "        id: 'branch',",
+    "        name: 'child folder',",
+    '        children: [',
+    '          {',
+    "            id: 'branch-deep-1',",
+    "            name: 'child folder',",
+    '            children: [',
+    "              { id: 'branch-deep-1-hello', name: 'hello' },",
+    "              { id: 'branch-deep-1-world', name: 'world' },",
+    '            ],',
+    '          },',
+    "          { id: 'branch-hello', name: 'hello' },",
+    "          { id: 'branch-world', name: 'world' },",
+    '          {',
+    "            id: 'branch-deep-2',",
+    "            name: 'child folder',",
+    '            children: [',
+    "              { id: 'branch-deep-2-hello', name: 'hello' },",
+    "              { id: 'branch-deep-2-world', name: 'world' },",
+    '            ],',
+    '          },',
+    '        ],',
+    '      },',
+    '    ],',
+    '  });',
+    '  return (',
+    '    <div className="grid gap-4">',
+    '      <ul>',
+    '        <TreeItem className="item" model={treeData.value} />',
+    '      </ul>',
+    '    </div>',
+    '  );',
+    '};',
+    '',
+    'export default TreeView;',
+  ].join('\n')
 
   return (
     <SidebarPlayground>
@@ -101,73 +226,7 @@ const TreeView: FC = () => {
         {activeTab.value === 'code' && (
           <div className="card bg-base-100 shadow overflow-auto h-[360px] md:h-[720px]">
             <div className="card-body p-0">
-              <Code
-                className="h-full"
-                lang="tsx"
-                code={`import { type FC, ref, computed } from '@rue-js/rue';
-
-type Node = { name: string; children?: Node[] };
-
-const TreeItem: FC<{ model: Node; className?: string }> = (props) => {
-  const isOpen = ref(false);
-  const isFolder = computed(() => !!props.model.children && props.model.children.length > 0);
-  const toggle = () => { isOpen.value = !isOpen.value; };
-  const addChild = () => { (props.model.children = props.model.children || []).push({ name: 'new stuff' }); };
-  const changeType = () => {
-    if (!isFolder.value) {
-      props.model.children = [];
-      addChild();
-      isOpen.value = true;
-    }
-  };
-  return (
-    <li>
-      <div className={\`
-        \${isFolder.value ? 'font-bold' : ''} cursor-pointer leading-6\
-      \`} onClick={toggle} onDblClick={changeType}>
-        {props.model.name}
-        {isFolder.value ? (<span className="ml-2">[{isOpen.value ? '-' : '+'}]</span>) : null}
-      </div>
-      {isFolder.value && isOpen.value ? (
-        <ul className="pl-6">
-          {props.model.children!.map((m, idx) => (
-            <TreeItem key={idx} className="item" model={m} />
-          ))}
-          <li className="item text-emerald-600 select-none" onClick={addChild}>+</li>
-        </ul>
-      ) : null}
-    </li>
-  );
-};
-
-const TreeView: FC = () => {
-  const treeData = ref<Node>({
-    name: 'My Tree',
-    children: [
-      { name: 'hello' },
-      { name: 'world' },
-      {
-        name: 'child folder',
-        children: [
-          { name: 'child folder', children: [{ name: 'hello' }, { name: 'world' }] },
-          { name: 'hello' },
-          { name: 'world' },
-          { name: 'child folder', children: [{ name: 'hello' }, { name: 'world' }] },
-        ],
-      },
-    ],
-  });
-  return (
-    <div className="grid gap-4">
-      <ul>
-        <TreeItem className="item" model={treeData.value} />
-      </ul>
-    </div>
-  );
-};
-
-export default TreeView;`}
-              />
+              <Code className="h-full" lang="tsx" code={treeViewExampleCode} />
             </div>
           </div>
         )}

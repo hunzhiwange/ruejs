@@ -44,7 +44,7 @@ const adapter = {
 // 传入 wasm：createRue(adapter)
 */
 #[cfg(feature = "dev")]
-use crate::log::{info, want_log};
+use crate::log::{log, want_log};
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::{Array, Function, Object, Reflect};
 use std::collections::HashMap;
@@ -106,8 +106,8 @@ impl JsDomAdapter {
             } else {
                 #[cfg(feature = "dev")]
                 {
-                    if want_log("info", "runtime:dom-adapter audit ok") {
-                        info("dom-adapter audit ok");
+                    if want_log("debug", "runtime:dom-adapter audit ok") {
+                        log("debug", "dom-adapter audit ok");
                     }
                 }
             }

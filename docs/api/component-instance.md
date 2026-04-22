@@ -1,4 +1,6 @@
-# 组件实例 {#component-instance}
+# 组件实例 {#component-instance} @todo
+
+> **@todo**: Options API 的组件实例属性和方法（`$data`、`$props`、`$el` 等）尚未实现。Rue 使用 Composition API / FC 模式，组件实例模型与 Options API 不同。
 
 :::info
 本页面记录组件公共实例上暴露的内置属性和方法，即 `this`。

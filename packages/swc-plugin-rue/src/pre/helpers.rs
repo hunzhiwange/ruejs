@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use swc_core::ecma::ast::*;
 
 use super::on_setup;
-// side_effect 模块工具函数按需引入，当前未直接使用
+use super::side_effect::collect_idents_in_expr;
 
 /*
 SWC AST 类型速览（中文详细说明）：
@@ -113,11 +113,127 @@ pub fn collect_setup(
     ret_idx: usize,
     _first_control_idx: usize,
     _skip_var_after_control: bool,
+    initial_locals: &HashSet<String>,
 ) -> (Vec<Stmt>, Vec<String>, Vec<String>, HashSet<String>) {
     let mut collected: Vec<Stmt> = Vec::new();
     let mut names_const: Vec<String> = Vec::new();
     let mut names_let: Vec<String> = Vec::new();
     let mut available: HashSet<String> = HashSet::new();
+    let mut known_locals: HashSet<String> = initial_locals.clone();
+
+    fn collect_pat_idents(pat: &Pat, out: &mut Vec<String>) {
+        match pat {
+            Pat::Ident(BindingIdent { id, .. }) => {
+                out.push(id.sym.to_string());
+            }
+            Pat::Array(arr) => {
+                for elem in &arr.elems {
+                    if let Some(p) = elem {
+                        collect_pat_idents(p, out);
+                    }
+                }
+            }
+            Pat::Object(obj) => {
+                for prop in &obj.props {
+                    match prop {
+                        ObjectPatProp::KeyValue(kv) => {
+                            collect_pat_idents(kv.value.as_ref(), out);
+                        }
+                        ObjectPatProp::Assign(assign) => {
+                            out.push(assign.key.sym.to_string());
+                        }
+                        ObjectPatProp::Rest(rest) => {
+                            collect_pat_idents(rest.arg.as_ref(), out);
+                        }
+                    }
+                }
+            }
+            Pat::Assign(ap) => {
+                collect_pat_idents(ap.left.as_ref(), out);
+            }
+            _ => {}
+        }
+    }
+
+    fn stmt_declared_names(stmt: &Stmt) -> Vec<String> {
+        match stmt {
+            Stmt::Decl(Decl::Var(var)) => {
+                let mut names = Vec::new();
+                for decl in &var.decls {
+                    collect_pat_idents(&decl.name, &mut names);
+                }
+                names
+            }
+            Stmt::Decl(Decl::Fn(fun)) => vec![fun.ident.sym.to_string()],
+            _ => Vec::new(),
+        }
+    }
+
+    fn stmt_uses_unavailable_locals(
+        stmt: &Stmt,
+        known_locals: &HashSet<String>,
+        available: &HashSet<String>,
+    ) -> bool {
+        let mut refs = HashSet::new();
+        match stmt {
+            Stmt::Decl(Decl::Var(var)) => {
+                for decl in &var.decls {
+                    if let Some(init) = &decl.init {
+                        collect_idents_in_expr(init.as_ref(), &mut refs);
+                    }
+                }
+            }
+            Stmt::Expr(expr_stmt) => {
+                collect_idents_in_expr(expr_stmt.expr.as_ref(), &mut refs);
+            }
+            _ => return false,
+        }
+
+        refs.into_iter().any(|ident| known_locals.contains(&ident) && !available.contains(&ident))
+    }
+
+    fn expr_contains_jsx(expr: &Expr) -> bool {
+        match expr {
+            Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+            Expr::Paren(p) => expr_contains_jsx(&p.expr),
+            Expr::TsAs(a) => expr_contains_jsx(&a.expr),
+            Expr::TsTypeAssertion(a) => expr_contains_jsx(&a.expr),
+            Expr::Cond(c) => {
+                expr_contains_jsx(&c.test)
+                    || expr_contains_jsx(&c.cons)
+                    || expr_contains_jsx(&c.alt)
+            }
+            Expr::Bin(b) => expr_contains_jsx(&b.left) || expr_contains_jsx(&b.right),
+            Expr::Call(c) => {
+                if let Callee::Expr(e) = &c.callee {
+                    if expr_contains_jsx(e) {
+                        return true;
+                    }
+                }
+                c.args.iter().any(|arg| expr_contains_jsx(arg.expr.as_ref()))
+            }
+            Expr::Array(a) => {
+                a.elems.iter().flatten().any(|el| expr_contains_jsx(el.expr.as_ref()))
+            }
+            Expr::Object(o) => o.props.iter().any(|prop| match prop {
+                PropOrSpread::Spread(sp) => expr_contains_jsx(sp.expr.as_ref()),
+                PropOrSpread::Prop(prop) => match prop.as_ref() {
+                    Prop::KeyValue(kv) => expr_contains_jsx(kv.value.as_ref()),
+                    Prop::Assign(a) => expr_contains_jsx(a.value.as_ref()),
+                    _ => false,
+                },
+            }),
+            Expr::Tpl(t) => t.exprs.iter().any(|expr| expr_contains_jsx(expr.as_ref())),
+            _ => false,
+        }
+    }
+
+    fn var_decl_contains_jsx(var: &VarDecl) -> bool {
+        var.decls
+            .iter()
+            .any(|decl| decl.init.as_ref().is_some_and(|expr| expr_contains_jsx(expr.as_ref())))
+    }
+
     // 迭代遍历语句，直到遇到包含 return 的语句为止（ret_idx 为边界，不跨越）
     // 说明：目前实现未使用 first_control_idx/skip_var_after_control 进行“控制流后变量声明跳过”，
     // 若后续需要更保守的策略，可在 i >= first_control_idx && skip_var_after_control 情况下对 VarDecl 进行过滤。
@@ -125,58 +241,29 @@ pub fn collect_setup(
         if i >= ret_idx {
             break;
         }
+
+        let declared_names = stmt_declared_names(s);
+        let uses_unavailable_locals = stmt_uses_unavailable_locals(s, &known_locals, &available);
+
         match s {
             Stmt::Decl(Decl::Var(var)) => {
-                // 收集变量声明，并从解构模式中递归提取所有绑定的标识符名称
-                collected.push(s.clone());
-                for vd in &var.decls {
-                    fn collect_pat_idents(pat: &Pat, out: &mut Vec<String>) {
-                        match pat {
-                            Pat::Ident(BindingIdent { id, .. }) => {
-                                out.push(id.sym.to_string());
+                if var_decl_contains_jsx(var) {
+                    break;
+                }
+                if !uses_unavailable_locals {
+                    // 收集变量声明，并从解构模式中递归提取所有绑定的标识符名称
+                    collected.push(s.clone());
+                    for vd in &var.decls {
+                        let mut idents: Vec<String> = Vec::new();
+                        collect_pat_idents(&vd.name, &mut idents);
+                        for nm in idents {
+                            match var.kind {
+                                VarDeclKind::Const => names_const.push(nm.clone()),
+                                VarDeclKind::Let => names_let.push(nm.clone()),
+                                VarDeclKind::Var => names_let.push(nm.clone()),
                             }
-                            Pat::Array(arr) => {
-                                // 数组解构：逐个元素递归提取
-                                for elem in &arr.elems {
-                                    if let Some(p) = elem {
-                                        collect_pat_idents(p, out);
-                                    }
-                                }
-                            }
-                            Pat::Object(obj) => {
-                                // 对象解构：键值、赋值、rest 三类属性分别处理
-                                for prop in &obj.props {
-                                    match prop {
-                                        ObjectPatProp::KeyValue(kv) => {
-                                            collect_pat_idents(kv.value.as_ref(), out);
-                                        }
-                                        ObjectPatProp::Assign(assign) => {
-                                            out.push(assign.key.sym.to_string());
-                                        }
-                                        ObjectPatProp::Rest(rest) => {
-                                            collect_pat_idents(rest.arg.as_ref(), out);
-                                        }
-                                    }
-                                }
-                            }
-                            Pat::Assign(ap) => {
-                                // 赋值型模式：仅解析左侧（实际绑定名），默认值不影响导出名称
-                                collect_pat_idents(ap.left.as_ref(), out);
-                            }
-                            _ => {}
+                            available.insert(nm);
                         }
-                    }
-                    let mut idents: Vec<String> = Vec::new();
-                    collect_pat_idents(&vd.name, &mut idents);
-                    // 根据声明的 kind（const/let/var）分类到 names_const / names_let
-                    // 同时将名称加入 available 集合，供后续纯度与依赖判断使用
-                    for nm in idents {
-                        match var.kind {
-                            VarDeclKind::Const => names_const.push(nm.clone()),
-                            VarDeclKind::Let => names_let.push(nm.clone()),
-                            VarDeclKind::Var => names_let.push(nm.clone()),
-                        }
-                        available.insert(nm);
                     }
                 }
             }
@@ -192,11 +279,54 @@ pub fn collect_setup(
             }
             _ => {
                 // 其他普通语句（如空语句、已知安全的 watcher、纯表达式等）可直接收集
-                collected.push(s.clone());
+                if !uses_unavailable_locals {
+                    collected.push(s.clone());
+                }
             }
+        }
+
+        for name in declared_names {
+            known_locals.insert(name);
         }
     }
     (collected, names_const, names_let, available)
+}
+
+fn collect_param_idents(params: &[Pat]) -> HashSet<String> {
+    fn collect_pat_names(pat: &Pat, out: &mut HashSet<String>) {
+        match pat {
+            Pat::Ident(BindingIdent { id, .. }) => {
+                out.insert(id.sym.to_string());
+            }
+            Pat::Array(arr) => {
+                for elem in &arr.elems {
+                    if let Some(p) = elem {
+                        collect_pat_names(p, out);
+                    }
+                }
+            }
+            Pat::Object(obj) => {
+                for prop in &obj.props {
+                    match prop {
+                        ObjectPatProp::KeyValue(kv) => collect_pat_names(kv.value.as_ref(), out),
+                        ObjectPatProp::Assign(assign) => {
+                            out.insert(assign.key.sym.to_string());
+                        }
+                        ObjectPatProp::Rest(rest) => collect_pat_names(rest.arg.as_ref(), out),
+                    }
+                }
+            }
+            Pat::Assign(assign) => collect_pat_names(assign.left.as_ref(), out),
+            Pat::Rest(rest) => collect_pat_names(rest.arg.as_ref(), out),
+            _ => {}
+        }
+    }
+
+    let mut names = HashSet::new();
+    for pat in params {
+        collect_pat_names(pat, &mut names);
+    }
+    names
 }
 
 /// 将已收集的语句封装进 useSetup 并在边界前插入解构绑定
@@ -345,8 +475,11 @@ pub fn process_function(func: &mut Function) {
     };
     // 2) 记录第一个控制流语句索引（当前实现仅作为参考）
     let fci = first_control_idx(block, ret_idx);
+    let params: Vec<Pat> = func.params.iter().map(|param| param.pat.clone()).collect();
+    let initial_locals = collect_param_idents(&params);
     // 3) 在边界之前收集安全语句，分类导出名
-    let (collected, names_const, names_let, _) = collect_setup(block, ret_idx, fci, true);
+    let (collected, names_const, names_let, _) =
+        collect_setup(block, ret_idx, fci, true, &initial_locals);
     // 4) 注入 useSetup 与解构绑定
     inject_setup(block, ret_idx, names_const, names_let, collected);
 }
@@ -389,7 +522,10 @@ pub fn process_fn_decl(f: &mut FnDecl) {
         None => return,
     };
     let fci = first_control_idx(block, ret_idx);
-    let (collected, names_const, names_let, _) = collect_setup(block, ret_idx, fci, false);
+    let params: Vec<Pat> = f.function.params.iter().map(|param| param.pat.clone()).collect();
+    let initial_locals = collect_param_idents(&params);
+    let (collected, names_const, names_let, _) =
+        collect_setup(block, ret_idx, fci, false, &initial_locals);
     inject_setup(block, ret_idx, names_const, names_let, collected);
 }
 
@@ -472,8 +608,10 @@ pub fn process_var_decl(v: &mut VarDecl) {
         };
         // 记录第一个控制流语句索引（当前实现仅作为参考）
         let fci = first_control_idx(block, ret_idx);
+        let initial_locals = collect_param_idents(&arrow.params);
         // 收集边界前安全语句并注入
-        let (collected, names_const, names_let, _) = collect_setup(block, ret_idx, fci, false);
+        let (collected, names_const, names_let, _) =
+            collect_setup(block, ret_idx, fci, false, &initial_locals);
         inject_setup(block, ret_idx, names_const, names_let, collected);
     }
 }

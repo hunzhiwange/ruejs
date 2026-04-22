@@ -2,12 +2,12 @@
 异步组件 Hook 概述
 - 使用动机：以最小成本接入动态导入与按需加载，同时保证渲染区间的稳定与错误兜底。
 - 缓存策略：以 loader 函数为 key 建立 WeakMap 缓存，避免重复请求与状态重建。
-- 状态管理：signal 存储目标组件与错误；watchEffect 驱动锚点区间的更新。
+- 状态管理：signal 存储目标组件与错误；watchEffect 驱动容器内尾锚点前的渲染更新。
 - 占位渲染：提供可覆盖的 Loading 与 Error 组件，满足不同产品形态的占位需求。
-- 固定渲染：使用 vapor + render，会多一层 div。
+- 固定渲染：使用 vapor + renderAnchor，内部通过 display: contents 容器承载稳定锚点，既能正确卸载，又不额外产生布局盒。
 */
-import rue, { FC, h, vapor, render } from '../rue'
-import { createElement } from '../dom'
+import rue, { FC, h, vapor, renderAnchor } from '../rue'
+import { appendChild, createComment, createElement } from '../dom'
 import { signal, watchEffect } from '../reactivity'
 import { useSetup } from '@rue-js/runtime-vapor'
 
@@ -68,23 +68,29 @@ export function useComponent<P = {}>(
         start,
         Loading,
         ErrorComp,
+        hasCustomLoading: !!opts?.loading,
         started: false,
       }
       asyncComponentCache.set(loader as any, slot)
     }
 
-    const { component, err, start, Loading, ErrorComp } = slot as any
+    const { component, err, start, Loading, ErrorComp, hasCustomLoading } = slot as any
 
     if (!(slot as any).started) {
       ;(slot as any).started = true
       start()
     }
 
-    // 为每个 Hook 实例创建独立的容器与 props 信号，
-    // 同一 loader 下仅共享“加载状态”，但不共享渲染容器与副作用。
+    // 为每个 Hook 实例创建独立的容器、尾锚点与 props 信号，
+    // 同一 loader 下仅共享“加载状态”，但不共享渲染区间与副作用。
     const ctx = useSetup(() => {
-      const container = createElement('div')
-      const propsSig = signal<any>(null, {}, true)
+      const container = createElement('div') as any
+      if (container && container.style && typeof container.style === 'object') {
+        container.style.display = 'contents'
+      }
+      const anchor = createComment('rue-async-component-anchor')
+      appendChild(container, anchor)
+      const propsSig = signal<any>(props, {}, true)
 
       watchEffect(() => {
         const curProps = propsSig.get()
@@ -100,16 +106,25 @@ export function useComponent<P = {}>(
           vnodeLike = h(ErrorComp, { error: e })
         } else {
           const comp = component.get()
-          vnodeLike = comp ? h(comp as FC<P>, curProps) : h(Loading, {})
+          if (comp) {
+            vnodeLike = h(comp as FC<P>, curProps)
+          } else if (hasCustomLoading) {
+            vnodeLike = h(Loading, {})
+          } else {
+            return
+          }
         }
-        render(vnodeLike as any, container)
+        renderAnchor(vnodeLike as any, container, anchor as any)
       })
 
-      return { container, propsSig }
+      return { container, anchor, propsSig, lastProps: props }
     })
     return vapor(() => {
-      // 将 props 写入信号以驱动渲染，并把容器作为 vaporElement 暴露给 Vapor 渲染管线
-      ctx.propsSig.set(props)
+      // 将 props 写入信号以驱动渲染，并把稳定容器作为 vaporElement 暴露给 Vapor 渲染管线
+      if (ctx.lastProps !== props) {
+        ctx.lastProps = props
+        ctx.propsSig.set(props)
+      }
       return { vaporElement: ctx.container as any }
     })
   }

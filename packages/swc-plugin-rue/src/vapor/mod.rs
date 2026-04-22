@@ -16,6 +16,7 @@ Vapor 深编译转换器说明：
 - did_transform：标记是否发生 Vapor 转换，模块访问阶段据此注入运行时 import；
 - el_tag_by_ident：记录元素标识符与标签名的映射，便于特殊处理（如 style 文本）；
 - optimize_static_slots：静态插槽/组件优化标志，避免多余的 watch 包裹。
+- optimize_component_anchors：组件单锚点优化标志，减少对 renderBetween 的依赖。
 */
 
 /// Vapor 转换器：将箭头函数返回的 JSX 转换为 Vapor DOM 构造代码
@@ -39,6 +40,9 @@ pub struct VaporTransform {
     /// 优化：静态插槽/组件不包裹 watchEffect
     #[allow(dead_code)]
     pub optimize_static_slots: bool,
+    /// 优化：组件使用单锚点渲染路径
+    #[allow(dead_code)]
+    pub optimize_component_anchors: bool,
 }
 
 impl VaporTransform {}

@@ -1,6 +1,6 @@
 # 响应式 API：工具 {#reactivity-api-utilities}
 
-## isRef() {#isref}
+## isRef() {#isref} @todo
 
 检查值是否为 ref 对象。
 
@@ -39,7 +39,7 @@
   }
   ```
 
-## toRef() {#toref}
+## toRef() {#toref} @todo
 
 可用于将值/refs/getters 规范化为 refs。
 
@@ -166,7 +166,7 @@
   useFeature(() => 1)
   ```
 
-## toRefs() {#torefs}
+## toRefs() {#torefs} @todo
 
 将响应式对象转换为普通对象，其中结果对象的每个属性都是指向原始对象相应属性的 ref。每个单独的 ref 使用 [`toRef()`](#toref) 创建。
 
@@ -227,7 +227,7 @@
 
   `toRefs` 只会为调用时在源对象上可枚举的属性生成 refs。要为可能尚不存在的属性创建 ref，请改用 [`toRef`](#toref)。
 
-## isProxy() {#isproxy}
+## isProxy() {#isproxy} @todo
 
 检查对象是否是由 [`reactive()`](./reactivity-core#reactive)、[`readonly()`](./reactivity-core#readonly)、[`shallowReactive()`](./reactivity-advanced#shallowreactive) 或 [`shallowReadonly()`](./reactivity-advanced#shallowreadonly) 创建的代理。
 
@@ -247,7 +247,7 @@
   function isReactive(value: unknown): boolean
   ```
 
-## isReadonly() {#isreadonly}
+## isReadonly() {#isreadonly} @todo
 
 检查传递的值是否为只读对象。只读对象的属性可以更改，但不能直接通过传递的对象分配。
 

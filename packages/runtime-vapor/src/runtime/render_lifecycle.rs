@@ -10,6 +10,11 @@ impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
+    fn dispose_vnode_component_scopes(&mut self, inst_index: usize) {
+        self.dispose_component_render_scope(inst_index);
+        crate::reactive::context::dispose_component_hook_scope(inst_index);
+    }
+
     /// 推入一个生命周期钩子：名称 -> JS 函数
     pub fn push_hook(&mut self, name: &str, f: JsValue) {
         let list = self.lifecycle_hooks.entry(name.to_string()).or_insert_with(Vec::new);
@@ -99,6 +104,7 @@ where
                 entry.1 = None;
             }
         }
+        self.compact_anchor_map();
         self.call_hooks("unmounted");
     }
 
@@ -137,6 +143,9 @@ where
                             }
                         }
                     }
+                }
+                if let Some(inst_index) = v.comp_inst_index {
+                    self.dispose_vnode_component_scopes(inst_index);
                 }
                 if let Some(sub) = v.comp_subtree.as_mut() {
                     self.invoke_before_unmount_vnode(sub);
@@ -283,7 +292,13 @@ where
                     let v: JsValue = n.into();
                     arr.push(&v);
                 }
-                props.insert("__fragNodes".to_string(), arr.into());
+                props.insert("__fragNodes".to_string(), arr.clone().into());
+                let el_js: JsValue = el.clone().into();
+                let _ = js_sys::Reflect::set(
+                    &el_js,
+                    &JsValue::from_str("__rue_frag_nodes_ref"),
+                    &arr,
+                );
             }
         }
         VNode {

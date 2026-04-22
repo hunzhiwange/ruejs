@@ -340,3 +340,63 @@ async fn wasm_get_current_container_returns_last_render_container() {
     assert!(got.is_object());
     tick().await;
 }
+
+#[wasm_bindgen_test(async)]
+async fn wasm_create_element_flattens_nested_array_children() {
+    let adapter = make_adapter();
+    let rue = createRue(adapter.clone());
+    let container = js_obj();
+
+    let child_a_children = Array::new();
+    child_a_children.push(&JsValue::from_str("A"));
+    let child_a = rue.create_element_wasm(
+        JsValue::from_str("span"),
+        JsValue::UNDEFINED,
+        child_a_children.into(),
+    );
+
+    let child_b_children = Array::new();
+    child_b_children.push(&JsValue::from_str("B"));
+    let child_b = rue.create_element_wasm(
+        JsValue::from_str("span"),
+        JsValue::UNDEFINED,
+        child_b_children.into(),
+    );
+
+    let nested = Array::new();
+    nested.push(&child_a);
+    nested.push(&child_b);
+
+    let parent_children = Array::new();
+    parent_children.push(&nested);
+    let parent = rue.create_element_wasm(
+        JsValue::from_str("div"),
+        JsValue::UNDEFINED,
+        parent_children.into(),
+    );
+
+    rue.render_wasm(parent, container.clone());
+    tick().await;
+
+    let children =
+        Reflect::get(&container, &JsValue::from_str("children")).unwrap_or(Array::new().into());
+    let children: Array = children.unchecked_into();
+    assert_eq!(children.length(), 1);
+
+    let parent_el = children.get(0);
+    let parent_kids =
+        Reflect::get(&parent_el, &JsValue::from_str("children")).unwrap_or(Array::new().into());
+    let parent_kids: Array = parent_kids.unchecked_into();
+    assert_eq!(parent_kids.length(), 2);
+
+    let first_tag = Reflect::get(&parent_kids.get(0), &JsValue::from_str("tag"))
+        .unwrap_or(JsValue::UNDEFINED)
+        .as_string()
+        .unwrap_or_default();
+    let second_tag = Reflect::get(&parent_kids.get(1), &JsValue::from_str("tag"))
+        .unwrap_or(JsValue::UNDEFINED)
+        .as_string()
+        .unwrap_or_default();
+    assert_eq!(first_tag, "span");
+    assert_eq!(second_tag, "span");
+}

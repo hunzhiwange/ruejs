@@ -6,6 +6,7 @@ use wasm_bindgen_test::*;
 
 use rue_runtime_vapor::{
     Child, ComponentInternalInstance, ComponentProps, DomAdapter, LifecycleHooks, Rue, VNodeType,
+    create_effect, on_cleanup,
 };
 
 mod common;
@@ -134,6 +135,7 @@ fn lifecycle_mount_update_order_parent_child_instance_hooks() {
         hooks: LifecycleHooks(std::collections::HashMap::new()),
         props_ro: JsValue::UNDEFINED,
         host: JsValue::NULL,
+        render_scope_id: None,
         error: None,
         error_handlers: Vec::new(),
         index: 0,
@@ -151,6 +153,7 @@ fn lifecycle_mount_update_order_parent_child_instance_hooks() {
         hooks: LifecycleHooks(std::collections::HashMap::new()),
         props_ro: JsValue::UNDEFINED,
         host: JsValue::NULL,
+        render_scope_id: None,
         error: None,
         error_handlers: Vec::new(),
         index: 1,
@@ -1357,6 +1360,7 @@ fn lifecycle_hooks_render_and_update_order() {
         hooks: LifecycleHooks(std::collections::HashMap::new()),
         props_ro: JsValue::UNDEFINED,
         host: JsValue::NULL,
+        render_scope_id: None,
         error: None,
         error_handlers: Vec::new(),
         index: 0,
@@ -1408,4 +1412,134 @@ fn lifecycle_hooks_render_and_update_order() {
     }
     assert!(has_before_update);
     assert!(has_updated);
+}
+
+#[wasm_bindgen_test]
+fn component_update_disposes_previous_render_scope_effects() {
+    let mut rue: Rue<TestAdapter> = Rue::new();
+    rue.set_dom_adapter(TestAdapter::default());
+    let mut container = rue.get_dom_adapter_mut().unwrap().create_document_fragment();
+
+    let global = js_sys::global();
+    let _ = Reflect::set(
+        &global,
+        &JsValue::from_str("__rue_render_scope_cleanup"),
+        &JsValue::from_f64(0.0),
+    );
+
+    let comp = wasm_bindgen::closure::Closure::wrap(Box::new(move |_props: JsValue| -> JsValue {
+        let effect_cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+            let cleanup = Function::new_no_args(
+                "globalThis.__rue_render_scope_cleanup = (globalThis.__rue_render_scope_cleanup || 0) + 1;",
+            );
+            on_cleanup(cleanup);
+        }) as Box<dyn FnMut()>);
+        let effect_fn: Function = effect_cb.as_ref().clone().into();
+        let _eh = create_effect(effect_fn, None);
+        effect_cb.forget();
+
+        let out = Object::new();
+        let props = Object::new();
+        let children = Array::new();
+        let _ = Reflect::set(&out, &JsValue::from_str("type"), &JsValue::from_str("div"));
+        let _ = Reflect::set(&out, &JsValue::from_str("props"), &props);
+        let _ = Reflect::set(&out, &JsValue::from_str("children"), &children);
+        out.into()
+    }) as Box<dyn FnMut(JsValue) -> JsValue>);
+    let comp_fn: Function = comp.as_ref().clone().into();
+
+    let mut props1 = ComponentProps::new();
+    props1.insert("n".into(), JsValue::from_f64(1.0));
+    let vnode1 = rue.create_element(VNodeType::Component(comp_fn.clone().into()), Some(props1), vec![]);
+    rue.render(vnode1, &mut container);
+
+    let mut props2 = ComponentProps::new();
+    props2.insert("n".into(), JsValue::from_f64(2.0));
+    let vnode2 = rue.create_element(VNodeType::Component(comp_fn.into()), Some(props2), vec![]);
+    rue.render(vnode2, &mut container);
+
+    let cleanup_after_update = Reflect::get(&global, &JsValue::from_str("__rue_render_scope_cleanup"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(cleanup_after_update, 1.0);
+
+    rue.unmount(&mut container);
+
+    let cleanup_after_unmount = Reflect::get(&global, &JsValue::from_str("__rue_render_scope_cleanup"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(cleanup_after_unmount, 2.0);
+
+    comp.forget();
+}
+
+#[wasm_bindgen_test]
+fn vapor_update_disposes_previous_scope_effects() {
+    let mut rue: Rue<TestAdapter> = Rue::new();
+    rue.set_dom_adapter(TestAdapter::default());
+    let mut container = rue.get_dom_adapter_mut().unwrap().create_document_fragment();
+
+    let global = js_sys::global();
+    let _ = Reflect::set(
+        &global,
+        &JsValue::from_str("__rue_vapor_scope_cleanup"),
+        &JsValue::from_f64(0.0),
+    );
+    let _ = Reflect::set(
+        &global,
+        &JsValue::from_str("__rue_vapor_scope_next_id"),
+        &JsValue::from_f64(1000.0),
+    );
+
+    let global_for_setup = global.clone();
+    let setup = wasm_bindgen::closure::Closure::wrap(Box::new(move || -> JsValue {
+        let effect_cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+            let cleanup = Function::new_no_args(
+                "globalThis.__rue_vapor_scope_cleanup = (globalThis.__rue_vapor_scope_cleanup || 0) + 1;",
+            );
+            on_cleanup(cleanup);
+        }) as Box<dyn FnMut()>);
+        let effect_fn: Function = effect_cb.as_ref().clone().into();
+        let _eh = create_effect(effect_fn, None);
+        effect_cb.forget();
+
+        let out = Object::new();
+        let next = Reflect::get(&global_for_setup, &JsValue::from_str("__rue_vapor_scope_next_id"))
+            .unwrap()
+            .as_f64()
+            .unwrap()
+            + 1.0;
+        let _ = Reflect::set(
+            &global_for_setup,
+            &JsValue::from_str("__rue_vapor_scope_next_id"),
+            &JsValue::from_f64(next),
+        );
+        let _ = Reflect::set(&out, &JsValue::from_str("vaporElement"), &JsValue::from_f64(next));
+        out.into()
+    }) as Box<dyn FnMut() -> JsValue>);
+    let setup_fn: Function = setup.as_ref().clone().into();
+
+    let vnode1 = rue.create_element(VNodeType::VaporWithSetup(setup_fn.clone().into()), None, vec![]);
+    rue.render(vnode1, &mut container);
+
+    let vnode2 = rue.create_element(VNodeType::VaporWithSetup(setup_fn.into()), None, vec![]);
+    rue.render(vnode2, &mut container);
+
+    let cleanup_after_update = Reflect::get(&global, &JsValue::from_str("__rue_vapor_scope_cleanup"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(cleanup_after_update, 1.0);
+
+    rue.unmount(&mut container);
+
+    let cleanup_after_unmount = Reflect::get(&global, &JsValue::from_str("__rue_vapor_scope_cleanup"))
+        .unwrap()
+        .as_f64()
+        .unwrap();
+    assert_eq!(cleanup_after_unmount, 2.0);
+
+    setup.forget();
 }

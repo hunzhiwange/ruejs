@@ -44,8 +44,10 @@ pub fn createRue(adapter: JsValue) -> WasmRue {
     WasmRue {
         inner: RefCell::new(rue),
         last_container: RefCell::new(None),
+        pending_anchor: RefCell::new(Vec::new()),
         pending_between: RefCell::new(Vec::new()),
         pending_render: RefCell::new(Vec::new()),
+        pending_static: RefCell::new(Vec::new()),
         root_effect: RefCell::new(None),
         root_effect_scope: RefCell::new(None),
         root_effect_closure: RefCell::new(None),

@@ -1,4 +1,6 @@
-# 实用类型 {#utility-types}
+# 实用类型 {#utility-types} @todo
+
+> **@todo**: 以下实用类型大部分为 Options API 相关，尚未在 Rue 中实现。
 
 :::info
 此页面仅列出一些可能需要解释其用法的常用实用类型。有关导出类型的完整列表，请参阅[源代码](https://github.com/hunzhiwange/ruejs/blob/main/packages/runtime-core/src/index.ts#L131)。

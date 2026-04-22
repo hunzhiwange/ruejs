@@ -59,4 +59,4 @@ export { useComponent } from './hooks/useComponent'
 
 // Vapor hooks passthrough
 export { useMemo, useCallback, useSetup, useRef, toRaw, unref } from '@rue-js/runtime-vapor'
-export { createRue } from '@rue-js/runtime-vapor'
+export { createRue, setReactiveScheduling } from '@rue-js/runtime-vapor'

@@ -18,17 +18,19 @@
 订阅收集：
 - 在 `get()` 读取时，如果存在当前运行的副作用（`CURRENT_EFFECT`），会把其 id 加入订阅集合 `subs`。
   这种“隐式收集”方式简洁高效，使用体验类似现代前端的自动依赖跟踪。
+- 对 `getPath()` / reactive proxy 的嵌套字段读取，则额外记录到 `path_subs`，让更新只命中真正访问过的分支。
 */
 
 use js_sys::{Array, Object};
 use js_sys::{Function, Reflect};
 use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::*;
 
-use crate::reactive::core::{CURRENT_EFFECT, EFFECTS, Signal, schedule_effect_run};
+use crate::reactive::core::{CURRENT_EFFECT, EFFECTS, Effect, Signal, schedule_effect_run};
 #[wasm_bindgen]
 pub struct SignalHandle {
     pub(crate) inner: Rc<RefCell<Signal>>,
@@ -38,6 +40,65 @@ pub struct SignalHandle {
 impl Clone for SignalHandle {
     fn clone(&self) -> Self {
         SignalHandle { inner: self.inner.clone() }
+    }
+}
+
+impl SignalHandle {
+    /// Signal 的统一写入口。
+    /// - `set()` 走整值更新，`changed_path=None`
+    /// - `setPath()/updatePath()` 走路径更新，带上实际变化的路径
+    ///
+    /// 这样触发阶段就能按路径做“选择性唤醒”，而不是像旧实现那样只要根对象换了，
+    /// 就把同根下所有 effect 全部重新跑一遍。
+    pub(crate) fn set_internal(&self, v: JsValue, changed_path: Option<&Array>) {
+        let maybe_setter = { self.inner.borrow().setter.clone() };
+        if let Some(st) = maybe_setter {
+            let _ = st.call1(&JsValue::NULL, &v);
+            return;
+        }
+
+        let mut signal = self.inner.borrow_mut();
+        let changed = if let Some(eq) = &signal.equals {
+            let res = eq.call2(&JsValue::NULL, &signal.value, &v).unwrap_or(JsValue::FALSE);
+            !res.as_bool().unwrap_or(false)
+        } else {
+            !js_sys::Object::is(&signal.value, &v)
+        };
+
+        #[cfg(feature = "dev")]
+        {
+            if changed && crate::log::want_log("debug", "reactive:signal set") {
+                let prev_js: js_sys::JsString = js_sys::JSON::stringify(&signal.value)
+                    .unwrap_or(JsValue::from_str("<unstringifiable>").into());
+                let next_js: js_sys::JsString = js_sys::JSON::stringify(&v)
+                    .unwrap_or(JsValue::from_str("<unstringifiable>").into());
+                let prev_val: JsValue = prev_js.into();
+                let next_val: JsValue = next_js.into();
+                let prev_str = prev_val.as_string().unwrap_or("<unknown>".to_string());
+                let next_str = next_val.as_string().unwrap_or("<unknown>".to_string());
+                let subs_count = total_signal_subscriber_count(&signal);
+                crate::log::log(
+                    "debug",
+                    &format!(
+                        "reactive:signal set changed=true prev={} -> next={} subs={}",
+                        prev_str, next_str, subs_count
+                    ),
+                );
+            }
+        }
+
+        signal.value = v;
+        if !changed {
+            return;
+        }
+
+        let changed_path = changed_path.filter(|path| path.length() > 0);
+        let to_run = collect_affected_subscribers(&mut signal, changed_path);
+        drop(signal);
+
+        for id in to_run {
+            schedule_effect_run(id);
+        }
     }
 }
 
@@ -51,6 +112,150 @@ pub fn signal_from_proxy(proxy: &JsValue) -> Option<JsValue> {
         return None;
     }
     Some(sig_v)
+}
+
+fn subscribe_effect_id(subs: &mut Vec<usize>, id: usize) {
+    if !subs.contains(&id) {
+        subs.push(id);
+    }
+}
+
+fn should_skip_effect_subscription(signal: &Signal, effect_id: usize) -> bool {
+    signal
+        .computed
+        .as_ref()
+        .and_then(|computed| computed.effect_id)
+        .map(|computed_effect_id| computed_effect_id == effect_id)
+        .unwrap_or(false)
+}
+
+/// 统一路径段的表示，避免 `"0"` 和 `0` 被当成两个不同的数组索引路径。
+fn normalize_path_segment(seg: &JsValue) -> JsValue {
+    if let Some(s) = seg.as_string() {
+        if !s.is_empty() && s.chars().all(|ch| ch.is_ascii_digit()) {
+            if let Ok(n) = s.parse::<u32>() {
+                return JsValue::from_f64(n as f64);
+            }
+        }
+        return JsValue::from_str(&s);
+    }
+    seg.clone()
+}
+
+fn append_path_segment(base: &Array, seg: &JsValue) -> Array {
+    let out = Array::from(base);
+    out.push(&normalize_path_segment(seg));
+    out
+}
+
+/// 将路径段编码成稳定字符串。
+/// 这里故意保留类型前缀，避免字符串键 `"0"` 与数字索引 `0`、Symbol 等互相碰撞。
+fn path_segment_key(seg: &JsValue) -> String {
+    if let Some(s) = seg.as_string() {
+        return format!("s:{}", s);
+    }
+    if let Some(n) = seg.as_f64() {
+        return format!("n:{}", n);
+    }
+    if js_sys::Symbol::instanceof(seg) {
+        let desc = Reflect::get(seg, &JsValue::from_str("description"))
+            .unwrap_or(JsValue::UNDEFINED)
+            .as_string()
+            .unwrap_or_default();
+        return format!("y:{}", desc);
+    }
+    let encoded = js_sys::JSON::stringify(seg)
+        .ok()
+        .and_then(|s| s.as_string())
+        .unwrap_or_else(|| "<unknown>".to_string());
+    format!("j:{}", encoded)
+}
+
+fn path_key(path: &Array) -> String {
+    let len = path.length();
+    if len == 0 {
+        return String::new();
+    }
+    let mut parts: Vec<String> = Vec::with_capacity(len as usize);
+    for i in 0..len {
+        parts.push(path_segment_key(&path.get(i)));
+    }
+    parts.join("/")
+}
+
+fn retain_active_subscribers(
+    subs: &mut Vec<usize>,
+    effects: &HashMap<usize, Effect>,
+    seen: &mut HashSet<usize>,
+    to_run: &mut Vec<usize>,
+) {
+    subs.retain(|id| {
+        if let Some(effect) = effects.get(id) {
+            if effect.disposed {
+                return false;
+            }
+            if seen.insert(*id) {
+                to_run.push(*id);
+            }
+            true
+        } else {
+            false
+        }
+    });
+}
+
+pub(crate) fn collect_affected_subscribers(
+    signal: &mut Signal,
+    changed_path: Option<&Array>,
+) -> Vec<usize> {
+    let mut to_run: Vec<usize> = Vec::new();
+    let mut seen: HashSet<usize> = HashSet::new();
+
+    EFFECTS.with(|m| {
+        let effects = m.borrow();
+        // 根订阅永远都要保留：显式调用 get() 或订阅整个对象的 effect 仍应在任意变更时被唤醒。
+        retain_active_subscribers(&mut signal.subs, &effects, &mut seen, &mut to_run);
+
+        let raw_keys: Vec<String> = match changed_path {
+            None => signal.path_subs.keys().cloned().collect(),
+            Some(path) => {
+                // 路径更新需要命中三类订阅：
+                // 1. 变化路径本身（例如改 `user.name`，读取 `user.name` 的 effect 要更新）
+                // 2. 变化路径的后代（例如整体替换 `user`，读取 `user.name` 的 effect 也要更新）
+                // 3. 根订阅（上面已处理）
+                // 注意：这里不再自动唤醒祖先路径订阅。
+                // 对 fine-grained 场景来说，读取了 `user` / `children` 的 effect
+                // 不应因 `user.name` / `children.2.children` 这类更深层变更而整体重跑。
+                let changed_key = path_key(path);
+                let mut keys = vec![changed_key.clone()];
+                let descendant_prefix = format!("{}/", changed_key);
+                for key in signal.path_subs.keys() {
+                    if key.starts_with(&descendant_prefix) {
+                        keys.push(key.clone());
+                    }
+                }
+                keys
+            }
+        };
+
+        let mut unique_keys: HashSet<String> = HashSet::new();
+        for key in raw_keys {
+            if !unique_keys.insert(key.clone()) {
+                continue;
+            }
+            if let Some(subs) = signal.path_subs.get_mut(&key) {
+                retain_active_subscribers(subs, &effects, &mut seen, &mut to_run);
+            }
+        }
+    });
+
+    signal.path_subs.retain(|_, subs| !subs.is_empty());
+    to_run
+}
+
+#[cfg(feature = "dev")]
+fn total_signal_subscriber_count(signal: &Signal) -> usize {
+    signal.subs.len() + signal.path_subs.values().map(|subs| subs.len()).sum::<usize>()
 }
 
 /// 信号句柄
@@ -95,21 +300,47 @@ pub fn signal_from_proxy(proxy: &JsValue) -> Option<JsValue> {
 /// 提供读取、设置、更新与偷看（peek）等 API，并在值变更时通知订阅的副作用。
 #[wasm_bindgen]
 impl SignalHandle {
+    pub(crate) fn ensure_computed_current(&self) {
+        let effect_id = {
+            let mut inner = self.inner.borrow_mut();
+            let Some(computed) = inner.computed.as_mut() else {
+                return;
+            };
+            if computed.evaluating || (computed.initialized && !computed.dirty) {
+                return;
+            }
+            computed.evaluating = true;
+            computed.effect_id
+        };
+
+        if let Some(id) = effect_id {
+            crate::reactive::core::run_effect(id);
+        }
+
+        let mut inner = self.inner.borrow_mut();
+        if let Some(computed) = inner.computed.as_mut() {
+            computed.evaluating = false;
+        }
+    }
+
     /// 便于调试：`JSON.stringify(signal)` 时返回内部值
     #[wasm_bindgen(js_name = toJSON)]
     pub fn to_json(&self) -> JsValue {
+        self.ensure_computed_current();
         self.inner.borrow().value.clone()
     }
 
     /// 便于调试：`signal.valueOf()` 返回内部值
     #[wasm_bindgen(js_name = valueOf)]
     pub fn value_of_js(&self) -> JsValue {
+        self.ensure_computed_current();
         self.inner.borrow().value.clone()
     }
 
     /// 便于调试：`String(signal)` 返回值的 JSON 字符串或占位文本
     #[wasm_bindgen(js_name = toString)]
     pub fn to_string_js(&self) -> String {
+        self.ensure_computed_current();
         let v = self.inner.borrow().value.clone();
         match js_sys::JSON::stringify(&v) {
             Ok(s) => s.as_string().unwrap_or_else(|| "[object SignalHandle]".to_string()),
@@ -120,6 +351,7 @@ impl SignalHandle {
     /// 只读调试：`signal.value` 直接返回内部值（不进行依赖收集）
     #[wasm_bindgen(getter, js_name = value)]
     pub fn value_getter(&self) -> JsValue {
+        self.ensure_computed_current();
         self.inner.borrow().value.clone()
     }
 
@@ -139,13 +371,15 @@ impl SignalHandle {
     /// 读取当前值，并在有正在运行的副作用时将其订阅到该信号
     #[wasm_bindgen(js_name = get)]
     pub fn get_js(&self) -> JsValue {
+        self.ensure_computed_current();
         CURRENT_EFFECT.with(|c| {
             if let Some(id) = *c.borrow() {
                 // 将当前运行的副作用 id 加入订阅集合，形成“读取即订阅”的依赖关系
                 let mut inner = self.inner.borrow_mut();
-                if !inner.subs.contains(&id) {
-                    inner.subs.push(id);
+                if should_skip_effect_subscription(&inner, id) {
+                    return;
                 }
+                subscribe_effect_id(&mut inner.subs, id);
             }
         });
         // 返回当前信号值（不改变值，仅建立订阅）
@@ -155,68 +389,7 @@ impl SignalHandle {
     /// 设置新值，按等值比较决定是否通知订阅者
     #[wasm_bindgen(js_name = set)]
     pub fn set_js(&self, v: JsValue) {
-        // 若存在自定义 setter（如 writable computed 的写入通道），优先委托给它
-        let maybe_setter = { self.inner.borrow().setter.clone() };
-        if let Some(st) = maybe_setter {
-            let _ = st.call1(&JsValue::NULL, &v);
-            return;
-        }
-        let mut s = self.inner.borrow_mut();
-        // 计算是否“实际变更”：优先使用自定义等值比较；否则用 Object.is
-        let changed = if let Some(eq) = &s.equals {
-            let res = eq.call2(&JsValue::NULL, &s.value, &v).unwrap_or(JsValue::FALSE);
-            !res.as_bool().unwrap_or(false)
-        } else {
-            !js_sys::Object::is(&s.value, &v)
-        };
-
-        #[cfg(feature = "dev")]
-        {
-            if changed {
-                if crate::log::want_log("debug", "reactive:signal set") {
-                    let prev_js: js_sys::JsString = js_sys::JSON::stringify(&s.value)
-                        .unwrap_or(JsValue::from_str("<unstringifiable>").into());
-                    let next_js: js_sys::JsString = js_sys::JSON::stringify(&v)
-                        .unwrap_or(JsValue::from_str("<unstringifiable>").into());
-                    let prev_val: JsValue = prev_js.into();
-                    let next_val: JsValue = next_js.into();
-                    let prev_str = prev_val.as_string().unwrap_or("<unknown>".to_string());
-                    let next_str = next_val.as_string().unwrap_or("<unknown>".to_string());
-                    let subs_count = s.subs.len();
-                    crate::log::log(
-                        "debug",
-                        &format!(
-                            "reactive:signal set changed=true prev={} -> next={} subs={}",
-                            prev_str, next_str, subs_count
-                        ),
-                    );
-                }
-            }
-        }
-
-        s.value = v;
-        if changed {
-            let mut to_run: Vec<usize> = Vec::new();
-            EFFECTS.with(|m| {
-                let map = m.borrow();
-                s.subs.retain(|id| {
-                    if let Some(e) = map.get(id) {
-                        if !e.disposed {
-                            to_run.push(*id);
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                });
-            });
-            drop(s);
-            for id in to_run {
-                schedule_effect_run(id);
-            }
-        }
+        self.set_internal(v, None);
     }
 
     /// 根据回调对当前值进行计算并设置（相当于 set( updater(current) )）
@@ -232,6 +405,7 @@ impl SignalHandle {
     #[wasm_bindgen(js_name = peek)]
     pub fn peek_js(&self) -> JsValue {
         // 偷看当前值：不进行依赖收集，适用于调试与无副作用读取
+        self.ensure_computed_current();
         self.inner.borrow().value.clone()
     }
 
@@ -265,8 +439,9 @@ impl SignalHandle {
         let root = { self.inner.borrow().value.clone() };
         let arr = normalize_path_to_array(&path);
         // 使用不可变更新生成新的根值（逐级浅拷贝后赋值）
-        let next_root = set_path_immutable(&root, &arr, value);
-        self.set_js(next_root);
+        let next_root = set_path_immutable(self, &root, &arr, value);
+        let changed_path = if arr.length() == 0 { None } else { Some(&arr) };
+        self.set_internal(next_root, changed_path);
     }
 
     /// 根据路径读取当前对象/数组的子项值（依赖收集）
@@ -282,18 +457,27 @@ impl SignalHandle {
     /// ```
     #[wasm_bindgen(js_name = getPath)]
     pub fn get_path_js(&self, path: JsValue) -> JsValue {
+        self.ensure_computed_current();
+        let arr = normalize_path_to_array(&path);
         CURRENT_EFFECT.with(|c| {
             if let Some(id) = *c.borrow() {
-                // 路径读取同样建立订阅（以根为粒度），用于 watch 等依赖跟踪
+                // 路径读取只订阅“这条路径”本身；空路径才退化为根订阅。
+                // 这正是 SVGGraph 那类场景需要的粒度：读 `stats.3.value` 不该把整个 `stats` 根都订上。
                 let mut inner = self.inner.borrow_mut();
-                if !inner.subs.contains(&id) {
-                    inner.subs.push(id);
+                if should_skip_effect_subscription(&inner, id) {
+                    return;
+                }
+                if arr.length() == 0 {
+                    subscribe_effect_id(&mut inner.subs, id);
+                } else {
+                    let key = path_key(&arr);
+                    let subs = inner.path_subs.entry(key).or_default();
+                    subscribe_effect_id(subs, id);
                 }
             }
         });
         // 读取当前根，并按路径逐级取值
         let root = { self.inner.borrow().value.clone() };
-        let arr = normalize_path_to_array(&path);
         get_at_path(&root, &arr)
     }
 
@@ -303,6 +487,7 @@ impl SignalHandle {
     #[wasm_bindgen(js_name = peekPath)]
     pub fn peek_path_js(&self, path: JsValue) -> JsValue {
         // 路径偷看：不进行依赖收集，仅做读取
+        self.ensure_computed_current();
         let root = { self.inner.borrow().value.clone() };
         let arr = normalize_path_to_array(&path);
         get_at_path(&root, &arr)
@@ -326,17 +511,20 @@ impl SignalHandle {
         let arr = normalize_path_to_array(&path);
         let cur_at = get_at_path(&current_root, &arr);
         let next_at = updater.call1(&JsValue::NULL, &cur_at).unwrap_or(JsValue::UNDEFINED);
-        let next_root = set_path_immutable(&current_root, &arr, next_at);
-        self.set_js(next_root);
+        let next_root = set_path_immutable(self, &current_root, &arr, next_at);
+        let changed_path = if arr.length() == 0 { None } else { Some(&arr) };
+        self.set_internal(next_root, changed_path);
     }
 }
 
 /// 工具：不可变设置路径，返回新的根对象/数组
-fn set_path_immutable(root: &JsValue, path: &Array, value: JsValue) -> JsValue {
+fn set_path_immutable(owner: &SignalHandle, root: &JsValue, path: &Array, value: JsValue) -> JsValue {
+    let root = unwrap_proxy_raw_for_signal(root, owner);
+    let value = unwrap_proxy_raw_for_signal(&value, owner);
     // 生成根的浅拷贝作为更新基准
-    let mut next_root = clone_js_value(root);
+    let mut next_root = clone_js_value(&root);
     // 若根不是对象/数组，初始化为空对象（便于路径赋值）
-    if !(next_root.is_object() || Array::is_array(root)) {
+    if !(next_root.is_object() || Array::is_array(&root)) {
         next_root = Object::new().into();
     }
 
@@ -352,7 +540,8 @@ fn set_path_immutable(root: &JsValue, path: &Array, value: JsValue) -> JsValue {
         let child_clone = if child.is_undefined() || child.is_null() {
             Object::new().into()
         } else {
-            clone_js_value(&child)
+            let raw_child = unwrap_proxy_raw_for_signal(&child, owner);
+            clone_js_value(&raw_child)
         };
         let _ = Reflect::set(&parent, &seg, &child_clone);
         parent = child_clone;
@@ -405,6 +594,26 @@ fn normalize_path_to_array(input: &JsValue) -> Array {
     js_sys::Array::new()
 }
 
+fn unwrap_proxy_raw(val: &JsValue) -> JsValue {
+    if val.is_object() {
+        let raw = Reflect::get(val, &JsValue::from_str("__rue_raw__"))
+            .unwrap_or(JsValue::UNDEFINED);
+        if !raw.is_undefined() {
+            return raw;
+        }
+    }
+    val.clone()
+}
+
+fn unwrap_proxy_raw_for_signal(val: &JsValue, owner: &SignalHandle) -> JsValue {
+    if let Some(proxy_signal) = signal_from_proxy(val) {
+        if !js_sys::Object::is(&proxy_signal, &JsValue::from(owner.clone())) {
+            return val.clone();
+        }
+    }
+    unwrap_proxy_raw(val)
+}
+
 /// 工具：浅拷贝对象或数组；其他类型直接返回原值
 fn clone_js_value(val: &JsValue) -> JsValue {
     if Array::is_array(val) {
@@ -434,14 +643,49 @@ fn clone_js_value(val: &JsValue) -> JsValue {
     }
 }
 
+fn sync_proxy_target_snapshot(target: &JsValue, latest: &JsValue) {
+    let latest = unwrap_proxy_raw(latest);
+
+    if js_sys::Array::is_array(target) && js_sys::Array::is_array(&latest) {
+        let mirror_arr: js_sys::Array = target.clone().unchecked_into();
+        let latest_arr: js_sys::Array = js_sys::Array::from(&latest);
+        mirror_arr.set_length(0);
+        let len = latest_arr.length();
+        for i in 0..len {
+            mirror_arr.push(&latest_arr.get(i));
+        }
+        return;
+    }
+
+    if target.is_object() && latest.is_object() {
+        let mirror_obj: js_sys::Object = target.clone().unchecked_into();
+        let latest_obj: js_sys::Object = latest.clone().unchecked_into();
+        let mirror_keys = js_sys::Object::keys(&mirror_obj);
+        let mlen = mirror_keys.length();
+        for i in 0..mlen {
+            let k = mirror_keys.get(i);
+            let _ = js_sys::Reflect::delete_property(&mirror_obj, &k);
+        }
+        let latest_keys = js_sys::Object::keys(&latest_obj);
+        let llen = latest_keys.length();
+        for i in 0..llen {
+            let k = latest_keys.get(i);
+            let v = js_sys::Reflect::get(&latest_obj, &k).unwrap_or(JsValue::UNDEFINED);
+            let _ = js_sys::Reflect::set(&mirror_obj, &k, &v);
+        }
+    }
+}
+
 /// 创建基础信号（不含自定义等值比较）
 fn make_signal(initial: JsValue, equals: Option<Function>) -> SignalHandle {
     SignalHandle {
         inner: Rc::new(RefCell::new(Signal {
             value: initial,
             subs: Default::default(),
+            path_subs: Default::default(),
             equals,
             setter: None,
+            computed: None,
         })),
     }
 }
@@ -658,6 +902,7 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
     };
     let s_get = sig.clone();
     let p_get = path.clone();
+    let target_for_methods = target.clone();
     // get trap：属性读取与包装
     let get_trap = wasm_bindgen::closure::Closure::wrap(Box::new(
         move |_: JsValue, key: JsValue, _: JsValue| {
@@ -665,15 +910,15 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
             if let Some(s) = key.as_string() {
                 // 原始值代理：确保读取 `.value` 返回内部包装对象的 value，并进行依赖收集
                 if s == "value" {
-                    let holder = s_get.get_path_js(p_get.clone().into());
+                    let holder = s_get.peek_path_js(p_get.clone().into());
                     if holder.is_object() {
                         let o: Object = holder.clone().unchecked_into();
                         let vv = Reflect::get(&o, &JsValue::from_str("value"))
                             .unwrap_or(JsValue::UNDEFINED);
+                        let child_path = append_path_segment(&p_get, &JsValue::from_str("value"));
                         if !shallow_flag {
                             if vv.is_object() && vv.dyn_ref::<Function>().is_none() {
-                                let child_path = js_sys::Array::from(&p_get);
-                                child_path.push(&JsValue::from_str("value"));
+                                let _ = s_get.get_path_js(child_path.clone().into());
                                 let child = make_proxy(
                                     s_get.clone(),
                                     child_path,
@@ -683,6 +928,7 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                                 return child;
                             }
                         }
+                        let _ = s_get.get_path_js(child_path.into());
                         return vv;
                     }
                     return JsValue::UNDEFINED;
@@ -701,13 +947,13 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                     return p_get.clone().into();
                 }
                 if s == "__rue_raw__" || s == "__rue_target__" {
-                    let holder = s_get.get_path_js(p_get.clone().into());
+                    let holder = s_get.peek_path_js(p_get.clone().into());
                     return holder;
                 }
                 if s == "toJSON" {
                     let factory = Function::new_with_args(
                         "sig,path",
-                        "return function(){ return sig.peekPath(path); }",
+                        "return function(){ return sig.getPath(path); }",
                     );
                     let f = factory
                         .call2(&JsValue::NULL, &JsValue::from(s_get.clone()), &p_get.clone().into())
@@ -717,7 +963,7 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                 if s == "valueOf" {
                     let factory = Function::new_with_args(
                         "sig,path",
-                        "return function(){ return sig.peekPath(path); }",
+                        "return function(){ return sig.getPath(path); }",
                     );
                     let f = factory
                         .call2(&JsValue::NULL, &JsValue::from(s_get.clone()), &p_get.clone().into())
@@ -727,7 +973,7 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                 if s == "toString" {
                     let factory = Function::new_with_args(
                         "sig,path",
-                        "return function(){ try { var v = sig.peekPath(path); return typeof v === 'string' ? v : JSON.stringify(v); } catch(e) { return '[object RueReactive]'; } }",
+                        "return function(){ try { var v = sig.getPath(path); return typeof v === 'string' ? v : JSON.stringify(v); } catch(e) { return '[object RueReactive]'; } }",
                     );
                     let f = factory
                         .call2(&JsValue::NULL, &JsValue::from(s_get.clone()), &p_get.clone().into())
@@ -736,17 +982,41 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                 }
             }
             // 从信号在当前路径处获取底层对象，并读取该属性
-            let holder = s_get.get_path_js(p_get.clone().into());
+            // 这里先 peek 当前 holder，只是为了拿到真实对象做 Reflect.get；
+            // 不能在这一步顺手订阅父路径，否则读取任意子字段都会把父级/根级一起订上。
+            let holder = s_get.peek_path_js(p_get.clone().into());
+            let child_path = append_path_segment(&p_get, &key);
             let v = Reflect::get(&holder, &key).unwrap_or(JsValue::UNDEFINED);
             // 若为函数，返回包装函数，保证 this 绑定为当前路径的底层对象
             if let Some(func) = v.dyn_ref::<Function>() {
                 // 每次调用时重新获取当前路径对应的底层对象，作为 `this`
                 let s_get2 = s_get.clone();
                 let p_get2 = p_get.clone();
+                                let s_set2 = s_get.clone();
+                                let p_set2 = p_get.clone();
+                let t_method = target_for_methods.clone();
                 let get_base = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                     s_get2.get_path_js(p_get2.clone().into())
                 })
                     as Box<dyn FnMut() -> JsValue>);
+                                let set_base = wasm_bindgen::closure::Closure::wrap(Box::new(move |next_base: JsValue| {
+                                        s_set2.set_path_js(p_set2.clone().into(), next_base.clone());
+                                        sync_proxy_target_snapshot(&t_method, &next_base);
+                                })
+                                        as Box<dyn FnMut(JsValue)>);
+                                let method_name = key.as_string().unwrap_or_default();
+                                let is_mutating_array_method = matches!(
+                                        method_name.as_str(),
+                                        "copyWithin"
+                                                | "fill"
+                                                | "pop"
+                                                | "push"
+                                                | "reverse"
+                                                | "shift"
+                                                | "sort"
+                                                | "splice"
+                                                | "unshift"
+                                );
                 // 构造包装器：(...args) => func.apply(base, args)
                 // readonly 模式下：对 base 进行浅克隆，避免对真实值造成原地修改
                 // 设计说明（修改点）：
@@ -755,10 +1025,22 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                 // - 采用 base.slice() 为 Array 与 TypedArray 统一生成可变副本，
                 //   使只读代理上的变异方法在副本上执行，从而不影响真实值（__rue_raw__ 保持不变）。
                 let factory = Function::new_with_args(
-                    "fn,getBase,readonly",
+                                        "fn,getBase,setBase,readonly,mutating",
                     "return function(){ \
                        var args = Array.prototype.slice.call(arguments); \
                        var base = getBase(); \
+                                             var isArrayLike = Array.isArray(base) || (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(base)); \
+                                             if (isArrayLike) { \
+                                                 args = args.map(function(arg){ \
+                                                     if (arg && typeof arg === 'object') { \
+                                                         try { \
+                                                             var raw = arg.__rue_raw__; \
+                                                             if (raw !== undefined) return raw; \
+                                                         } catch (e) {} \
+                                                     } \
+                                                     return arg; \
+                                                 }); \
+                                             } \
                        if (readonly) { \
                          if (Array.isArray(base)) { \
                            base = base.slice(); \
@@ -767,30 +1049,43 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                          } else if (base && typeof base === 'object') { \
                            base = Object.assign({}, base); \
                          } \
+                                                 return fn.apply(base, args); \
+                                             } \
+                                             if (mutating && isArrayLike) { \
+                                                 var draft = Array.isArray(base) ? base.slice() : (typeof base.slice === 'function' ? base.slice() : base); \
+                                                 var result = fn.apply(draft, args); \
+                                                 setBase(draft); \
+                                                 return result; \
                        } \
                        return fn.apply(base, args); \
                      }",
                 );
                 let wrapped = factory
-                    .call3(
+                                        .call5(
                         &JsValue::NULL,
                         &func.clone().into(),
                         &get_base.as_ref().clone().into(),
+                                                &set_base.as_ref().clone().into(),
                         &JsValue::from_bool(readonly_flag),
+                                                &JsValue::from_bool(is_mutating_array_method),
                     )
                     .unwrap_or(JsValue::UNDEFINED);
                 get_base.forget();
+                                set_base.forget();
                 return wrapped;
             }
             // 递归代理：当非浅代理且读取到子对象时，为其生成子代理
             if !shallow_flag {
                 if v.is_object() && v.dyn_ref::<Function>().is_none() {
-                    let child_path = js_sys::Array::from(&p_get);
-                    child_path.push(&key);
+                    // 返回子代理前，先把依赖记到“真正访问到的 child_path”上，
+                    // 避免像旧实现那样仅因读取中间 holder 就把整条父路径都放大成热区。
+                    let _ = s_get.get_path_js(child_path.clone().into());
                     let child = make_proxy(s_get.clone(), child_path, readonly_flag, shallow_flag);
                     return child;
                 }
             }
+            // 叶子值同样只订阅 child_path 本身，不额外订阅父路径。
+            let _ = s_get.get_path_js(child_path.into());
             v
         },
     )
@@ -806,38 +1101,11 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
                 return JsValue::from_bool(false);
             }
             // 路径写入：构造子路径并委托给信号的 `set_path_js`
-            let child_path = js_sys::Array::from(&p_set);
-            child_path.push(&key);
+            let child_path = append_path_segment(&p_set, &key);
             s_set.set_path_js(child_path.clone().into(), value);
             // 同步 Proxy target 的快照内容，便于 DevTools 直观显示最新值
             let latest = s_set.peek_path_js(p_set.clone().into());
-            if js_sys::Array::is_array(&t_mirror) && js_sys::Array::is_array(&latest) {
-                let mirror_arr: js_sys::Array = t_mirror.clone().unchecked_into();
-                let latest_arr: js_sys::Array = js_sys::Array::from(&latest);
-                mirror_arr.set_length(0);
-                let len = latest_arr.length();
-                for i in 0..len {
-                    mirror_arr.push(&latest_arr.get(i));
-                }
-            } else if t_mirror.is_object() && latest.is_object() {
-                let mirror_obj: js_sys::Object = t_mirror.clone().unchecked_into();
-                let latest_obj: js_sys::Object = latest.clone().unchecked_into();
-                // 清空现有键
-                let mirror_keys = js_sys::Object::keys(&mirror_obj);
-                let mlen = mirror_keys.length();
-                for i in 0..mlen {
-                    let k = mirror_keys.get(i);
-                    let _ = js_sys::Reflect::delete_property(&mirror_obj, &k);
-                }
-                // 复制最新键值
-                let latest_keys = js_sys::Object::keys(&latest_obj);
-                let llen = latest_keys.length();
-                for i in 0..llen {
-                    let k = latest_keys.get(i);
-                    let v = js_sys::Reflect::get(&latest_obj, &k).unwrap_or(JsValue::UNDEFINED);
-                    let _ = js_sys::Reflect::set(&mirror_obj, &k, &v);
-                }
-            }
+            sync_proxy_target_snapshot(&t_mirror, &latest);
             JsValue::from_bool(true)
         },
     )
@@ -855,13 +1123,41 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
 
     let s_keys = sig.clone();
     let p_keys = path.clone();
-    let own_keys_trap = wasm_bindgen::closure::Closure::wrap(Box::new(move |_: JsValue| {
+    let own_keys_trap = wasm_bindgen::closure::Closure::wrap(Box::new(move |target_obj: JsValue| {
         // 枚举键：当底层为空时返回空数组，否则 `Reflect.ownKeys`
         let obj = s_keys.get_path_js(p_keys.clone().into());
         if obj.is_undefined() || obj.is_null() {
             return js_sys::Array::new().into();
         }
         let keys = js_sys::Reflect::own_keys(&obj).unwrap_or(js_sys::Array::new());
+
+        if target_obj.is_object() {
+            let target: Object = target_obj.clone().unchecked_into();
+            let target_keys = js_sys::Reflect::own_keys(&target_obj).unwrap_or(js_sys::Array::new());
+            for i in 0..target_keys.length() {
+                let tk = target_keys.get(i);
+                let td = js_sys::Object::get_own_property_descriptor(&target, &tk);
+                if td.is_object() {
+                    let configurable = Reflect::get(&td, &JsValue::from_str("configurable"))
+                        .unwrap_or(JsValue::TRUE)
+                        .as_bool()
+                        .unwrap_or(true);
+                    if !configurable {
+                        let mut exists = false;
+                        for j in 0..keys.length() {
+                            if js_sys::Object::is(&keys.get(j), &tk) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if !exists {
+                            keys.push(&tk);
+                        }
+                    }
+                }
+            }
+        }
+
         if keys.length() == 1 {
             let k = keys.get(0);
             if k.as_string() == Some("value".to_string()) {
@@ -875,9 +1171,24 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
 
     let s_desc = sig.clone();
     let p_desc = path.clone();
-    let desc_trap =
-        wasm_bindgen::closure::Closure::wrap(Box::new(move |_: JsValue, key: JsValue| {
-            // 属性描述符获取：确保返回的描述符 `configurable=true`，以便代理能覆盖
+    let desc_trap = wasm_bindgen::closure::Closure::wrap(Box::new(
+        move |target_obj: JsValue, key: JsValue| {
+            // 属性描述符获取：优先返回 Proxy target 上的真实描述符，
+            // 避免数组 `length` 等非可配置属性违反 Proxy 不变式。
+            if target_obj.is_object() {
+                let t: Object = target_obj.clone().unchecked_into();
+                let td = js_sys::Object::get_own_property_descriptor(&t, &key);
+                if td.is_object() {
+                    let configurable = Reflect::get(&td, &JsValue::from_str("configurable"))
+                        .unwrap_or(JsValue::TRUE)
+                        .as_bool()
+                        .unwrap_or(true);
+                    if !configurable {
+                        return td;
+                    }
+                }
+            }
+
             let obj = s_desc.get_path_js(p_desc.clone().into());
             if obj.is_object() {
                 let o: Object = obj.clone().unchecked_into();
@@ -893,8 +1204,8 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
             } else {
                 JsValue::UNDEFINED
             }
-        })
-            as Box<dyn FnMut(JsValue, JsValue) -> JsValue>);
+        },
+    ) as Box<dyn FnMut(JsValue, JsValue) -> JsValue>);
 
     let handler = Object::new();
     // 将各个 trap 方法挂入 handler
@@ -925,33 +1236,7 @@ fn make_proxy(sig: SignalHandle, path: Array, readonly_flag: bool, shallow_flag:
     // 初始化：同步 Proxy target 的内容与当前 holder 快照，避免初始展示为 undefined
     {
         let latest0 = sig.peek_path_js(path.clone().into());
-        if js_sys::Array::is_array(&target) && js_sys::Array::is_array(&latest0) {
-            let mirror_arr: js_sys::Array = target.clone().unchecked_into();
-            let latest_arr: js_sys::Array = js_sys::Array::from(&latest0);
-            mirror_arr.set_length(0);
-            let len = latest_arr.length();
-            for i in 0..len {
-                mirror_arr.push(&latest_arr.get(i));
-            }
-        } else if target.is_object() && latest0.is_object() {
-            let mirror_obj: js_sys::Object = target.clone().unchecked_into();
-            let latest_obj: js_sys::Object = latest0.clone().unchecked_into();
-            // 清空现有键
-            let mirror_keys = js_sys::Object::keys(&mirror_obj);
-            let mlen = mirror_keys.length();
-            for i in 0..mlen {
-                let k = mirror_keys.get(i);
-                let _ = js_sys::Reflect::delete_property(&mirror_obj, &k);
-            }
-            // 复制最新键值
-            let latest_keys = js_sys::Object::keys(&latest_obj);
-            let llen = latest_keys.length();
-            for i in 0..llen {
-                let k = latest_keys.get(i);
-                let v = js_sys::Reflect::get(&latest_obj, &k).unwrap_or(JsValue::UNDEFINED);
-                let _ = js_sys::Reflect::set(&mirror_obj, &k, &v);
-            }
-        }
+        sync_proxy_target_snapshot(&target, &latest0);
     }
 
     {

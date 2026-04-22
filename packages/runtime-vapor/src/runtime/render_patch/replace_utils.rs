@@ -15,6 +15,60 @@ impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
+    /// 若某个待删除的片段节点本身是 renderAnchor 管理的锚点，
+    /// 需要先完整卸载该锚点关联的 vnode，再移除锚点本身。
+    fn clear_anchor_entry_if_present(&mut self, parent: &mut A::Element, anchor: &A::Element)
+    where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        let idx = {
+            let anchor_js: JsValue = anchor.clone().into();
+            let mut hit = None;
+            for (i, (a, _)) in self.anchor_map.iter().enumerate() {
+                let av: JsValue = a.clone().into();
+                if js_sys::Object::is(&av, &anchor_js) {
+                    hit = Some(i);
+                    break;
+                }
+                if let Some(adapter) = self.get_dom_adapter() {
+                    if adapter.contains(a, anchor) && adapter.contains(anchor, a) {
+                        hit = Some(i);
+                        break;
+                    }
+                }
+            }
+            hit
+        };
+
+        let Some(idx) = idx else {
+            return;
+        };
+
+        let taken = {
+            let entry = self.anchor_map.get_mut(idx).unwrap();
+            entry.1.take()
+        };
+
+        let Some(mut vnode) = taken else {
+            return;
+        };
+
+        self.invoke_before_unmount_vnode(&mut vnode);
+
+        self.clear_vapor_frag_nodes(parent, &mut vnode);
+        if let Some(ref el_old) = vnode.el {
+            self.clear_old_el_if_present(parent, el_old);
+        }
+        if let Some(sub) = vnode.comp_subtree.as_deref_mut() {
+            self.clear_vapor_frag_nodes(parent, sub);
+            if let Some(ref sub_el) = sub.el {
+                self.clear_old_el_if_present(parent, sub_el);
+            }
+        }
+
+        self.invoke_unmounted_vnode(&mut vnode);
+    }
+
     // 片段子节点插入（优先 end 锚点）：
     // - 设计目的：RouterView 等区间渲染场景中，确保片段的真实子节点严格插入到 end 注释之前，
     //   避免因父为片段或 contains(end) 为 false 而错误地追加到区间外部。
@@ -292,21 +346,25 @@ where
     {
         // 根据 __fragNodes 清理片段记录的旧子节点；返回是否进行了清理
         let mut cleared = false;
-        if let Some(adapter) = self.get_dom_adapter_mut() {
-            if let Some(jsv) = old.props.get("__fragNodes") {
-                let arr = js_sys::Array::from(jsv);
-                let len = arr.length();
-                if len > 0 {
-                    for i in 0..len {
-                        let v = arr.get(i);
-                        let node_el: A::Element = v.into();
+        if let Some(jsv) = old.props.get("__fragNodes") {
+            let arr = js_sys::Array::from(jsv);
+            let len = arr.length();
+            if len > 0 {
+                let mut nodes: Vec<A::Element> = Vec::with_capacity(len as usize);
+                for i in 0..len {
+                    let v = arr.get(i);
+                    nodes.push(v.into());
+                }
+                for node_el in nodes.into_iter() {
+                    self.clear_anchor_entry_if_present(parent, &node_el);
+                    if let Some(adapter) = self.get_dom_adapter_mut() {
                         if adapter.contains(parent, &node_el) {
                             let mut p2 = parent.clone();
                             adapter.remove_child(&mut p2, &node_el);
                         }
                     }
-                    cleared = true;
                 }
+                cleared = true;
             }
         }
         cleared

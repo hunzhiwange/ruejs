@@ -1,31 +1,24 @@
 /*
-计算属性：根据回调计算值并写入内部信号
+计算属性：lazy + dirty cache
 
 设计说明：
-- 计算属性本质上是一个只读信号，其值由一个计算函数 `cb()` 得到。
-- 当计算过程中读取其他信号时，这些信号会被自动收集为依赖；一旦依赖变化，
-  我们通过副作用重新运行 `cb()` 并更新计算属性的值。
+- 计算属性仍然表现为只读信号，但不再在依赖变化时 eager 重算。
+- 首次 `get/peek/getPath/peekPath` 读取时才执行 getter，并缓存结果。
+- 依赖变化时只将 computed 标记为 dirty，并唤醒订阅它的 effect；
+    真正的重算延迟到下一次读取发生时再执行。
 
-Rust 结构选择：
-- 仍然采用 `SignalHandle` 承载计算结果，让外部以统一的 API（`get/peek`）读取。
-- 用一个副作用 `create_effect(set_fn)` 驱动计算逻辑；避免在设置时手动维护订阅关系，
-  依赖由运行时的 `CURRENT_EFFECT` 与 `Signal.get` 自动完成。
-
-性能与等值比较：
-- 计算结果在更新前会进行等值比较（默认 `Object.is`，也可通过自定义 `equals` 扩展）。
-  只有在值发生实际变化时才通知订阅者，减少不必要的副作用触发。
+这样可以把“源数据高频变化”与“派生值真正被消费”拆开，减少像 SVGGraph 拖动时的纯计算风暴。
 */
 
-// 当依赖的信号变化时，通过副作用自动重新计算并通知订阅者。
 use js_sys::{Function, Object, Reflect};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 
-use crate::reactive::core::{EFFECTS, Signal, schedule_effect_run};
+use crate::reactive::core::{ComputedState, Signal, schedule_effect_run};
 use crate::reactive::effect::create_effect;
-use crate::reactive::signal::SignalHandle;
+use crate::reactive::signal::{SignalHandle, collect_affected_subscribers};
 
 /// 创建计算属性
 /// - 参数：可为函数 `() => any`，或对象 `{ get: () => any }`
@@ -114,55 +107,68 @@ pub fn create_computed(arg: JsValue) -> SignalHandle {
         inner: std::rc::Rc::new(std::cell::RefCell::new(Signal {
             value: JsValue::UNDEFINED,
             subs: Default::default(),
+            // computed 最终也表现为一个可被路径读取的 signal，
+            // 因此这里与普通 signal 保持同样的数据结构，避免下游路径订阅逻辑分叉。
+            path_subs: Default::default(),
             equals: None,
             setter: setter_opt,
+            computed: Some(ComputedState {
+                effect_id: None,
+                dirty: true,
+                initialized: false,
+                evaluating: false,
+            }),
         })),
     };
     let s_clone = sig.inner.clone();
-    let set_fn = {
+    let eval_fn = {
         let s = s_clone.clone();
         Closure::wrap(Box::new(move || {
-            // 运行计算函数并比较是否变化
             let v = cb.call0(&JsValue::NULL).unwrap_or(JsValue::UNDEFINED);
             let mut inner = s.borrow_mut();
-            let changed = if let Some(eq) = &inner.equals {
-                let res = eq.call2(&JsValue::NULL, &inner.value, &v).unwrap_or(JsValue::FALSE);
-                !res.as_bool().unwrap_or(false)
-            } else {
-                // 默认比较：Object.is(prev, next)
-                !Object::is(&inner.value, &v)
-            };
             inner.value = v;
-            if changed {
-                let mut to_run: Vec<usize> = Vec::new();
-                EFFECTS.with(|m| {
-                    let map = m.borrow();
-                    inner.subs.retain(|id| {
-                        if let Some(e) = map.get(id) {
-                            if !e.disposed {
-                                to_run.push(*id);
-                                true
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    });
-                });
-                drop(inner);
-                for id in to_run {
-                    // 逐个调度副作用；调度策略由 core.rs 决定（同步或微任务）
-                    schedule_effect_run(id);
-                }
+            if let Some(computed) = inner.computed.as_mut() {
+                computed.initialized = true;
+                computed.dirty = false;
             }
         }) as Box<dyn FnMut()>)
     };
-    let f_js: JsValue = set_fn.as_ref().clone();
+    let mark_dirty_scheduler = {
+        let handle = sig.clone();
+        Closure::wrap(Box::new(move |_run: JsValue| {
+            let to_run = {
+                let mut inner = handle.inner.borrow_mut();
+                let Some(computed) = inner.computed.as_mut() else {
+                    return JsValue::UNDEFINED;
+                };
+                if computed.dirty {
+                    return JsValue::UNDEFINED;
+                }
+                computed.dirty = true;
+                collect_affected_subscribers(&mut inner, None)
+            };
+            for id in to_run {
+                schedule_effect_run(id);
+            }
+            JsValue::UNDEFINED
+        }) as Box<dyn FnMut(JsValue) -> JsValue>)
+    };
+    let f_js: JsValue = eval_fn.as_ref().clone();
     let func: Function = f_js.dyn_into().unwrap();
-    // 通过副作用驱动首次计算与后续依赖变更时的重计算
-    let _eh = create_effect(func, None);
-    set_fn.forget();
+    let scheduler_js: JsValue = mark_dirty_scheduler.as_ref().clone();
+    let scheduler_fn: Function = scheduler_js.dyn_into().unwrap();
+    let opts = Object::new();
+    let _ = Reflect::set(&opts, &JsValue::from_str("scheduler"), &scheduler_fn);
+    let _ = Reflect::set(&opts, &JsValue::from_str("lazy"), &JsValue::from_bool(true));
+    let eh = create_effect(func, Some(opts.into()));
+    {
+        let mut inner = sig.inner.borrow_mut();
+        if let Some(computed) = inner.computed.as_mut() {
+            computed.effect_id = Some(eh.id);
+        }
+    }
+    eval_fn.forget();
+    mark_dirty_scheduler.forget();
     sig
 }
 

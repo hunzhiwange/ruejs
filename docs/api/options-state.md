@@ -1,4 +1,6 @@
-# 选项：状态 {#options-state}
+# 选项：状态 {#options-state} @todo
+
+> **@todo**: 整个 Options API 尚未实现。Rue 目前仅支持 Composition API / FC 模式。
 
 ## data {#data}
 

@@ -6,7 +6,12 @@
 //   4) 自定义数组相等性（equals）：当 equals 返回 true 时不触发
 use js_sys::{Array, Function, Object, Reflect};
 use rue_runtime_vapor::reactive::signal::create_ref;
-use rue_runtime_vapor::{create_signal, set_reactive_scheduling, use_effect};
+use rue_runtime_vapor::reactive::core::{
+    create_effect_scope, dispose_effect_scope, pop_effect_scope, push_effect_scope,
+};
+use rue_runtime_vapor::{
+    create_signal, set_current_instance, set_reactive_scheduling, use_effect, vapor_with_hook_id,
+};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_test::*;
 
@@ -15,6 +20,7 @@ use wasm_bindgen_test::*;
 fn use_effect_empty_deps_runs_once() {
     // 配置为同步调度，方便断言立即行为
     set_reactive_scheduling("sync");
+    set_current_instance(JsValue::UNDEFINED);
     // 记录运行次数（首次应为 1）
     let runs = std::rc::Rc::new(std::cell::RefCell::new(0));
     let r2 = runs.clone();
@@ -35,6 +41,7 @@ fn use_effect_empty_deps_runs_once() {
 fn use_effect_signal_dep_triggers_on_change_and_cleanup_runs() {
     // 同步调度
     set_reactive_scheduling("sync");
+    set_current_instance(JsValue::UNDEFINED);
     // 依赖源：信号句柄
     let s = create_signal(JsValue::from_f64(0.0), None);
     // 记录 effect 运行次数与清理次数
@@ -72,6 +79,7 @@ fn use_effect_signal_dep_triggers_on_change_and_cleanup_runs() {
 fn use_effect_ref_value_dep_triggers_on_value_change() {
     // 同步调度
     set_reactive_scheduling("sync");
+    set_current_instance(JsValue::UNDEFINED);
     // 依赖源：Ref（含 value 字段）
     let r = create_ref(JsValue::from_f64(0.0), None);
     let hits = std::rc::Rc::new(std::cell::RefCell::new(0));
@@ -99,6 +107,7 @@ fn use_effect_ref_value_dep_triggers_on_value_change() {
 fn use_effect_array_equals_prevents_trigger() {
     // 同步调度
     set_reactive_scheduling("sync");
+    set_current_instance(JsValue::UNDEFINED);
     // 依赖源：信号句柄
     let s = create_signal(JsValue::from_f64(0.0), None);
     let runs = std::rc::Rc::new(std::cell::RefCell::new(0));
@@ -122,4 +131,71 @@ fn use_effect_array_equals_prevents_trigger() {
     s.set_js(JsValue::from_f64(1.0));
     assert_eq!(*runs.borrow(), 1);
     eff.forget();
+}
+
+#[wasm_bindgen_test]
+fn use_effect_reuses_watch_across_render_scopes_and_updates_latest_callback() {
+    set_reactive_scheduling("sync");
+    let inst = Object::new();
+    set_current_instance(inst.into());
+
+    let source = create_signal(JsValue::from_f64(0.0), None);
+    let first_hits = std::rc::Rc::new(std::cell::RefCell::new(0));
+    let second_hits = std::rc::Rc::new(std::cell::RefCell::new(0));
+
+    let scope1 = create_effect_scope();
+    push_effect_scope(scope1);
+    let first_hits_for_effect = first_hits.clone();
+    let effect1 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *first_hits_for_effect.borrow_mut() += 1;
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut() -> JsValue>);
+    let effect1_fn: Function = effect1.as_ref().clone().unchecked_into();
+    let source_for_deps1 = source.clone();
+    let render1 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        let deps = Array::new();
+        deps.push(&JsValue::from(source_for_deps1.clone()));
+        use_effect(effect1_fn.clone(), Some(deps.into()), None);
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut() -> JsValue>);
+    let _ = vapor_with_hook_id(
+        JsValue::from_str("useEffect:reuse"),
+        render1.as_ref().clone().unchecked_into(),
+    );
+    effect1.forget();
+    render1.forget();
+    assert_eq!(*first_hits.borrow(), 1);
+    assert_eq!(pop_effect_scope(), Some(scope1));
+    dispose_effect_scope(scope1);
+
+    let scope2 = create_effect_scope();
+    push_effect_scope(scope2);
+    let second_hits_for_effect = second_hits.clone();
+    let effect2 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *second_hits_for_effect.borrow_mut() += 1;
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut() -> JsValue>);
+    let effect2_fn: Function = effect2.as_ref().clone().unchecked_into();
+    let source_for_deps2 = source.clone();
+    let render2 = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        let deps = Array::new();
+        deps.push(&JsValue::from(source_for_deps2.clone()));
+        use_effect(effect2_fn.clone(), Some(deps.into()), None);
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut() -> JsValue>);
+    let _ = vapor_with_hook_id(
+        JsValue::from_str("useEffect:reuse"),
+        render2.as_ref().clone().unchecked_into(),
+    );
+    effect2.forget();
+    render2.forget();
+    assert_eq!(*first_hits.borrow(), 1);
+    assert_eq!(*second_hits.borrow(), 0);
+    assert_eq!(pop_effect_scope(), Some(scope2));
+    dispose_effect_scope(scope2);
+
+    source.set_js(JsValue::from_f64(1.0));
+    assert_eq!(*first_hits.borrow(), 1);
+    assert_eq!(*second_hits.borrow(), 1);
+    set_current_instance(JsValue::UNDEFINED);
 }

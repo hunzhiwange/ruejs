@@ -94,7 +94,7 @@
 
 - **另请参阅** [指南 - 渲染函数 - 创建 VNode](/guide/extras/render-function#creating-vnodes)
 
-## mergeProps() {#mergeprops}
+## mergeProps() {#mergeprops} @todo
 
 合并多个 props 对象，并对某些 props 进行特殊处理。
 
@@ -137,7 +137,7 @@
    */
   ```
 
-## cloneVNode() {#clonevnode}
+## cloneVNode() {#clonevnode} @todo
 
 克隆一个 vnode。
 
@@ -164,7 +164,7 @@
   const cloned = cloneVNode(original, { id: 'foo' })
   ```
 
-## isVNode() {#isvnode}
+## isVNode() {#isvnode} @todo
 
 检查值是否为 vnode。
 
@@ -174,7 +174,7 @@
   function isVNode(value: unknown): boolean
   ```
 
-## resolveComponent() {#resolvecomponent}
+## resolveComponent() {#resolvecomponent} @todo
 
 用于手动按名称解析已注册的组件。
 
@@ -228,7 +228,7 @@
 
 - **另请参阅** [指南 - 渲染函数 - 组件](/guide/extras/render-function#components)
 
-## resolveDirective() {#resolvedirective}
+## resolveDirective() {#resolvedirective} @todo
 
 用于手动按名称解析已注册的指令。
 
@@ -248,7 +248,7 @@
 
 - **另请参阅** [指南 - 渲染函数 - 自定义指令](/guide/extras/render-function#custom-directives)
 
-## withDirectives() {#withdirectives}
+## withDirectives() {#withdirectives} @todo
 
 用于向 vnodes 添加自定义指令。
 
@@ -291,7 +291,7 @@
 
 - **另请参阅** [指南 - 渲染函数 - 自定义指令](/guide/extras/render-function#custom-directives)
 
-## withModifiers() {#withmodifiers}
+## withModifiers() {#withmodifiers} @todo
 
 用于向事件处理函数添加内置的 [`v-on` 修饰符](/guide/essentials/event-handling#event-modifiers)。
 

@@ -36,7 +36,7 @@
   },
   "scripts": {
     "cleanup-wasm-pack": "node -e \"const fs=require('fs');for(const p of ['pkg/.gitignore','pkg-node/.gitignore']){if(fs.existsSync(p))fs.unlinkSync(p)}\"",
-    "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev && npm run cleanup-wasm-pack",
+    "build-dev": "wasm-pack build --release --target bundler --out-dir pkg --features dev --features log && npm run cleanup-wasm-pack",
     "build": "wasm-pack build --release --target bundler --out-dir pkg && npm run cleanup-wasm-pack",
     "build-node": "wasm-pack build --release --target nodejs --out-dir pkg-node --features log --features dev && npm run cleanup-wasm-pack",
     "prepublishOnly": "npm run build",

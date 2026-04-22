@@ -395,11 +395,8 @@ const About: FC = ()=>{
         _$appendChild(_el65, _$createTextNode("normal（默认）"));
         const _el66 = _$createElement("div");
         _$appendChild(_el64, _el66);
-        watchEffect(()=>{
-            const _el66_style = ({
-                whiteSpace: 'normal'
-            });
-            _$setStyle(_el66, _el66_style);
+        _$setStyle(_el66, {
+          whiteSpace: 'normal'
         });
         _$appendChild(_el66, _$createTextNode("A    B      C "));
         const _el67 = _$createTextWrapper(_el66);
@@ -419,11 +416,8 @@ const About: FC = ()=>{
         _$appendChild(_el70, _$createTextNode("pre"));
         const _el71 = _$createElement("div");
         _$appendChild(_el69, _el71);
-        watchEffect(()=>{
-            const _el71_style = ({
-                whiteSpace: 'pre'
-            });
-            _$setStyle(_el71, _el71_style);
+        _$setStyle(_el71, {
+          whiteSpace: 'pre'
         });
         _$appendChild(_el71, _$createTextNode("A    B      C "));
         const _el72 = _$createTextWrapper(_el71);
@@ -443,11 +437,8 @@ const About: FC = ()=>{
         _$appendChild(_el75, _$createTextNode("pre-wrap"));
         const _el76 = _$createElement("div");
         _$appendChild(_el74, _el76);
-        watchEffect(()=>{
-            const _el76_style = ({
-                whiteSpace: 'pre-wrap'
-            });
-            _$setStyle(_el76, _el76_style);
+        _$setStyle(_el76, {
+          whiteSpace: 'pre-wrap'
         });
         _$appendChild(_el76, _$createTextNode("A    B      C "));
         const _el77 = _$createTextWrapper(_el76);

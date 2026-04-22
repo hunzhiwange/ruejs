@@ -7,7 +7,7 @@ Vapor 运行时架构概述
 - Hooks ID：vaporWithHookId 通过 id → index 映射强制 hooks 的执行索引，保证稳定的读取/写入序列。
 */
 import { onBeforeUnmount, h } from './rue'
-import { watchEffect } from './reactivity'
+import { signal, untrack, watchEffect } from './reactivity'
 import { getCurrentInstance } from '@rue-js/runtime-vapor'
 import {
   createComment,
@@ -60,13 +60,16 @@ export const vaporShowStyle = (s: any, cond: any) => {
 
 /** 列表项在 DOM 中的范围定义 */
 export type VaporListItemRange = {
-  start: DomNodeLike
+  start?: DomNodeLike
   end: DomNodeLike
   stop?: () => void
+  singleRoot?: boolean
+  current?: ReturnType<typeof signal<{ item: any; index: number }>>
 }
 
 /** 基于 Key 的列表渲染与重排
  * - 每个元素用两个注释节点 start/end 作为锚点，渲染在它们之间
+ * - singleRoot 模式下，每个元素只保留一个尾锚点，列表项通过 renderAnchor 渲染到锚点前
  * - 通过 DocumentFragment 批量移动块以适配新顺序
  * - 对删除项执行清理并移除对应节点
  * @param args 列表参数，含 items/getKey/elements/parent/before/renderItem
@@ -78,10 +81,42 @@ export const vaporKeyedList = <T>(args: {
   elements: Map<any, VaporListItemRange>
   parent: any
   before: any
+  singleRoot?: boolean
   renderItem: (item: T, parent: any, start: any, end: any, idx?: number) => void
 }) => {
-  const { items, getKey, elements, parent, before, renderItem } = args
+  const { items, getKey, elements, parent, before, renderItem, singleRoot = false } = args
   const nextElements = new Map<any, VaporListItemRange>()
+
+  const getRawIdentity = (value: T) => {
+    if (value && typeof value === 'object') {
+      try {
+        const raw = (value as any).__rue_raw__
+        if (raw !== undefined) return raw
+      } catch {}
+    }
+    return value
+  }
+
+  const syncCurrentItem = (range: VaporListItemRange, nextItem: T, nextIndex: number) => {
+    if (!range.current) {
+      range.current = signal({ item: nextItem, index: nextIndex }, {}, true)
+      return range.current
+    }
+
+    const prev = untrack(() => range.current!.get())
+    if (getRawIdentity(prev.item) !== getRawIdentity(nextItem) || prev.index !== nextIndex) {
+      range.current.set({ item: nextItem, index: nextIndex })
+    }
+    return range.current
+  }
+
+  const resolveStartNode = (range: VaporListItemRange) => {
+    if (!range.singleRoot) {
+      return range.start as DomNodeLike
+    }
+    const head = ((range.end as any).previousSibling as DomNodeLike | null) || null
+    return head && contains(parent as any, head as any) ? head : range.end
+  }
 
   let cursor: DomNodeLike | null = before as any
 
@@ -93,27 +128,45 @@ export const vaporKeyedList = <T>(args: {
     let end: DomNodeLike
 
     if (!range) {
-      // 新建未存在的条目：创建锚点并插入
-      start = createComment('rue:list:item:start')
-      end = createComment('rue:list:item:end')
-      insertBefore(parent, end, cursor as any)
-      insertBefore(parent, start, end)
-      const entry: VaporListItemRange = { start, end }
-      // 建立与该 item 渲染相关的副作用
-      watchEffect(() => {
-        renderItem(item, parent as any, start, end, i)
-      })
-      // entry.stop = () => stop.dispose()
-      range = entry
+      if (singleRoot) {
+        end = createComment('rue:list:item:anchor')
+        insertBefore(parent, end, cursor as any)
+        const entry: VaporListItemRange = { end, singleRoot: true }
+        const current = syncCurrentItem(entry, item, i)
+        const stop = watchEffect(() => {
+          const next = current.get()
+          renderItem(next.item, parent as any, end, end, next.index)
+        })
+        entry.stop = () => stop.dispose()
+        range = entry
+      } else {
+        // 新建未存在的条目：创建锚点并插入
+        start = createComment('rue:list:item:start')
+        end = createComment('rue:list:item:end')
+        insertBefore(parent, end, cursor as any)
+        insertBefore(parent, start, end)
+        const entry: VaporListItemRange = { start, end }
+        const current = syncCurrentItem(entry, item, i)
+        // 建立与该 item 渲染相关的副作用
+        const stop = watchEffect(() => {
+          const next = current.get()
+          renderItem(next.item, parent as any, start, end, next.index)
+        })
+        entry.stop = () => stop.dispose()
+        range = entry
+      }
     } else {
-      start = range.start
+      syncCurrentItem(range, item, i)
+      start = resolveStartNode(range)
       end = range.end
     }
 
+    const blockStart = resolveStartNode(range)
+
     // 若该块当前位置与期望位置不同，抽取并重新插入到 cursor 前
-    if ((end as any).nextSibling !== cursor && cursor !== start) {
+    if ((end as any).nextSibling !== cursor && cursor !== blockStart) {
       const block = createDocumentFragment()
-      let node: DomNodeLike | null = start
+      let node: DomNodeLike | null = blockStart
       while (node) {
         const next: DomNodeLike | null = (node as any).nextSibling
         appendChild(block, node)
@@ -126,23 +179,21 @@ export const vaporKeyedList = <T>(args: {
     }
 
     nextElements.set(key, range!)
-    cursor = start
+    cursor = blockStart
   }
 
   // 清理不存在于下一轮的条目：停止副作用并移除节点范围
   elements.forEach((range, key) => {
     if (!nextElements.has(key)) {
-      //if (range.stop) range.stop()
+      if (range.stop) range.stop()
 
-      let n: DomNodeLike | null = (range.start as any).nextSibling || null
-      while (n && n !== range.end) {
+      let n: DomNodeLike | null = resolveStartNode(range)
+      while (n) {
         const next: DomNodeLike | null = (n as any).nextSibling || null
         if (contains(parent as any, n as any)) removeChild(parent as any, n as any)
+        if (n === range.end) break
         n = next
       }
-      if (contains(parent as any, range.start as any))
-        removeChild(parent as any, range.start as any)
-      if (contains(parent as any, range.end as any)) removeChild(parent as any, range.end as any)
     }
   })
   elements.clear()

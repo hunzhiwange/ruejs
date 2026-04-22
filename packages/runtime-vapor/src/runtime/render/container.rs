@@ -55,6 +55,7 @@ where
             // 记录当前容器，并清理过期的容器映射与执行延迟队列
             self.current_container = Some(container.clone());
             self.compact_container_map();
+            self.compact_anchor_map();
             if !self.deferred_queue.is_empty() {
                 // 将延迟队列中的任务搬移到局部变量并执行，避免借用冲突
                 let mut queue = Vec::new();

@@ -21,6 +21,7 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 
+use crate::reactive::context::{get_current_instance, with_current_instance_hook_scope, with_hook_slot};
 use crate::reactive::effect::on_cleanup;
 use crate::reactive::watch::watch;
 
@@ -54,20 +55,148 @@ fn normalize_dep_item_to_source(v: &JsValue) -> JsValue {
     v.clone()
 }
 
-#[wasm_bindgen(js_name = useEffect)]
-pub fn use_effect(effect: Function, deps: Option<JsValue>, options: Option<JsValue>) {
-    // 依赖数组归一化（参考 use_state 的“选项解析”风格）：
-    // - 先把 `deps` 转为标准的 `sources`，后续统一交给 `watch([...])` 处理
-    let sources = Array::new();
+fn raw_deps_array(deps: Option<JsValue>) -> Array {
     if let Some(d) = deps {
         if Array::is_array(&d) {
-            let arr = Array::from(&d);
-            for i in 0..arr.length() {
-                let item = arr.get(i);
-                sources.push(&normalize_dep_item_to_source(&item));
-            }
+            return Array::from(&d);
         }
     }
+    Array::new()
+}
+
+fn normalized_sources_from_raw(raw_deps: &Array) -> Array {
+    let sources = Array::new();
+    for i in 0..raw_deps.length() {
+        let item = raw_deps.get(i);
+        sources.push(&normalize_dep_item_to_source(&item));
+    }
+    sources
+}
+
+fn clone_array(input: &Array) -> Array {
+    let copy = Array::new();
+    for i in 0..input.length() {
+        copy.push(&input.get(i));
+    }
+    copy
+}
+
+fn is_dynamic_dep_source(value: &JsValue) -> bool {
+    if value.dyn_ref::<Function>().is_some() {
+        return true;
+    }
+    if value.is_object() {
+        let getter = Reflect::get(value, &JsValue::from_str("get")).unwrap_or(JsValue::UNDEFINED);
+        if getter.is_function() {
+            return true;
+        }
+        let value_prop = Reflect::get(value, &JsValue::from_str("value"))
+            .unwrap_or(JsValue::UNDEFINED);
+        if !value_prop.is_undefined() {
+            return true;
+        }
+    }
+    false
+}
+
+fn same_dep_array(prev: &JsValue, next: &Array) -> bool {
+    if !Array::is_array(prev) {
+        return false;
+    }
+    let prev_arr = Array::from(prev);
+    if prev_arr.length() != next.length() {
+        return false;
+    }
+    for i in 0..next.length() {
+        let prev_item = prev_arr.get(i);
+        let next_item = next.get(i);
+        // 这类 deps 自身已经是“动态源”（getter/signal/ref），watch 会在内部追踪它们。
+        // 对组件重渲染来说，按槽位位置稳定即可，避免每次 render 因 wrapper/闭包对象变化而重建 watch。
+        if is_dynamic_dep_source(&prev_item) && is_dynamic_dep_source(&next_item) {
+            continue;
+        }
+        if !js_sys::Object::is(&prev_item, &next_item) {
+            return false;
+        }
+    }
+    true
+}
+
+fn same_optional_function(prev: &JsValue, next: Option<&Function>) -> bool {
+    match next {
+        Some(func) => js_sys::Object::is(prev, &JsValue::from(func.clone())),
+        None => prev.is_undefined() || prev.is_null(),
+    }
+}
+
+fn dispose_effect_handle_value(handle: &JsValue) {
+    if handle.is_undefined() || handle.is_null() {
+        return;
+    }
+    let dispose = Reflect::get(handle, &JsValue::from_str("dispose")).unwrap_or(JsValue::UNDEFINED);
+    if let Some(func) = dispose.dyn_ref::<Function>() {
+        let _ = func.call0(handle);
+    }
+}
+
+fn set_slot_watch_state(
+    slot: &Object,
+    handle: &JsValue,
+    deps: &Array,
+    equals: Option<&Function>,
+    scheduler: Option<&Function>,
+) {
+    let _ = Reflect::set(slot, &JsValue::from_str("handle"), handle);
+    let _ = Reflect::set(slot, &JsValue::from_str("deps"), &clone_array(deps).into());
+    let _ = Reflect::set(
+        slot,
+        &JsValue::from_str("equals"),
+        &equals.cloned().map(JsValue::from).unwrap_or(JsValue::UNDEFINED),
+    );
+    let _ = Reflect::set(
+        slot,
+        &JsValue::from_str("scheduler"),
+        &scheduler.cloned().map(JsValue::from).unwrap_or(JsValue::UNDEFINED),
+    );
+}
+
+fn create_use_effect_watch(
+    slot: &Object,
+    raw_deps: &Array,
+    equals: Option<Function>,
+    scheduler: Option<Function>,
+) -> JsValue {
+    let slot_for_handler = slot.clone();
+    let handler = Closure::wrap(Box::new(move |_newv: JsValue, _oldv: JsValue| {
+        let effect = Reflect::get(&slot_for_handler, &JsValue::from_str("effect"))
+            .unwrap_or(JsValue::UNDEFINED);
+        if let Some(func) = effect.dyn_ref::<Function>() {
+            let ret = func.call0(&JsValue::NULL).unwrap_or(JsValue::UNDEFINED);
+            if let Some(cleanup) = ret.dyn_ref::<Function>() {
+                on_cleanup(cleanup.clone());
+            }
+        }
+        JsValue::UNDEFINED
+    }) as Box<dyn FnMut(JsValue, JsValue) -> JsValue>);
+    let handler_fn: Function = handler.as_ref().clone().unchecked_into();
+
+    let opts = Object::new();
+    let _ = Reflect::set(&opts, &JsValue::from_str("immediate"), &JsValue::from_bool(true));
+    if let Some(eqf) = equals.as_ref() {
+        let _ = Reflect::set(&opts, &JsValue::from_str("equals"), eqf);
+    }
+    if let Some(sch) = scheduler.as_ref() {
+        let _ = Reflect::set(&opts, &JsValue::from_str("scheduler"), sch);
+    }
+
+    let handle = watch(normalized_sources_from_raw(raw_deps).into(), handler_fn, Some(opts.into()));
+    handler.forget();
+    JsValue::from(handle)
+}
+
+#[wasm_bindgen(js_name = useEffect)]
+pub fn use_effect(effect: Function, deps: Option<JsValue>, options: Option<JsValue>) {
+    let raw_deps = raw_deps_array(deps);
     // 解析可选项：equals 与 scheduler（与 watch.ts 的选项保持一致）
     let mut equals: Option<Function> = None;
     let mut scheduler: Option<Function> = None;
@@ -85,29 +214,61 @@ pub fn use_effect(effect: Function, deps: Option<JsValue>, options: Option<JsVal
             }
         }
     }
-    let eff = effect.clone();
-    let handler = Closure::wrap(Box::new(move |_newv: JsValue, _oldv: JsValue| {
-        // 当 watch 侦听到依赖变化时，调用用户传入的 effect
-        let ret = eff.call0(&JsValue::NULL).unwrap_or(JsValue::UNDEFINED);
-        // 若 effect 返回清理函数，将其注册到 onCleanup
-        if let Some(f) = ret.dyn_ref::<Function>() {
-            on_cleanup(f.clone());
-        }
-        JsValue::UNDEFINED
-    }) as Box<dyn FnMut(JsValue, JsValue) -> JsValue>);
-    let handler_fn: Function = handler.as_ref().clone().unchecked_into();
-    let opts = Object::new();
-    // 首次立即运行（React 初次执行），旧值为 undefined
-    let _ = Reflect::set(&opts, &JsValue::from_str("immediate"), &JsValue::from_bool(true));
-    if let Some(eqf) = equals {
-        let _ = Reflect::set(&opts, &JsValue::from_str("equals"), &eqf);
+
+    let cur = get_current_instance();
+    if cur.is_undefined() || cur.is_null() {
+        let slot = Object::new();
+        let _ = Reflect::set(&slot, &JsValue::from_str("effect"), &JsValue::from(effect));
+        let _ = create_use_effect_watch(&slot, &raw_deps, equals, scheduler);
+        return;
     }
-    if let Some(s) = scheduler {
-        let _ = Reflect::set(&opts, &JsValue::from_str("scheduler"), &s);
+
+    let effect_for_factory = effect.clone();
+    let deps_for_factory = clone_array(&raw_deps);
+    let equals_for_factory = equals.clone();
+    let scheduler_for_factory = scheduler.clone();
+    let slot_factory = Closure::wrap(Box::new(move || {
+        let slot = Object::new();
+        let _ = Reflect::set(&slot, &JsValue::from_str("effect"), &JsValue::from(effect_for_factory.clone()));
+        let handle = with_current_instance_hook_scope(|| {
+            create_use_effect_watch(
+                &slot,
+                &deps_for_factory,
+                equals_for_factory.clone(),
+                scheduler_for_factory.clone(),
+            )
+        });
+        set_slot_watch_state(
+            &slot,
+            &handle,
+            &deps_for_factory,
+            equals_for_factory.as_ref(),
+            scheduler_for_factory.as_ref(),
+        );
+        slot.into()
+    }) as Box<dyn FnMut() -> JsValue>);
+    let slot_value = with_hook_slot(slot_factory.as_ref().clone().unchecked_into());
+    slot_factory.forget();
+
+    let slot = Object::from(slot_value);
+    let _ = Reflect::set(&slot, &JsValue::from_str("effect"), &JsValue::from(effect));
+
+    let prev_deps = Reflect::get(&slot, &JsValue::from_str("deps")).unwrap_or(JsValue::UNDEFINED);
+    let prev_equals = Reflect::get(&slot, &JsValue::from_str("equals")).unwrap_or(JsValue::UNDEFINED);
+    let prev_scheduler = Reflect::get(&slot, &JsValue::from_str("scheduler")).unwrap_or(JsValue::UNDEFINED);
+
+    let should_recreate = !same_dep_array(&prev_deps, &raw_deps)
+        || !same_optional_function(&prev_equals, equals.as_ref())
+        || !same_optional_function(&prev_scheduler, scheduler.as_ref());
+
+    if should_recreate {
+        let prev_handle = Reflect::get(&slot, &JsValue::from_str("handle")).unwrap_or(JsValue::UNDEFINED);
+        dispose_effect_handle_value(&prev_handle);
+        let handle = with_current_instance_hook_scope(|| {
+            create_use_effect_watch(&slot, &raw_deps, equals.clone(), scheduler.clone())
+        });
+        set_slot_watch_state(&slot, &handle, &raw_deps, equals.as_ref(), scheduler.as_ref());
     }
-    // 使用 watch 的“来源数组”形态实现依赖监听与比较
-    let _eh = watch(sources.into(), handler_fn, Some(opts.into()));
-    handler.forget();
 }
 
 #[wasm_bindgen(typescript_custom_section)]

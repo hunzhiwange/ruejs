@@ -30,6 +30,9 @@ pub struct ComponentInternalInstance<A: DomAdapter> {
     pub props_ro: JsValue,
     // 当前组件对应的 Hook 宿主对象（setCurrentInstance 所使用的对象）
     pub host: JsValue,
+    // 本组件“本轮渲染”期间创建的 effect/computed/useEffect 所属 scope。
+    // 组件更新前会先 dispose 上一轮 scope，避免这些副作用在多次重渲染后不断累积。
+    pub render_scope_id: Option<usize>,
     // 组件内部错误（如渲染/副作用阶段抛出的异常）
     pub error: Option<JsValue>,
     // 错误处理回调集合

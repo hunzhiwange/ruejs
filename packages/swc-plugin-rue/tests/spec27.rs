@@ -36,7 +36,7 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporShowStyle, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+  import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
 const Hello: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));
@@ -46,20 +46,31 @@ const Hello: FC = ()=>{
     }));
     const { color: color } = _$useSetup;
     return (<div>
-      <div style={_$vaporShowStyle({
+      <div style={{
         fontWeight: 'bold',
-        color: 'red'
-    }, true)}>hello world</div>
-      <div style={_$vaporShowStyle("color:blue;", true)}>hello world</div>
-      <div style={_$vaporShowStyle("color:" + color.value + ";", true)}>hello world</div>
-      <div style={_$vaporShowStyle(null, true)}>hello world</div>
-      <div style={_$vaporShowStyle(undefined, true)}>hello world</div>
-      <div style={_$vaporShowStyle(0, true)}>hello world</div>
-      <div style={_$vaporShowStyle(undefined, true)}>hello world</div>
-      <div style={_$vaporShowStyle("", true)}>hello world</div>
-      <div style={_$vaporShowStyle(" ", true)}>hello world</div>
-      <div style={_$vaporShowStyle("", true)}>hello world</div>
-      <div style={_$vaporShowStyle(undefined, true)}>hello world</div>
+        color: 'red',
+        display: ""
+    }}>hello world</div>
+      <div style={"color:blue;"}>hello world</div>
+      <div style={"color:" + color.value + ";"}>hello world</div>
+      <div style={{
+        display: ""
+    }}>hello world</div>
+      <div style={{
+        display: ""
+    }}>hello world</div>
+      <div style={{
+        display: ""
+    }}>hello world</div>
+      <div style={{
+        display: ""
+    }}>hello world</div>
+      <div style={""}>hello world</div>
+      <div style={" "}>hello world</div>
+      <div style={""}>hello world</div>
+      <div style={{
+        display: ""
+    }}>hello world</div>
     </div>);
 };
 export default Hello;

@@ -18,6 +18,8 @@ where
 {
     /// 容器与其当前 vnode 的映射
     pub container_map: Vec<(A::Element, Option<VNode<A>>)>,
+    /// 单锚点渲染映射（anchor -> vnode），用于组件等可由尾锚点定位的增量更新
+    pub anchor_map: Vec<(A::Element, Option<VNode<A>>)>,
     /// 当前活跃组件实例（用于钩子、错误处理等）
     pub current_instance: Option<ComponentInternalInstance<A>>,
     /// 当前已关联的容器计数
@@ -60,6 +62,7 @@ where
     pub fn new() -> Self {
         Rue {
             container_map: Vec::new(),
+            anchor_map: Vec::new(),
             current_instance: None,
             current_container_count: 0,
             instance_stack: Vec::new(),

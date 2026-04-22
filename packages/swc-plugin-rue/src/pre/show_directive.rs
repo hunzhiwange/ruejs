@@ -3,6 +3,7 @@ use swc_core::ecma::ast::*;
 
 use crate::emit;
 use crate::log;
+use crate::utils::unwrap_expr;
 
 /*
 模块职责与 AST 说明（中文详解）：
@@ -29,6 +30,97 @@ use crate::log;
 - 若无 style：
   <div v-show={cond} /> → <div style={_$vaporShowStyle(undefined, cond)} />
 */
+fn get_static_truthy_bool(e: &Expr) -> Option<bool> {
+    match unwrap_expr(e) {
+        Expr::Lit(Lit::Str(s)) => Some(!s.value.is_empty()),
+        Expr::Lit(Lit::Num(n)) => Some(n.value != 0.0 && !n.value.is_nan()),
+        Expr::Lit(Lit::Bool(b)) => Some(b.value),
+        Expr::Lit(Lit::Null(_)) => Some(false),
+        Expr::Ident(id) if id.sym.as_ref() == "undefined" => Some(false),
+        Expr::Unary(u) if matches!(u.op, UnaryOp::Void) => Some(false),
+        _ => None,
+    }
+}
+
+fn is_known_string_expr(e: &Expr) -> bool {
+    match unwrap_expr(e) {
+        Expr::Lit(Lit::Str(_)) | Expr::Tpl(_) => true,
+        Expr::Call(call) => matches!(
+            &call.callee,
+            Callee::Expr(expr)
+                if matches!(unwrap_expr(expr.as_ref()), Expr::Ident(id) if id.sym.as_ref() == "String")
+        ),
+        Expr::Bin(bin) if matches!(bin.op, BinaryOp::Add) => {
+            is_known_string_expr(bin.left.as_ref()) || is_known_string_expr(bin.right.as_ref())
+        }
+        _ => false,
+    }
+}
+
+fn display_style_expr(display: &str) -> Expr {
+    Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(emit::ident_name("display")),
+            value: Box::new(Expr::Lit(Lit::Str(emit::str_lit(display)))),
+        })))],
+    })
+}
+
+fn append_display_to_object(obj: &ObjectLit, display: &str) -> Expr {
+    let mut props = obj.props.clone();
+    props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+        key: PropName::Ident(emit::ident_name("display")),
+        value: Box::new(Expr::Lit(Lit::Str(emit::str_lit(display)))),
+    }))));
+    Expr::Object(ObjectLit { span: obj.span, props })
+}
+
+fn concat_style_suffix(style_expr: Expr, suffix: &str) -> Expr {
+    Expr::Bin(BinExpr {
+        span: DUMMY_SP,
+        op: BinaryOp::Add,
+        left: Box::new(style_expr),
+        right: Box::new(Expr::Lit(Lit::Str(emit::str_lit(suffix)))),
+    })
+}
+
+fn fold_vapor_show_style(style_expr: Expr, cond: bool) -> Option<Expr> {
+    let display = if cond { "" } else { "none" };
+    match unwrap_expr(&style_expr) {
+        Expr::Object(obj) => Some(append_display_to_object(obj, display)),
+        Expr::Lit(Lit::Str(s)) => {
+            if cond {
+                Some(Expr::Lit(Lit::Str(s.clone())))
+            } else {
+                let mut value = s.value.as_str().unwrap_or("").to_owned();
+                value.push_str("; display: none");
+                Some(Expr::Lit(Lit::Str(emit::str_lit(&value))))
+            }
+        }
+        Expr::Lit(Lit::Num(_)) | Expr::Lit(Lit::Bool(_)) | Expr::Lit(Lit::Null(_)) => {
+            Some(display_style_expr(display))
+        }
+        Expr::Ident(id) if id.sym.as_ref() == "undefined" => Some(display_style_expr(display)),
+        Expr::Unary(u) if matches!(u.op, UnaryOp::Void) => Some(display_style_expr(display)),
+        _ if is_known_string_expr(&style_expr) => {
+            if cond {
+                Some(style_expr)
+            } else {
+                Some(concat_style_suffix(style_expr, "; display: none"))
+            }
+        }
+        _ => None,
+    }
+}
+
+fn set_style_expr_value(style_attr: &mut JSXAttr, expr: Expr) {
+    style_attr.value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+        span: DUMMY_SP,
+        expr: JSXExpr::Expr(Box::new(expr)),
+    }));
+}
+
 /// `v-show/show` 指令改写：
 /// - 若存在 `style`，将其改为调用 `_$vaporShowStyle(style, cond)`；否则插入一个 `style={_$vaporShowStyle(undefined, cond)}`
 /// - 设计动机：统一以样式驱动显示隐藏，避免在编译期生成额外的控制流程与节点结构。
@@ -63,6 +155,7 @@ pub fn transform_opening(opening: &mut JSXOpeningElement) {
             _ => None,
         };
         if let Some(cond) = cond_opt {
+            let static_cond = get_static_truthy_bool(&cond);
             // 3) 查找是否存在 style 属性
             let mut style_idx: Option<usize> = None;
             for (i, a) in opening.attrs.iter().enumerate() {
@@ -79,46 +172,29 @@ pub fn transform_opening(opening: &mut JSXOpeningElement) {
                     log::debug("pre: patch existing style with vaporShowStyle");
                     // 4a) 已存在 style：将其值包装为 _$vaporShowStyle(styleValue, cond)
                     if let JSXAttrOrSpread::JSXAttr(style_attr) = &mut opening.attrs[si] {
-                        match &style_attr.value {
+                        let style_expr = match &style_attr.value {
                             Some(JSXAttrValue::Str(s)) => {
                                 // style 为字符串字面量：直接作为第一个参数传入
-                                let arg0 = Expr::Lit(Lit::Str(s.clone()));
-                                let call =
-                                    emit::call_ident("_$vaporShowStyle", vec![arg0, cond.clone()]);
-                                style_attr.value =
-                                    Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                        span: DUMMY_SP,
-                                        expr: JSXExpr::Expr(Box::new(call)),
-                                    }));
+                                Expr::Lit(Lit::Str(s.clone()))
                             }
                             Some(JSXAttrValue::JSXExprContainer(ec)) => {
                                 // style 为表达式容器：提取表达式；若为空则使用空字符串
-                                let s_expr = match &ec.expr {
+                                match &ec.expr {
                                     JSXExpr::Expr(e) => *e.clone(),
                                     _ => Expr::Lit(Lit::Str(emit::str_lit(""))),
-                                };
-                                let call = emit::call_ident(
-                                    "_$vaporShowStyle",
-                                    vec![s_expr, cond.clone()],
-                                );
-                                style_attr.value =
-                                    Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                        span: DUMMY_SP,
-                                        expr: JSXExpr::Expr(Box::new(call)),
-                                    }));
+                                }
                             }
                             _ => {
                                 // 其他形式（不常见）：回退为空字符串，再进行包装
-                                let empty = Expr::Lit(Lit::Str(emit::str_lit("")));
-                                let call =
-                                    emit::call_ident("_$vaporShowStyle", vec![empty, cond.clone()]);
-                                style_attr.value =
-                                    Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                        span: DUMMY_SP,
-                                        expr: JSXExpr::Expr(Box::new(call)),
-                                    }));
+                                Expr::Lit(Lit::Str(emit::str_lit("")))
                             }
-                        }
+                        };
+                        let next_expr = static_cond
+                            .and_then(|cond| fold_vapor_show_style(style_expr.clone(), cond))
+                            .unwrap_or_else(|| {
+                                emit::call_ident("_$vaporShowStyle", vec![style_expr, cond.clone()])
+                            });
+                        set_style_expr_value(style_attr, next_expr);
                     }
                     // 移除 v-show/show 指令属性
                     opening.attrs.remove(vi);
@@ -127,14 +203,15 @@ pub fn transform_opening(opening: &mut JSXOpeningElement) {
                     log::debug("pre: insert style from v-show");
                     // 4b) 不存在 style：插入一个 style，并以 undefined 作为默认样式值
                     let undef = Expr::Ident(emit::ident("undefined"));
-                    let call = emit::call_ident("_$vaporShowStyle", vec![undef, cond.clone()]);
+                    let next_expr = static_cond
+                        .and_then(|cond| fold_vapor_show_style(undef.clone(), cond))
+                        .unwrap_or_else(|| {
+                            emit::call_ident("_$vaporShowStyle", vec![undef, cond.clone()])
+                        });
                     if let JSXAttrOrSpread::JSXAttr(attr) = &opening.attrs[vi] {
                         let mut style_attr = attr.clone();
                         style_attr.name = JSXAttrName::Ident(emit::ident("style").into());
-                        style_attr.value = Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                            span: DUMMY_SP,
-                            expr: JSXExpr::Expr(Box::new(call)),
-                        }));
+                        set_style_expr_value(&mut style_attr, next_expr);
                         // 直接用新 style 属性覆盖原 v-show/show 属性位置
                         opening.attrs[vi] = JSXAttrOrSpread::JSXAttr(style_attr);
                     }

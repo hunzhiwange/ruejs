@@ -115,7 +115,9 @@ export default function MyComponent() {
 }
 ```
 
-### 与组合式 API 一起使用 {#usage-with-composition-api}
+### 与组合式 API 一起使用 {#usage-with-composition-api} @todo
+
+> **@todo**: `useCssModule()` 尚未实现。
 
 注入的类可以在 `setup()` 和 `<script setup>` 中通过直接导入 CSS 模块来访问：
 

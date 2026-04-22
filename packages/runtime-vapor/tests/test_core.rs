@@ -1,5 +1,7 @@
 use js_sys::{Function, Promise};
-use rue_runtime_vapor::{create_effect, create_signal, set_reactive_scheduling};
+use rue_runtime_vapor::{
+    create_computed, create_effect, create_signal, set_reactive_scheduling,
+};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
@@ -46,6 +48,68 @@ async fn scheduling_microtask_defers_until_microtask() {
     wasm_bindgen_futures::JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await.unwrap();
     assert_eq!(*hits.borrow(), 2);
     cb.forget();
+}
+
+#[wasm_bindgen_test(async)]
+/// frame 调度在非浏览器环境下会安全回退到微任务，避免测试/Node 环境因缺少 rAF 而卡住。
+async fn scheduling_frame_falls_back_to_microtask_outside_browser() {
+    set_reactive_scheduling("frame");
+    let sig = create_signal(JsValue::from_f64(0.0), None);
+    let hits = Rc::new(RefCell::new(0));
+    let hits2 = hits.clone();
+    let s_for = sig.clone();
+    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *hits2.borrow_mut() += 1;
+        let _ = s_for.get_js();
+    }) as Box<dyn FnMut()>);
+    let f: Function = cb.as_ref().clone().into();
+    let _eh = create_effect(f, None);
+
+    assert_eq!(*hits.borrow(), 1);
+    sig.set_js(JsValue::from_f64(1.0));
+    assert_eq!(*hits.borrow(), 1);
+
+    wasm_bindgen_futures::JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await.unwrap();
+    assert_eq!(*hits.borrow(), 2);
+    cb.forget();
+}
+
+#[wasm_bindgen_test(async)]
+/// 微任务调度下，drain 过程中级联产生的新 pending effect 也应自动补发后续微任务，
+/// 不应依赖下一次外部 set 才继续传播。
+async fn scheduling_microtask_continues_chained_effects_without_external_poke() {
+    set_reactive_scheduling("microtask");
+    let source = create_signal(JsValue::from_f64(1.0), None);
+
+    let source_for_computed = source.clone();
+    let computed_cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        let value = source_for_computed.get_js().as_f64().unwrap();
+        JsValue::from_f64(value * 2.0)
+    }) as Box<dyn FnMut() -> JsValue>);
+    let computed_fn: Function = computed_cb.as_ref().clone().into();
+    let doubled = create_computed(computed_fn.into());
+    computed_cb.forget();
+
+    let hits = Rc::new(RefCell::new(0));
+    let hits2 = hits.clone();
+    let doubled_for_effect = doubled.clone();
+    let effect_cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *hits2.borrow_mut() += 1;
+        let _ = doubled_for_effect.get_js();
+    }) as Box<dyn FnMut()>);
+    let effect_fn: Function = effect_cb.as_ref().clone().into();
+    let _eh = create_effect(effect_fn, None);
+
+    assert_eq!(*hits.borrow(), 1);
+    source.set_js(JsValue::from_f64(2.0));
+    assert_eq!(*hits.borrow(), 1);
+
+    wasm_bindgen_futures::JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await.unwrap();
+    wasm_bindgen_futures::JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await.unwrap();
+
+    assert_eq!(*hits.borrow(), 2);
+    assert_eq!(doubled.get_js().as_f64().unwrap(), 4.0);
+    effect_cb.forget();
 }
 
 #[wasm_bindgen_test]

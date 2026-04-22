@@ -1,6 +1,6 @@
 # 响应式 API：进阶 {#reactivity-api-advanced}
 
-## shallowRef() {#shallowref}
+## shallowRef() {#shallowref} @todo
 
 [`ref()`](./reactivity-core#ref) 的浅层版本。
 
@@ -36,7 +36,7 @@
   - [指南 - 减少大型不可变结构的响应式开销](/guide/best-practices/performance#reduce-reactivity-overhead-for-large-immutable-structures)
   - [指南 - 与外部状态系统集成](/guide/extras/reactivity-in-depth#integration-with-external-state-systems)
 
-## triggerRef() {#triggerref}
+## triggerRef() {#triggerref} @todo
 
 强制触发依赖于[浅层 ref](#shallowref)的副作用。这通常在对浅层 ref 的内部值进行深度变更后使用。
 
@@ -65,7 +65,7 @@
   triggerRef(shallow)
   ```
 
-## customRef() {#customref}
+## customRef() {#customref} @todo
 
 创建一个显式控制其依赖追踪和更新触发的自定义 ref。
 
@@ -230,7 +230,7 @@
   console.log(toRaw(reactiveFoo) === foo) // true
   ```
 
-## markRaw() {#markraw}
+## markRaw() {#markraw} @todo
 
 标记一个对象，使其永远不会被转换为代理。返回对象本身。
 
@@ -276,7 +276,7 @@
 
   :::
 
-## effectScope() {#effectscope}
+## effectScope() {#effectscope} @todo
 
 创建一个 effect 作用域对象，可以捕获在其中创建的响应式 effect（即 computed 和 watchers），以便这些 effect 可以一起被处置。有关此 API 的详细用例，请参阅相应的 [RFC](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0041-reactivity-effect-scope.md)。
 
@@ -308,7 +308,7 @@
   scope.stop()
   ```
 
-## getCurrentScope() {#getcurrentscope}
+## getCurrentScope() {#getcurrentscope} @todo
 
 如果存在，返回当前活动的 [effect 作用域](#effectscope)。
 
@@ -318,7 +318,7 @@
   function getCurrentScope(): EffectScope | undefined
   ```
 
-## onScopeDispose() {#onscopedispose}
+## onScopeDispose() {#onscopedispose} @todo
 
 在当前活动的 [effect 作用域](#effectscope)上注册一个处置回调。当关联的 effect 作用域停止时，将调用回调。
 

@@ -220,6 +220,8 @@ pub fn shallow_readonly_js(initial: JsValue, force_global: Option<bool>) -> JsVa
 pub fn props_reactive_js(initial: JsValue, force_global: Option<bool>) -> JsValue {
     let opts = Object::new();
     Reflect::set(&opts, &JsValue::from_str("readonly"), &JsValue::from_bool(true)).ok();
+    // 组件 props 应保持浅只读：顶层访问可追踪，VNode/DOM/已有 reactive 值按原样透传。
+    Reflect::set(&opts, &JsValue::from_str("shallow"), &JsValue::from_bool(true)).ok();
     let eq = Closure::wrap(Box::new(move |prev: JsValue, next: JsValue| -> bool {
         shallow_equal_prop(&prev, &next)
     }) as Box<dyn FnMut(JsValue, JsValue) -> bool>);

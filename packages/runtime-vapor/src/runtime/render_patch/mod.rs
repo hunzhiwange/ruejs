@@ -192,6 +192,13 @@ where
                 // 组件：执行组件函数，收集 hooks 与返回的子树，然后递归更新
                 self.patch_component_same(old, new, parent);
             }
+            (VNodeType::Vapor, VNodeType::Vapor)
+            | (VNodeType::VaporWithSetup(_), VNodeType::VaporWithSetup(_)) => {
+                // Vapor 子树的 setup 内部可能注册 watchEffect/createEffect。
+                // 即便类型没变，也必须走完整替换流程，先卸载旧 scope 再创建新 subtree，
+                // 否则会不断重建 DOM 和副作用，却不释放旧的 scope。
+                self.patch_replace(old, new, parent);
+            }
             _ => {
                 // 其他边界情况：走重建逻辑（保守策略）
                 self.patch_rebuild_same(old, new, parent);
@@ -217,7 +224,19 @@ where
             let anchor_opt = self.current_anchor.clone();
             let mut dest_parent =
                 self.resolve_dest_parent(parent, old.el.clone(), anchor_opt.clone());
-            let insert_anchor = old.el.clone().or(anchor_opt);
+            let insert_anchor = if let Some(ref el_old) = old.el {
+                if let Some(adapter) = self.get_dom_adapter() {
+                    if !adapter.is_fragment(el_old) && adapter.contains(&dest_parent, el_old) {
+                        Some(el_old.clone())
+                    } else {
+                        anchor_opt.clone()
+                    }
+                } else {
+                    anchor_opt.clone().or_else(|| Some(el_old.clone()))
+                }
+            } else {
+                anchor_opt.clone()
+            };
             // 先清理旧片段的子节点（片段只负责子节点内容，不直接替换占位）
             self.clear_vapor_frag_nodes(&mut dest_parent, old);
             // 插入新片段的子节点到目标父节点；必要时参照锚点前插

@@ -4,7 +4,7 @@
 `<component>`、`<slot>` 和 `<template>` 是类似组件的功能，是模板语法的一部分。它们不是真正的组件，在模板编译期间会被编译掉。因此，它们在模板中通常用小写字母书写。
 :::
 
-## `<component>` {#component}
+## `<component>` {#component} @todo
 
 用于渲染动态组件或元素的"元组件"。
 
@@ -75,7 +75,7 @@
 
 - **另请参阅** [动态组件](/guide/essentials/component-basics#dynamic-components)
 
-## `<slot>` {#slot}
+## `<slot>` {#slot} @todo
 
 表示模板中的插槽内容出口。
 
@@ -105,7 +105,7 @@
 
 - **另请参阅** [组件 - 插槽](/guide/components/slots)
 
-## `<template>` {#template}
+## `<template>` {#template} @todo
 
 `<template>` 标签在我们想使用内置指令而不在 DOM 中渲染元素时用作占位符。
 

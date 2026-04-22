@@ -1,9 +1,12 @@
-use js_sys::Function;
+use js_sys::{Array, Function, Object, Reflect};
 use rue_runtime_vapor::reactive::core::{create_effect_scope, pop_effect_scope, push_effect_scope};
-use rue_runtime_vapor::{create_effect, create_signal, on_cleanup, set_reactive_scheduling};
+use rue_runtime_vapor::{
+    JsDomAdapter, create_effect, create_signal, on_cleanup, set_reactive_scheduling,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
@@ -11,6 +14,176 @@ use rue_runtime_vapor::{DomAdapter, Rue, VNodeType};
 
 mod common;
 use common::TestAdapter;
+
+fn update_siblings(parent: &JsValue) {
+    let children = Reflect::get(parent, &JsValue::from_str("children")).unwrap_or(Array::new().into());
+    let arr: Array = children.unchecked_into();
+    for i in 0..arr.length() {
+        let cur = arr.get(i);
+        let prev = if i > 0 { arr.get(i - 1) } else { JsValue::NULL };
+        let next = if i + 1 < arr.length() { arr.get(i + 1) } else { JsValue::NULL };
+        let _ = Reflect::set(&cur, &JsValue::from_str("previousSibling"), &prev);
+        let _ = Reflect::set(&cur, &JsValue::from_str("nextSibling"), &next);
+        let _ = Reflect::set(&cur, &JsValue::from_str("parentNode"), parent);
+    }
+}
+
+fn make_linked_adapter() -> JsValue {
+    let obj = Object::new();
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("createElement"),
+        &Function::new_with_args("tag", "return { tag, children: [] }").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("createTextNode"),
+        &Function::new_with_args("text", "return { tag: '#text', text, children: [] }").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("createDocumentFragment"),
+        &Function::new_no_args("return { tag: 'fragment', children: [] }").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("isFragment"),
+        &Function::new_with_args("el", "return !!el && el.tag === 'fragment'").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("collectFragmentChildren"),
+        &Function::new_with_args("el", "return Array.from(el && el.children || [])").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setTextContent"),
+        &Function::new_with_args("el,text", "el.text = text").into(),
+    );
+    let append_impl = Function::new_with_args(
+        "p,c",
+        "p.children = p.children||[]; \
+         if (c && c.tag === 'fragment') { \
+           const list = Array.from(c.children||[]); \
+           list.forEach(ch => p.children.push(ch)); \
+         } else { \
+           p.children.push(c); \
+         } \
+         return;",
+    );
+    let _ = Reflect::set(&obj, &JsValue::from_str("appendChild"), &append_impl.into());
+    let insert_impl = Function::new_with_args(
+        "p,c,b",
+        "p.children = p.children||[]; \
+         const idx = (p.children||[]).indexOf(b); \
+         const at = idx >= 0 ? idx : p.children.length; \
+         if (c && c.tag === 'fragment') { \
+           const list = Array.from(c.children||[]); \
+           p.children.splice(at, 0, ...list); \
+         } else { \
+           p.children.splice(at, 0, c); \
+         } \
+         return;",
+    );
+    let _ = Reflect::set(&obj, &JsValue::from_str("insertBefore"), &insert_impl.into());
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("removeChild"),
+        &Function::new_with_args("p,c", "p.children = (p.children||[]).filter(x=>x!==c)").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("contains"),
+        &Function::new_with_args(
+            "p,c",
+            "if (p === c) return true; \
+             const walk = (node) => (node && (node.children || []).some(ch => ch === c || walk(ch))) || false; \
+             return walk(p);",
+        )
+        .into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setClassName"),
+        &Function::new_with_args("el,v", "el.class = v").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("patchStyle"),
+        &Function::new_with_args("el,old,newv", "return").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setInnerHTML"),
+        &Function::new_with_args("el,html", "el.children=[]; el.text=html").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setValue"),
+        &Function::new_with_args("el,v", "el.value = v").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setChecked"),
+        &Function::new_with_args("el,b", "el.checked = !!b").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setDisabled"),
+        &Function::new_with_args("el,b", "el.disabled = !!b").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("clearRef"),
+        &Function::new_with_args("r", "return").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("applyRef"),
+        &Function::new_with_args("el,r", "return").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("setAttribute"),
+        &Function::new_with_args("el,k,v", "el.attrs = el.attrs||{}; el.attrs[k]=v").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("removeAttribute"),
+        &Function::new_with_args("el,k", "if(el.attrs) delete el.attrs[k]").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("getTagName"),
+        &Function::new_with_args("el", "return el.tag||''").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("addEventListener"),
+        &Function::new_with_args("el,evt,h", "return").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("removeEventListener"),
+        &Function::new_with_args("el,evt,h", "return").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("hasValueProperty"),
+        &Function::new_with_args("el", "return 'value' in el").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("isSelectMultiple"),
+        &Function::new_with_args("el", "return el.tag==='SELECT' && !!el.multiple").into(),
+    );
+    let _ = Reflect::set(
+        &obj,
+        &JsValue::from_str("querySelector"),
+        &Function::new_with_args("sel", "return { tag: sel, children: [] }").into(),
+    );
+    obj.into()
+}
 
 #[wasm_bindgen_test]
 /// compact_range_map：当 range 的 start 锚点“已不再挂载”时，会触发 vnode 卸载并回收资源。
@@ -152,6 +325,78 @@ fn compact_range_map_drops_range_when_start_is_inside_detached_fragment_tree() {
     rue.render_between(vnode_new, &mut parent, start, end);
 
     let v = js_sys::eval("globalThis.__rue_compact_cleanup2").unwrap();
+    assert_eq!(v.as_f64().unwrap() as i32, 1);
+
+    sig.set_js(JsValue::from_f64(1.0));
+    assert_eq!(*hits.borrow(), 1);
+}
+
+#[wasm_bindgen_test]
+/// clear_dom_between_anchors：当被删掉的是一个父节点时，也要同步清理它内部所有 nested range。
+///
+/// 历史泄漏路径：
+/// - renderBetween miss 会先把 start/end 之间的旧 DOM 整段删掉；
+/// - 但旧 range 的 start 锚点可能藏在这段 DOM 的更深层子树里，而不是直接 sibling；
+/// - 若只按“当前 sibling 是否正好是 range.start”清理，深层 nested range 会漏掉，
+///   后续只能靠 compact_range_map 被动发现，期间其 effect/scope 已经继续泄漏并参与调度。
+fn clear_dom_between_anchors_unmounts_nested_ranges_inside_removed_subtree() {
+    set_reactive_scheduling("sync");
+    let _ = js_sys::eval("globalThis.__rue_nested_range_cleanup = 0;");
+
+    let sig = create_signal(JsValue::from_f64(0.0), None);
+    let hits = Rc::new(RefCell::new(0));
+    let hits2 = hits.clone();
+    let sig2 = sig.clone();
+
+    let sid = create_effect_scope();
+    push_effect_scope(sid);
+    let cb = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        *hits2.borrow_mut() += 1;
+        let _ = sig2.get_js();
+
+        let cleanup = Function::new_no_args(
+            "globalThis.__rue_nested_range_cleanup = (globalThis.__rue_nested_range_cleanup || 0) + 1;",
+        );
+        on_cleanup(cleanup);
+    }) as Box<dyn FnMut()>);
+    let f: Function = cb.as_ref().clone().into();
+    let _eh = create_effect(f, None);
+    cb.forget();
+    pop_effect_scope();
+    assert_eq!(*hits.borrow(), 1);
+
+    let adapter = make_linked_adapter();
+    let mut rue: Rue<JsDomAdapter> = Rue::new();
+    rue.set_dom_adapter(JsDomAdapter::new(adapter.clone()));
+    let mut props: HashMap<String, JsValue> = HashMap::new();
+    props.insert("__rue_effect_scope_id".to_string(), JsValue::from_f64(sid as f64));
+    let stale_vnode = rue.create_element(VNodeType::Vapor, Some(props), vec![]);
+
+    let create_document_fragment = Reflect::get(&adapter, &JsValue::from_str("createDocumentFragment")).unwrap();
+    let create_document_fragment = create_document_fragment.unchecked_into::<Function>();
+    let create_element = Reflect::get(&adapter, &JsValue::from_str("createElement")).unwrap();
+    let create_element = create_element.unchecked_into::<Function>();
+    let append_child = Reflect::get(&adapter, &JsValue::from_str("appendChild")).unwrap();
+    let append_child = append_child.unchecked_into::<Function>();
+
+    let mut parent = create_document_fragment.call0(&adapter).unwrap();
+    let start = create_element.call1(&adapter, &JsValue::from_str("start")).unwrap();
+    let holder = create_element.call1(&adapter, &JsValue::from_str("holder")).unwrap();
+    let end = create_element.call1(&adapter, &JsValue::from_str("end")).unwrap();
+    let _ = append_child.call2(&adapter, &parent, &start);
+    let _ = append_child.call2(&adapter, &parent, &holder);
+    let _ = append_child.call2(&adapter, &parent, &end);
+    update_siblings(&parent);
+
+    let nested_start = create_element.call1(&adapter, &JsValue::from_str("nested_start")).unwrap();
+    let _ = append_child.call2(&adapter, &holder, &nested_start);
+    update_siblings(&holder);
+    rue.range_map.push((nested_start, Some(stale_vnode)));
+
+    let vnode_new = rue.create_element(VNodeType::Element("div".into()), None, vec![]);
+    rue.render_between(vnode_new, &mut parent, start, end);
+
+    let v = js_sys::eval("globalThis.__rue_nested_range_cleanup").unwrap();
     assert_eq!(v.as_f64().unwrap() as i32, 1);
 
     sig.set_js(JsValue::from_f64(1.0));

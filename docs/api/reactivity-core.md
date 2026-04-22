@@ -344,11 +344,11 @@
   - [指南 - 侦听器](/guide/essentials/watchers#watcheffect)
   - [指南 - 侦听器调试](/guide/extras/reactivity-in-depth#watcher-debugging)
 
-## watchPostEffect() {#watchposteffect}
+## watchPostEffect() {#watchposteffect} @todo
 
 带有 `flush: 'post'` 选项的 [`watchEffect()`](#watcheffect) 别名。
 
-## watchSyncEffect() {#watchsynceffect}
+## watchSyncEffect() {#watchsynceffect} @todo
 
 带有 `flush: 'sync'` 选项的 [`watchEffect()`](#watcheffect) 别名。
 
@@ -548,7 +548,7 @@
   - [指南 - 侦听器](/guide/essentials/watchers)
   - [指南 - 侦听器调试](/guide/extras/reactivity-in-depth#watcher-debugging)
 
-## onWatcherCleanup() {#onwatchercleanup}
+## onWatcherCleanup() {#onwatchercleanup} @todo
 
 注册一个清理函数，在当前侦听器即将重新运行时执行。只能在 `watchEffect` effect 函数或 `watch` 回调函数的同步执行期间调用（即不能在异步函数中的 `await` 语句之后调用。）
 
