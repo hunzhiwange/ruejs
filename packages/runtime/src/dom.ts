@@ -190,6 +190,7 @@ const SVG_TAGS = new Set([
   'polyline',
   'rect',
   'text',
+  'tspan',
   'defs',
   'clipPath',
   'mask',
@@ -218,11 +219,37 @@ export class BrowserDOMAdapter implements DOMAdapter {
       SVG_TAGS.has(tag) ? document.createElementNS(SVG_NS, tag) : document.createElement(tag)
     ) as any
   }
-  /** 文本包装器：SVG 返回 <text>，HTML 返回 <span> */
+  /**
+   * 文本包装器。
+   *
+   * 这里要区分三种情况：
+   * 1. HTML 父节点：继续返回 <span>，和原来一样。
+   * 2. 普通 SVG 容器（如 <g>、<svg>）：返回 <text>，因为它本身就是一段 SVG 文本的承载节点。
+   * 3. 已经处在 SVG 文本容器内部（<text> / <tspan>）：必须返回 <tspan>，不能再返回 <text>。
+   *
+   * 这条分支是本次修复的关键。
+   * 之前统一在 SVG 下返回 <text>，会把：
+   *
+   * <text>{expr}ms</text>
+   *
+   * 渲染成：
+   *
+   * <text><text>0</text>ms</text>
+   *
+   * 这在 SVG 里语义是错的，浏览器兼容表现也会很怪，看起来像“表达式空了”或文字布局异常。
+   * 正确做法是在 text 内部用 tspan 包住动态片段，得到：
+   *
+   * <text><tspan>0</tspan>ms</text>
+   */
   createTextWrapper(parent: DomElementLike) {
     const p = parent as any
+    // 这里读取父节点 tagName，而不是只判断“是不是 SVGElement”，
+    // 因为 <g> 和 <text> 都是 SVGElement，但它们需要的文本子节点类型并不一样。
+    const tagName = typeof p?.tagName === 'string' ? p.tagName.toLowerCase() : ''
     return (
-      p instanceof SVGElement ? this.createElement('text') : this.createElement('span')
+      p instanceof SVGElement
+        ? this.createElement(tagName === 'text' || tagName === 'tspan' ? 'tspan' : 'text')
+        : this.createElement('span')
     ) as any
   }
   /** 设置行内样式：支持字符串/对象，null/undefined 清空 */
