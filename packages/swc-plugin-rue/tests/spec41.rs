@@ -41,7 +41,8 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const HelloWorld: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             console.log('--------start');
@@ -62,9 +63,7 @@ const HelloWorld: FC = ()=>{
         return vapor(()=>{
             const _root = _$createElement("div");
             _$appendChild(_root, _$createTextNode("hello"));
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
     }
     return vapor(()=>{
@@ -77,9 +76,7 @@ const HelloWorld: FC = ()=>{
         watchEffect(()=>{
             _$settextContent(_el2, x.value);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default HelloWorld;

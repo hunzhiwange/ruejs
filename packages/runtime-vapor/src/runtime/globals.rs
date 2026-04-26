@@ -1,9 +1,9 @@
 //! 运行时全局状态（线程局部）与工具函数（中文注释增强）
 //!
-//! 提供崩溃标记、最近钩子错误、挂起钩子队列以及 VNode 注册表。
+//! 提供崩溃标记、最近钩子错误、挂起钩子队列以及默认输入注册表。
 //! 这些状态通过 thread_local 保证在 Wasm/JS 环境下的隔离与安全。
 use crate::runtime::js_adapter::JsDomAdapter;
-use crate::runtime::types::VNode;
+use crate::runtime::types::MountInput;
 use std::cell::{Cell, RefCell};
 use wasm_bindgen::JsValue;
 
@@ -35,8 +35,12 @@ pub fn last_hook_error() -> Option<JsValue> {
 }
 
 thread_local! {
-    /// VNode 注册表（索引 -> VNode），用于跨 JS/Rust 引用与共享
-    pub static VNODE_REGISTRY: RefCell<Vec<Option<VNode<JsDomAdapter>>>> = RefCell::new(Vec::new());
+    /// 默认 bridge 输入注册表（索引 -> MountInput）。
+    ///
+    /// 默认主路径已经不再运输 live 树对象；createElement/vapor 生成的句柄，
+    /// 以及 render/renderAnchor/renderBetween/renderStatic 默认入口消费的对象，
+    /// 都先收敛为 MountInput 再进入调度层。
+    pub static MOUNT_INPUT_REGISTRY: RefCell<Vec<Option<MountInput<JsDomAdapter>>>> = RefCell::new(Vec::new());
 }
 
 /// 推入挂起钩子（名称与回调），由外层批量执行

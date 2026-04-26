@@ -33,7 +33,8 @@ export default Components;
     // - 父组件：组件元素以注释锚点占位，renderAnchor 插入 <Hello/>
     // - 文本与属性：静态文本使用 _$createTextNode；className 使用 setAttribute
     let expected_fragment = r##"
-import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Hello: FC<{
     name: string;
@@ -44,12 +45,9 @@ const Hello: FC<{
         _$appendChild(_root, _list1);
         watchEffect(()=>{
             const __slot = (props.name);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const Components: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -74,9 +72,7 @@ const Components: FC = ()=>vapor(()=>{
         _$addEventListener(_el2, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el2, "text-blue-600 hover:underline");
         _$appendChild(_el2, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Components;
 "##;

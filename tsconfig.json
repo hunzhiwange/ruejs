@@ -29,15 +29,6 @@
       "@rue-js/shared": ["packages/shared/src"],
       "@rue-js/design": ["packages/rue-design/src"],
       "@rue-js/runtime-vapor": ["packages/runtime-vapor/pkg/rue_runtime_vapor.d.ts"]
-      // "@rue-js/learn-wgpu": [
-      //   "packages/learn-wgpu/index.js"
-      // ],
-      // "@rue-js/app-rust": [
-      //   "packages/app-rust/pkg/app_rust.js"
-      // ],
-      // "@rue-js/plugin": [
-      //   "packages/rue-rs-plugin/pkg/rue_rs_plugin.js"
-      // ],
     },
     "noImplicitAny": true,
     "noImplicitReturns": true,

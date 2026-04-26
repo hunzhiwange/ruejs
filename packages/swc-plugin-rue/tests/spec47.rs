@@ -166,7 +166,8 @@ export default About
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$setStyle, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$setStyle, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 const About: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
@@ -544,9 +545,7 @@ const About: FC = ()=>{
             _$settextContent(_el104, new Date().getFullYear());
         });
         _$appendChild(_el103, _$createTextNode(" Rue.js"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default About;

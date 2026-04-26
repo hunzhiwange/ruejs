@@ -38,7 +38,8 @@ useApp(RootApp).use(router).mount('#app')
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useError, useApp, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC, useError, useApp } from '@rue-js/rue';
 import { RouterView } from '@rue-js/router';
 import router from './router';
 useError({
@@ -57,12 +58,9 @@ const ParentBox: FC = (p)=>vapor(()=>{
         _$appendChild(_el2, _list1);
         watchEffect(()=>{
             const __slot = (p.children);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _el2, _list1);
+            renderAnchor(__slot, _el2, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const RootApp: FC = ()=>{
     return vapor(()=>{
@@ -75,15 +73,11 @@ const RootApp: FC = ()=>{
             _$appendChild(_root, _list2);
             const __slot3 = <RouterView/>;
             renderAnchor(__slot3, _root, _list2);
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
         const __slot5 = <ParentBox children={__child1}/>;
         renderAnchor(__slot5, _root, _list4);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 useApp(RootApp).use(router).mount('#app');

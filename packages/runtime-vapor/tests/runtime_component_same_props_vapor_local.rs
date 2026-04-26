@@ -225,12 +225,10 @@ async fn render_between_same_component_props_update_rebuilds_vapor_local_capture
            type: 'vapor', \
            props: { \
              setup() { \
-               return { \
-                 vaporElement: { \
-                   tag: 'fragment', \
-                   children: label ? [{ tag: '#text', text: label, children: [] }] : [] \
-                 } \
-               }; \
+                             return { \
+                                 tag: 'fragment', \
+                                 children: label ? [{ tag: '#text', text: label, children: [] }] : [] \
+                             }; \
              } \
            }, \
            children: [] \
@@ -310,12 +308,10 @@ async fn render_anchor_same_component_props_update_rebuilds_vapor_local_capture(
            type: 'vapor', \
            props: { \
              setup() { \
-               return { \
-                 vaporElement: { \
-                   tag: 'fragment', \
-                   children: label ? [{ tag: '#text', text: label, children: [] }] : [] \
-                 } \
-               }; \
+                             return { \
+                                 tag: 'fragment', \
+                                 children: label ? [{ tag: '#text', text: label, children: [] }] : [] \
+                             }; \
              } \
            }, \
            children: [] \

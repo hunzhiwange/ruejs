@@ -37,23 +37,20 @@ export default Goods;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild } from "@rue-js/rue/vapor";
+import { type FC, ref, h } from '@rue-js/rue';
 const Hello: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("1"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 const World: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("1"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 const Goods: FC = ()=>vapor(()=>{
@@ -69,9 +66,7 @@ const Goods: FC = ()=>vapor(()=>{
         _$appendChild(_root, _list3);
         const __slot4 = <World/>;
         renderAnchor(__slot4, _root, _list3);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Goods;
 "##;

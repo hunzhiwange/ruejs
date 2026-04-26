@@ -35,7 +35,8 @@ export default Fragments;
     // - 片段：<>...</> 被展开为两个 span 节点顺序插入
     // - 组件：RouterLink 被快速路径重写为原生 <a> 元素
     let expected = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Fragments: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -58,9 +59,7 @@ const Fragments: FC = ()=>vapor(()=>{
         _$addEventListener(_el4, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el4, "text-blue-600 hover:underline");
         _$appendChild(_el4, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Fragments;
 "##;

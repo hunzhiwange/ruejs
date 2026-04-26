@@ -94,18 +94,6 @@ export const SECTIONS_BY_TYPE: Record<'api', Section[]> = {
           href: '/api/api/reactivity-utilities',
         },
         { id: 'api/render-function', title: '渲染函数', href: '/api/api/render-function' },
-        {
-          id: 'api/sfc-css-features',
-          title: 'SFC CSS 特性',
-          href: '/api/api/sfc-css-features',
-        },
-        {
-          id: 'api/sfc-script-setup',
-          title: 'SFC Script Setup',
-          href: '/api/api/sfc-script-setup',
-        },
-        { id: 'api/sfc-spec', title: 'SFC 规范', href: '/api/api/sfc-spec' },
-        { id: 'api/ssr', title: '服务端渲染', href: '/api/api/ssr' },
         { id: 'api/utility-types', title: '工具类型', href: '/api/api/utility-types' },
       ],
     },

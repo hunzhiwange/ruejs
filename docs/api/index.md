@@ -160,16 +160,9 @@
 - [v-memo](/api/built-in-directives#v-memo)
 - [v-cloak](/api/built-in-directives#v-cloak)
 
-## 单文件组件 {#single-file-components}
-
-- [SFC 语法规范](/api/sfc-spec)
-- [script setup](/api/sfc-script-setup)
-- [CSS 功能](/api/sfc-css-features)
-
 ## 高级 API {#advanced-apis}
 
 - [渲染函数](/api/render-function)
-- [服务端渲染](/api/ssr)
 - [TypeScript 工具类型](/api/utility-types)
 - [自定义渲染器](/api/custom-renderer)
 - [自定义元素](/api/custom-elements)

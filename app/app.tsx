@@ -8,7 +8,6 @@ import { type FC, useError, useApp } from '@rue-js/rue'
 import { RouterView, useRoute } from '@rue-js/router'
 import router from './router'
 import SiteLayout from './pages/site/components/Layout'
-import { createPlugin } from '@rue-js/plugin'
 
 // 开发阶段错误可视化与控制台输出
 useError({ overlay: true, console: true })
@@ -31,8 +30,6 @@ const RootApp: FC = () => {
 }
 
 // 创建并挂载应用，安装路由
-const rustPlugin = createPlugin()
 useApp(RootApp)
   .use(router)
-  .use(rustPlugin, [{ name: 'demo' }])
   .mount('#app')

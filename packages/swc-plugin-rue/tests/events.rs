@@ -113,6 +113,7 @@ export default Events;
     let (program, cm) = utils::parse(src, "Events.tsx");
     let program = apply(program);
     let out = utils::emit(program, cm);
+    assert!(!out.contains("_$removeEventListener"));
 
     // 期望输出要点对照：
     // - 事件：button onClick → addEventListener('click', handler)
@@ -120,7 +121,8 @@ export default Events;
     // - disabled：基于 list.length 的 watch 控制
     // - 函数状态：调用 valueOf() 的格式化函数再 watch 更新
     let expected_fragment = r##"
-import { type FC, useState, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setDisabled } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setDisabled } from "@rue-js/rue/vapor";
+import { type FC, useState } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const DEC_FORMAT = (n: number)=>String(n);
 const HEX_FORMAT = (n: number)=>'0x' + n.toString(16);
@@ -286,9 +288,7 @@ const Events: FC = ()=>{
         _$addEventListener(_el26, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el26, "text-blue-600 hover:underline");
         _$appendChild(_el26, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default Events;

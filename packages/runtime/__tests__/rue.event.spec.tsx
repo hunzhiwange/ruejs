@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { h, render, type FC } from '../src/rue'
+import { h, render, type FC } from '../src'
 
 describe('DOM event binding and trigger', () => {
   it('attaches and triggers onClick', async () => {

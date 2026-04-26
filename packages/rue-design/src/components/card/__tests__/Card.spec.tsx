@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { h, render } from '@rue-js/rue'
+import { h } from '@rue-js/rue'
+import { render } from '@rue-js/rue'
 import { Card } from '@rue-js/design'
 
 afterEach(() => {

@@ -2,149 +2,152 @@ import { type FC, TransitionGroup, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
-const ListTransitionExample: FC = () => {
-  const items = ref<number[]>([1, 2, 3, 4, 5])
-  const nextId = ref(items.value.length + 1)
-  const activeTab = ref<'preview' | 'code'>('preview')
+const INITIAL_IDS = [1, 2, 3, 4, 5]
+const TRANSITION_MS = 350
 
-  function insert() {
-    const i = Math.round(Math.random() * items.value.length)
-    items.value.splice(i, 0, nextId.value++)
-  }
-
-  function reset() {
-    items.value = [1, 2, 3, 4, 5]
-    nextId.value = items.value.length + 1
-  }
-
-  function shuffle() {
-    // Fisher–Yates shuffle to avoid external deps
-    const arr = items.value.slice()
-    let currentIndex = arr.length
-    while (currentIndex !== 0) {
-      const randomIdx = Math.floor(Math.random() * currentIndex)
-      currentIndex--
-      const tmp = arr[currentIndex]
-      arr[currentIndex] = arr[randomIdx]
-      arr[randomIdx] = tmp
-    }
-    items.value = arr
-  }
-
-  function remove(item: number) {
-    const i = items.value.indexOf(item)
-    if (i > -1) items.value.splice(i, 1)
-  }
-
-  const code = `import { type FC, ref, TransitionGroup } from '@rue-js/rue';
-
-const ListTransitionExample: FC = () => {
-  const items = ref<number[]>([1, 2, 3, 4, 5]);
-  const nextId = ref(items.value.length + 1);
-
-  function insert() {
-    const i = Math.round(Math.random() * items.value.length);
-    items.value.splice(i, 0, nextId.value++);
-  }
-
-  function reset() {
-    items.value = [1, 2, 3, 4, 5];
-    nextId.value = items.value.length + 1;
-  }
-
-  function shuffle() {
-    // Fisher–Yates shuffle to avoid external deps
-    const arr = items.value.slice();
-    let currentIndex = arr.length;
-    while (currentIndex !== 0) {
-      const randomIdx = Math.floor(Math.random() * currentIndex);
-      currentIndex--;
-      const tmp = arr[currentIndex];
-      arr[currentIndex] = arr[randomIdx];
-      arr[randomIdx] = tmp;
-    }
-    items.value = arr;
-  }
-
-  function remove(item: number) {
-    const i = items.value.indexOf(item);
-    if (i > -1) items.value.splice(i, 1);
-  }
-
-  return (
-    <>
-        <style>{\`
-.container {
+const listStyles = `
+.list-shell {
   position: relative;
-  padding: 0;
-  margin: 0;
-  list-style-type: none;
 }
 
-/* Items visuals are mainly controlled by Tailwind utility classes */
-.item {
+.list-shell ul {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.list-shell li {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
+  transform-origin: center left;
 }
 
-/* 1. 声明过渡效果 */
-.fade-move,
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.35s cubic-bezier(0.55, 0, 0.1, 1);
-  will-change: transform, opacity;
+.list-enter-active,
+.list-leave-active {
+  transition:
+    opacity ${TRANSITION_MS}ms cubic-bezier(0.55, 0, 0.1, 1),
+    transform ${TRANSITION_MS}ms cubic-bezier(0.55, 0, 0.1, 1);
 }
 
-/* 2. 声明进入和离开的状态 */
-.fade-enter-from,
-.fade-leave-to {
+.list-enter-from,
+.list-leave-to {
   opacity: 0;
-  transform: scaleY(0.98) translate(24px, 0);
+  transform: translateY(12px) scale(0.96);
 }
 
-/* 3. 离开项移出布局流，便于计算移动动画 */
-.fade-leave-active {
+.list-leave-active {
   position: absolute;
-  pointer-events: none;
+  inset-inline: 0;
 }
-      \`}</style>
-      <div className="card bg-base-100 shadow">
-        <div className="card-body grid gap-4">
-          <div className="flex gap-3">
-            <button className="btn btn-primary" onClick={insert}>
-              Insert at random index
-            </button>
-            <button className="btn" onClick={reset}>
-              Reset
-            </button>
-            <button className="btn" onClick={shuffle}>
-              Shuffle
-            </button>
-          </div>
 
-          <ul className="container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3">
-            <TransitionGroup name="fade" keepJSX>
-              {items.value.map(item => (
-                <li
-                  className="item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm"
-                  key={item}
-                >
-                  <span className="text-base-content">{item}</span>
-                  <button className="btn btn-sm" onClick={() => remove(item)}>
-                    x
-                  </button>
-                </li>
-              ))}
-            </TransitionGroup>
-          </ul>
+.list-move {
+  transition: transform ${TRANSITION_MS}ms cubic-bezier(0.55, 0, 0.1, 1);
+}
+`
+
+const demoCode = `import { type FC, TransitionGroup, ref } from '@rue-js/rue';
+
+const INITIAL_IDS = [1, 2, 3, 4, 5];
+
+const ListTransitionExample: FC = () => {
+  const items = ref<number[]>([...INITIAL_IDS]);
+  const nextId = ref(INITIAL_IDS.length + 1);
+
+  const insert = () => {
+    const nextItems = items.value.slice();
+    const index = Math.round(Math.random() * nextItems.length);
+    nextItems.splice(index, 0, nextId.value);
+    items.value = nextItems;
+    nextId.value += 1;
+  };
+
+  const remove = (itemId: number) => {
+    items.value = items.value.filter((item) => item !== itemId);
+  };
+
+  const shuffle = () => {
+    const nextItems = items.value.slice();
+    let currentIndex = nextItems.length;
+    while (currentIndex !== 0) {
+      const randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex -= 1;
+      const temp = nextItems[currentIndex];
+      nextItems[currentIndex] = nextItems[randomIndex];
+      nextItems[randomIndex] = temp;
+    }
+    items.value = nextItems;
+  };
+
+  const reset = () => {
+    items.value = [...INITIAL_IDS];
+    nextId.value = INITIAL_IDS.length + 1;
+  };
+
+  return (
+    <div className="card bg-base-100 shadow">
+      <div className="card-body grid gap-4">
+        <div className="flex gap-3">
+          <button className="btn btn-primary" onClick={insert}>Insert at random index</button>
+          <button className="btn" onClick={reset}>Reset</button>
+          <button className="btn" onClick={shuffle}>Shuffle</button>
+        </div>
+
+        <div className="list-shell rounded-xl border border-base-200 bg-base-100 p-3">
+          <TransitionGroup tag="ul" name="list" duration={350}>
+            {items.value.map((item) => (
+              <li key={item} className="rounded-md border border-base-200 bg-base-100 px-3 py-2 shadow-sm">
+                <span className="text-base-content">{item}</span>
+                <button className="btn btn-sm" onClick={() => remove(item)}>x</button>
+              </li>
+            ))}
+          </TransitionGroup>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
 export default ListTransitionExample;`
+
+const ListTransitionExample: FC = () => {
+  const items = ref<number[]>([...INITIAL_IDS])
+  const nextId = ref(INITIAL_IDS.length + 1)
+  const activeTab = ref<'preview' | 'code'>('preview')
+
+  const insert = () => {
+    const nextItems = items.value.slice()
+    const index = Math.round(Math.random() * nextItems.length)
+    nextItems.splice(index, 0, nextId.value)
+    items.value = nextItems
+    nextId.value += 1
+  }
+
+  const remove = (itemId: number) => {
+    items.value = items.value.filter(item => item !== itemId)
+  }
+
+  const shuffle = () => {
+    const nextItems = items.value.slice()
+    let currentIndex = nextItems.length
+    while (currentIndex !== 0) {
+      const randomIndex = Math.floor(Math.random() * currentIndex)
+      currentIndex -= 1
+      const temp = nextItems[currentIndex]
+      nextItems[currentIndex] = nextItems[randomIndex]
+      nextItems[randomIndex] = temp
+    }
+    items.value = nextItems
+  }
+
+  const reset = () => {
+    items.value = [...INITIAL_IDS]
+    nextId.value = INITIAL_IDS.length + 1
+  }
 
   return (
     <SidebarPlayground>
@@ -171,47 +174,12 @@ export default ListTransitionExample;`
         </button>
       </div>
 
-      <style>{`
-.container {
-  position: relative;
-  padding: 0;
-  margin: 0;
-  list-style-type: none;
-}
-
-/* Items visuals are mainly controlled by Tailwind utility classes */
-.item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* 1. 声明过渡效果 */
-.fade-move,
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.35s cubic-bezier(0.55, 0, 0.1, 1);
-  will-change: transform, opacity;
-}
-
-/* 2. 声明进入和离开的状态 */
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: scaleY(0.98) translate(24px, 0);
-}
-
-/* 3. 离开项移出布局流，便于计算移动动画 */
-.fade-leave-active {
-  position: absolute;
-  pointer-events: none;
-}
-      `}</style>
+      <style>{listStyles}</style>
 
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
         {activeTab.value === 'code' && (
           <div className="card bg-base-100 shadow overflow-auto h-[360px] md:h-[560px]">
-            <Code className="h-full" lang="tsx" code={code} />
+            <Code className="h-full" lang="tsx" code={demoCode} />
           </div>
         )}
 
@@ -230,12 +198,12 @@ export default ListTransitionExample;`
                 </button>
               </div>
 
-              <ul className="container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3">
-                <TransitionGroup name="fade" keepJSX>
+              <div className="list-shell rounded-xl border border-base-200 bg-base-100 p-3">
+                <TransitionGroup tag="ul" name="list" duration={TRANSITION_MS}>
                   {items.value.map(item => (
                     <li
-                      className="item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm"
                       key={item}
+                      className="rounded-md border border-base-200 bg-base-100 px-3 py-2 shadow-sm"
                     >
                       <span className="text-base-content">{item}</span>
                       <button className="btn btn-sm" onClick={() => remove(item)}>
@@ -244,7 +212,7 @@ export default ListTransitionExample;`
                     </li>
                   ))}
                 </TransitionGroup>
-              </ul>
+              </div>
             </div>
           </div>
         )}

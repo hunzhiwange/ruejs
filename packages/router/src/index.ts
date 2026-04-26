@@ -8,11 +8,14 @@
 */
 import {
   type FC,
+  type BlockInstance,
+  type RenderTarget,
   h,
   signal,
   getCurrentContainer,
   type SignalHandle,
   renderAnchor,
+  renderBetween,
   vapor,
   watchEffect,
   useSetup,
@@ -232,6 +235,68 @@ export const useRouter = (): Router => {
   return r
 }
 
+const insertNodeAtTarget = (target: RenderTarget, node: Node) => {
+  switch (target.kind) {
+    case 'container':
+      ;(target.container as Node).appendChild(node)
+      return
+    case 'between':
+      ;(target.parent as Node).insertBefore(node, target.end as Node)
+      return
+    case 'anchor':
+    case 'static':
+      ;(target.parent as Node).insertBefore(node, target.anchor as Node)
+      return
+  }
+}
+
+const createRouteComponentBlock = (
+  component: RouteRecord['component'],
+  params: RouteParams,
+): BlockInstance => {
+  let start: Comment | null = null
+  let end: Comment | null = null
+
+  return {
+    kind: 'block',
+    mount(target) {
+      const routeStart = document.createComment('rue-router-view-route-start')
+      const routeEnd = document.createComment('rue-router-view-route-end')
+      start = routeStart
+      end = routeEnd
+      insertNodeAtTarget(target, routeStart)
+      insertNodeAtTarget(target, routeEnd)
+
+      const parent =
+        target.kind === 'container' ? (target.container as unknown as Node) : (target.parent as Node)
+      renderBetween(h(component, { params }) as any, parent as any, routeStart as any, routeEnd as any)
+    },
+    unmount() {
+      if (!start || !end) {
+        return
+      }
+
+      const parent = start.parentNode
+      if (parent && end.parentNode === parent) {
+        renderBetween([] as any, parent as any, start as any, end as any)
+
+        let current = start.nextSibling
+        while (current && current !== end) {
+          const next = current.nextSibling
+          parent.removeChild(current)
+          current = next
+        }
+
+        parent.removeChild(start)
+        parent.removeChild(end)
+      }
+
+      start = null
+      end = null
+    },
+  }
+}
+
 /** RouterView：在单个尾锚点前渲染当前匹配组件 */
 export const RouterView: FC = () => {
   const { container } = useSetup(() => {
@@ -240,36 +305,21 @@ export const RouterView: FC = () => {
     const anchorEl = document.createComment('rue-router-view-anchor')
     container.appendChild(anchorEl)
 
-    const clearRange = () => {
-      const vnodeLike = vapor(() => ({ vaporElement: document.createDocumentFragment() }))
-      const parent = (anchorEl as any).parentNode || container
-      renderAnchor(vnodeLike as any, parent, anchorEl)
-    }
-
-    let lastComponent: RouteRecord['component'] | null = null
-
     watchEffect(() => {
       const data = r.route.get()
-      if (!data) {
-        clearRange()
-        lastComponent = null
-      } else {
-        const comp = data.record.component
-        if (lastComponent && comp === lastComponent) {
-          return
-        }
+      const parent = (anchorEl as any).parentNode || container
 
-        lastComponent = comp
-        const vnodeLike = h(comp, { params: data.params })
-        const parent = (anchorEl as any).parentNode || container
-        renderAnchor(vnodeLike as any, parent, anchorEl)
+      if (!data) {
+        renderAnchor([] as any, parent, anchorEl)
+      } else {
+        renderAnchor(createRouteComponentBlock(data.record.component, data.params) as any, parent, anchorEl)
       }
     })
 
     return { container }
   })
 
-  return vapor(() => ({ vaporElement: container }))
+  return vapor(() => container)
 }
 
 type RouterLinkProps = { to: string; replace?: boolean } & Record<string, unknown>

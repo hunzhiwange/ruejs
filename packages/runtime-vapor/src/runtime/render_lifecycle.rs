@@ -1,6 +1,6 @@
 use super::Rue;
-use super::types::{ComponentProps, VNode};
-use crate::reactive::core::{batch_scope, dispose_effect_scope};
+use super::types::{ComponentProps, MountInput, MountInputType, MountLifecycleKind, MountLifecycleRecord};
+use crate::reactive::core::dispose_effect_scope;
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::{Array, Function};
 use wasm_bindgen::JsCast;
@@ -10,9 +10,59 @@ impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
-    fn dispose_vnode_component_scopes(&mut self, inst_index: usize) {
+    fn dispose_mounted_component_scopes(&mut self, inst_index: usize) {
         self.dispose_component_render_scope(inst_index);
         crate::reactive::context::dispose_component_hook_scope(inst_index);
+    }
+
+    fn call_lifecycle_hooks(&mut self, hooks: &[JsValue]) {
+        for hook in hooks.iter() {
+            if let Some(func) = hook.dyn_ref::<Function>() {
+                let _ = func.call0(&JsValue::UNDEFINED);
+            }
+        }
+    }
+
+    fn invoke_cleanup_bucket(&mut self, bucket: &JsValue) {
+        if !Array::is_array(bucket) {
+            return;
+        }
+
+        let arr = Array::from(bucket);
+        let len = arr.length();
+        let mut callbacks = Vec::with_capacity(len as usize);
+        for index in 0..len {
+            callbacks.push(arr.get(index));
+        }
+        arr.set_length(0);
+
+        for callback in callbacks.into_iter() {
+            if let Some(func) = callback.dyn_ref::<Function>() {
+                let _ = func.call0(&JsValue::UNDEFINED);
+            }
+        }
+    }
+
+    fn invoke_mount_owned_resources(&mut self, record: &MountLifecycleRecord) {
+        if let Some(bucket) = record.cleanup_bucket.as_ref() {
+            self.invoke_cleanup_bucket(bucket);
+        }
+        if let Some(scope_id) = record.effect_scope_id {
+            self.dispose_vapor_scope_id(scope_id);
+        }
+    }
+
+    fn dispose_vapor_scope_id(&mut self, scope_id: usize) {
+        #[cfg(feature = "dev")]
+        {
+            if crate::log::want_log("debug", "runtime:mount before_unmount vapor") {
+                crate::log::log(
+                    "debug",
+                    &format!("runtime:mount before_unmount vapor scope={}", scope_id),
+                );
+            }
+        }
+        dispose_effect_scope(scope_id);
     }
 
     /// 推入一个生命周期钩子：名称 -> JS 函数
@@ -82,7 +132,7 @@ where
             }
         }
     }
-    /// 卸载容器内容：触发钩子、清理 container_map 记录，并递归处理 vnode 的子树
+    /// 卸载容器内容：触发钩子、清理 container_map 记录，并递归处理 mounted subtree
     pub fn unmount(&mut self, container: &mut A::Element)
     where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
@@ -94,130 +144,80 @@ where
         if let Some(idx) = self.find_container_index(container) {
             let taken = {
                 let entry = self.container_map.get_mut(idx).unwrap();
-                entry.1.take()
+                entry.take_mount()
             };
-            if let Some(mut vnode) = taken {
-                self.invoke_before_unmount_vnode(&mut vnode);
-                self.invoke_unmounted_vnode(&mut vnode);
+            if let Some(mount) = taken {
+                let lifecycle = mount.into_lifecycle();
+                self.invoke_before_unmount_record(&lifecycle);
+                self.invoke_unmounted_record(&lifecycle);
             }
             if let Some(entry) = self.container_map.get_mut(idx) {
-                entry.1 = None;
+                entry.clear();
             }
         }
         self.compact_anchor_map();
         self.call_hooks("unmounted");
     }
 
-    /// 递归调用 vnode 子树的 before_unmount 钩子
-    pub fn invoke_before_unmount_vnode(&mut self, v: &mut VNode<A>) {
-        use super::types::Child;
-        use super::types::VNodeType;
-        match &v.r#type {
-            VNodeType::Vapor | VNodeType::VaporWithSetup(_) => {
-                // Vapor 子树的副作用清理点：
-                // - Vapor 编译产物通常会在创建/渲染阶段注册 watchEffect 等副作用
-                // - 路由切换/区间替换时旧 Vapor 的 DOM 会被移除，但组件本身未必销毁（或销毁不触发 JS 清理）
-                // - 因此在 VNode before_unmount 时通过 scope id 一次性 dispose，避免副作用泄漏与累加
-                if let Some(vv) = v.props.get("__rue_effect_scope_id") {
-                    if let Some(n) = vv.as_f64() {
-                        let sid = n as usize;
-                        #[cfg(feature = "dev")]
-                        {
-                            if crate::log::want_log("debug", "runtime:vnode before_unmount vapor") {
-                                crate::log::log(
-                                    "debug",
-                                    &format!("runtime:vnode before_unmount vapor scope={}", sid),
-                                );
-                            }
-                        }
-                        dispose_effect_scope(sid);
-                    }
+    /// 按 mount lifecycle record 执行 before_unmount。
+    pub(crate) fn invoke_before_unmount_record(&mut self, record: &MountLifecycleRecord) {
+        match record.kind {
+            MountLifecycleKind::Vapor => {
+                self.invoke_mount_owned_resources(record);
+            }
+            MountLifecycleKind::Fragment => {
+                self.invoke_mount_owned_resources(record);
+                for child in record.children.iter() {
+                    self.invoke_before_unmount_record(child);
                 }
             }
-            VNodeType::Component(_) => {
-                if let Some(hm) = v.comp_hooks.as_mut() {
-                    if let Some(list) = hm.get_mut("before_unmount") {
-                        for jsf in list.iter_mut() {
-                            if let Some(func) = jsf.dyn_ref::<Function>() {
-                                let _ = func.call0(&JsValue::UNDEFINED);
-                            }
-                        }
-                    }
-                }
-                if let Some(inst_index) = v.comp_inst_index {
-                    self.dispose_vnode_component_scopes(inst_index);
-                }
-                if let Some(sub) = v.comp_subtree.as_mut() {
-                    self.invoke_before_unmount_vnode(sub);
+            MountLifecycleKind::Element => {
+                for child in record.children.iter() {
+                    self.invoke_before_unmount_record(child);
                 }
             }
-            VNodeType::Fragment => {
-                for c in v.children.iter_mut() {
-                    if let Child::VNode(ref mut n) = c {
-                        self.invoke_before_unmount_vnode(n);
-                    }
+            MountLifecycleKind::Component => {
+                self.call_lifecycle_hooks(&record.component_before_unmount_hooks);
+                if let Some(inst_index) = record.component_inst_index {
+                    self.dispose_mounted_component_scopes(inst_index);
+                }
+                for child in record.children.iter() {
+                    self.invoke_before_unmount_record(child);
                 }
             }
-            VNodeType::Element(_) => {
-                for c in v.children.iter_mut() {
-                    if let Child::VNode(ref mut n) = c {
-                        self.invoke_before_unmount_vnode(n);
-                    }
-                }
+            MountLifecycleKind::Other => {
+                self.invoke_mount_owned_resources(record);
             }
-            _ => {}
         }
     }
 
-    /// 递归调用 vnode 子树的 unmounted 钩子，并清空组件的该钩子列表
-    pub fn invoke_unmounted_vnode(&mut self, v: &mut VNode<A>) {
-        use super::types::Child;
-        use super::types::VNodeType;
-        match &v.r#type {
-            VNodeType::Component(_) => {
-                if let Some(sub) = v.comp_subtree.as_mut() {
-                    self.invoke_unmounted_vnode(sub);
+    /// 按 mount lifecycle record 执行 unmounted。
+    pub(crate) fn invoke_unmounted_record(&mut self, record: &MountLifecycleRecord) {
+        match record.kind {
+            MountLifecycleKind::Component => {
+                for child in record.children.iter() {
+                    self.invoke_unmounted_record(child);
                 }
-                if let Some(hm) = v.comp_hooks.as_mut() {
-                    if let Some(list) = hm.get_mut("unmounted") {
-                        for jsf in list.iter_mut() {
-                            if let Some(func) = jsf.dyn_ref::<Function>() {
-                                let _ = func.call0(&JsValue::UNDEFINED);
-                            }
-                        }
-                        list.clear();
-                    }
+                self.call_lifecycle_hooks(&record.component_unmounted_hooks);
+            }
+            MountLifecycleKind::Fragment | MountLifecycleKind::Element => {
+                for child in record.children.iter() {
+                    self.invoke_unmounted_record(child);
                 }
             }
-            VNodeType::Fragment => {
-                for c in v.children.iter_mut() {
-                    if let Child::VNode(ref mut n) = c {
-                        self.invoke_unmounted_vnode(n);
-                    }
-                }
-            }
-            VNodeType::Element(_) => {
-                for c in v.children.iter_mut() {
-                    if let Child::VNode(ref mut n) = c {
-                        self.invoke_unmounted_vnode(n);
-                    }
-                }
-            }
-            _ => {}
+            MountLifecycleKind::Vapor | MountLifecycleKind::Other => {}
         }
     }
 
-    /// 挂载入口：将 app(props) 产生的 vnode 渲染到容器
+    /// 挂载入口：将 app(props) 产生的默认 MountInput 渲染到容器。
     pub fn mount<F>(&mut self, _app: F, _container: &mut A::Element)
     where
-        F: Fn(ComponentProps) -> VNode<A>,
+        F: Fn(ComponentProps) -> MountInput<A>,
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
-        batch_scope(|| {
-            let props = ComponentProps::new();
-            let vnode = _app(props);
-            self.render(vnode, _container);
-        });
+        let props = ComponentProps::new();
+        let input = _app(props);
+        self.render_input(input, _container);
     }
 
     /// 使用插件：将安装动作入队（deferred_queue）
@@ -276,8 +276,8 @@ where
         })
     }
 
-    /// Vapor 构建辅助：调用 setup 生成元素并在片段场景收集子节点
-    pub fn vapor<F>(&self, setup: F) -> VNode<A>
+    /// Vapor 构建辅助：调用 setup 生成默认 MountInput。
+    pub fn vapor<F>(&self, setup: F) -> MountInput<A>
     where
         F: Fn() -> A::Element,
         A::Element: Into<JsValue>,
@@ -301,17 +301,14 @@ where
                 );
             }
         }
-        VNode {
-            r#type: super::types::VNodeType::Vapor,
+        MountInput {
+            r#type: MountInputType::Vapor,
             props,
             children: vec![],
-            el: Some(el),
             key: None,
-            comp_hooks: None,
-            comp_subtree: None,
-            comp_host: None,
-            comp_props_ro: None,
-            comp_inst_index: None,
+            mount_cleanup_bucket: None,
+            mount_effect_scope_id: None,
+            el_hint: Some(el),
         }
     }
 

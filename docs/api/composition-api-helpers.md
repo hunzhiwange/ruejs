@@ -12,14 +12,16 @@
 
 ## useSlots() {#useslots}
 
-返回 [Setup Context](/api/composition-api-setup#setup-context) 中的 `slots` 对象，其中包括父级传递的作为可调用函数返回虚拟 DOM 节点的插槽。这旨在在 `<script setup>` 中使用，其中 setup 上下文对象不可用。
+返回 [Setup Context](/api/composition-api-setup#setup-context) 中的 `slots` 对象，其中包括父级传递的可调用插槽函数。这旨在在 `<script setup>` 中使用，其中 setup 上下文对象不可用。
 
 如果使用 TypeScript，应优先使用 [`defineSlots()`](/api/sfc-script-setup#defineslots)。
 
 - **类型**
 
   ```ts
-  function useSlots(): Record<string, (...args: any[]) => VNode[]>
+  function useSlots(): Record<string, (...args: any[]) => RenderOutput>
+
+  type RenderOutput = RenderableOutput
   ```
 
 ## useModel() {#usemodel}

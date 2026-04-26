@@ -10,61 +10,121 @@ use wasm_bindgen::prelude::*;
 use crate::reactive::context::{get_current_instance, with_hook_slot};
 use crate::reactive::signal::create_reactive as create_reactive_impl;
 
-// 粗判一个值是否“长得像 VNode”（用于 props/children 的浅比对）：
-// - 显式标记 __isVNode__，或带 __rue_vnode_id；
-// - 或者至少有 type 字段（JSX/h 返回的开发态对象）。
-fn is_vnode_like(v: &JsValue) -> bool {
+const RUE_HOST_NODE_KEY: &str = "__rue_host_node";
+
+fn get_object_field(obj: &Object, key: &str) -> JsValue {
+    Reflect::get(obj, &JsValue::from_str(key)).unwrap_or(JsValue::UNDEFINED)
+}
+
+fn is_dom_node_like(v: &JsValue) -> bool {
     if !v.is_object() {
         return false;
     }
     let obj: Object = v.clone().unchecked_into();
-    let flag = Reflect::get(&obj, &JsValue::from_str("__isVNode__")).unwrap_or(JsValue::UNDEFINED);
-    if flag.as_bool().unwrap_or(false) {
-        return true;
+    let node_type = get_object_field(&obj, "nodeType");
+    !node_type.is_undefined() && !node_type.is_null()
+}
+
+fn renderable_identity(v: &JsValue) -> Option<JsValue> {
+    if is_dom_node_like(v) {
+        return Some(v.clone());
     }
-    let id = Reflect::get(&obj, &JsValue::from_str("__rue_vnode_id")).unwrap_or(JsValue::UNDEFINED);
-    if !id.is_undefined() && !id.is_null() {
-        return true;
+
+    if !v.is_object() {
+        return None;
     }
-    let ty = Reflect::get(&obj, &JsValue::from_str("type")).unwrap_or(JsValue::UNDEFINED);
-    if !ty.is_undefined() && !ty.is_null() {
-        return true;
+
+    let obj: Object = v.clone().unchecked_into();
+    let host_node = get_object_field(&obj, RUE_HOST_NODE_KEY);
+    if !host_node.is_undefined() && !host_node.is_null() {
+        return Some(host_node);
     }
+
+    let nodes = get_object_field(&obj, "nodes");
+    if Array::is_array(&nodes) {
+        let arr = Array::from(&nodes);
+        if arr.length() == 1 {
+            let first = arr.get(0);
+            if !first.is_undefined() && !first.is_null() {
+                return Some(first);
+            }
+        }
+    }
+
+    None
+}
+
+fn is_block_instance_like(v: &JsValue) -> bool {
+    if !v.is_object() {
+        return false;
+    }
+
+    let obj: Object = v.clone().unchecked_into();
+    let kind = get_object_field(&obj, "kind");
+    let mount = get_object_field(&obj, "mount");
+    kind.as_string().as_deref() == Some("block") && mount.is_function()
+}
+
+fn is_block_factory_like(v: &JsValue) -> bool {
+    if !v.is_function() {
+        return false;
+    }
+
+    let obj: Object = v.clone().unchecked_into();
+    let kind = get_object_field(&obj, "kind");
+    kind.as_string().as_deref() == Some("block-factory")
+}
+
+fn is_renderable_reference(v: &JsValue) -> bool {
+    renderable_identity(v).is_some() || is_block_instance_like(v) || is_block_factory_like(v)
+}
+
+fn same_renderable_reference(a: &JsValue, b: &JsValue) -> bool {
+    let a_identity = renderable_identity(a);
+    let b_identity = renderable_identity(b);
+    if a_identity.is_some() || b_identity.is_some() {
+        return match (a_identity, b_identity) {
+            (Some(left), Some(right)) => js_sys::Object::is(&left, &right),
+            _ => false,
+        };
+    }
+
+    if is_block_instance_like(a)
+        || is_block_instance_like(b)
+        || is_block_factory_like(a)
+        || is_block_factory_like(b)
+    {
+        return js_sys::Object::is(a, b);
+    }
+
     false
 }
 
-// 比较两个 VNode-like 对象是否代表“同一个虚拟节点”：
-// - 仅比较 type 与 key，忽略 props/children 的具体内容；
-// - 对应 Vue/React 中的“同 key 同 type 可复用”策略。
-fn same_vnode(a: &JsValue, b: &JsValue) -> bool {
-    if !a.is_object() || !b.is_object() {
+fn is_renderable_like(v: &JsValue) -> bool {
+    if is_renderable_reference(v) {
+        return true;
+    }
+
+    if !Array::is_array(v) {
         return false;
     }
-    let ao: Object = a.clone().unchecked_into();
-    let bo: Object = b.clone().unchecked_into();
-    let at = Reflect::get(&ao, &JsValue::from_str("type")).unwrap_or(JsValue::UNDEFINED);
-    let bt = Reflect::get(&bo, &JsValue::from_str("type")).unwrap_or(JsValue::UNDEFINED);
-    if !js_sys::Object::is(&at, &bt) {
-        return false;
+
+    let arr = Array::from(v);
+    let len = arr.length();
+    let mut index = 0;
+    while index < len {
+        if !is_renderable_reference(&arr.get(index)) {
+            return false;
+        }
+        index += 1;
     }
-    let ak = Reflect::get(&ao, &JsValue::from_str("key")).unwrap_or(JsValue::UNDEFINED);
-    let bk = Reflect::get(&bo, &JsValue::from_str("key")).unwrap_or(JsValue::UNDEFINED);
-    if !js_sys::Object::is(&ak, &bk) {
-        return false;
-    }
-    let ap = Reflect::get(&ao, &JsValue::from_str("props")).unwrap_or(JsValue::UNDEFINED);
-    let bp = Reflect::get(&bo, &JsValue::from_str("props")).unwrap_or(JsValue::UNDEFINED);
-    if !js_sys::Object::is(&ap, &bp) {
-        return false;
-    }
-    let ac = Reflect::get(&ao, &JsValue::from_str("children")).unwrap_or(JsValue::UNDEFINED);
-    let bc = Reflect::get(&bo, &JsValue::from_str("children")).unwrap_or(JsValue::UNDEFINED);
-    js_sys::Object::is(&ac, &bc)
+
+    true
 }
 
 // props / children 的浅相等判断：
 // - 普通情况下退化为 Object.is；
-// - 特别处理 VNode / VNode 数组的场景，尽量用 same_vnode 来比；
+// - 特别处理 Renderable / Renderable 数组的场景，优先用 DOM/host-node identity 来比；
 // - 主要用于 propsReactive / sync_props_children，避免无意义更新。
 pub fn shallow_equal_prop(a: &JsValue, b: &JsValue) -> bool {
     if js_sys::Object::is(a, b) {
@@ -72,24 +132,24 @@ pub fn shallow_equal_prop(a: &JsValue, b: &JsValue) -> bool {
     }
     let a_is_arr = Array::is_array(a);
     let b_is_arr = Array::is_array(b);
-    if a_is_arr && is_vnode_like(b) {
+    if a_is_arr && is_renderable_like(b) {
         let arr = Array::from(a);
         if arr.length() == 1 {
             let ai = arr.get(0);
             let bj = b.clone();
-            if is_vnode_like(&ai) && is_vnode_like(&bj) {
-                return same_vnode(&ai, &bj);
+            if is_renderable_like(&ai) && is_renderable_like(&bj) {
+                return same_renderable_reference(&ai, &bj);
             }
             return js_sys::Object::is(&ai, &bj);
         }
     }
-    if b_is_arr && is_vnode_like(a) {
+    if b_is_arr && is_renderable_like(a) {
         let arr = Array::from(b);
         if arr.length() == 1 {
             let bi = arr.get(0);
             let aj = a.clone();
-            if is_vnode_like(&bi) && is_vnode_like(&aj) {
-                return same_vnode(&bi, &aj);
+            if is_renderable_like(&bi) && is_renderable_like(&aj) {
+                return same_renderable_reference(&bi, &aj);
             }
             return js_sys::Object::is(&bi, &aj);
         }
@@ -105,8 +165,8 @@ pub fn shallow_equal_prop(a: &JsValue, b: &JsValue) -> bool {
         while i < len {
             let ai = aa.get(i);
             let bi = bb.get(i);
-            if is_vnode_like(&ai) && is_vnode_like(&bi) {
-                if !same_vnode(&ai, &bi) {
+            if is_renderable_like(&ai) && is_renderable_like(&bi) {
+                if !same_renderable_reference(&ai, &bi) {
                     return false;
                 }
             } else if !js_sys::Object::is(&ai, &bi) {
@@ -116,8 +176,11 @@ pub fn shallow_equal_prop(a: &JsValue, b: &JsValue) -> bool {
         }
         return true;
     }
-    if is_vnode_like(a) && is_vnode_like(b) {
-        return same_vnode(a, b);
+    if is_renderable_like(a) && is_renderable_like(b) {
+        return same_renderable_reference(a, b);
+    }
+    if is_dom_node_like(a) || is_dom_node_like(b) {
+        return js_sys::Object::is(a, b);
     }
     if a.is_object() && b.is_object() {
         let ao: Object = a.clone().unchecked_into();
@@ -145,8 +208,8 @@ pub fn shallow_equal_prop(a: &JsValue, b: &JsValue) -> bool {
             }
             let av = js_sys::Reflect::get(&ao, &key_js).unwrap_or(JsValue::UNDEFINED);
             let bv = js_sys::Reflect::get(&bo, &key_js).unwrap_or(JsValue::UNDEFINED);
-            if is_vnode_like(&av) && is_vnode_like(&bv) {
-                if !same_vnode(&av, &bv) {
+            if is_renderable_like(&av) && is_renderable_like(&bv) {
+                if !same_renderable_reference(&av, &bv) {
                     return false;
                 }
             } else if !js_sys::Object::is(&av, &bv) {
@@ -230,7 +293,7 @@ pub fn shallow_readonly_js(initial: JsValue, force_global: Option<bool>) -> JsVa
 pub fn props_reactive_js(initial: JsValue, force_global: Option<bool>) -> JsValue {
     let opts = Object::new();
     Reflect::set(&opts, &JsValue::from_str("readonly"), &JsValue::from_bool(true)).ok();
-    // 组件 props 应保持浅只读：顶层访问可追踪，VNode/DOM/已有 reactive 值按原样透传。
+    // 组件 props 应保持浅只读：顶层访问可追踪，DOM/raw value/已有 reactive 值按原样透传。
     Reflect::set(&opts, &JsValue::from_str("shallow"), &JsValue::from_bool(true)).ok();
     let eq = Closure::wrap(Box::new(move |prev: JsValue, next: JsValue| -> bool {
         shallow_equal_prop(&prev, &next)

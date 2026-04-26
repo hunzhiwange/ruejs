@@ -1,12 +1,12 @@
 use super::super::WasmRue;
 use crate::runtime::js_adapter::JsDomAdapter;
-use crate::runtime::types::{ComponentProps, VNodeType};
+use crate::runtime::types::{ComponentProps, MountInputType};
 use js_sys::{Array, Function, Object, Reflect};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
 pub(super) fn build_props_map(
-    this: &WasmRue,
+    _this: &WasmRue,
     props: &JsValue,
     children: &JsValue,
 ) -> ComponentProps {
@@ -35,36 +35,36 @@ pub(super) fn build_props_map(
 }
 
 pub(super) fn resolve_type(
-    this: &WasmRue,
+    _this: &WasmRue,
     type_tag: &JsValue,
     props_map: &ComponentProps,
-) -> VNodeType<JsDomAdapter> {
+) -> MountInputType<JsDomAdapter> {
     // 字符串标签解析：fragment/vapor/普通标签
     if let Some(s) = type_tag.as_string() {
         if s == "fragment" {
-            VNodeType::<JsDomAdapter>::Fragment
+            MountInputType::<JsDomAdapter>::Fragment
         } else if s == "vapor" {
             // vapor 可带 setup 函数：若存在返回 VaporWithSetup
             if let Some(setup) = props_map.get("setup") {
                 if let Some(f) = setup.dyn_ref::<Function>() {
-                    VNodeType::<JsDomAdapter>::VaporWithSetup(f.clone().into())
+                    MountInputType::<JsDomAdapter>::VaporWithSetup(f.clone().into())
                 } else {
-                    VNodeType::<JsDomAdapter>::Vapor
+                    MountInputType::<JsDomAdapter>::Vapor
                 }
             } else {
-                VNodeType::<JsDomAdapter>::Vapor
+                MountInputType::<JsDomAdapter>::Vapor
             }
         } else {
-            VNodeType::<JsDomAdapter>::Element(s)
+            MountInputType::<JsDomAdapter>::Element(s)
         }
     } else {
         // 非字符串：回退为 div
-        VNodeType::<JsDomAdapter>::Element("div".into())
+        MountInputType::<JsDomAdapter>::Element("div".into())
     }
 }
 
 pub(super) fn effective_children(
-    this: &WasmRue,
+    _this: &WasmRue,
     children: &JsValue,
     props_map: &ComponentProps,
 ) -> JsValue {

@@ -55,12 +55,8 @@ const Countdown: FC<CountdownProps> = ({ className, children, items }) => {
               </Value>
             )
           }
-          /* 文本项：直接渲染内容 */
-          return (
-            <span key={i} className={it.className}>
-              {(it as CountdownTextItem).content}
-            </span>
-          )
+          /* 文本项：直接渲染文本，避免被 countdown 样式当作数字位处理 */
+          return (it as CountdownTextItem).content
         })}
       </span>
     )

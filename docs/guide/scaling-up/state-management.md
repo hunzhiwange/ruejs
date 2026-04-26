@@ -126,10 +126,6 @@ export function useCount() {
 
 Rue 的响应式系统与组件模型解耦，这使其极具灵活性。
 
-## SSR 注意事项 {#ssr-considerations}
-
-如果你正在构建利用[服务端渲染（SSR）](./ssr)的应用，上述模式可能会导致问题，因为 store 是在多个请求之间共享的单例。这在 SSR 指南的[更多细节](./ssr#cross-request-state-pollution)中有详细讨论。
-
 ## Pinia {#pinia}
 
 虽然我们的手动状态管理解决方案在简单场景下足够使用，但在大型生产应用中还有很多事情需要考虑：
@@ -137,7 +133,6 @@ Rue 的响应式系统与组件模型解耦，这使其极具灵活性。
 - 更强的团队协作约定
 - 与 Rue DevTools 的集成，包括时间线、组件内检查和时光旅行调试
 - 热模块替换
-- 服务端渲染支持
 
 [Pinia](https://pinia.vuejs.org) 是一个实现了上述所有功能的状态管理库。它由 Rue 核心团队维护，同时适用于 Vue 2 和 Vue 3。
 

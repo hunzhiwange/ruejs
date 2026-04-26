@@ -76,13 +76,11 @@ useError({
 ```tsx
 import { useApp } from '@rue-js/rue'
 import router from './router'
-import { createPlugin } from '@rue-js/plugin'
 
 const rustPlugin = createPlugin()
 
 useApp(App)
   .use(router)
-  .use(rustPlugin, [{ name: 'demo' }])
   .mount('#app')
 ```
 

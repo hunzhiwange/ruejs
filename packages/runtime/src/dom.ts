@@ -416,74 +416,54 @@ export class BrowserDOMAdapter implements DOMAdapter {
 // 当前适配器：默认使用浏览器实现，可在运行时替换
 let CURRENT_ADAPTER: DOMAdapter = new BrowserDOMAdapter()
 
-/** 设置当前 DOM 适配器
- * 替换底层实现并刷新全局 __rue_dom 代理映射
- * @param adapter 新的 DOMAdapter 实例
- */
-export const setDOMAdapter = (adapter: DOMAdapter) => {
-  CURRENT_ADAPTER = adapter
-  // 在全局注入轻量代理，便于调试与非模块环境访问
-  ;(globalThis as any).__rue_dom = {
-    createElement: (tag: string) => CURRENT_ADAPTER.createElement(tag),
-    createTextNode: (data: string) => CURRENT_ADAPTER.createTextNode(data),
-    createDocumentFragment: () => CURRENT_ADAPTER.createDocumentFragment(),
-    isFragment: (node: DomNodeLike) => CURRENT_ADAPTER.isFragment(node),
-    collectFragmentChildren: (node: DomNodeLike) => CURRENT_ADAPTER.collectFragmentChildren(node),
-    setTextContent: (el: DomNodeLike, val: any) => CURRENT_ADAPTER.settextContent(el, val),
-    appendChild: (parent: DomNodeLike, child: DomNodeLike) =>
-      CURRENT_ADAPTER.appendChild(parent, child),
-    insertBefore: (parent: DomNodeLike, child: DomNodeLike, ref: DomNodeLike | null) =>
-      CURRENT_ADAPTER.insertBefore(parent, child, ref),
-    removeChild: (parent: DomNodeLike, child: DomNodeLike) =>
-      CURRENT_ADAPTER.removeChild(parent, child),
-    contains: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.contains(parent, child),
-    setClassName: (el: DomElementLike, value: string) => CURRENT_ADAPTER.setClassName(el, value),
-    patchStyle: (
-      el: DomElementLike,
-      oldStyle: Record<string, string>,
-      newStyle: Record<string, string>,
-    ) => CURRENT_ADAPTER.patchStyle(el, oldStyle as any, newStyle as any),
-    setInnerHTML: (el: DomElementLike, html: string) => CURRENT_ADAPTER.setInnerHTML(el, html),
-    setValue: (el: DomElementLike, value: any) => CURRENT_ADAPTER.setValue(el, value),
-    setChecked: (el: DomElementLike, checked: boolean) => CURRENT_ADAPTER.setChecked(el, checked),
-    setDisabled: (el: DomElementLike, disabled: boolean) =>
-      CURRENT_ADAPTER.setDisabled(el, disabled),
-    clearRef: (ref: any) => CURRENT_ADAPTER.clearRef(ref),
-    applyRef: (el: DomElementLike, ref: any) => CURRENT_ADAPTER.applyRef(el, ref),
-    setAttribute: (el: DomElementLike, name: string, value: any) =>
-      CURRENT_ADAPTER.setAttribute(el, name, value),
-    removeAttribute: (el: DomElementLike, name: string) =>
-      CURRENT_ADAPTER.removeAttribute(el, name),
-    getTagName: (el: DomElementLike) => CURRENT_ADAPTER.getTagName(el),
-    addEventListener: (el: DomElementLike, eventName: string, listener: DOMEventHandler) =>
-      CURRENT_ADAPTER.addEventListener(el, eventName, listener),
-    removeEventListener: (el: DomElementLike, eventName: string, listener: DOMEventHandler) =>
-      CURRENT_ADAPTER.removeEventListener(el, eventName, listener),
-    hasValueProperty: (el: DomElementLike) => (el as any).value !== undefined,
-    isSelectMultiple: (el: DomElementLike) =>
-      (CURRENT_ADAPTER.getTagName(el) || '').toUpperCase() === 'SELECT' && !!(el as any).multiple,
-    querySelector: (selector: string) => CURRENT_ADAPTER.querySelector(selector),
-  }
+type GlobalDOMBridge = {
+  createElement: (tag: string) => DomElementLike
+  createTextNode: (data: string) => DomTextLike
+  createDocumentFragment: () => DomFragmentLike
+  isFragment: (node: DomNodeLike) => boolean
+  collectFragmentChildren: (node: DomNodeLike) => DomNodeLike[]
+  setTextContent: (el: DomNodeLike, val: any) => void
+  appendChild: (parent: DomNodeLike, child: DomNodeLike) => void
+  insertBefore: (parent: DomNodeLike, child: DomNodeLike, ref: DomNodeLike | null) => void
+  removeChild: (parent: DomNodeLike, child: DomNodeLike) => void
+  contains: (parent: DomNodeLike, child: DomNodeLike) => boolean
+  setClassName: (el: DomElementLike, value: string) => void
+  patchStyle: (
+    el: DomElementLike,
+    oldStyle: Record<string, string>,
+    newStyle: Record<string, string>,
+  ) => void
+  setInnerHTML: (el: DomElementLike, html: string) => void
+  setValue: (el: DomElementLike, value: any) => void
+  setChecked: (el: DomElementLike, checked: boolean) => void
+  setDisabled: (el: DomElementLike, disabled: boolean) => void
+  clearRef: (ref: any) => void
+  applyRef: (el: DomElementLike, ref: any) => void
+  setAttribute: (el: DomElementLike, name: string, value: any) => void
+  removeAttribute: (el: DomElementLike, name: string) => void
+  getTagName: (el: DomElementLike) => string
+  addEventListener: (el: DomElementLike, eventName: string, listener: DOMEventHandler) => void
+  removeEventListener: (
+    el: DomElementLike,
+    eventName: string,
+    listener: DOMEventHandler,
+  ) => void
+  hasValueProperty: (el: DomElementLike) => boolean
+  isSelectMultiple: (el: DomElementLike) => boolean
+  querySelector: (selector: string) => DomElementLike | null
 }
-/** 获取当前 DOM 适配器
- * @returns 当前的 DOMAdapter 实例
- */
-export const getDOMAdapter = () => CURRENT_ADAPTER
 
-// 启动时即注入一次全局代理，保证在未调用 setDOMAdapter 前也可使用
-;(globalThis as any).__rue_dom = {
+const createGlobalDOMBridge = (): GlobalDOMBridge => ({
   createElement: (tag: string) => CURRENT_ADAPTER.createElement(tag),
   createTextNode: (data: string) => CURRENT_ADAPTER.createTextNode(data),
   createDocumentFragment: () => CURRENT_ADAPTER.createDocumentFragment(),
   isFragment: (node: DomNodeLike) => CURRENT_ADAPTER.isFragment(node),
   collectFragmentChildren: (node: DomNodeLike) => CURRENT_ADAPTER.collectFragmentChildren(node),
   setTextContent: (el: DomNodeLike, val: any) => CURRENT_ADAPTER.settextContent(el, val),
-  appendChild: (parent: DomNodeLike, child: DomNodeLike) =>
-    CURRENT_ADAPTER.appendChild(parent, child),
+  appendChild: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.appendChild(parent, child),
   insertBefore: (parent: DomNodeLike, child: DomNodeLike, ref: DomNodeLike | null) =>
     CURRENT_ADAPTER.insertBefore(parent, child, ref),
-  removeChild: (parent: DomNodeLike, child: DomNodeLike) =>
-    CURRENT_ADAPTER.removeChild(parent, child),
+  removeChild: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.removeChild(parent, child),
   contains: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.contains(parent, child),
   setClassName: (el: DomElementLike, value: string) => CURRENT_ADAPTER.setClassName(el, value),
   patchStyle: (
@@ -509,7 +489,28 @@ export const getDOMAdapter = () => CURRENT_ADAPTER
   isSelectMultiple: (el: DomElementLike) =>
     (CURRENT_ADAPTER.getTagName(el) || '').toUpperCase() === 'SELECT' && !!(el as any).multiple,
   querySelector: (selector: string) => CURRENT_ADAPTER.querySelector(selector),
+})
+
+const syncGlobalDOMBridge = () => {
+  ;(globalThis as any).__rue_dom = createGlobalDOMBridge()
 }
+
+/** 设置当前 DOM 适配器
+ * 替换底层实现并刷新全局 __rue_dom 代理映射
+ * @param adapter 新的 DOMAdapter 实例
+ */
+export const setDOMAdapter = (adapter: DOMAdapter) => {
+  CURRENT_ADAPTER = adapter
+  // 在全局注入轻量代理，便于调试与非模块环境访问
+  syncGlobalDOMBridge()
+}
+/** 获取当前 DOM 适配器
+ * @returns 当前的 DOMAdapter 实例
+ */
+export const getDOMAdapter = () => CURRENT_ADAPTER
+
+// 启动时即注入一次全局代理，保证在未调用 setDOMAdapter 前也可使用
+syncGlobalDOMBridge()
 
 // 便捷导出：函数式封装 CURRENT_ADAPTER，简化调用与测试替换
 /** 创建注释节点（便捷函数）

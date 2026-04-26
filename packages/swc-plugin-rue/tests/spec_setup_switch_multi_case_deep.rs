@@ -48,7 +48,8 @@ const Comp: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, onBeforeUnmount, watchEffect, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { onBeforeUnmount, watchEffect, _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const Comp: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = _$vaporWithHookId("ref:1:0", ()=>ref(0));

@@ -37,7 +37,8 @@ export default ConditionalRendering;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const showA = true;
 const showB = false;
@@ -118,9 +119,7 @@ const ConditionalRendering: FC = ()=>vapor(()=>{
         _$addEventListener(_el20, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el20, "text-blue-600 hover:underline");
         _$appendChild(_el20, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default ConditionalRendering;
 "##;

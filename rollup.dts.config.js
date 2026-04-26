@@ -29,7 +29,7 @@ export default targetPackages.map(
         file: resolvePackageTypesOutput(pkg),
         format: 'es',
       },
-      plugins: [dts(), patchTypes(pkg), ...(pkg === 'vue' ? [copyMts()] : [])],
+      plugins: [rewriteRuntimeVaporImports(), dts(), patchTypes(pkg), ...(pkg === 'vue' ? [copyMts()] : [])],
       onwarn(warning, warn) {
         // during dts rollup, everything is externalized by default
         if (warning.code === 'UNRESOLVED_IMPORT' && !warning.exporter?.startsWith('.')) {
@@ -37,6 +37,26 @@ export default targetPackages.map(
         }
         warn(warning)
       },
+    }
+
+    function rewriteRuntimeVaporImports() {
+      const runtimeVaporImportPattern = /runtime-vapor\/pkg\/rue_runtime_vapor\.js$/
+
+      return {
+        name: 'rewrite-runtime-vapor-imports',
+        /**
+         * @param {string} source
+         */
+        resolveId(source) {
+          if (runtimeVaporImportPattern.test(source)) {
+            return {
+              id: '@rue-js/runtime-vapor',
+              external: true,
+            }
+          }
+          return null
+        },
+      }
     }
   },
 )
@@ -180,6 +200,15 @@ function patchTypes(pkg) {
         }
       }
       code = s.toString()
+
+      code = code.replace(
+        /(['"])\.\.\/\.\.\/runtime-vapor\/pkg\/rue_runtime_vapor\.js\1/g,
+        `'@rue-js/runtime-vapor'`,
+      )
+      code = code.replace(
+        /(['"])\.\.\/\.\.\.\/runtime-vapor\/pkg\/rue_runtime_vapor\.js\1/g,
+        `'@rue-js/runtime-vapor'`,
+      )
 
       // append pkg specific types
       const additionalTypeDir = `packages/${pkg}/types`

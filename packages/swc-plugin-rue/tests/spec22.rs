@@ -25,7 +25,8 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const Chain: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         const a = _$vaporWithHookId("ref:1:0", ()=>ref(0));
@@ -48,40 +49,29 @@ const Chain: FC = ()=>{
                 const _el1 = _$createElement("div");
                 _$appendChild(_root, _el1);
                 _$appendChild(_el1, _$createTextNode("A"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : b ? vapor(()=>{
                 const _root = _$createDocumentFragment();
                 const _el2 = _$createElement("div");
                 _$appendChild(_root, _el2);
                 _$appendChild(_el2, _$createTextNode("B"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : c ? vapor(()=>{
                 const _root = _$createDocumentFragment();
                 const _el3 = _$createElement("div");
                 _$appendChild(_root, _el3);
                 _$appendChild(_el3, _$createTextNode("C"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : vapor(()=>{
                 const _root = _$createDocumentFragment();
                 const _el4 = _$createElement("div");
                 _$appendChild(_root, _el4);
                 _$appendChild(_el4, _$createTextNode("Else"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default Chain;

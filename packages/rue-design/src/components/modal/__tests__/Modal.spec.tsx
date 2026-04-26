@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { h, render } from '@rue-js/rue'
+import { h } from '@rue-js/rue'
+import { render } from '@rue-js/rue'
 import { Modal } from '@rue-js/design'
 
 afterEach(() => {

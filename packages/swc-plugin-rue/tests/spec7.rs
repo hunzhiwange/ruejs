@@ -26,7 +26,8 @@ export default Parent;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
+import { _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$appendChild, watchEffect, _$setAttribute } from "@rue-js/rue/vapor";
+import { type FC, ref, h } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(2));
 const Child: FC<{
     label: number;
@@ -37,12 +38,9 @@ const Child: FC<{
         _$appendChild(_root, _list1);
         watchEffect(()=>{
             const __slot = (p.label);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const Parent: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -52,9 +50,7 @@ const Parent: FC = ()=>vapor(()=>{
             const __slot3 = <Child label={count.value}/>;
             renderAnchor(__slot3, _root, _list2);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Parent;
 "##;

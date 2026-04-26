@@ -1,16 +1,77 @@
 import type { FC } from '@rue-js/rue'
-import { ref } from '@rue-js/rue'
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, useRef, vapor, watchEffect } from '@rue-js/rue'
+import { useRoute } from '@rue-js/router'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
-import { Countdown, Tabs } from '@rue-js/design'
+import { Tabs } from '@rue-js/design'
+
+type LiveCountdownItem =
+  | {
+      value: number
+      digits?: number
+      ariaLabel?: string
+      className?: string
+    }
+  | {
+      content: string
+      className?: string
+    }
+
+const LiveCountdown: FC<{ className?: string; getItems: () => ReadonlyArray<LiveCountdownItem> }> =
+  props =>
+    vapor(() => {
+      const root = document.createElement('span')
+
+      watchEffect(() => {
+        root.className = props.className ? `countdown ${props.className}` : 'countdown'
+
+        const nodes = props.getItems().map<Node>(item => {
+          if ('value' in item) {
+            const span = document.createElement('span')
+            if (item.className) span.className = item.className
+            span.setAttribute('aria-live', 'polite')
+            span.setAttribute('aria-label', item.ariaLabel ?? String(item.value))
+            span.style.setProperty('--value', String(item.value))
+            if (item.digits != null) span.style.setProperty('--digits', String(item.digits))
+            span.textContent = String(item.value)
+            return span
+          }
+
+          // daisyUI countdown expects separators like "h" or ":" to be plain text nodes.
+          return document.createTextNode(item.content)
+        })
+
+        root.replaceChildren(...nodes)
+      })
+
+      return root
+    })
 
 const CountdownDemo: FC = () => {
+  const route = useRoute()
   const counter = ref(59)
-  if ((window as any).__rue_countdown_timer__ == null) {
-    ;(window as any).__rue_countdown_timer__ = setInterval(() => {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopTimer = () => {
+    if (timerRef.current != null) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  const startTimer = () => {
+    if (timerRef.current != null) {
+      return
+    }
+
+    timerRef.current = setInterval(() => {
       counter.value = counter.value > 0 ? counter.value - 1 : 59
     }, 1000)
   }
+
+  onMounted(startTimer)
+  onBeforeUnmount(stopTimer)
+  onUnmounted(stopTimer)
 
   const tabBasic = ref<'preview' | 'code'>('preview')
   const tabLarge2 = ref<'preview' | 'code'>('preview')
@@ -21,14 +82,14 @@ const CountdownDemo: FC = () => {
   const tabInBoxes = ref<'preview' | 'code'>('preview')
   const tabArrayInternal = ref<'preview' | 'code'>('preview')
 
-  const countdownItems = [
+  const countdownItems = computed(() => [
     { value: 10 },
     { content: 'h' },
     { value: 24, digits: 2 },
     { content: 'm' },
     { value: counter.value, digits: 2 },
     { content: 's' },
-  ]
+  ])
 
   return (
     <SidebarPlayground>
@@ -54,9 +115,7 @@ const CountdownDemo: FC = () => {
             className="mb-3"
           />
           {tabBasic.value === 'preview' ? (
-            <Countdown>
-              <Countdown.Value value={counter.value} ariaLabel={String(counter.value)} />
-            </Countdown>
+            <LiveCountdown getItems={() => [{ value: counter.value, ariaLabel: String(counter.value) }]} />
           ) : (
             <Code
               className="mt-2"
@@ -83,9 +142,10 @@ const CountdownDemo: FC = () => {
             className="mb-3"
           />
           {tabLarge2.value === 'preview' ? (
-            <Countdown className="font-mono text-6xl">
-              <Countdown.Value value={counter.value} digits={2} ariaLabel={String(counter.value)} />
-            </Countdown>
+            <LiveCountdown
+              className="font-mono text-6xl"
+              getItems={() => [{ value: counter.value, digits: 2, ariaLabel: String(counter.value) }]}
+            />
           ) : (
             <Code
               className="mt-2"
@@ -111,11 +171,17 @@ const CountdownDemo: FC = () => {
             className="mb-3"
           />
           {tabClock.value === 'preview' ? (
-            <Countdown className="font-mono text-2xl">
-              <Countdown.Value value={10} ariaLabel="10" />h
-              <Countdown.Value value={24} ariaLabel="24" />m
-              <Countdown.Value value={counter.value} ariaLabel={String(counter.value)} />s
-            </Countdown>
+            <LiveCountdown
+              className="font-mono text-2xl"
+              getItems={() => [
+                { value: 10, ariaLabel: '10' },
+                { content: 'h' },
+                { value: 24, ariaLabel: '24' },
+                { content: 'm' },
+                { value: counter.value, ariaLabel: String(counter.value) },
+                { content: 's' },
+              ]}
+            />
           ) : (
             <Code
               className="mt-2"
@@ -143,7 +209,7 @@ const CountdownDemo: FC = () => {
             className="mb-3"
           />
           {tabArrayInternal.value === 'preview' ? (
-            <Countdown className="font-mono text-2xl" items={countdownItems} />
+            <LiveCountdown className="font-mono text-2xl" getItems={() => countdownItems.get()} />
           ) : (
             <Code
               className="mt-2"
@@ -176,11 +242,16 @@ const items = [
             className="mb-3"
           />
           {tabClockColon.value === 'preview' ? (
-            <Countdown className="font-mono text-2xl">
-              <Countdown.Value value={10} ariaLabel="10" />:
-              <Countdown.Value value={24} digits={2} ariaLabel="24" />:
-              <Countdown.Value value={counter.value} digits={2} ariaLabel={String(counter.value)} />
-            </Countdown>
+            <LiveCountdown
+              className="font-mono text-2xl"
+              getItems={() => [
+                { value: 10, ariaLabel: '10' },
+                { content: ':' },
+                { value: 24, digits: 2, ariaLabel: '24' },
+                { content: ':' },
+                { value: counter.value, digits: 2, ariaLabel: String(counter.value) },
+              ]}
+            />
           ) : (
             <Code
               className="mt-2"
@@ -210,27 +281,22 @@ const items = [
           {tabLabels.value === 'preview' ? (
             <div className="flex gap-5">
               <div>
-                <Countdown className="font-mono text-4xl">
-                  <Countdown.Value value={15} ariaLabel="15" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-4xl" getItems={() => [{ value: 15, ariaLabel: '15' }]} />
                 days
               </div>
               <div>
-                <Countdown className="font-mono text-4xl">
-                  <Countdown.Value value={10} ariaLabel="10" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-4xl" getItems={() => [{ value: 10, ariaLabel: '10' }]} />
                 hours
               </div>
               <div>
-                <Countdown className="font-mono text-4xl">
-                  <Countdown.Value value={24} ariaLabel="24" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-4xl" getItems={() => [{ value: 24, ariaLabel: '24' }]} />
                 minutes
               </div>
               <div>
-                <Countdown className="font-mono text-4xl">
-                  <Countdown.Value value={counter.value} ariaLabel={String(counter.value)} />
-                </Countdown>
+                <LiveCountdown
+                  className="font-mono text-4xl"
+                  getItems={() => [{ value: counter.value, ariaLabel: String(counter.value) }]}
+                />
                 sec
               </div>
             </div>
@@ -284,27 +350,22 @@ const items = [
           {tabLabelsUnder.value === 'preview' ? (
             <div className="grid grid-flow-col gap-5 text-center auto-cols-max">
               <div className="flex flex-col">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={15} ariaLabel="15" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 15, ariaLabel: '15' }]} />
                 days
               </div>
               <div className="flex flex-col">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={10} ariaLabel="10" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 10, ariaLabel: '10' }]} />
                 hours
               </div>
               <div className="flex flex-col">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={24} ariaLabel="24" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 24, ariaLabel: '24' }]} />
                 min
               </div>
               <div className="flex flex-col">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={counter.value} ariaLabel={String(counter.value)} />
-                </Countdown>
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: counter.value, ariaLabel: String(counter.value) }]}
+                />
                 sec
               </div>
             </div>
@@ -356,27 +417,22 @@ const items = [
           {tabInBoxes.value === 'preview' ? (
             <div className="grid grid-flow-col gap-5 text-center auto-cols-max">
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={15} ariaLabel="15" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 15, ariaLabel: '15' }]} />
                 days
               </div>
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={10} ariaLabel="10" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 10, ariaLabel: '10' }]} />
                 hours
               </div>
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={24} ariaLabel="24" />
-                </Countdown>
+                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 24, ariaLabel: '24' }]} />
                 min
               </div>
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <Countdown className="font-mono text-5xl">
-                  <Countdown.Value value={counter.value} ariaLabel={String(counter.value)} />
-                </Countdown>
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: counter.value, ariaLabel: String(counter.value) }]}
+                />
                 sec
               </div>
             </div>

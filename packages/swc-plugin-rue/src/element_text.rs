@@ -6,7 +6,7 @@ use crate::emit::*;
 use crate::vapor::VaporTransform;
 
 /*
-元素文本渲染（中文详解）：
+元素文本渲染：
 - 目标：为元素子节点中的任意文本表达式构造包装元素并设置/更新 textContent；
 - 包装元素选择：运行时根据父元素是否为 SVG，选择 <text> 或 <span>；
 - 静态优化：空值与纯静态文本直接一次性设置；其它动态表达式用 watchEffect 包裹，以便响应式更新。

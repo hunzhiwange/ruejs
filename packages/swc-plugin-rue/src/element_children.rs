@@ -4,7 +4,7 @@ use crate::log;
 use crate::vapor::VaporTransform;
 
 /*
-元素子节点编译（中文详解）：
+元素子节点编译：
 - 目标：将 JSXElement 的 children 编译为原生 DOM 操作并附加到父元素；
 - 空白策略：normalize_text 归一化段内空白，结合前后邻居（文本/表达式/纯空白）决定插入、保留或修剪；
 - 分派路径：文本 → 规范化并插入；片段 → 递归；表达式容器 → 插槽渲染；嵌套元素 → 构建为原生 DOM；

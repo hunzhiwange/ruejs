@@ -39,7 +39,7 @@ const presets = [
     replace: { __RUE_OPTIONS_API__: 'false' },
   },
   { name: 'createApp', imports: ['createApp'] },
-  { name: 'defineCustomElement', imports: ['defineCustomElement'] },
+  { name: 'useCustomElement', imports: ['useCustomElement'] },
   {
     name: 'overall',
     imports: ['createApp', 'ref', 'watch', 'Transition'],

@@ -9,7 +9,7 @@ use super::super::VaporTransform;
 
 /// 块体工具（细化说明）：
 /// - emit_markers：生成单锚点注释并插入到根节点，配合 renderAnchor；children/slot 使用不同标记字符串，便于调试与区分
-/// - watch_render_slot：将插槽值保存为 `__slot`，统一转为 `__vnode`，构造 `renderAnchor(...)` 的箭头函数体，供 watch 包裹
+/// - watch_render_slot：将插槽值保存为 `__slot`，直接交给 runtime 新协议入口 `renderAnchor(...)`，供 watch 包裹
 pub(crate) fn emit_markers(
     vt: &mut VaporTransform,
     root: &Ident,
@@ -26,18 +26,14 @@ pub(crate) fn emit_markers(
 }
 
 pub(crate) fn watch_render_slot(expr_for_slot: Expr, root: Ident, anchor: Ident) -> Expr {
-    // 规范插槽值为 vnode：先保存 slot 原值，再转为 VNode 以统一渲染路径
+    // 保存 slot 原值，并直接交给 runtime 的 Renderable/compat 边界处理
     let decl_slot = const_decl(ident("__slot"), expr_for_slot);
-    let decl_vnode = const_decl(
-        ident("__vnode"),
-        call_ident("_$vaporCreateVNode", vec![Expr::Ident(ident("__slot"))]),
-    );
 
     let render_call = Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
         args: vec![
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__vnode"))) },
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__slot"))) },
             ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(root.clone())) },
             ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
         ],
@@ -50,7 +46,6 @@ pub(crate) fn watch_render_slot(expr_for_slot: Expr, root: Ident, anchor: Ident)
         ctxt: SyntaxContext::empty(),
         stmts: vec![
             decl_slot,
-            decl_vnode,
             Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }),
         ],
     };

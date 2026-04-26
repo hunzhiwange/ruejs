@@ -18,13 +18,12 @@ export default C;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, h, ref, vapor, _$createElement, _$createTextNode, _$appendChild } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$appendChild } from "@rue-js/rue/vapor";
+import { type FC, h, ref } from '@rue-js/rue';
 const C: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         _$appendChild(_root, _$createTextNode("ok"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default C;
 "##;

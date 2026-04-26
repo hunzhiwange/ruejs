@@ -52,7 +52,8 @@ export default ReactConditionalDemo;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const ReactConditionalDemo: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const show = _$vaporWithHookId("ref:1:0", ()=>ref(true));
@@ -92,12 +93,9 @@ const ReactConditionalDemo: FC = ()=>{
                 _$appendChild(_el5, _el6);
                 _$setClassName(_el6, "text-gray-700");
                 _$appendChild(_el6, _$createTextNode("详情区域：仅在 show 为 true 时显示"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : "";
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
         _$appendChild(_root, _$createTextNode(" "));
         const _list2 = _$createComment("rue:slot:anchor");
@@ -112,12 +110,9 @@ const ReactConditionalDemo: FC = ()=>{
                 _$appendChild(_el7, _el8);
                 _$setClassName(_el8, "text-gray-700");
                 _$appendChild(_el8, _$createTextNode("详情区域：仅在 show 为 true 时显示"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : "";
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list2);
+            renderAnchor(__slot, _root, _list2);
         });
         _$appendChild(_root, _$createTextNode(" "));
         const _list3 = _$createComment("rue:slot:anchor");
@@ -132,16 +127,11 @@ const ReactConditionalDemo: FC = ()=>{
                 _$appendChild(_el9, _el10);
                 _$setClassName(_el10, "text-gray-700");
                 _$appendChild(_el10, _$createTextNode("详情区域：仅在 show 为 true 时显示"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : "";
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list3);
+            renderAnchor(__slot, _root, _list3);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default ReactConditionalDemo;

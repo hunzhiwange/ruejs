@@ -13,8 +13,8 @@ import { type FC } from '@rue-js/rue'
 const Chain: FC = () => {
   return (
     <div>
-      <div if="5">A</div>
-      <div else>Else</div>
+      <div r-if="5">A</div>
+      <div r-else>Else</div>
     </div>
   )
 }

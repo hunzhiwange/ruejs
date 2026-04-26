@@ -123,7 +123,8 @@ export default ListTransitionExample
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporWithKey, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC, TransitionGroup, ref } from '@rue-js/rue';
 const ListTransitionExample: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const items = _$vaporWithHookId("ref:1:0", ()=>ref<number[]>([
@@ -244,65 +245,35 @@ const ListTransitionExample: FC = ()=>{
         const _el8 = _$createElement("ul");
         _$appendChild(_el3, _el8);
         _$setClassName(_el8, "container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3");
-        const _list3 = _$createComment("rue:component:anchor");
-        _$appendChild(_el8, _list3);
-        const __child1 = vapor(()=>{
-            const _root = _$createDocumentFragment();
-            const _list1 = _$createComment("rue:list:start");
-            const _list2 = _$createComment("rue:list:end");
-            _$appendChild(_root, _list1);
-            _$appendChild(_root, _list2);
-            let _map1_elements = new Map;
-            watchEffect(()=>{
-                const _map1_current = items.value || [];
-                const _map1_newElements = _$vaporKeyedList({
-                    items: _map1_current,
-                    getKey: (item, idx)=>item,
-                    elements: _map1_elements,
-                    parent: _list1.parentNode,
-                    before: _list2,
-                    singleRoot: true,
-                    start: _list1,
-                    renderItem: (item, parent, start, end, idx)=>{
-                        const __slot = vapor(()=>{
-                            const _root = _$createDocumentFragment();
-                            const _el9 = _$createElement("li");
-                            _$appendChild(_root, _el9);
-                            _$setClassName(_el9, "item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm");
-                            watchEffect(()=>{
-                                _$setAttribute(_el9, "key", String((item)));
-                            });
-                            const _el10 = _$createElement("span");
-                            _$appendChild(_el9, _el10);
-                            _$setClassName(_el10, "text-base-content");
-                            const _el11 = _$createTextWrapper(_el10);
-                            _$appendChild(_el10, _el11);
-                            watchEffect(()=>{
-                                _$settextContent(_el11, item);
-                            });
-                            const _el12 = _$createElement("button");
-                            _$appendChild(_el9, _el12);
-                            _$setClassName(_el12, "btn btn-sm");
-                            _$addEventListener(_el12, "click", (()=>remove(item)));
-                            _$appendChild(_el12, _$createTextNode("x"));
-                            return {
-                                vaporElement: _root
-                            };
-                        });
-                        renderAnchor(__slot, parent, start);
-                    }
+        const _list1 = _$createComment("rue:component:anchor");
+        _$appendChild(_el8, _list1);
+        watchEffect(()=>{
+            const __slot2 = <TransitionGroup name="fade" children={items.value.map((item)=>_$vaporWithKey(vapor(()=>{
+                const _root = _$createDocumentFragment();
+                const _el9 = _$createElement("li");
+                _$appendChild(_root, _el9);
+                _$setClassName(_el9, "item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm");
+                watchEffect(()=>{
+                    _$setAttribute(_el9, "key", String((item)));
                 });
-                _map1_elements = _map1_newElements;
-            });
-            return {
-                vaporElement: _root
-            };
+                const _el10 = _$createElement("span");
+                _$appendChild(_el9, _el10);
+                _$setClassName(_el10, "text-base-content");
+                const _el11 = _$createTextWrapper(_el10);
+                _$appendChild(_el10, _el11);
+                watchEffect(()=>{
+                    _$settextContent(_el11, item);
+                });
+                const _el12 = _$createElement("button");
+                _$appendChild(_el9, _el12);
+                _$setClassName(_el12, "btn btn-sm");
+                _$addEventListener(_el12, "click", (()=>remove(item)));
+                _$appendChild(_el12, _$createTextNode("x"));
+                return _root;
+            }), item))}/>;
+            renderAnchor(__slot2, _el8, _list1);
         });
-        const __slot4 = <TransitionGroup name="fade" children={__child1}/>;
-        renderAnchor(__slot4, _el8, _list3);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default ListTransitionExample;

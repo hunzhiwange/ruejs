@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 type EffectRunner = () => void
 type LoadedModule = { default: (props: any) => any }
 
-const renderAnchorMock = vi.fn()
+const renderBetweenMock = vi.fn()
+const handleErrorMock = vi.fn()
+const onBeforeUnmountCallbacks: Array<() => void> = []
 
 const createElementMock = vi.fn(() => ({
   tag: 'div',
@@ -46,11 +48,14 @@ function createSignal<T>(initial: T) {
 vi.mock('../src/rue.ts', () => {
   return {
     default: {
-      handleError: vi.fn(),
+      handleError: handleErrorMock,
     },
     h: (type: unknown, props?: Record<string, unknown>) => ({ type, props, children: [] }),
+    onBeforeUnmount: (fn: () => void) => {
+      onBeforeUnmountCallbacks.push(fn)
+    },
     vapor: (setup: () => unknown) => setup(),
-    renderAnchor: renderAnchorMock,
+    renderBetween: renderBetweenMock,
   }
 })
 
@@ -75,6 +80,9 @@ vi.mock('../src/reactivity/index.ts', () => {
         }
       }
       wrapped()
+      return {
+        dispose: vi.fn(),
+      }
     },
   }
 })
@@ -86,13 +94,20 @@ vi.mock('@rue-js/runtime-vapor', () => {
 })
 
 afterEach(() => {
-  renderAnchorMock.mockClear()
+  renderBetweenMock.mockClear()
+  handleErrorMock.mockClear()
   createElementMock.mockClear()
   createCommentMock.mockClear()
   appendChildMock.mockClear()
+  onBeforeUnmountCallbacks.length = 0
   activeEffect = null
   vi.resetModules()
 })
+
+const flushMicrotasks = async () => {
+  await Promise.resolve()
+  await Promise.resolve()
+}
 
 describe('useComponent loading behavior', () => {
   it('skips the initial empty loading render by default', async () => {
@@ -102,8 +117,8 @@ describe('useComponent loading behavior', () => {
     const Async = useComponent(loader)
 
     const vnode: any = Async({ id: 1 })
-    expect(vnode.vaporElement ?? vnode.props?.setup?.()?.vaporElement).toBeDefined()
-    expect(renderAnchorMock).not.toHaveBeenCalled()
+    expect(vnode).toBeDefined()
+    expect(renderBetweenMock).not.toHaveBeenCalled()
   })
 
   it('keeps rendering a custom loading component before resolve', async () => {
@@ -112,21 +127,21 @@ describe('useComponent loading behavior', () => {
       new Promise<LoadedModule>(resolve => {
         deferred.resolve = resolve
       })
-    const Loading = () => ({ type: 'loading', props: {}, children: [] })
+    const Loading = (() => null) as any
 
     const { useComponent } = await import('../src/hooks/useComponent')
     const Async = useComponent(loader, { loading: Loading })
 
     Async({ id: 1 })
-    expect(renderAnchorMock).toHaveBeenCalledTimes(1)
-    expect(renderAnchorMock.mock.calls[0][0].type).toBe(Loading)
+    expect(renderBetweenMock).toHaveBeenCalledTimes(1)
+    expect(renderBetweenMock.mock.calls[0][0].type).toBe(Loading)
 
     deferred.resolve?.({
       default: (props: any) => ({ type: 'resolved', props, children: [] }),
     })
-    await Promise.resolve()
+    await flushMicrotasks()
 
-    expect(renderAnchorMock).toHaveBeenCalledTimes(2)
+    expect(renderBetweenMock).toHaveBeenCalledTimes(2)
   })
 
   it('renders the resolved component against the mounted anchor parent', async () => {
@@ -140,8 +155,9 @@ describe('useComponent loading behavior', () => {
     const Async = useComponent(loader)
 
     const vnode: any = Async({ id: 1 })
-    const container = vnode.vaporElement
-    const anchor = container.children[0]
+    const container = vnode
+    const startEl = container.children[0]
+    const endEl = container.children[1]
     const host = { tag: 'host', children: [] as any[] }
 
     appendChildMock(host, container)
@@ -149,10 +165,29 @@ describe('useComponent loading behavior', () => {
     deferred.resolve?.({
       default: (props: any) => ({ type: 'resolved', props, children: [] }),
     })
-    await Promise.resolve()
+    await flushMicrotasks()
 
-    expect(renderAnchorMock).toHaveBeenCalledTimes(1)
-    expect(renderAnchorMock.mock.calls[0][1]).toBe(vnode.vaporElement)
-    expect(renderAnchorMock.mock.calls[0][2]).toBe(anchor)
+    expect(renderBetweenMock).toHaveBeenCalledTimes(1)
+    expect(renderBetweenMock.mock.calls[0][1]).toBe(vnode)
+    expect(renderBetweenMock.mock.calls[0][2]).toBe(startEl)
+    expect(renderBetweenMock.mock.calls[0][3]).toBe(endEl)
+  })
+
+  it('renders the error component and reports loader failures', async () => {
+    const error = new Error('load failed')
+    const loader = () => Promise.reject(error)
+    const ErrorView = (() => null) as any
+
+    const { useComponent } = await import('../src/hooks/useComponent')
+    const Async = useComponent(loader, { error: ErrorView })
+
+    Async({ id: 1 })
+    await flushMicrotasks()
+
+    expect(handleErrorMock).toHaveBeenCalledTimes(1)
+    expect(handleErrorMock).toHaveBeenCalledWith(error, null)
+    expect(renderBetweenMock).toHaveBeenCalledTimes(1)
+    expect(renderBetweenMock.mock.calls[0][0].type).toBe(ErrorView)
+    expect(renderBetweenMock.mock.calls[0][0].props).toEqual({ error })
   })
 })

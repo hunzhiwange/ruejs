@@ -20,7 +20,8 @@ const Comp: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 const Comp: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             console.log('setup only');

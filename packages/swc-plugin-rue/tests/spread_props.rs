@@ -33,7 +33,8 @@ export default SpreadProps;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Button: FC<{
     text: string;
@@ -47,12 +48,9 @@ const Button: FC<{
         _$appendChild(_root, _list1);
         watchEffect(()=>{
             const __slot = (props.text);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const SpreadProps: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -89,9 +87,7 @@ const SpreadProps: FC = ()=>{
         _$addEventListener(_el2, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el2, "text-blue-600 hover:underline");
         _$appendChild(_el2, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default SpreadProps;

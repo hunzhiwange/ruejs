@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { h, render } from '@rue-js/rue'
+import { h } from '@rue-js/rue'
+import { render } from '@rue-js/rue'
 import { Countdown } from '@rue-js/design'
 
 afterEach(() => {
@@ -53,11 +54,11 @@ describe('Countdown', () => {
     const wrapper = c.querySelector('.countdown') as HTMLElement
     expect(wrapper.classList.contains('font-mono')).toBe(true)
     const spans = wrapper.querySelectorAll('span')
-    expect(spans.length).toBe(6)
+    expect(spans.length).toBe(3)
     expect(spans[0].getAttribute('style') || '').toMatch(/--value:\s*10/)
     expect(spans[2].getAttribute('style') || '').toMatch(/--digits:\s*2/)
-    expect(spans[1].textContent).toBe('h')
-    expect(spans[3].textContent).toBe('m')
-    expect(spans[5].textContent).toBe('s')
+    expect(wrapper.textContent).toContain('h')
+    expect(wrapper.textContent).toContain('m')
+    expect(wrapper.textContent).toContain('s')
   })
 })

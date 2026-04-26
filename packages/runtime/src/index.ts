@@ -5,6 +5,9 @@
 - 保持与 @rue-js/runtime-vapor 的接口兼容性，便于替换底层实现。
 */
 export * from './rue'
+export * from './renderable'
+export * from './renderable-normalize'
+export * from './custom-elements'
 
 // 内置组件
 export { Teleport, type TeleportProps } from './components/Teleport'
@@ -38,13 +41,13 @@ export {
   setDisabled as _$setDisabled,
   getTagName as _$getTagName,
 } from './dom'
-export type { VaporListItemRange } from './vapor-runtime'
+export type { VaporListItemRange } from './vapor-helpers'
 export {
   vaporKeyedList as _$vaporKeyedList,
-  vaporCreateVNode as _$vaporCreateVNode,
   vaporBindUseRef as _$vaporBindUseRef,
   vaporShowStyle as _$vaporShowStyle,
-} from './vapor-runtime'
+  vaporWithKey as _$vaporWithKey,
+} from './vapor-helpers'
 export { vaporWithHookId as _$vaporWithHookId } from '@rue-js/runtime-vapor'
 
 export { Transition, type TransitionProps } from './components/Transition'

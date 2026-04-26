@@ -1,38 +1,41 @@
 # 渲染函数与 JSX {#render-functions-jsx}
 
-Rue 建议在绝大多数情况下使用模板来构建应用程序。然而，有些情况下我们需要 JavaScript 的完整编程能力。这就是我们可以使用**渲染函数**的地方。
+Rue 依然支持手写渲染函数，但它们现在更适合作为显式边界来使用：例如可复用库组件、极动态 UI，或迁移旧的手写渲染 helper。对绝大多数应用代码来说，模板和普通 JSX 仍然是首选，因为它们会在编译阶段直接生成 Block / Vapor 导向的渲染产物。
 
-> 如果你是虚拟 DOM 和渲染函数概念的新手，请务必先阅读[渲染机制](/guide/extras/rendering-mechanism)章节。
+> 如果你还没建立 Rue 当前默认渲染路径的整体图景，请先阅读[渲染机制](/guide/extras/rendering-mechanism)。
 
 ## 基本用法 {#basic-usage}
 
-### 创建 Vnodes {#creating-vnodes}
+### 创建渲染输出 {#creating-vnodes}
 
-Rue 提供了一个 `h()` 函数用于创建 vnodes：
+本节保留了历史锚点，因为 `h()` 仍然是 Rue 的公开 API。需要注意的是：`h()` 创建的是公开渲染输出；在当前默认路径中，编译器通常会直接生成 Renderable / Block，而不是在每个节点上都显式调用 `h()`。
 
 ```tsx
 import { h } from '@rue-js/rue'
 
-const vnode = h(
-  'div', // 类型
-  { id: 'foo', class: 'bar' }, // props
+const output = h(
+  'div',
+  { id: 'foo', class: 'bar' },
   [
     /* children */
   ],
 )
 ```
 
-`h()` 是 **hyperscript** 的缩写——意思是"生成 HTML（超文本标记语言）的 JavaScript"。这个名字继承自许多虚拟 DOM 实现共享的约定。一个更具描述性的名字可能是 `createVNode()`，但当你必须在渲染函数中多次调用此函数时，较短的名字更有帮助。
+`h()` 是 hyperscript 的缩写。你可以把它理解为“手写描述渲染输出的最小 API”。它在 Rue 中主要用于：
 
-`h()` 函数设计得非常灵活：
+- 手写渲染函数
+- 包装高度动态的子树
+- 与历史渲染 helper 或迁移中的桥接层对接
+
+`h()` 的参数保持灵活：
 
 ```tsx
-// 除类型外的所有参数都是可选的
+// 除 type 外的所有参数都是可选的
 h('div')
 h('div', { id: 'foo' })
 
 // props 中可以使用属性和特性
-// Rue 会自动选择正确的方式分配它
 h('div', { class: 'bar', innerHTML: 'hello' })
 
 // 可以使用 `.` 和 `^` 前缀分别添加 `.prop` 和 `.attr` 修饰符
@@ -44,37 +47,31 @@ h('div', { class: [foo, { bar }], style: { color: 'red' } })
 // 事件监听器应该以 onXxx 形式传递
 h('div', { onClick: () => {} })
 
-// children 可以是字符串
+// children 可以是字符串、数组或 renderable
 h('div', { id: 'foo' }, 'hello')
-
-// 没有 props 时可以省略 props
 h('div', 'hello')
 h('div', [h('span', 'hello')])
-
-// children 数组可以包含混合的 vnodes 和字符串
 h('div', ['hello', h('span', 'hello')])
 ```
 
-生成的 vnode 具有以下形状：
+当你显式操作这类公开渲染输出对象时，通常会看到下面这些公开字段：
 
 ```js
-const vnode = h('div', { id: 'foo' }, [])
+const output = h('div', { id: 'foo' }, [])
 
-vnode.type // 'div'
-vnode.props // { id: 'foo' }
-vnode.children // []
-vnode.key // null
+output.type
+output.props
+output.children
+output.key
 ```
 
 :::warning 注意
-完整的 `VNode` 接口包含许多其他内部属性，但强烈建议避免依赖此处列出的属性以外的任何属性。这可以避免在内部属性更改时发生意外中断。
+不要依赖公开字段之外的内部属性。Rue 当前的公开渲染输出会继续随运行时演进而调整。
 :::
 
 ### 声明渲染函数 {#declaring-render-functions}
 
-<div class="composition-api">
-
-当使用 Composition API 的模板时，`setup()` 钩子的返回值用于向模板暴露数据。然而，当使用渲染函数时，我们可以直接返回渲染函数：
+在 Rue 当前的 `FC` 模式下，函数组件本身就是渲染函数。你直接返回渲染输出即可，不需要再额外返回一个 `() => ...`。
 
 ```tsx
 import { ref, h } from '@rue-js/rue'
@@ -86,41 +83,30 @@ interface Props {
 
 const App: FC<Props> = props => {
   const count = ref(1)
-
-  // 返回渲染函数
-  return () => h('div', props.msg + count.value)
+  return h('div', `${props.msg} ${count.value}`)
 }
 ```
 
-渲染函数在 `setup()` 内部声明，因此它自然可以访问在同一作用域中声明的 props 和任何响应式状态。
-
-除了返回单个 vnode，你还可以返回字符串或数组：
+除了返回单个节点，你还可以直接返回字符串或数组：
 
 ```tsx
 import type { FC } from '@rue-js/rue'
 
-const App: FC = () => {
-  return () => 'hello world!'
-}
+const TextOnly: FC = () => 'hello world!'
 ```
 
 ```tsx
 import { h } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
-const App: FC = () => {
-  // 使用数组返回多个根节点
-  return () => [h('div'), h('div'), h('div')]
-}
+const MultiRoot: FC = () => [h('div', 'one'), h('div', 'two'), h('div', 'three')]
 ```
 
 :::tip
-确保返回一个函数而不是直接返回值！`setup()` 函数每个组件只调用一次，而返回的渲染函数将被多次调用。
+如果你在旧文档或旧代码里见到 `return () => ...`，那通常对应的是更接近 Vue `setup()` 的写法，不是 Rue 当前推荐的 `FC` 组件签名。
 :::
 
-</div>
-
-如果渲染函数组件不需要任何实例状态，它们也可以直接声明为函数以简洁起见：
+如果组件不需要额外状态，也可以直接写成普通函数：
 
 ```tsx
 function Hello() {
@@ -128,82 +114,65 @@ function Hello() {
 }
 ```
 
-没错，这是一个有效的 Rue 组件！有关此语法的更多详细信息，请参阅[函数式组件](#functional-components)。
+### 渲染输出必须唯一 {#vnodes-must-be-unique}
 
-### Vnodes 必须是唯一的 {#vnodes-must-be-unique}
-
-组件树中的所有 vnodes 必须是唯一的。这意味着以下渲染函数是无效的：
+同一个输出对象不要在一次渲染里重复复用。这个规则同样适用于你手动持有的 DOM / block / renderable 边界。
 
 ```tsx
 function render() {
   const p = h('p', 'hi')
-  return h('div', [
-    // 哎呀 - 重复的 vnodes！
-    p,
-    p,
-  ])
+  return h('div', [p, p])
 }
 ```
 
-如果你确实想多次复制相同的元素/组件，你可以使用工厂函数。例如，以下渲染函数是渲染 20 个相同段落的完全有效方式：
+如果你需要多个相同节点，请为每一项重新创建：
 
 ```tsx
 function render() {
   return h(
     'div',
-    Array.from({ length: 20 }).map(() => {
-      return h('p', 'hi')
-    }),
+    Array.from({ length: 20 }).map(() => h('p', 'hi')),
   )
 }
 ```
 
 ## JSX / TSX {#jsx-tsx}
 
-[JSX](https://facebook.github.io/jsx/) 是一种类似 XML 的 JavaScript 扩展，允许我们编写这样的代码：
+[JSX](https://facebook.github.io/jsx/) 允许你用更接近模板的方式编写渲染逻辑：
 
 ```jsx
-const vnode = <div>hello</div>
+const output = <div>hello</div>
 ```
-
-在 JSX 表达式中，使用花括号嵌入动态值：
 
 ```jsx
-const vnode = <div id={dynamicId}>hello, {userName}</div>
+const output = <div id={dynamicId}>hello, {userName}</div>
 ```
 
-`create-rue` 和 Rue CLI 都有用于脚手架预配置 JSX 支持项目的选项。如果你是手动配置 JSX，请参阅 [`rue-babel-plugin-jsx`](https://github.com/@rue-js/ruejs/jsx-next) 文档了解详细信息。
+Rue 的 JSX 与 React JSX 有两点最容易混淆的区别：
 
-虽然 JSX 最初由 React 引入，但实际上 JSX 没有定义运行时语义，可以编译成各种不同的输出。如果你之前使用过 JSX，请注意 **Rue JSX 转换与 React 的 JSX 转换不同**，因此你不能在 Rue 应用程序中使用 React 的 JSX 转换。与 React JSX 的一些显著区别包括：
+- 你可以直接使用 `class` 和 `for`，无需改写成 `className` 或 `htmlFor`
+- 组件 children 最终会落到 `props.children` 或显式命名 props，而不是默认套入一层 Vue 风格的 `slots` 上下文
 
-- 你可以使用 HTML 属性，如 `class` 和 `for` 作为 props——无需使用 `className` 或 `htmlFor`。
-- 将 children 传递给组件（即插槽）[工作方式不同](#passing-slots)。
-
-Rue 的类型定义也为 TSX 使用提供类型推断。使用 TSX 时，确保在 `tsconfig.json` 中指定 `"jsx": "preserve"`，以便 TypeScript 保留 JSX 语法供 Rue JSX 转换处理。
+Rue 当前的 JSX 编译也默认服务于 Block / Vapor 路径，因此即便你写的是 JSX，编译结果也不意味着“运行时一定会重建整棵对象树”。
 
 ### JSX 类型推断 {#jsx-type-inference}
 
-与转换类似，Rue 的 JSX 也需要不同的类型定义。
-
-从 Rue 3.4 开始，Rue 不再隐式注册全局 `JSX` 命名空间。要指示 TypeScript 使用 Rue 的 JSX 类型定义，确保在 `tsconfig.json` 中包含以下内容：
+使用 TSX 时，请确保 `tsconfig.json` 中保留 JSX 语法给 Rue 的转换器处理：
 
 ```json
 {
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "@rue-js/rue"
-    // ...
   }
 }
 ```
 
-你还可以通过在文件顶部添加 `/* @jsxImportSource @rue-js/rue */` 注释来选择每个文件加入。
-
-如果有代码依赖于全局 `JSX` 命名空间的存在，你可以通过显式导入或引用项目中的 `@rue-js/rue/jsx` 来保留确切的 3.4 之前全局行为，这会注册全局 `JSX` 命名空间。
+你也可以在单个文件顶部使用 `/* @jsxImportSource @rue-js/rue */`。
 
 ## 渲染函数配方 {#render-function-recipes}
 
-下面我们将提供一些将模板功能实现为其等效渲染函数 / JSX 的常见配方。
+下面是一些模板能力对应的渲染函数 / JSX 写法。
 
 ### `v-if` {#v-if}
 
@@ -218,24 +187,19 @@ Rue 的类型定义也为 TSX 使用提供类型推断。使用 TSX 时，确保
 
 等效渲染函数 / JSX：
 
-<div class="composition-api">
-
 ```tsx
 import { h, ref } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const ok = ref(true)
-
-  return () => h('div', [ok.value ? h('div', 'yes') : h('span', 'no')])
+  return h('div', [ok.value ? h('div', 'yes') : h('span', 'no')])
 }
 ```
 
 ```jsx
 <div>{ok.value ? <div>yes</div> : <span>no</span>}</div>
 ```
-
-</div>
 
 ### `v-for` {#v-for}
 
@@ -250,8 +214,6 @@ const App: FC = () => {
 ```
 
 等效渲染函数 / JSX：
-
-<div class="composition-api">
 
 ```tsx
 import { h, ref } from '@rue-js/rue'
@@ -268,29 +230,24 @@ const App: FC = () => {
     { id: 2, text: 'Item 2' },
   ])
 
-  return () =>
-    h(
-      'ul',
-      items.value.map(({ id, text }) => {
-        return h('li', { key: id }, text)
-      }),
-    )
+  return h(
+    'ul',
+    items.value.map(({ id, text }) => h('li', { key: id }, text)),
+  )
 }
 ```
 
 ```jsx
 <ul>
-  {items.value.map(({ id, text }) => {
-    return <li key={id}>{text}</li>
-  })}
+  {items.value.map(({ id, text }) => (
+    <li key={id}>{text}</li>
+  ))}
 </ul>
 ```
 
-</div>
-
 ### `v-on` {#v-on}
 
-以 `on` 开头后跟大写字母的 props 名称被视为事件监听器。例如，`onClick` 等效于模板中的 `@click`。
+以 `on` 开头后跟大写字母的 prop 名称会被视为事件监听器：
 
 ```tsx
 import { h } from '@rue-js/rue'
@@ -318,17 +275,15 @@ h(
 
 #### 事件修饰符 {#event-modifiers}
 
-对于 `.passive`、`.capture` 和 `.once` 事件修饰符，它们可以使用 camelCase 连接在事件名称之后。
-
-例如：
+`.passive`、`.capture` 和 `.once` 可以直接拼在事件名后面：
 
 ```tsx
 h('input', {
   onClickCapture() {
-    /* capture 模式下的监听器 */
+    /* capture */
   },
   onKeyupOnce() {
-    /* 仅触发一次 */
+    /* once */
   },
   onMouseoverOnceCapture() {
     /* once + capture */
@@ -340,7 +295,7 @@ h('input', {
 <input onClickCapture={() => {}} onKeyupOnce={() => {}} onMouseoverOnceCapture={() => {}} />
 ```
 
-对于其他事件和键修饰符，可以使用 [`withModifiers`](/api/render-function#withmodifiers) 辅助函数：
+其他修饰符可以配合 [`withModifiers`](/api/render-function#withmodifiers) 使用：
 
 ```tsx
 import { withModifiers } from '@rue-js/rue'
@@ -350,13 +305,9 @@ h('div', {
 })
 ```
 
-```jsx
-<div onClick={withModifiers(() => {}, ['self'])} />
-```
-
 ### 组件 {#components}
 
-要为组件创建 vnode，传递给 `h()` 的第一个参数应该是组件定义。这意味着使用渲染函数时，无需注册组件——你可以直接使用导入的组件：
+要为组件创建输出，传给 `h()` 的第一个参数应该是组件本身：
 
 ```tsx
 import Foo from './Foo.vue'
@@ -378,368 +329,206 @@ function render() {
 }
 ```
 
-正如我们所见，只要它是有效的 Rue 组件，`h` 就可以与从任何文件格式导入的组件一起工作。
-
-使用渲染函数时，动态组件非常简单：
+动态组件同样直接通过条件表达式切换：
 
 ```tsx
-import Foo from './Foo.vue'
-import Bar from './Bar.tsx'
-
 function render() {
   return ok.value ? h(Foo) : h(Bar)
 }
 ```
 
-```jsx
-function render() {
-  return ok.value ? <Foo /> : <Bar />
-}
-```
-
-如果组件按名称注册且无法直接导入（例如，由库全局注册），可以使用 [`resolveComponent()`](/api/render-function#resolvecomponent) 辅助函数以编程方式解析它。
+Rue 当前更推荐直接导入组件。默认主入口不再另外文档化按名称解析组件的渲染函数 helper。
 
 ### 渲染插槽 {#rendering-slots}
 
-<div class="composition-api">
+Rue 当前更推荐把插槽理解成普通 props：
 
-在渲染函数中，可以从 `setup()` 上下文访问插槽。`slots` 对象上的每个插槽都是一个**返回 vnode 数组的函数**：
+- 默认插槽读取 `props.children`
+- 具名插槽通常建模成显式命名 props，如 `header`、`footer`
+- 作用域插槽则是“函数作为 children / prop”
 
 ```tsx
-import { h, ref } from '@rue-js/rue'
-import type { FC } from '@rue-js/rue'
+import { h } from '@rue-js/rue'
+import type { FC, RenderableOutput } from '@rue-js/rue'
 
-interface Props {
+interface LayoutProps {
   message: string
+  footer?: (scope: { text: string }) => RenderableOutput
+  children?: RenderableOutput
 }
 
-const MyComponent: FC<Props> = (props, { slots }) => {
-  return () => [
-    // 默认插槽：
-    // <div><slot /></div>
-    h('div', slots.default?.()),
-
-    // 命名插槽：
-    // <div><slot name="footer" :text="message" /></div>
-    h(
-      'div',
-      slots.footer?.({
-        text: props.message,
-      }),
-    ),
-  ]
+const Layout: FC<LayoutProps> = props => {
+  return h('section', [
+    h('div', props.children),
+    h('footer', props.footer?.({ text: props.message }) ?? null),
+  ])
 }
 ```
 
-JSX 等效代码：
+JSX 中同样如此：
 
-```jsx
-// 默认
-<div>{slots.default?.()}</div>
-
-// 命名
-<div>{slots.footer?.({ text: props.message })}</div>
+```tsx
+function Layout(props: LayoutProps) {
+  return (
+    <section>
+      <div>{props.children}</div>
+      <footer>{props.footer?.({ text: props.message })}</footer>
+    </section>
+  )
+}
 ```
-
-</div>
 
 ### 传递插槽 {#passing-slots}
 
-将 children 传递给组件与将 children 传递给元素略有不同。我们需要传递一个插槽函数，或者一个插槽函数的对象，而不是数组。插槽函数可以返回普通渲染函数可以返回的任何内容——当在子组件中访问时，它将始终被规范化为 vnode 数组。
+传递默认内容时，直接把 children 放到第三个参数或 JSX 子节点里即可；传递具名内容时，使用显式命名 props。
 
 ```tsx
-// 单个默认插槽
-h(MyComponent, () => 'hello')
+// 默认内容
+h(Layout, { message: 'hello' }, 'body')
 
-// 命名插槽
-// 注意 `null` 是必需的，以避免
-// 将插槽对象视为 props
-h(MyComponent, null, {
-  default: () => 'default slot',
-  foo: () => h('div', 'foo'),
-  bar: () => [h('span', 'one'), h('span', 'two')],
-})
+// 具名内容
+h(Layout, {
+  message: 'hello',
+  footer: ({ text }) => h('small', text),
+}, 'body')
 ```
-
-JSX 等效代码：
 
 ```jsx
-// 默认
-<MyComponent>{() => 'hello'}</MyComponent>
+<Layout message="hello">body</Layout>
 
-// 命名
-<MyComponent>{{
-  default: () => 'default slot',
-  foo: () => <div>foo</div>,
-  bar: () => [<span>one</span>, <span>two</span>]
-}}</MyComponent>
+<Layout message="hello" footer={({ text }) => <small>{text}</small>}>
+  body
+</Layout>
 ```
 
-将插槽作为函数传递允许子组件延迟调用它们。这导致插槽的依赖由子组件而不是父组件跟踪，从而产生更准确和高效的更新。
+如果你需要把调用时机延迟到子组件内部，就把 `children` 本身写成函数。
 
 ### 作用域插槽 {#scoped-slots}
 
-要在父组件中渲染作用域插槽，插槽被传递给子组件。注意插槽现在有一个参数 `text`。插槽将在子组件中被调用，子组件的数据将被传递到父组件。
+作用域插槽在 Rue 中就是 render prop：父组件把函数传给子组件，子组件在合适的时机调用，并把自己的数据作为参数传回去。
 
 ```tsx
-// 父组件
-import type { FC } from '@rue-js/rue'
-
-const ParentComponent: FC = () => {
-  return () =>
-    h(MyComp, null, {
-      default: ({ text }: { text: string }) => h('p', text),
-    })
-}
-```
-
-记住传递 `null` 以便插槽不会被当作 props 处理。
-
-```tsx
-// 子组件
 import { h, ref } from '@rue-js/rue'
-import type { FC } from '@rue-js/rue'
+import type { FC, RenderableOutput } from '@rue-js/rue'
 
-const ChildComponent: FC = (props, { slots }) => {
-  const text = ref('hi')
-  return () => h('div', null, slots.default?.({ text: text.value }))
+interface ChildProps {
+  children?: (scope: { text: string }) => RenderableOutput
 }
-```
 
-JSX 等效代码：
+const Child: FC<ChildProps> = props => {
+  const text = ref('hi')
+  return h('div', props.children?.({ text: text.value }) ?? null)
+}
+
+const Parent: FC = () => h(Child, ({ text }) => h('p', text))
+```
 
 ```jsx
-<MyComponent>
-  {{
-    default: ({ text }: { text: string }) => <p>{text}</p>,
-  }}
-</MyComponent>
+<Child>{({ text }) => <p>{text}</p>}</Child>
 ```
 
 ### 内置组件 {#built-in-components}
 
-[内置组件](/api/built-in-components)如 `<KeepAlive>`、`<Transition>`、`<TransitionGroup>`、`<Teleport>` 和 `<Suspense>` 必须在渲染函数中导入使用：
-
-<div class="composition-api">
+渲染函数里使用内置组件时，直接导入它们即可。当前文档中的核心内置组件包括 `Teleport`、`Transition` 和 `TransitionGroup`：
 
 ```tsx
-import { h, KeepAlive, Teleport, Transition, TransitionGroup } from '@rue-js/rue'
+import { h, Teleport, Transition, TransitionGroup } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
-const App: FC = () => {
-  return () => h(Transition, { mode: 'out-in' } /* ... */)
-}
+const App: FC = () => h(Transition, { mode: 'out-in' })
 ```
 
-</div>
+这些组件在默认路径下同样直接消费 Renderable / children，而不要求你手动构造旧的对象桥接层。
 
 ### `v-model` {#v-model}
 
-`v-model` 指令在模板编译期间被展开为 `modelValue` 和 `onUpdate:modelValue` props——我们需要自己提供这些 props：
-
-<div class="composition-api">
+`v-model` 在手写渲染函数里需要你显式提供 `modelValue` 和 `onUpdate:modelValue`：
 
 ```tsx
-import { h } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 interface Props {
   modelValue: string
+  'onUpdate:modelValue'?: (value: string) => void
 }
 
-interface Emits {
-  'update:modelValue': (value: string) => void
-}
-
-const MyComponent: FC<Props, Emits> = (props, { emit }) => {
-  return () =>
-    h(SomeComponent, {
-      modelValue: props.modelValue,
-      'onUpdate:modelValue': (value: string) => emit('update:modelValue', value),
-    })
+const MyInput: FC<Props> = props => {
+  return (
+    <input
+      value={props.modelValue}
+      onInput={event =>
+        props['onUpdate:modelValue']?.((event.target as HTMLInputElement).value)
+      }
+    />
+  )
 }
 ```
-
-</div>
 
 ### 自定义指令 {#custom-directives}
 
-可以使用 [`withDirectives`](/api/render-function#withdirectives) 将自定义指令应用于 vnode：
-
-```tsx
-import { h, withDirectives } from '@rue-js/rue'
-
-// 自定义指令
-const pin = {
-  mounted() {
-    /* ... */
-  },
-  updated() {
-    /* ... */
-  },
-}
-
-// <div v-pin:top.animate="200"></div>
-const vnode = withDirectives(h('div'), [[pin, 200, 'top', { animate: true }]])
-```
-
-如果指令按名称注册且无法直接导入，可以使用 [`resolveDirective`](/api/render-function#resolvedirective) 辅助函数解析它。
+Rue 当前默认主入口没有额外公开的 render-function 指令包装 helper。需要指令时，优先在模板或 JSX 路径中使用它们；如果你在维护手写渲染边界，请把这类行为封装在组件或 DOM / block 边界里，而不是继续依赖旧的 compat helper。
 
 ### 模板 Refs {#template-refs}
 
-<div class="composition-api">
-
-使用 Composition API 时，当使用 [`useTemplateRef()`](/api/composition-api-helpers#usetemplateref) <sup class="vt-badge" data-text="3.5+" /> 时，模板 refs 是通过将字符串值作为 prop 传递给 vnode 创建的：
-
-```tsx
-import { h, useTemplateRef } from '@rue-js/rue'
-import type { FC } from '@rue-js/rue'
-
-const App: FC = () => {
-  const divEl = useTemplateRef<HTMLDivElement>('my-div')
-
-  // <div ref="my-div">
-  return () => h('div', { ref: 'my-div' })
-}
-```
-
-<details>
-<summary>3.5 之前的用法</summary>
-
-在引入 useTemplateRef() 之前的版本中，模板 refs 是通过将 ref() 本身作为 prop 传递给 vnode 创建的：
-
-```tsx
-import { h, ref } from '@rue-js/rue'
-import type { FC } from '@rue-js/rue'
-
-const App: FC = () => {
-  const divEl = ref<HTMLDivElement>()
-
-  // <div ref="divEl">
-  return () => h('div', { ref: divEl })
-}
-```
-
-</details>
-</div>
+模板 ref 当前更适合在模板或 JSX 路径中使用。对于手写 `h()` 边界，如需获取节点引用，优先通过显式回调 props、原始 DOM 节点或 mount handle 来建模，而不是继续依赖未公开的字符串 ref helper。
 
 ## 函数式组件 {#functional-components}
 
-函数式组件是一种没有自己状态的替代组件形式。它们就像纯函数一样：props 进，vnodes 出。它们在不创建组件实例（即没有 `this`）的情况下渲染，并且没有通常的组件生命周期钩子。
-
-要创建函数式组件，我们使用普通函数，而不是选项对象。该函数实际上是组件的 `render` 函数。
-
-<div class="composition-api">
-
-函数式组件的签名与 `setup()` 钩子相同：
+Rue 当前的函数式组件就是普通 `FC`：接收 props，直接返回渲染输出。它不需要 `this`，也不依赖额外的 setup 上下文。
 
 ```tsx
 import type { FC } from '@rue-js/rue'
 
 interface Props {
   message: string
+  onSendMessage?: (message: string) => void
 }
 
-const MyComponent: FC<Props> = (props, { slots, emit, attrs }) => {
-  // ...
-  return <div>{props.message}</div>
+const MyComponent: FC<Props> = props => {
+  return <button onClick={() => props.onSendMessage?.(props.message)}>{props.message}</button>
 }
 ```
 
-</div>
+如果组件需要向父级发信号，优先把它建模成显式 callback props，例如 `onSendMessage`、`onClose`、`onUpdate:modelValue`。如果组件需要默认内容或 render prop，则继续使用 `props.children`。
 
-大多数组件的常用配置选项对函数式组件不可用。但是，可以通过将它们添加为属性来定义 [`props`](/api/options-state#props) 和 [`emits`](/api/options-state#emits)：
-
-```tsx
-import type { FC } from '@rue-js/rue'
-
-interface Props {
-  value: string
-}
-
-type Emits = {
-  click: (value: string) => void
-}
-
-const MyComponent: FC<Props, Emits> = (props, { emit }) => {
-  return <div>{props.value}</div>
-}
-
-MyComponent.props = ['value']
-MyComponent.emits = ['click']
-```
-
-如果未指定 `props` 选项，则传递给函数的 `props` 对象将包含所有属性，与 `attrs` 相同。除非指定了 `props` 选项，否则 prop 名称不会规范化为 camelCase。
-
-对于具有显式 `props` 的函数式组件，[属性透传](/guide/components/attrs)与普通组件的工作方式大致相同。但是，对于不显式指定其 `props` 的函数式组件，默认情况下只有 `class`、`style` 和 `onXxx` 事件监听器会从 `attrs` 继承。无论哪种情况，`inheritAttrs` 都可以设置为 `false` 以禁用属性继承：
-
-```tsx
-MyComponent.inheritAttrs = false
-```
-
-函数式组件可以像普通组件一样注册和消费。如果你将函数作为 `h()` 的第一个参数传递，它将被视为函数式组件。
+函数组件可以像普通组件一样被导入、注册和消费；把函数传给 `h()` 的第一个参数时，它就会被视为组件。
 
 ### 函数式组件的类型定义<sup class="vt-badge ts" /> {#typing-functional-components}
 
-函数式组件可以根据它们是否有名称来进行类型定义。[Rue - 官方扩展](https://github.com/@rue-js/ruejs/language-tools) 在 SFC 模板中使用正确类型的函数式组件时也支持类型检查。
-
-**命名函数式组件**
+大多数场景下，直接给 `FC<Props>` 标注类型就够了：
 
 ```tsx
-import type { FC, SetupContext } from '@rue-js/rue'
+import type { FC } from '@rue-js/rue'
 
-interface FComponentProps {
+interface MessageButtonProps {
   message: string
+  onSendMessage?: (message: string) => void
 }
 
-type Events = {
-  sendMessage(message: string): void
-}
-
-const FComponent: FC<FComponentProps, Events> = (
-  props: FComponentProps,
-  context: SetupContext<Events>,
-) => {
-  return <button onClick={() => context.emit('sendMessage', props.message)}>{props.message}</button>
-}
-
-FComponent.props = {
-  message: {
-    type: String,
-    required: true,
-  },
-}
-
-FComponent.emits = {
-  sendMessage: (value: unknown) => typeof value === 'string',
+const MessageButton: FC<MessageButtonProps> = props => {
+  return (
+    <button onClick={() => props.onSendMessage?.(props.message)}>{props.message}</button>
+  )
 }
 ```
 
-**匿名函数式组件**
+如果你的组件还要接受 render prop，可以继续把它声明在 props 里：
 
 ```tsx
-import type { FunctionalComponent } from '@rue-js/rue'
+import type { FC, RenderableOutput } from '@rue-js/rue'
 
-interface FComponentProps {
-  message: string
+interface ListProps {
+  items: string[]
+  children?: (item: string, index: number) => RenderableOutput
 }
 
-type Events = {
-  sendMessage(message: string): void
-}
-
-const FComponent: FunctionalComponent<FComponentProps, Events> = (props, context) => {
-  return <button onClick={() => context.emit('sendMessage', props.message)}>{props.message}</button>
-}
-
-FComponent.props = {
-  message: {
-    type: String,
-    required: true,
-  },
-}
-
-FComponent.emits = {
-  sendMessage: value => typeof value === 'string',
+const List: FC<ListProps> = props => {
+  return (
+    <ul>
+      {props.items.map((item, index) => (
+        <li key={item}>{props.children?.(item, index) ?? item}</li>
+      ))}
+    </ul>
+  )
 }
 ```

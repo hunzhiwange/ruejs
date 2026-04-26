@@ -74,7 +74,7 @@ thread_local! {
     生命周期：
     - Vapor setup 执行前 push_effect_scope(scope_id)，执行完 pop_effect_scope()
     - create_effect 时读取 current_effect_scope()，把 effect_id 登记到该 scope
-    - VNode before_unmount 时 dispose_effect_scope(scope_id)，递归 dispose 子 scope 并逐个 dispose effect
+    - mounted subtree before_unmount 时 dispose_effect_scope(scope_id)，递归 dispose 子 scope 并逐个 dispose effect
     */
     pub(crate) static NEXT_EFFECT_SCOPE_ID: RefCell<usize> = RefCell::new(1);
     pub(crate) static EFFECT_SCOPE_STACK: RefCell<Vec<usize>> = RefCell::new(Vec::new());
@@ -244,7 +244,7 @@ pub(crate) fn dispose_effect(id: usize) {
 /// 销毁一个 scope：递归销毁子 scope，并销毁该 scope 内的所有 effect
 ///
 /// 调用方：
-/// - runtime 的 VNode 生命周期（before_unmount）会在 Vapor 子树卸载时调用它
+/// - runtime 的 mounted lifecycle（before_unmount）会在 Vapor 子树卸载时调用它
 ///
 /// 行为细节：
 /// - 会把 scope 的 children/effects 列表从全局表中移除（保证同一个 scope 不会被重复 dispose）
@@ -513,7 +513,7 @@ pub(crate) fn schedule_effect_run(id: usize) {
     }
     let in_batch = BATCH_DEPTH.with(|bd| *bd.borrow() > 0);
     if in_batch {
-        let inserted = PENDING_EFFECTS.with(|p| {
+        let _inserted = PENDING_EFFECTS.with(|p| {
             // 批量模式：仅入队，不立即运行
             //
             // 这里用 HashSet 的语义保证去重：
@@ -522,7 +522,7 @@ pub(crate) fn schedule_effect_run(id: usize) {
         });
         #[cfg(feature = "dev")]
         {
-            if inserted && crate::log::want_log("debug", "reactive:schedule queued") {
+            if _inserted && crate::log::want_log("debug", "reactive:schedule queued") {
                 crate::log::log("debug", &format!("reactive:schedule queued id={}", id));
             }
         }
@@ -597,7 +597,7 @@ pub(crate) fn schedule_effect_run(id: usize) {
                     run_effect(id);
                 }
             } else {
-                let inserted = schedule_effect_run_default(id);
+                let _inserted = schedule_effect_run_default(id);
                 #[cfg(feature = "dev")]
                 {
                     let hint = if mode == 2 {
@@ -605,7 +605,7 @@ pub(crate) fn schedule_effect_run(id: usize) {
                     } else {
                         "reactive:schedule default_microtask"
                     };
-                    if inserted && crate::log::want_log("debug", hint) {
+                    if _inserted && crate::log::want_log("debug", hint) {
                         let label = if mode == 2 {
                             "reactive:schedule default_frame"
                         } else {

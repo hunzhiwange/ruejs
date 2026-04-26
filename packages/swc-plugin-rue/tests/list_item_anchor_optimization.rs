@@ -26,7 +26,7 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
 }
 
 #[test]
-fn keeps_fragment_list_items_on_render_between() {
+fn lowers_single_root_fragment_list_items_to_render_anchor() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
 
@@ -45,6 +45,60 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
     let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
-    assert!(!out.contains(&utils::normalize("singleRoot: true")));
-    assert!(out.contains(&utils::normalize("renderBetween(__slot, parent, start, end)")));
+    assert!(out.contains(&utils::normalize("singleRoot: true")));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot, parent, start)")));
+    assert!(!out.contains(&utils::normalize("renderBetween(__slot, parent, start, end)")));
+}
+
+#[test]
+fn lowers_nested_single_root_fragment_list_items_to_render_anchor() {
+    let src = r##"
+import { type FC } from '@rue-js/rue';
+
+const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
+  <ul>
+    {props.items.map(item => (
+      <>
+        <>
+          <li key={item.id}>{item.title}</li>
+        </>
+      </>
+    ))}
+  </ul>
+)
+"##;
+
+    let (program, cm) = utils::parse(src, "test.tsx");
+    let program = apply(program);
+    let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
+
+    assert!(out.contains(&utils::normalize("singleRoot: true")));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot, parent, start)")));
+    assert!(!out.contains(&utils::normalize("renderBetween(__slot, parent, start, end)")));
+}
+
+#[test]
+fn lowers_single_root_builtin_fragment_list_items_to_render_anchor() {
+    let src = r##"
+import { type FC, Fragment } from '@rue-js/rue';
+
+const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
+  <ul>
+    {props.items.map(item => (
+      <Fragment key={item.id}>
+        <li>{item.title}</li>
+      </Fragment>
+    ))}
+  </ul>
+)
+"##;
+
+    let (program, cm) = utils::parse(src, "test.tsx");
+    let program = apply(program);
+    let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
+
+    assert!(out.contains(&utils::normalize("singleRoot: true")));
+    assert!(out.contains(&utils::normalize("const __slot = __child1;")));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot, parent, start)")));
+    assert!(!out.contains(&utils::normalize("renderBetween(__slot, parent, start, end)")));
 }

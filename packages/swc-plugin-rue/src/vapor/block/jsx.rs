@@ -13,7 +13,7 @@ impl VaporTransform {
     /// 将一个 JSXElement 转换为 Vapor 块：
     /// - 原生元素：创建根节点、设置属性、编译子节点
     /// - 组件：委托到 component::emit_component_root
-    /// - 返回：`return { vaporElement: _root }`
+    /// - 返回：`return _root`
     pub(crate) fn jsx_to_block(&mut self, el: &JSXElement) -> BlockStmt {
         if let Some(router_link_el) = crate::router_link::rewrite_router_link_fast_path(el) {
             return self.jsx_to_block(&router_link_el);
@@ -64,7 +64,7 @@ impl VaporTransform {
             super::children::emit_children(self, &root, &el.children, &mut stmts);
         }
 
-        // 返回块级结果：return { vaporElement: _root }
+        // 返回块级结果：return _root
         stmts.push(return_root(root));
         BlockStmt { span: DUMMY_SP, ctxt: SyntaxContext::empty(), stmts }
     }
@@ -72,7 +72,7 @@ impl VaporTransform {
     /// 将 JSXFragment 转换为 Vapor 块：
     /// - 根：`DocumentFragment`
     /// - 子节点：递归
-    /// - 返回：`return { vaporElement: _root }`
+    /// - 返回：`return _root`
     pub(crate) fn jsx_fragment_to_block(&mut self, frag: &JSXFragment) -> BlockStmt {
         // 片段统一以 DocumentFragment 为根
         let root = ident("_root");

@@ -1,57 +1,44 @@
 use super::super::Rue;
+use super::super::types::{
+    MountInput, MountInputChild, MountedSubtreeChild, MountedSubtreeState, MountedTextSubtree,
+};
 use crate::runtime::dom_adapter::DomAdapter;
 use wasm_bindgen::JsValue;
-
-// 子节点按 key 的增量更新（Keyed Diff）：
-// - 根据旧 children 构建 key -> index 映射，便于定位可复用的旧节点。
-// - 逆向遍历新 children，借助 cursor（光标）与 anchor（锚点）控制插入位置。
-// - 片段（Fragment）特殊处理：移动/插入的是其子节点列表而非片段占位本身。
-// - 遍历结束后清理旧 children 中已移除的节点，触发卸载钩子并移除真实 DOM。
 
 impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
-    fn keyed_first_dom_node_for_vnode(
+    fn keyed_first_dom_node_for_mounted(
         &self,
-        vnode: &super::super::types::VNode<A>,
+        mounted: &MountedSubtreeState<A>,
     ) -> Option<A::Element> {
-        use super::super::types::VNodeType;
-
-        match vnode.r#type {
-            VNodeType::Fragment => {
-                if let (Some(adapter), Some(ref el)) = (self.get_dom_adapter(), vnode.el.as_ref()) {
-                    adapter.collect_fragment_children(el).first().cloned()
-                } else {
-                    None
-                }
+        match mounted {
+            MountedSubtreeState::Vapor(vapor) if !vapor.fragment_nodes.is_empty() => {
+                vapor.fragment_nodes.first().cloned().or_else(|| vapor.host.clone())
             }
-            _ => vnode.el.clone(),
+            MountedSubtreeState::Patch(node)
+                if matches!(
+                    node.r#type,
+                    super::super::types::MountedPatchSubtreeType::Fragment
+                ) => node.fragment_nodes.first().cloned().or_else(|| node.el.clone()),
+            _ => mounted.host_cloned(),
         }
     }
 
-    /// 在 Keyed Diff 中插入文本节点，并更新光标位置
-    ///
-    /// 参数：
-    /// - parent：父元素
-    /// - s：文本内容
-    /// - cursor：当前光标（用于保持插入顺序）
-    /// - anchor_opt：可选锚点（优先插入到锚点之前）
     fn keyed_insert_text(
         &mut self,
         parent: &mut A::Element,
         s: &str,
         cursor: &mut Option<A::Element>,
         anchor_opt: &Option<A::Element>,
-    ) {
-        // 文本节点插入：创建文本节点，根据 cursor/anchor 决定插入前或尾部追加
+    ) -> MountedTextSubtree<A> {
         if let Some(a) = self.get_dom_adapter_mut() {
             let tn = a.create_text_node(s);
             if let Some(am) = self.get_dom_adapter_mut() {
                 match cursor {
                     Some(ref cur) => am.insert_before(parent, &tn, cur),
                     None => {
-                        // 若存在锚点，则插在锚点前；否则直接追加
                         if let Some(ref anchor) = anchor_opt {
                             am.insert_before(parent, &tn, anchor);
                         } else {
@@ -60,62 +47,105 @@ where
                     }
                 }
             }
-            // 更新 cursor，使后续插入保持相对顺序
-            *cursor = Some(tn);
+            *cursor = Some(tn.clone());
+            MountedTextSubtree {
+                host: Some(tn),
+                key: None,
+                cleanup_bucket: None,
+                effect_scope_id: None,
+            }
+        } else {
+            MountedTextSubtree {
+                host: None,
+                key: None,
+                cleanup_bucket: None,
+                effect_scope_id: None,
+            }
         }
     }
 
-    /// 复用旧 VNode：递归 patch 后，将对应真实节点移动到目标位置
-    ///
-    /// 参数：
-    /// - parent：父元素
-    /// - nc：新 VNode（带 key）
-    /// - old_children：旧 children 列表
-    /// - old_key_map：旧 key -> index 映射
-    /// - cursor/anchor_opt：插入位置控制
-    fn keyed_move_or_create_vnode_existing(
+    fn keyed_patch_existing_text(
         &mut self,
         parent: &mut A::Element,
-        nc: &mut super::super::types::VNode<A>,
-        old_children: &mut [super::super::types::Child<A>],
+        old_text: &MountedTextSubtree<A>,
+        s: &str,
+        cursor: &mut Option<A::Element>,
+        anchor_opt: &Option<A::Element>,
+    ) -> MountedTextSubtree<A> {
+        let mut mounted = old_text.clone();
+        if let Some(mut text_node) = mounted.host.clone() {
+            if let Some(adapter) = self.get_dom_adapter_mut() {
+                adapter.set_text_content(&mut text_node, s);
+                match cursor {
+                    Some(ref cur) => adapter.insert_before(parent, &text_node, cur),
+                    None => {
+                        if let Some(ref anchor) = anchor_opt {
+                            adapter.insert_before(parent, &text_node, anchor);
+                        } else {
+                            adapter.append_child(parent, &text_node);
+                        }
+                    }
+                }
+            }
+            mounted.host = Some(text_node.clone());
+            *cursor = Some(text_node);
+        }
+
+        mounted
+    }
+
+    fn keyed_move_or_create_input_existing(
+        &mut self,
+        parent: &mut A::Element,
+        nc: &MountInput<A>,
+        old_children: &mut [MountedSubtreeChild<A>],
         old_key_map: &std::collections::HashMap<String, usize>,
         cursor: &mut Option<A::Element>,
         anchor_opt: &Option<A::Element>,
-    ) where
+    ) -> Option<MountedSubtreeState<A>>
+    where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
-        use super::super::types::{Child, VNodeType};
-        // 已存在的旧 VNode：先对其执行递归 patch，再将对应真实节点移动到正确位置
-        if let Some(Child::VNode(oldv)) =
+        if let Some(MountedSubtreeChild::Subtree(oldv)) =
             old_children.get_mut(*old_key_map.get(&nc.key.clone().unwrap()).unwrap())
         {
             self.patch(oldv, nc, parent);
+            let mounted = oldv.clone();
             let mut node_for_move: Option<A::Element> = None;
-            if let VNodeType::Fragment = nc.r#type {
-                // 片段：移动其子节点列表（collect_fragment_children）
-                if let Some(a) = self.get_dom_adapter() {
-                    if let Some(ref el_c) = nc.el {
-                        let list = a.collect_fragment_children(el_c);
-                        if let Some(am) = self.get_dom_adapter_mut() {
-                            for n in list.iter() {
-                                match cursor {
-                                    Some(ref cur) => am.insert_before(parent, n, cur),
-                                    None => {
-                                        if let Some(ref anchor) = anchor_opt {
-                                            am.insert_before(parent, n, anchor);
-                                        } else {
-                                            am.append_child(parent, n);
-                                        }
-                                    }
+            let fragment_move = match &mounted {
+                MountedSubtreeState::Vapor(vapor) if !vapor.fragment_nodes.is_empty() => {
+                    Some((vapor.fragment_nodes.as_slice(), vapor.host.as_ref()))
+                }
+                MountedSubtreeState::Patch(node)
+                    if matches!(
+                        node.r#type,
+                        super::super::types::MountedPatchSubtreeType::Fragment
+                    ) =>
+                {
+                    Some((node.fragment_nodes.as_slice(), node.el.as_ref()))
+                }
+                _ => None,
+            };
+            if let Some((fragment_nodes, host_opt)) = fragment_move {
+                if let Some(am) = self.get_dom_adapter_mut() {
+                    for n in fragment_nodes.iter() {
+                        match cursor {
+                            Some(ref cur) => am.insert_before(parent, n, cur),
+                            None => {
+                                if let Some(ref anchor) = anchor_opt {
+                                    am.insert_before(parent, n, anchor);
+                                } else {
+                                    am.append_child(parent, n);
                                 }
                             }
                         }
-                        // 取首个子节点作为 cursor 更新的参照
-                        node_for_move = list.first().cloned();
                     }
                 }
-            } else {
-                if let Some(ref el_c) = nc.el {
+                node_for_move = fragment_nodes.first().cloned().or_else(|| host_opt.cloned());
+            }
+
+            if node_for_move.is_none() {
+                if let Some(ref el_c) = mounted.host_cloned() {
                     if let Some(am) = self.get_dom_adapter_mut() {
                         match cursor {
                             Some(ref cur) => am.insert_before(parent, el_c, cur),
@@ -128,116 +158,115 @@ where
                             }
                         }
                     }
-                    // 非片段：直接以自身 el 作为移动参照
                     node_for_move = Some(el_c.clone());
                 }
             }
-            // 更新 cursor：确保后续节点都能插到当前节点之前或锚点之前
             *cursor = node_for_move.clone().or(cursor.clone());
+            Some(mounted)
+        } else {
+            None
         }
     }
 
-    /// 新建 VNode：创建真实 DOM 并按光标/锚点插入
-    ///
-    /// 参数：
-    /// - parent：父元素
-    /// - nc：新 VNode（可能无 key）
-    /// - cursor/anchor_opt：插入位置控制
-    fn keyed_create_vnode_new(
+    fn keyed_create_input_new(
         &mut self,
         parent: &mut A::Element,
-        nc: &mut super::super::types::VNode<A>,
+        nc: &MountInput<A>,
         cursor: &mut Option<A::Element>,
         anchor_opt: &Option<A::Element>,
-    ) where
+    ) -> Option<MountedSubtreeState<A>>
+    where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
-        // 新 VNode（在旧 key 集不存在）：创建真实 DOM 并插入到正确位置
-        if let Some(child_el) = self.create_real_dom(nc) {
-            if let Some(am) = self.get_dom_adapter_mut() {
-                match cursor {
-                    Some(ref cur) => am.insert_before(parent, &child_el, cur),
-                    None => {
-                        if let Some(ref anchor) = anchor_opt {
-                            am.insert_before(parent, &child_el, anchor);
-                        } else {
-                            am.append_child(parent, &child_el);
+        if let Some(mounted) = self.mount_from_input(nc) {
+            let first_dom_node = self.keyed_first_dom_node_for_mounted(&mounted);
+            let fragment_insert = match &mounted {
+                MountedSubtreeState::Vapor(vapor) if !vapor.fragment_nodes.is_empty() => {
+                    Some(vapor.fragment_nodes.as_slice())
+                }
+                MountedSubtreeState::Patch(node)
+                    if matches!(
+                        node.r#type,
+                        super::super::types::MountedPatchSubtreeType::Fragment
+                    ) =>
+                {
+                    Some(node.fragment_nodes.as_slice())
+                }
+                _ => None,
+            };
+            if let Some(fragment_nodes) = fragment_insert {
+                if let Some(am) = self.get_dom_adapter_mut() {
+                    for n in fragment_nodes.iter() {
+                        match cursor {
+                            Some(ref cur) => am.insert_before(parent, n, cur),
+                            None => {
+                                if let Some(ref anchor) = anchor_opt {
+                                    am.insert_before(parent, n, anchor);
+                                } else {
+                                    am.append_child(parent, n);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if let Some(child_el) = mounted.host_cloned() {
+                if let Some(am) = self.get_dom_adapter_mut() {
+                    match cursor {
+                        Some(ref cur) => am.insert_before(parent, &child_el, cur),
+                        None => {
+                            if let Some(ref anchor) = anchor_opt {
+                                am.insert_before(parent, &child_el, anchor);
+                            } else {
+                                am.append_child(parent, &child_el);
+                            }
                         }
                     }
                 }
             }
-            // 更新 cursor 到新创建的节点
-            *cursor = Some(child_el);
+            *cursor = first_dom_node.or(cursor.clone());
+            Some(mounted)
+        } else {
+            None
         }
     }
 
-    /// 清理旧 children 中已移除的节点，并触发卸载生命周期
-    ///
-    /// 参数：
-    /// - parent：父元素
-    /// - old_children：旧 children 列表
-    /// - new_key_set：新 key 集合（用于判断是否保留）
     fn keyed_cleanup_old_removed(
         &mut self,
         parent: &mut A::Element,
-        old_children: &mut [super::super::types::Child<A>],
+        old_children: &mut [MountedSubtreeChild<A>],
         new_key_set: &std::collections::HashSet<String>,
         reused_old_indexes: &std::collections::HashSet<usize>,
-    ) {
-        use super::super::types::{Child, VNodeType};
-        // 清理旧 children 中键不存在于新集合的节点：触发生命周期卸载并移除 DOM
+    ) where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
         for (idx, oc) in old_children.iter_mut().enumerate() {
             if reused_old_indexes.contains(&idx) {
                 continue;
             }
-            if let Child::VNode(ov) = oc {
-                let k = ov.key.clone().unwrap_or_default();
+            if let MountedSubtreeChild::Subtree(ov) = oc {
+                let k = ov.key().cloned().unwrap_or_default();
                 if k.is_empty() || !new_key_set.contains(&k) {
-                    self.invoke_before_unmount_vnode(ov);
-                    if let Some(am) = self.get_dom_adapter_mut() {
-                        match &ov.r#type {
-                            VNodeType::Fragment => {
-                                if let Some(ref el_f) = ov.el {
-                                    let list = am.collect_fragment_children(el_f);
-                                    for n in list.iter() {
-                                        let mut p2 = parent.clone();
-                                        am.remove_child(&mut p2, n);
-                                    }
-                                }
-                            }
-                            _ => {
-                                if let Some(ref el_old) = ov.el {
-                                    let mut p2 = parent.clone();
-                                    am.remove_child(&mut p2, el_old);
-                                }
-                            }
-                        }
-                        // 卸载后续钩子：确保组件/片段等按约定完成清理
-                        self.invoke_unmounted_vnode(ov);
-                    }
+                    let lifecycle = ov.lifecycle_record();
+                    let host = ov.host_cloned();
+                    let fragment_nodes = ov.fragment_nodes_cloned();
+
+                    self.invoke_before_unmount_record(&lifecycle);
+                    self.clear_mounted_dom_identity(parent, host.as_ref(), &fragment_nodes);
+                    self.invoke_unmounted_record(&lifecycle);
                 }
             }
         }
     }
 
-    /// Keyed 子节点的主增量更新：构建映射、倒序遍历并插入/移动/创建
-    ///
-    /// 参数：
-    /// - parent：父元素
-    /// - old_children/new_children：旧/新 children 列表
-    /// 行为：
-    /// - 构建旧 key 映射，倒序遍历新 children
-    /// - 复用或创建节点并保持顺序，最后清理已移除节点
     pub(super) fn patch_children_keyed(
         &mut self,
         parent: &mut A::Element,
-        old_children: &mut [super::super::types::Child<A>],
-        new_children: &mut [super::super::types::Child<A>],
-    ) where
+        old_children: &mut [MountedSubtreeChild<A>],
+        new_children: &[MountInputChild<A>],
+    ) -> Vec<MountedSubtreeChild<A>>
+    where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
-        use super::super::types::Child;
-        // 预备阶段：收集锚点、构建旧 key 映射（便于 O(1) 定位旧节点）
         let anchor_opt = match self.current_anchor.clone() {
             Some(anchor) => {
                 let use_anchor = if let Some(adapter) = self.get_dom_adapter() {
@@ -255,64 +284,89 @@ where
         };
         let mut old_key_map = std::collections::HashMap::new();
         for (idx, ch) in old_children.iter_mut().enumerate() {
-            if let Child::VNode(v) = ch {
-                if let Some(k) = &v.key {
+            if let MountedSubtreeChild::Subtree(v) = ch {
+                if let Some(k) = v.key() {
                     old_key_map.insert(k.clone(), idx);
                 }
             }
         }
-        // 新 key 集用于后续删除判断
+
         let mut new_key_set = std::collections::HashSet::new();
         let mut reused_old_indexes = std::collections::HashSet::new();
         let mut cursor: Option<A::Element> = None;
-        // 倒序遍历：保证按从尾到头的稳定插入，避免频繁移动
+        let mut mounted_children_rev: Vec<MountedSubtreeChild<A>> = Vec::new();
         let mut i: i32 = (new_children.len() as i32) - 1;
         while i >= 0 {
-            let ch = &mut new_children[i as usize];
+            let ch = &new_children[i as usize];
             match ch {
-                Child::Text(s) => {
-                    // 文本直接插入：作为稳定占位参与 cursor 更新
-                    self.keyed_insert_text(parent, s.as_str(), &mut cursor, &anchor_opt);
+                MountInputChild::Text(s) => {
+                    if let Some(MountedSubtreeChild::Subtree(MountedSubtreeState::Text(old_text))) =
+                        old_children.get(i as usize)
+                    {
+                        reused_old_indexes.insert(i as usize);
+                        let mounted_text = self.keyed_patch_existing_text(
+                            parent,
+                            old_text,
+                            s.as_str(),
+                            &mut cursor,
+                            &anchor_opt,
+                        );
+                        mounted_children_rev.push(MountedSubtreeChild::Subtree(
+                            MountedSubtreeState::Text(mounted_text),
+                        ));
+                    } else {
+                        let mounted_text =
+                            self.keyed_insert_text(parent, s.as_str(), &mut cursor, &anchor_opt);
+                        mounted_children_rev.push(MountedSubtreeChild::Subtree(
+                            MountedSubtreeState::Text(mounted_text),
+                        ));
+                    }
                 }
-                Child::VNode(nc) => {
+                MountInputChild::Input(nc) => {
                     let key = nc.key.clone().unwrap_or_default();
                     new_key_set.insert(key.clone());
                     if nc.key.is_some() && old_key_map.contains_key(&key) {
                         reused_old_indexes.insert(*old_key_map.get(&key).unwrap());
-                        // 可复用旧节点：执行递归 patch 并移动到目标位置
-                        self.keyed_move_or_create_vnode_existing(
+                        if let Some(mounted) = self.keyed_move_or_create_input_existing(
                             parent,
                             nc,
                             old_children,
                             &old_key_map,
                             &mut cursor,
                             &anchor_opt,
-                        );
+                        ) {
+                            mounted_children_rev.push(MountedSubtreeChild::Subtree(mounted));
+                        }
                     } else if nc.key.is_none() {
-                        if let Some(super::super::types::Child::VNode(oldv)) =
+                        if let Some(MountedSubtreeChild::Subtree(oldv)) =
                             old_children.get_mut(i as usize)
                         {
-                            if oldv.key.is_none() {
+                            if oldv.key().is_none() {
                                 reused_old_indexes.insert(i as usize);
                                 self.patch(oldv, nc, parent);
-                                cursor = self
-                                    .keyed_first_dom_node_for_vnode(nc)
-                                    .or(cursor.clone());
+                                cursor = self.keyed_first_dom_node_for_mounted(oldv).or(cursor.clone());
+                                mounted_children_rev.push(MountedSubtreeChild::Subtree(oldv.clone()));
                                 i -= 1;
                                 continue;
                             }
                         }
-                        self.keyed_create_vnode_new(parent, nc, &mut cursor, &anchor_opt);
-                    } else {
-                        // 新节点：创建并插入到正确位置
-                        self.keyed_create_vnode_new(parent, nc, &mut cursor, &anchor_opt);
+                        if let Some(mounted) =
+                            self.keyed_create_input_new(parent, nc, &mut cursor, &anchor_opt)
+                        {
+                            mounted_children_rev.push(MountedSubtreeChild::Subtree(mounted));
+                        }
+                    } else if let Some(mounted) =
+                        self.keyed_create_input_new(parent, nc, &mut cursor, &anchor_opt)
+                    {
+                        mounted_children_rev.push(MountedSubtreeChild::Subtree(mounted));
                     }
                 }
-                _ => {}
             }
             i -= 1;
         }
-        // 遍历结束：清理旧集合中已不在新集合的节点
+
         self.keyed_cleanup_old_removed(parent, old_children, &new_key_set, &reused_old_indexes);
+        mounted_children_rev.reverse();
+        mounted_children_rev
     }
 }

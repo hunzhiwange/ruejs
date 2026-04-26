@@ -34,7 +34,8 @@ export default AttributesAndProps;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$setStyle, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$setStyle, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Badge: FC<{
     label: string;
@@ -52,12 +53,9 @@ const Badge: FC<{
         _$appendChild(_root, _list1);
         watchEffect(()=>{
             const __slot = (props.label);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const AttributesAndProps: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -94,9 +92,7 @@ const AttributesAndProps: FC = ()=>vapor(()=>{
         _$addEventListener(_el4, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el4, "text-blue-600 hover:underline");
         _$appendChild(_el4, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default AttributesAndProps;
 "##;
@@ -104,6 +100,7 @@ export default AttributesAndProps;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/attributes_and_props.out.js", utils::strip_marker(&out))
         .ok();
+    assert!(!out.contains("_$removeAttribute"));
     assert_eq!(
         utils::normalize(&utils::strip_marker(&out)),
         utils::normalize(&utils::strip_marker(expected_fragment))

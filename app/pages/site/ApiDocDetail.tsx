@@ -198,15 +198,15 @@ const ApiDocDetail: FC = () => {
       {currentIndex.get() >= 0 && (
         <div className="mt-8 flex justify-between">
           {prev.get() ? (
-            <RouterLink to={`${uiBase.value}/${prev.get()!.id}`} className="btn btn-outline btn-sm">
-              ← 上一页：{prev.get()?.title}
+            <RouterLink to={`${uiBase.value}/${prev?.get()?.id}`} className="btn btn-outline btn-sm">
+              ← 上一页：{prev?.get()?.title}
             </RouterLink>
           ) : (
             <span />
           )}
           {next.get() ? (
-            <RouterLink to={`${uiBase.value}/${next.get()!.id}`} className="btn btn-outline btn-sm">
-              下一页：{next.get()?.title} →
+            <RouterLink to={`${uiBase.value}/${next.get()?.id}`} className="btn btn-outline btn-sm">
+              下一页：{next?.get()?.title} →
             </RouterLink>
           ) : (
             <span />

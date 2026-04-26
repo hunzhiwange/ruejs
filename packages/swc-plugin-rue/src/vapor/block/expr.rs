@@ -12,21 +12,10 @@ use crate::utils::{is_static_empty_like, unwrap_expr};
 use super::super::VaporTransform;
 
 /// 插槽表达式构建（细节）：
-/// - JSX → 编译为 `vapor(()=>{...})`，统一返回 `{ vaporElement: DocumentFragment }`
+/// - JSXElement / JSXFragment → 编译为 `vapor(()=>{...})`，统一直接返回 `DocumentFragment`
 /// - Cond/逻辑表达式 → 递归规范分支中的 JSX；空值统一回退为 ""
 /// - 保持非 JSX 表达式原样，以减少不必要的包装与提升性能
-fn jsx_element_to_vnode_expr(this: &mut VaporTransform, jsx_el: &JSXElement) -> Expr {
-    // 将 JSXElement 编译为 `vapor(()=>{...})`，返回 Rue VNode：
-    // - child_root：DocumentFragment 承载内部构造
-    // - build_element：将 JSX 构建到 child_root 下
-    // - return_root：统一返回对象形式
-    let child_root = ident("_root");
-    let mut child_body: Vec<Stmt> =
-        vec![const_decl(child_root.clone(), call_ident("_$createDocumentFragment", vec![]))];
-    // 将子 JSX 元素构建到 child_root 下面
-    build_element(this, jsx_el, &child_root, &mut child_body);
-    // 返回 Rue VNode 的统一形式
-    child_body.push(return_root(child_root.clone()));
+fn make_vapor_slot_expr(child_body: Vec<Stmt>) -> Expr {
     let arrow = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![],
@@ -41,39 +30,89 @@ fn jsx_element_to_vnode_expr(this: &mut VaporTransform, jsx_el: &JSXElement) -> 
         return_type: None,
         ctxt: SyntaxContext::empty(),
     });
-    // vapor 包裹以形成可执行块体
     call_ident("vapor", vec![arrow])
+}
+
+fn jsx_element_to_slot_value_expr(this: &mut VaporTransform, jsx_el: &JSXElement) -> Expr {
+    // 将 JSXElement 编译为 `vapor(()=>{...})`，返回可挂载片段根：
+    // - child_root：DocumentFragment 承载内部构造
+    // - build_element：将 JSX 构建到 child_root 下
+    // - return_root：统一直接返回块根
+    let child_root = ident("_root");
+    let mut child_body: Vec<Stmt> =
+        vec![const_decl(child_root.clone(), call_ident("_$createDocumentFragment", vec![]))];
+    // 将子 JSX 元素构建到 child_root 下面
+    build_element(this, jsx_el, &child_root, &mut child_body);
+    // 返回统一的可挂载槽值
+    child_body.push(return_root(child_root.clone()));
+    // vapor 包裹以形成可执行块体
+    make_vapor_slot_expr(child_body)
+}
+
+fn jsx_fragment_to_slot_value_expr(this: &mut VaporTransform, frag: &JSXFragment) -> Expr {
+    let child_root = ident("_root");
+    let mut child_body: Vec<Stmt> =
+        vec![const_decl(child_root.clone(), call_ident("_$createDocumentFragment", vec![]))];
+    crate::element_fragment::emit_fragment_children(
+        this,
+        &child_root,
+        &frag.children,
+        &mut child_body,
+    );
+    child_body.push(return_root(child_root.clone()));
+    make_vapor_slot_expr(child_body)
+}
+
+fn jsxish_to_slot_value_expr(this: &mut VaporTransform, expr: &Expr) -> Option<Expr> {
+    match expr {
+        Expr::JSXElement(jsx_el) => Some(jsx_element_to_slot_value_expr(this, jsx_el)),
+        Expr::JSXFragment(frag) => Some(jsx_fragment_to_slot_value_expr(this, frag)),
+        _ => None,
+    }
 }
 
 pub(crate) fn build_slot_expr(this: &mut VaporTransform, inner: &Expr) -> Expr {
     match inner {
-        Expr::JSXElement(jsx_el) => jsx_element_to_vnode_expr(this, jsx_el),
+        Expr::JSXElement(jsx_el) => jsx_element_to_slot_value_expr(this, jsx_el),
+        Expr::JSXFragment(frag) => jsx_fragment_to_slot_value_expr(this, frag),
         Expr::Cond(CondExpr { test, cons, alt, .. }) => {
-            // 条件表达式：将两个分支中的 JSX 分别转换为 Rue VNode；其余保持原值（空值转空字符串）
+            // 条件表达式：将两个分支中的 JSX 分别转换为可挂载槽值；其余保持原值（空值转空字符串）
             let cons_inner = unwrap_expr(cons.as_ref());
             let alt_inner = unwrap_expr(alt.as_ref());
-            let new_cons: Expr = match cons_inner {
-                Expr::JSXElement(jsx_el) => jsx_element_to_vnode_expr(this, jsx_el),
-                Expr::Cond(_)
-                | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
-                | Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, .. }) => {
-                    build_slot_expr(this, cons_inner)
-                }
-                _ => {
-                    // 规范空值为 ""，其他保持原样（以确保渲染稳定）
-                    if is_static_empty_like(cons_inner) { string_expr("") } else { *cons.clone() }
-                }
-            };
-            let new_alt: Expr = match alt_inner {
-                Expr::JSXElement(jsx_el) => jsx_element_to_vnode_expr(this, jsx_el),
-                Expr::Cond(_)
-                | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
-                | Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, .. }) => {
-                    build_slot_expr(this, alt_inner)
-                }
-                _ => {
-                    // 规范空值为 ""，其他保持原样
-                    if is_static_empty_like(alt_inner) { string_expr("") } else { *alt.clone() }
+            let new_cons: Expr =
+                if let Some(slot_expr) = jsxish_to_slot_value_expr(this, cons_inner) {
+                    slot_expr
+                } else {
+                    match cons_inner {
+                        Expr::Cond(_)
+                        | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
+                        | Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, .. }) => {
+                            build_slot_expr(this, cons_inner)
+                        }
+                        _ => {
+                            // 规范空值为 ""，其他保持原样（以确保渲染稳定）
+                            if is_static_empty_like(cons_inner) {
+                                string_expr("")
+                            } else {
+                                *cons.clone()
+                            }
+                        }
+                    }
+                };
+            let new_alt: Expr = if let Some(slot_expr) = jsxish_to_slot_value_expr(this, alt_inner)
+            {
+                slot_expr
+            } else {
+                match alt_inner {
+                    Expr::Cond(_)
+                    | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
+                    | Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, .. }) => {
+                        build_slot_expr(this, alt_inner)
+                    }
+                    _ => {
+                        // 规范空值为 ""，其他保持原样
+                        if is_static_empty_like(alt_inner) { string_expr("") } else { *alt.clone() }
+                    }
                 }
             };
             Expr::Cond(CondExpr {
@@ -84,13 +123,14 @@ pub(crate) fn build_slot_expr(this: &mut VaporTransform, inner: &Expr) -> Expr {
             })
         }
         Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, left, right, .. }) => {
-            // 逻辑与：右侧为 JSX 则转换为 Rue VNode，否则保持右侧
+            // 逻辑与：右侧为 JSX 则转换为可挂载槽值，否则保持右侧
             let right_inner = unwrap_expr(right.as_ref());
-            let new_cons: Expr = if let Expr::JSXElement(jsx_el) = right_inner {
-                jsx_element_to_vnode_expr(this, jsx_el)
-            } else {
-                *right.clone()
-            };
+            let new_cons: Expr =
+                if let Some(slot_expr) = jsxish_to_slot_value_expr(this, right_inner) {
+                    slot_expr
+                } else {
+                    *right.clone()
+                };
             // alt 分支：当 left 不为确定的数值/NaN，回退为空字符串，避免插入 undefined/null
             let left_inner = unwrap_expr(left.as_ref());
             let new_alt: Expr = match left_inner {
@@ -108,15 +148,19 @@ pub(crate) fn build_slot_expr(this: &mut VaporTransform, inner: &Expr) -> Expr {
         Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, left, right, .. }) => {
             // 逻辑或：保持二元形式，右侧 JSX/复杂表达式递归 Vapor 化
             let right_inner = unwrap_expr(right.as_ref());
-            let new_right: Expr = match right_inner {
-                Expr::JSXElement(jsx_el) => jsx_element_to_vnode_expr(this, jsx_el),
-                Expr::Cond(_)
-                | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
-                | Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, .. }) => {
-                    build_slot_expr(this, right_inner)
-                }
-                _ => *right.clone(),
-            };
+            let new_right: Expr =
+                if let Some(slot_expr) = jsxish_to_slot_value_expr(this, right_inner) {
+                    slot_expr
+                } else {
+                    match right_inner {
+                        Expr::Cond(_)
+                        | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
+                        | Expr::Bin(BinExpr { op: BinaryOp::LogicalOr, .. }) => {
+                            build_slot_expr(this, right_inner)
+                        }
+                        _ => *right.clone(),
+                    }
+                };
             Expr::Bin(BinExpr {
                 span: DUMMY_SP,
                 op: BinaryOp::LogicalOr,

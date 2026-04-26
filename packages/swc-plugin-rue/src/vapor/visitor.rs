@@ -25,7 +25,7 @@ impl VisitMut for VaporTransform {
     /// 生成块体示例（参考 `tests/spec1.rs`）：
     /// - `const _root = _$createElement("div");`
     /// - `const _el1 = _$createElement("h1"); _$appendChild(_root, _el1);`
-    /// - `return { vaporElement: _root }`
+    /// - `return _root`
     fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
         log::debug("rue-swc: visit arrow_expr");
         match &mut *arrow.body {

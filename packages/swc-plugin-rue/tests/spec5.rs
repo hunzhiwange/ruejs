@@ -85,7 +85,8 @@ export default UseCart
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, onMounted, onBeforeUnmount, onBeforeCreate, onCreated, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { onBeforeUnmount, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { FC, onMounted, onBeforeCreate, onCreated } from '@rue-js/rue';
 import { useCart } from '../hooks/useCart';
 const UseCart: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -107,12 +108,12 @@ const UseCart: FC = ()=>{
                     price: 4
                 }
             ];
-            onBeforeCreate(()=>{
-                console.log('UseCart beforeCreate');
-            });
-            onCreated(()=>{
-                console.log('UseCart created');
-            });
+                onBeforeCreate(()=>{
+                  console.log('UseCart beforeCreate');
+                });
+                onCreated(()=>{
+                  console.log('UseCart created');
+                });
             onMounted(()=>{
                 console.log('UseCart mounted');
             });
@@ -178,9 +179,7 @@ const UseCart: FC = ()=>{
                         _$setClassName(_el7, "px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700");
                         _$addEventListener(_el7, "click", (()=>cart.add(pr)));
                         _$appendChild(_el7, _$createTextNode("加入"));
-                        return {
-                            vaporElement: _root
-                        };
+                        return _root;
                     });
                     renderAnchor(__slot, parent, start);
                 }
@@ -200,9 +199,7 @@ const UseCart: FC = ()=>{
                 _$appendChild(_root, _el9);
                 _$setClassName(_el9, "text-gray-500 mt-2");
                 _$appendChild(_el9, _$createTextNode("购物车为空"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : vapor(()=>{
                 const _root = _$createDocumentFragment();
                 const _el10 = _$createElement("ul");
@@ -251,21 +248,16 @@ const UseCart: FC = ()=>{
                                 _$setClassName(_el15, "text-red-600 hover:text-red-700");
                                 _$addEventListener(_el15, "click", (()=>cart.remove(i.id)));
                                 _$appendChild(_el15, _$createTextNode("移除"));
-                                return {
-                                    vaporElement: _root
-                                };
+                                return _root;
                             });
                             renderAnchor(__slot, parent, start);
                         }
                     });
                     _map2_elements = _map2_newElements;
                 });
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list3);
+            renderAnchor(__slot, _root, _list3);
         });
         const _el16 = _$createElement("p");
         _$appendChild(_root, _el16);
@@ -281,9 +273,7 @@ const UseCart: FC = ()=>{
         _$setClassName(_el18, "mt-2 px-4 py-2 rounded-md border border-gray-300 bg-gray-100 hover:bg-gray-200");
         _$addEventListener(_el18, "click", (cart.clear));
         _$appendChild(_el18, _$createTextNode("清空"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default UseCart;

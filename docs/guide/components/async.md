@@ -76,14 +76,6 @@ const AsyncComp = defineAsyncComponent({
 
 ## 懒加载水合 <sup class="vt-badge" data-text="3.5+" /> {#lazy-hydration}
 
-> 本节仅在你使用[服务端渲染](/guide/scaling-up/ssr)时适用。
-
-在 Vue 3.5+ 中，异步组件可以通过提供水合策略来控制何时进行水合。
-
-- Vue 提供了许多内置的水合策略。这些内置策略需要单独导入，以便在不使用时可以被 tree-shake。
-
-- 设计是故意低级别的，以获得灵活性。编译器语法糖可以在未来建立在核心或更高级别的解决方案（例如 Nuxt）之上。
-
 ### 空闲时水合 {#hydrate-on-idle}
 
 通过 `requestIdleCallback` 进行水合：

@@ -6,7 +6,7 @@ use swc_core::common::DUMMY_SP;
 use swc_core::ecma::ast::*;
 
 /*
-工具与判定函数（中文详解）：
+工具与判定函数：
 - unwrap_expr：剥离括号与 TS 断言，获取表达式核心；
 - is_component：首字母大写即组件；
 - is_children_member_expr：识别任意对象的 `.children`；
@@ -52,6 +52,10 @@ pub fn is_component(name: &JSXElementName) -> bool {
         JSXElementName::JSXMemberExpr(_) => true,
         _ => false,
     }
+}
+
+pub fn is_builtin_fragment_element(el: &JSXElement) -> bool {
+    matches!(&el.opening.name, JSXElementName::Ident(id) if id.sym.as_ref() == "Fragment")
 }
 
 fn jsx_attr_ident_name(name: &JSXAttrName) -> Option<String> {
@@ -169,6 +173,14 @@ pub fn is_static_component_children_ident(el: &JSXElement) -> bool {
         }
     }
     false
+}
+
+pub fn is_transition_group_component(el: &JSXElement) -> bool {
+    match &el.opening.name {
+        JSXElementName::Ident(id) => id.sym.as_ref() == "TransitionGroup",
+        JSXElementName::JSXMemberExpr(expr) => expr.prop.sym.as_ref() == "TransitionGroup",
+        _ => false,
+    }
 }
 
 fn is_static_literal_expr(e: &Expr) -> bool {

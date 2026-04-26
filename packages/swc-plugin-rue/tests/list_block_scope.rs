@@ -8,18 +8,14 @@ mod utils;
 /// 这些回归测试不是只看“通过/失败”，还会在失败时需要人工打开产物比对，
 /// 所以这里统一把产物写出来，避免每个测试重复样板代码。
 fn compile(src: &str, name: &str) -> String {
-  let (program, cm) = utils::parse(src, &format!("{name}.tsx"));
-  let program = apply(program);
-  let out = utils::emit(program, cm);
+    let (program, cm) = utils::parse(src, &format!("{name}.tsx"));
+    let program = apply(program);
+    let out = utils::emit(program, cm);
 
-  std::fs::create_dir_all("target/vapor_outputs").ok();
-  std::fs::write(
-    format!("target/vapor_outputs/{name}.out.js"),
-    utils::strip_marker(&out),
-  )
-  .ok();
+    std::fs::create_dir_all("target/vapor_outputs").ok();
+    std::fs::write(format!("target/vapor_outputs/{name}.out.js"), utils::strip_marker(&out)).ok();
 
-  out
+    out
 }
 
 #[test]
@@ -95,7 +91,8 @@ const Demo: FC = () => (
     assert!(out.contains("const rowKey = id;"));
     assert!(out.contains("const label = value * 2;"));
     assert!(out.contains("return rowKey;"));
-    assert!(!out.contains("_$vaporCreateVNode(__slot)"));
+    let removed_factory = ["_$vaporCreate", "V", "Node", "(__slot)"];
+    assert!(!out.contains(&removed_factory.concat()));
 }
 
 #[test]
@@ -138,8 +135,8 @@ const Demo: FC = () => (
 /// 覆盖“条件 return”的复杂 block 场景。
 ///
 /// 这个用例不是要求 direct vapor 快路径继续吃下所有控制流，
-/// 而是要求编译器在复杂 block 下切到更保守的 vnode fallback：
-/// 保留原 if/else 结构，先算出 `__slot`，再走 `_$vaporCreateVNode(__slot)`。
+/// 而是要求编译器在复杂 block 下切到更保守的 raw-slot fallback：
+/// 保留原 if/else 结构，先算出 `__slot`，再直接交给 `renderBetween(__slot, ...)`。
 ///
 /// 这样才能保证多分支 return 的原始语义不被破坏。
 fn preserves_conditional_returns_via_slot_fallback() {
@@ -165,6 +162,8 @@ const Demo: FC = () => (
 
     assert!(out.contains("const __slot = (()=>{"));
     assert!(out.contains("if (row.hot) {"));
-    assert!(out.contains("_$vaporCreateVNode(__slot)"));
+    assert!(out.contains("renderBetween(__slot, parent, start, end);"));
+    let removed_factory = ["_$vaporCreate", "V", "Node", "(__slot)"];
+    assert!(!out.contains(&removed_factory.concat()));
     assert!(!out.contains("getKey: (row, idx)=>{ const label = row.value.toFixed(0);"));
 }

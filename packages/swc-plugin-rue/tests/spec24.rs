@@ -32,7 +32,8 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$appendChild } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 const Chain: FC = ()=>{
     return vapor(()=>{
         const _root = _$createElement("div");
@@ -65,9 +66,7 @@ const Chain: FC = ()=>{
         _$appendChild(_root, _el7);
         _$appendChild(_el7, _$createTextNode("E"));
         _$appendChild(_root, _$createTextNode("】"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default Chain;

@@ -37,7 +37,8 @@ export default BasicElements;
     // - 文本：使用 _$createTextNode 一次性插入静态文本
     // - 组件：RouterLink 被优化为原生 <a> 元素
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const BasicElements: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -72,9 +73,7 @@ const BasicElements: FC = ()=>vapor(()=>{
         _$addEventListener(_el8, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el8, "text-blue-600 hover:underline");
         _$appendChild(_el8, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default BasicElements;
 "##;
@@ -117,7 +116,8 @@ export default Expressions;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const n = 7;
 const user = {
@@ -170,9 +170,7 @@ const Expressions: FC = ()=>vapor(()=>{
         _$addEventListener(_el10, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el10, "text-blue-600 hover:underline");
         _$appendChild(_el10, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Expressions;
 "##;
@@ -183,6 +181,43 @@ export default Expressions;
         utils::normalize(&utils::strip_marker(&out)),
         utils::normalize(&utils::strip_marker(expected_fragment))
     );
+}
+
+#[test]
+fn lowers_native_member_expression_renderable_child_to_slot_anchor() {
+    let src = r##"
+import { type FC } from '@rue-js/rue';
+
+const show = true;
+
+const icons = [
+    {
+        icon: (
+            <svg viewBox="0 0 20 20">
+                <path d="M10 18a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+        ),
+    },
+];
+
+const Page: FC = () => (
+    <section>{show ? <div>{icons[0].icon}</div> : null}</section>
+);
+
+export default Page;
+"##;
+
+    let (program, cm) = utils::parse(src, "test.tsx");
+    let program = apply(program);
+    let emitted = utils::emit(program, cm);
+    let stripped = utils::strip_marker(&emitted);
+    let out = utils::normalize(&stripped);
+
+    std::fs::create_dir_all("target/vapor_outputs").ok();
+    std::fs::write("target/vapor_outputs/basic_native_member_slot.out.js", stripped).ok();
+
+    assert!(out.contains(&utils::normalize("const __slot = (icons[0].icon);")));
+    assert!(!out.contains(&utils::normalize("_$settextContent(_el1, icons[0].icon);")));
 }
 
 #[test]
@@ -202,7 +237,8 @@ export default RootRouterLink;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const RootRouterLink: FC = ()=>vapor(()=>{
         const _root = _$createElement("a");
@@ -212,9 +248,7 @@ const RootRouterLink: FC = ()=>vapor(()=>{
         _$addEventListener(_root, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_root, "text-blue-600 hover:underline");
         _$appendChild(_root, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default RootRouterLink;
 "##;
@@ -247,7 +281,8 @@ export default InlineRouterLinkExpr;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const InlineRouterLinkExpr: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -264,14 +299,10 @@ const InlineRouterLinkExpr: FC = ()=>vapor(()=>{
             _$addEventListener(_el1, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
             _$setClassName(_el1, "text-blue-600 hover:underline");
             _$appendChild(_el1, _$createTextNode("返回目录"));
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
-        renderAnchor(_$vaporCreateVNode(__slot2), _root, _list1);
-        return {
-            vaporElement: _root
-        };
+        renderAnchor(__slot2, _root, _list1);
+        return _root;
     });
 export default InlineRouterLinkExpr;
 "##;

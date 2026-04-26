@@ -4,8 +4,9 @@ JSX Dev Runtime 概述
 - 行为：jsxDEV 在此直接调用 jsx，保留签名以兼容编译器输出。
 */
 import { Fragment as RueFragment, h } from '@rue-js/rue'
+import type { RenderableOutput } from '@rue-js/rue'
 
-export function jsx(type: any, props: any, key?: any) {
+export function jsx(type: any, props: any, key?: any): RenderableOutput {
   const p =
     key !== undefined
       ? (() => {
@@ -27,7 +28,7 @@ export function jsx(type: any, props: any, key?: any) {
 export { RueFragment as Fragment }
 
 /** 开发模式专用的 JSX API，兼容编译器扩展参数
- * @returns VNode
+ * @returns RenderableOutput
  */
 export function jsxDEV(
   type: any,
@@ -36,6 +37,6 @@ export function jsxDEV(
   _isStaticChildren?: boolean,
   _source?: any,
   _self?: any,
-) {
+): RenderableOutput {
   return jsx(type, props, key)
 }

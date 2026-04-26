@@ -36,7 +36,8 @@ export default Goods;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect } from "@rue-js/rue/vapor";
+import { type FC, ref, h } from '@rue-js/rue';
 const Hello: FC = (props)=>{
     return vapor(()=>{
         const _root = _$createElement("div");
@@ -47,12 +48,9 @@ const Hello: FC = (props)=>{
         _$appendChild(_el1, _list1);
         watchEffect(()=>{
             const __slot = (props.children);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _el1, _list1);
+            renderAnchor(__slot, _el1, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 const Goods: FC = ()=>vapor(()=>{
@@ -70,15 +68,11 @@ const Goods: FC = ()=>vapor(()=>{
             const _el4 = _$createElement("p");
             _$appendChild(_root, _el4);
             _$appendChild(_el4, _$createTextNode("这是子内容 B"));
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
         const __slot3 = <Hello children={__child1}/>;
         renderAnchor(__slot3, _root, _list2);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Goods;
 "##;

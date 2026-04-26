@@ -64,8 +64,16 @@ const routes: RouteRecord[] = [
     component: useComponent(() => import('../pages/examples/SimpleComponent')),
   },
   {
+    path: '/examples/web-components',
+    component: useComponent(() => import('../pages/examples/WebComponents')),
+  },
+  {
     path: '/examples/fetching-data',
     component: useComponent(() => import('../pages/examples/FetchingData')),
+  },
+  {
+    path: '/examples/todo-app',
+    component: useComponent(() => import('../pages/examples/TodoApp')),
   },
   {
     path: '/examples/markdown-editor',
@@ -88,14 +96,6 @@ const routes: RouteRecord[] = [
     path: '/examples/list-transition',
     component: useComponent(() => import('../pages/examples/ListTransition')),
   },
-  { path: '/rust-canvas', component: useComponent(() => import('../pages/RustCanvasDemo')) },
-  { path: '/rust-wgpu', component: useComponent(() => import('../pages/RustWebGpuDemo')) },
-  {
-    path: '/rust-wgpu-vertex-animation',
-    component: useComponent(() => import('../pages/RustWGpuDemo')),
-  },
-  { path: '/rust-layers', component: useComponent(() => import('../pages/RustLayerManagerDemo')) },
-  { path: '/rust-game-wgpu', component: useComponent(() => import('../pages/RustGameWGpuDemo')) },
   { path: '/design/button', component: useComponent(() => import('../pages/design/Button')) },
   { path: '/design/tabs', component: useComponent(() => import('../pages/design/Tabs')) },
   { path: '/design/alert', component: useComponent(() => import('../pages/design/Alert')) },
@@ -133,6 +133,14 @@ const routes: RouteRecord[] = [
   { path: '/design/dock', component: useComponent(() => import('../pages/design/Dock')) },
   { path: '/design/menu', component: useComponent(() => import('../pages/design/Menu')) },
   { path: '/e2e/tdz', component: useComponent(() => import('../pages/e2e/TDZMemo')) },
+  {
+    path: '/e2e/router-unmount-a',
+    component: useComponent(() => import('../pages/e2e/RouterUnmountProbeA')),
+  },
+  {
+    path: '/e2e/router-unmount-b',
+    component: useComponent(() => import('../pages/e2e/RouterUnmountProbeB')),
+  },
   { path: '/', component: useComponent(() => import('../pages/site/SiteHome')) },
   {
     path: '/guide/:path(.*)',

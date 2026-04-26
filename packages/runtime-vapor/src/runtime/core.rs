@@ -1,10 +1,10 @@
-//! 运行时核心：Rue 结构与元素创建（中文注释增强）
+//! 运行时核心：Rue 结构（中文注释增强）
 //!
-//! 本模块定义 Rue 运行时的核心数据结构与元素归一化创建逻辑。
+//! 本模块定义 Rue 运行时的核心数据结构与全局状态。
 //! 注释采用中文高密度风格，便于团队内阅读与维护。
 use crate::runtime::dom_adapter::DomAdapter;
 use crate::runtime::instance::ComponentInternalInstance;
-use crate::runtime::types::{Child, ComponentProps, VNode, VNodeType};
+use crate::runtime::types::{AnchorMountState, ContainerMountState, RangeMountState};
 use std::collections::{HashMap, HashSet};
 use wasm_bindgen::JsValue;
 
@@ -16,10 +16,10 @@ pub struct Rue<A: DomAdapter>
 where
     A::Element: Clone,
 {
-    /// 容器与其当前 vnode 的映射
-    pub container_map: Vec<(A::Element, Option<VNode<A>>)>,
-    /// 单锚点渲染映射（anchor -> vnode），用于组件等可由尾锚点定位的增量更新
-    pub anchor_map: Vec<(A::Element, Option<VNode<A>>)>,
+    /// 容器与其当前挂载记录的映射
+    pub container_map: Vec<ContainerMountState<A>>,
+    /// 单锚点渲染映射（anchor -> mount），用于组件等可由尾锚点定位的增量更新
+    pub anchor_map: Vec<AnchorMountState<A>>,
     /// 当前活跃组件实例（用于钩子、错误处理等）
     pub current_instance: Option<ComponentInternalInstance<A>>,
     /// 当前已关联的容器计数
@@ -30,8 +30,8 @@ where
     pub instance_store: HashMap<usize, ComponentInternalInstance<A>>,
     /// 挂载完成后需要执行的队列（如 onMounted）
     pub mounted_queue: Vec<Box<dyn FnMut()>>,
-    /// 区间渲染的锚点映射（父元素 -> 子树 vnode）
-    pub range_map: Vec<(A::Element, Option<VNode<A>>)>,
+    /// 区间渲染的挂载映射（start/end -> mount）
+    pub range_map: Vec<RangeMountState<A>>,
     /// 当前区间锚点（渲染 Between 时使用）
     pub current_anchor: Option<A::Element>,
     /// 错误处理器集合（按实例索引）
@@ -96,125 +96,5 @@ where
     pub fn get_dom_adapter_mut(&mut self) -> Option<&mut A> {
         self.dom_adapter.as_mut()
     }
-
-    /// 创建归一化的 VNode
-    ///
-    /// - 规范化 props 与 children（将纯文本包装为 Text VNode）
-    /// - 提取 key（字符串或数字），用于后续 diff
-    pub fn create_element(
-        &mut self,
-        type_tag: VNodeType<A>,
-        props: Option<ComponentProps>,
-        children: Vec<Child<A>>,
-    ) -> VNode<A> {
-        #[cfg(feature = "dev")]
-        {
-            use crate::log::{log, want_log};
-            if want_log("debug", "runtime:rue.create_element enter") {
-                let ty = match &type_tag {
-                    VNodeType::Text => "Text",
-                    VNodeType::Fragment => "Fragment",
-                    VNodeType::Vapor => "Vapor",
-                    VNodeType::VaporWithSetup(_) => "VaporWithSetup",
-                    VNodeType::Element(_) => "Element",
-                    VNodeType::Component(_) => "Component",
-                    VNodeType::_Phantom(_) => "_Phantom",
-                };
-                log(
-                    "debug",
-                    &format!("runtime:rue.create_element type={} children={}", ty, children.len()),
-                );
-            }
-        }
-        // 归一化 props：缺省则创建空对象
-        let normalized_props = props.unwrap_or_else(ComponentProps::new);
-        // 归一化 children：将纯文本转为 Text VNode，其余保持
-        let mut normalized_children: Vec<Child<A>> = Vec::new();
-        {
-            let mut push_child = |c: Child<A>| match c {
-                Child::Null => {}
-                Child::Bool(_) => {}
-                Child::Text(s) => {
-                    // 若存在适配器，则生成对应文本节点引用
-                    let mut el_opt = None;
-                    if let Some(adapter) = self.get_dom_adapter_mut() {
-                        let el = adapter.create_text_node(&s);
-                        el_opt = Some(el);
-                    }
-                    // 构造 Text VNode 并压入 children
-                    let vnode = VNode {
-                        r#type: VNodeType::Text,
-                        props: ComponentProps::new(),
-                        children: vec![Child::Text(s)],
-                        el: el_opt,
-                        key: None,
-                        comp_hooks: None,
-                        comp_subtree: None,
-                        comp_host: None,
-                        comp_props_ro: None,
-                        comp_inst_index: None,
-                    };
-                    normalized_children.push(Child::VNode(vnode));
-                }
-                Child::VNode(v) => {
-                    normalized_children.push(Child::VNode(v));
-                }
-            };
-            // 逐个处理原 children
-            for ch in children.into_iter() {
-                push_child(ch);
-            }
-        }
-        // 提取 key：字符串或数字（数字转字符串）
-        let key = normalized_props.get("key").and_then(|v| {
-            if let Some(s) = v.as_string() {
-                Some(s)
-            } else if let Some(n) = v.as_f64() {
-                Some(n.to_string())
-            } else {
-                None
-            }
-        });
-        // 输出归一化后的 VNode
-        let out = VNode {
-            r#type: type_tag,
-            props: normalized_props,
-            children: normalized_children,
-            el: None,
-            key,
-            comp_hooks: None,
-            comp_subtree: None,
-            comp_host: None,
-            comp_props_ro: None,
-            comp_inst_index: None,
-        };
-        #[cfg(feature = "dev")]
-        {
-            use crate::log::{log, want_log};
-            if want_log("debug", "runtime:rue.create_element exit") {
-                log("debug", "runtime:rue.create_element exit");
-            }
-        }
-        out
-    }
 }
 
-/// h 函数占位：与 create_element 行为一致（开发态/JSX 辅助）
-pub fn h<A: DomAdapter>(
-    _type_tag: VNodeType<A>,
-    _props: Option<ComponentProps>,
-    _children: Vec<Child<A>>,
-) -> VNode<A>
-where
-    A::Element: Clone,
-{
-    todo!()
-}
-
-/// 构建 Rue 实例占位：可在外部注入适配器与配置
-pub fn create_rue<A: DomAdapter>() -> Rue<A>
-where
-    A::Element: Clone,
-{
-    todo!()
-}

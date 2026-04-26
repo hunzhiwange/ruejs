@@ -2,12 +2,12 @@
 // 这些助手将常见的 Vapor 原生 DOM 片段以 AST 形式拼装，例如：
 // - 创建元素：`const _el1 = _$createElement("div")`
 // - 插入子节点：`_$appendChild(_root, _el1)`
-// - 返回 Rue VNode：`return { vaporElement: _root }`
+// - 返回块根：`return _root`
 // 参考转换输出示例：`tests/basic.rs`、`tests/spec14.rs`
 //
-// 设计要点（中文详解）：
+// 设计要点：
 // - 统一封装常见 AST 片段，降低调用点的样板代码与错误率；
-// - Vapor 返回值约定为 `{ vaporElement: Node }`，便于运行时拓展元数据而不破坏调用方；
+// - Vapor setup 主路径直接返回可挂载根节点，减少默认输出协议厚度；
 // - 所有构造均使用稳定的 DUMMY_SP 与 SyntaxContext::empty()，避免来源位置信息干扰测试。
 // 原子字符串类型：高效符号/字符串存储与比较
 use swc_core::atoms::Atom;
@@ -18,9 +18,7 @@ use swc_core::ecma::ast::*;
 
 /// 设计说明：
 /// - 将常见的 AST 片段封装为助手，减少样板与错误率，提升阅读性（如 `const_decl`, `call_ident`）。
-/// - Vapor 返回值约定为对象 `{ vaporElement: Node }`：
-///   - 这比直接返回 `Node` 更稳定，后续可附加元数据；
-///   - 运行时 `vapor()` 只需取 `vaporElement` 即可插入。
+/// - Vapor setup 主路径直接返回块根 `Node`，把编译结果收敛到更薄的挂载协议。
 /// 构造标识符 `Ident`
 pub fn ident(name: &str) -> Ident {
     Ident::new(Atom::from(name), DUMMY_SP, SyntaxContext::empty())
@@ -102,17 +100,8 @@ pub fn append_child(parent: Ident, child: Expr) -> Stmt {
     })
 }
 
-/// `return { vaporElement: root }` 语句
-/// Vapor 约定返回对象形式，运行时仅需读取 `vaporElement` 即可插入
+/// `return root` 语句
+/// 块返回值直接暴露可挂载根节点，避免继续制造默认的中间对象包装
 pub fn return_root(root: Ident) -> Stmt {
-    Stmt::Return(ReturnStmt {
-        span: DUMMY_SP,
-        arg: Some(Box::new(Expr::Object(ObjectLit {
-            span: DUMMY_SP,
-            props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                key: PropName::Ident(ident_name("vaporElement")),
-                value: Box::new(Expr::Ident(root)),
-            })))],
-        }))),
-    })
+    Stmt::Return(ReturnStmt { span: DUMMY_SP, arg: Some(Box::new(Expr::Ident(root))) })
 }

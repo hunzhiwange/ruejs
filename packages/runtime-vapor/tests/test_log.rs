@@ -115,3 +115,49 @@ fn log_filters_include_exclude_and_level() {
     let s = bucket2.get(0).as_string().unwrap_or_default();
     assert!(s.contains("abc"));
 }
+
+#[wasm_bindgen_test]
+fn noisy_runtime_vapor_debug_is_silent_unless_included() {
+    rue_runtime_vapor::log::set_log_enabled(true);
+    rue_runtime_vapor::log::set_log_level("debug");
+    rue_runtime_vapor::log::clear_log_include();
+    rue_runtime_vapor::log::clear_log_exclude();
+
+    let global = js_sys::global();
+    let bucket = Array::new();
+    Reflect::set(&global, &JsValue::from_str("__capturedLogs3"), &bucket.clone().into()).ok();
+    let logger = wasm_bindgen::closure::Closure::wrap(Box::new(move |s: JsValue| {
+        let arr = js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str("__capturedLogs3"))
+            .unwrap_or(Array::new().into())
+            .unchecked_into::<Array>();
+        arr.push(&s);
+    }) as Box<dyn FnMut(JsValue)>);
+    let console = Object::new();
+    let logf: Function = logger.as_ref().clone().into();
+    Reflect::set(&console, &JsValue::from_str("log"), &logf).ok();
+    let noop = wasm_bindgen::closure::Closure::wrap(
+        Box::new(move |_s: JsValue| {}) as Box<dyn FnMut(JsValue)>
+    );
+    let noopf: Function = noop.as_ref().clone().into();
+    Reflect::set(&console, &JsValue::from_str("error"), &noopf).ok();
+    Reflect::set(&global, &JsValue::from_str("console"), &console).ok();
+    logger.forget();
+
+    rue_runtime_vapor::log::log("debug", "runtime:vapor");
+
+    let captured: Array = Reflect::get(&global, &JsValue::from_str("__capturedLogs3"))
+        .unwrap_or(Array::new().into())
+        .unchecked_into();
+    assert_eq!(captured.length(), 0);
+
+    rue_runtime_vapor::log::add_log_include("runtime:vapor");
+    rue_runtime_vapor::log::log("debug", "runtime:vapor");
+
+    let captured_after_include: Array =
+        Reflect::get(&global, &JsValue::from_str("__capturedLogs3"))
+            .unwrap_or(Array::new().into())
+            .unchecked_into();
+    assert_eq!(captured_after_include.length(), 1);
+    let entry = captured_after_include.get(0).as_string().unwrap_or_default();
+    assert!(entry.contains("runtime:vapor"));
+}

@@ -126,14 +126,16 @@
     $slots: { [name: string]: Slot }
   }
 
-  type Slot = (...args: any[]) => VNode[]
+  type Slot = (...args: any[]) => RenderOutput
+
+  type RenderOutput = RenderableOutput
   ```
 
 - **详情**
 
   通常在手写[渲染函数](/guide/extras/render-function)时使用，但也可用于检测插槽是否存在。
 
-  每个插槽作为函数暴露在 `this.$slots` 上，返回该插槽名称对应的 vnode 数组。默认插槽作为 `this.$slots.default` 暴露。
+  每个插槽作为函数暴露在 `this.$slots` 上，返回该插槽名称对应的渲染输出。默认插槽作为 `this.$slots.default` 暴露。
 
   如果插槽是[作用域插槽](/guide/components/slots#scoped-slots)，传递给插槽函数的参数将可作为其插槽 props 在插槽中使用。
 

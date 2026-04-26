@@ -1,8 +1,7 @@
 use super::WasmRue;
-use js_sys::{Array, Function, Object, Reflect};
+use js_sys::{Array, Function, Object};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -39,32 +38,11 @@ impl WasmRue {
         }
     }
 
-    fn normalize_app_return(&self, v: JsValue) -> JsValue {
-        // mount(app) 的 app 返回值在生态里并不总是“VNode id / VNode registry 对象”：
-        // - 一部分使用方式会直接返回真实 DOM Node（例如 setup 返回 element / fragment）
-        // - render_wasm 已经支持 { vaporElement } 这种“把真实 DOM 当作 Vapor VNode” 的输入形式
-        //
-        // 因此这里做一个“轻量归一化”：
-        // - 若返回值看起来像 DOM Node（存在 nodeType 数字属性）
-        // - 则包装成 { vaporElement: node } 交给 render_wasm，复用其解析逻辑
-        if v.is_object() {
-            let obj = Object::from(v.clone());
-            let node_type =
-                Reflect::get(&obj, &JsValue::from_str("nodeType")).unwrap_or(JsValue::UNDEFINED);
-            if node_type.as_f64().is_some() {
-                let out = Object::new();
-                let _ = Reflect::set(&out, &JsValue::from_str("vaporElement"), &v);
-                return out.into();
-            }
-        }
-        v
-    }
-
     /// 若 app 为函数：调用并将返回值交由 render 处理
     fn try_call_app_and_render(&self, app: &JsValue, cont: &JsValue) -> bool {
         // 这里传给 app 的 props 目前是空对象：
         // - 通常会传入 props + children
-        // - Rust/wasm 这层目前主要是兼容 “app(props) -> vnode-like” 的签名
+        // - Rust/wasm 这层目前主要是兼容 “app(props) -> MountInput/raw node/handle” 的签名
         //
         // 关键点：app 函数内部通常会“读取响应式数据”（signal/ref/computed 等）。
         // 在 mount_wasm 中我们会把 try_call_app_and_render 包进 create_effect 里，
@@ -87,11 +65,10 @@ impl WasmRue {
                         );
                     }
                 }
-                let vv = self.normalize_app_return(v);
                 // 将 app 的返回值交给 render_wasm：
-                // - vv 可以是 registry id / dev object / { vaporElement } 等
-                // - render_wasm 会解析成 VNode 并入队，随后通过 Promise.then 异步 flush
-                self.render_wasm(vv, cont.clone());
+                // - v 可以是 registry id / raw DOM node / fragment / mount handle 等
+                // - render_wasm 会解析成 MountInput 并入队，随后通过 Promise.then 异步 flush
+                self.render_wasm(v, cont.clone());
                 return true;
             }
         }
@@ -100,19 +77,14 @@ impl WasmRue {
 
     /// 渲染一个空 Fragment 到容器，用于无 app 场景
     fn render_empty_fragment_to(&self, cont: &JsValue) {
-        let vnode_id = self.create_element_wasm(
+        let mount_handle = self.create_element_wasm(
             JsValue::from_str("fragment"),
             JsValue::UNDEFINED,
             Array::new().into(),
         );
-        let mut vnode_id_unwrapped = vnode_id.clone();
-        if vnode_id_unwrapped.is_object() {
-            let obj_id = Object::from(vnode_id_unwrapped.clone());
-            vnode_id_unwrapped = Reflect::get(&obj_id, &JsValue::from_str("__rue_vnode_id"))
-                .unwrap_or(JsValue::UNDEFINED);
-        }
-        if let Some(vnode) = super::WasmRue::take_vnode_from_registry(&vnode_id_unwrapped) {
-            self.pending_render.borrow_mut().push((vnode, cont.clone()));
+        let mount_id = self.mount_registry_id(&mount_handle);
+        if let Some(input) = super::WasmRue::take_mount_input_from_registry(&mount_id) {
+            self.pending_render.borrow_mut().push((input, cont.clone()));
             self.schedule_flush();
         }
     }

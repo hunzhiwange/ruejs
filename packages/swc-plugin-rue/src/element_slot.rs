@@ -5,14 +5,10 @@ use crate::emit::*;
 use crate::vapor::VaporTransform;
 
 /*
-插槽渲染（中文详解）：
+插槽渲染：
 - 目标：统一 props.children 或任意 slot 的渲染路径，在锚点前插入片段；
-- vnode 规范化策略（参考 `tests/spec14.rs`）：
-    - 数组 => `h('fragment', null, ...slot)`
-    - Rue VNode（含 `vaporElement`）=> 直接使用
-    - 原生 DOM 节点（含 `nodeType`）=> 包裹 `h('fragment', null, slot)`
-    - 其它 => `h('fragment', null, String(slot ?? ""))`
-- 动机：在插槽可能为“数组 / VNode / 原生 DOM / 原始值”的多形态场景下，统一产出一个可渲染 fragment，避免复杂分支判断。
+- 新协议策略：直接把原始 slot / children 值交给 `renderAnchor`，由 runtime 的 Renderable/compat 边界统一处理。
+- 动机：编译器不再提前依赖旧的中间对象规范化 helper，避免把历史 compat 逻辑继续固化进输出。
 - 性能说明：默认仍可走 `renderBetween` 区间渲染；开启单锚点优化后，改为单注释锚点 + `renderAnchor`，减少额外 range_map 记录。
 */
 pub fn render_between_for_slot(
@@ -35,18 +31,14 @@ pub fn render_between_for_slot(
         }
         _ => inner_expr.clone(),
     };
-    // 保存 slot 原值，并规范化为 vnode 再进行渲染
+    // 保存 slot 原值，并直接交给 runtime 新协议入口进行渲染
     let decl_slot = const_decl(ident("__slot"), expr_for_slot);
-    let decl_vnode = const_decl(
-        ident("__vnode"),
-        call_ident("_$vaporCreateVNode", vec![Expr::Ident(ident("__slot"))]),
-    );
 
     let render_call = Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
         args: vec![
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__vnode"))) },
+            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__slot"))) },
             ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(el_ident.clone())) },
             ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
         ],
@@ -61,7 +53,6 @@ pub fn render_between_for_slot(
             ctxt: SyntaxContext::empty(),
             stmts: vec![
                 decl_slot,
-                decl_vnode,
                 Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }),
             ],
         })),

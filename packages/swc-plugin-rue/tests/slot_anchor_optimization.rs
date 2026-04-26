@@ -15,7 +15,7 @@ const Layout: FC = props => <article>{props.children}</article>
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("rue:children:anchor")));
-    assert!(out.contains(&utils::normalize("renderAnchor(__vnode")));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains(&utils::normalize("rue:children:start")));
 }
 
@@ -32,6 +32,6 @@ const Page: FC<{ ok: boolean }> = props => <section><div>{props.ok ? <span>yes</
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains(&utils::normalize("rue:slot:anchor")));
-    assert!(out.contains(&utils::normalize("renderAnchor(__vnode")));
-    assert!(!out.contains(&utils::normalize("renderBetween(__vnode")));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(!out.contains(&utils::normalize("renderBetween(__slot")));
 }

@@ -18,7 +18,8 @@
   },
   "files": [
     "index.js",
-    "dist"
+    "dist",
+    "src/vapor.ts"
   ],
   "sideEffects": false,
   "main": "index.js",
@@ -38,6 +39,18 @@
       "import": "./dist/runtime.esm-bundler.js",
       "require": "./index.js"
     },
+    "./vapor": {
+      "types": "./src/vapor.ts",
+      "development": "./src/vapor.ts",
+      "node": {
+        "production": "./dist/runtime.vapor.cjs.prod.js",
+        "development": "./dist/runtime.vapor.cjs.js",
+        "default": "./dist/runtime.vapor.cjs.js"
+      },
+      "module": "./dist/runtime.vapor.esm-bundler.js",
+      "import": "./dist/runtime.vapor.esm-bundler.js",
+      "require": "./dist/runtime.vapor.cjs.js"
+    },
     "./*": "./*"
   },
   "dependencies": {
@@ -56,6 +69,16 @@
       "esm-browser",
       "cjs",
       "global"
+    ],
+    "subEntries": [
+      {
+        "entry": "src/vapor.ts",
+        "filename": "runtime.vapor",
+        "formats": [
+          "esm-bundler",
+          "cjs"
+        ]
+      }
     ]
   }
 }

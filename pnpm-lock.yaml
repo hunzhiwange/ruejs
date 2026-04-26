@@ -17,21 +17,12 @@ importers:
 
   .:
     dependencies:
-      '@rue-js/app-rust':
-        specifier: workspace:*
-        version: link:packages/app-rust
       '@rue-js/design':
         specifier: workspace:*
         version: link:packages/rue-design
       '@rue-js/jsx-runtime':
         specifier: workspace:*
         version: link:packages/jsx-runtime
-      '@rue-js/learn-wgpu':
-        specifier: workspace:*
-        version: link:packages/learn-wgpu
-      '@rue-js/plugin':
-        specifier: workspace:*
-        version: link:packages/rue-rs-plugin
       '@rue-js/router':
         specifier: workspace:*
         version: link:packages/router
@@ -226,8 +217,6 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@24.12.0)(jsdom@24.1.3)(lightningcss@1.32.0)
 
-  packages/app-rust: {}
-
   packages/jsx-dev-runtime:
     dependencies:
       '@rue-js/rue':
@@ -239,8 +228,6 @@ importers:
       '@rue-js/rue':
         specifier: workspace:*
         version: link:../rue
-
-  packages/learn-wgpu: {}
 
   packages/router:
     dependencies:

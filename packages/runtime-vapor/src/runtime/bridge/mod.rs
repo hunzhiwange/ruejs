@@ -1,33 +1,26 @@
 //! WASM 侧桥接模块（中文注释增强）
 //!
 //! - 暴露 WasmRue 供 JS 调用（创建、渲染、挂载、卸载等）
-//! - 管理 VNode 注册表与异步渲染队列（render/renderBetween/renderStatic）
+//! - 管理默认 MountInput 注册表与异步渲染队列（render/renderBetween/renderStatic）
 //! - 通过 Promise.then 驱动批处理刷新，避免重入
 //! - 提供 DOM 适配器的设置与读取，以及生命周期 hooks 注册
 use crate::reactive::core::dispose_effect_scope;
 use crate::reactive::effect::EffectHandle;
 use crate::runtime::core::Rue;
-use crate::runtime::dom_adapter::DomAdapter;
-use crate::runtime::globals::{VNODE_REGISTRY, push_pending_hook, take_pending_hooks};
+use crate::runtime::globals::MOUNT_INPUT_REGISTRY;
 use crate::runtime::js_adapter::JsDomAdapter;
-use crate::runtime::types::{Child, ComponentProps, VNode, VNodeType};
-use js_sys::{Array, Function, Object, Promise, Reflect};
+use crate::runtime::types::MountInput;
+use js_sys::Promise;
 use std::cell::RefCell;
-use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
-
-#[cfg(feature = "dev")]
-use crate::log::{log, want_log, warning};
 
 mod create_element;
 mod create_rue;
 mod emitted;
 mod get_current_container;
-mod get_dom_adapter;
-mod get_dom_adapter_mut;
-mod h;
+mod input;
 mod mount;
 mod on_before_create;
 mod on_before_mount;
@@ -56,10 +49,10 @@ pub struct WasmRue {
     // - 供 getCurrentContainer() 之类的 API 使用
     // - 也便于在某些错误/兜底路径下找到“当前容器上下文”
     last_container: RefCell<Option<JsValue>>,
-    pending_anchor: RefCell<Vec<(VNode<JsDomAdapter>, JsValue, JsValue)>>,
-    pending_between: RefCell<Vec<(VNode<JsDomAdapter>, JsValue, JsValue, JsValue)>>,
-    pending_render: RefCell<Vec<(VNode<JsDomAdapter>, JsValue)>>,
-    pending_static: RefCell<Vec<(VNode<JsDomAdapter>, JsValue, JsValue)>>,
+    pending_anchor: RefCell<Vec<(MountInput<JsDomAdapter>, JsValue, JsValue)>>,
+    pending_between: RefCell<Vec<(MountInput<JsDomAdapter>, JsValue, JsValue, JsValue)>>,
+    pending_render: RefCell<Vec<(MountInput<JsDomAdapter>, JsValue)>>,
+    pending_static: RefCell<Vec<(MountInput<JsDomAdapter>, JsValue, JsValue)>>,
     // root 级别的 effect 句柄（由 mount 创建）：
     // - mount(app, container) 会用 create_effect 包裹 app 执行，从而实现依赖变化自动重渲染
     // - 需要在 unmount 或再次 mount 时释放，避免多个 root effect 并存导致重复渲染/内存泄漏
@@ -86,7 +79,7 @@ impl WasmRue {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_r) => {
                         let mut cr = cont_r.clone();
-                        inner_r.render(vnode_r, (&mut cr).into());
+                        inner_r.render_input(vnode_r, (&mut cr).into());
                     }
                     Err(_) => {
                         self.pending_render.borrow_mut().push((vnode_r, cont_r));
@@ -107,7 +100,7 @@ impl WasmRue {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_b) => {
                         let mut pb = p_b.clone();
-                        inner_b.render_between(vnode_b, (&mut pb).into(), s_b.into(), e_b.into());
+                        inner_b.render_between_input(vnode_b, (&mut pb).into(), s_b.into(), e_b.into());
                     }
                     Err(_) => {
                         self.pending_between.borrow_mut().push((vnode_b, p_b, s_b, e_b));
@@ -128,7 +121,7 @@ impl WasmRue {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_a) => {
                         let mut pa = p_a.clone();
-                        inner_a.render_anchor(vnode_a, (&mut pa).into(), anchor_a.into());
+                        inner_a.render_anchor_input(vnode_a, (&mut pa).into(), anchor_a.into());
                     }
                     Err(_) => {
                         self.pending_anchor.borrow_mut().push((vnode_a, p_a, anchor_a));
@@ -149,7 +142,7 @@ impl WasmRue {
                 match self.inner.try_borrow_mut() {
                     Ok(mut inner_s) => {
                         let mut ps = p_s.clone();
-                        inner_s.render_static(vnode_s, (&mut ps).into(), a_s.into());
+                        inner_s.render_static_input(vnode_s, (&mut ps).into(), a_s.into());
                     }
                     Err(_) => {
                         self.pending_static.borrow_mut().push((vnode_s, p_s, a_s));
@@ -208,11 +201,11 @@ impl WasmRue {
         self.root_effect_closure.borrow_mut().take();
     }
 
-    /// 从注册表按 id 取出 VNode（并置空其槽位）
-    pub(super) fn take_vnode_from_registry(idv: &JsValue) -> Option<VNode<JsDomAdapter>> {
+    /// 从默认输入注册表按 id 取出 MountInput（并置空其槽位）
+    pub(super) fn take_mount_input_from_registry(idv: &JsValue) -> Option<MountInput<JsDomAdapter>> {
         if let Some(idf) = idv.as_f64() {
             let idx = idf as usize;
-            VNODE_REGISTRY.with(|reg| {
+            MOUNT_INPUT_REGISTRY.with(|reg| {
                 let mut r = reg.borrow_mut();
                 if idx < r.len() { r[idx].take() } else { None }
             })

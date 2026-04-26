@@ -271,7 +271,8 @@ export default FetchingData
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, useEffect, watchEffect, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { watchEffect, _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { type FC, ref, useEffect } from '@rue-js/rue';
 import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 type CommitItem = {

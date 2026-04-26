@@ -102,7 +102,8 @@ export default TodoApp
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { FC, reactive, computed, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/vapor";
+import { FC, reactive, computed } from '@rue-js/rue';
 interface Todo {
     id: number;
     text: string;
@@ -239,9 +240,7 @@ const TodoApp: FC = ()=>{
                         _$setClassName(_el12, "rounded-lg border border-red-500 bg-red-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:border-red-700 hover:bg-red-700 focus:ring focus:ring-red-200");
                         _$addEventListener(_el12, "click", (()=>deleteTodo(todo.id)));
                         _$appendChild(_el12, _$createTextNode("删除"));
-                        return {
-                            vaporElement: _root
-                        };
+                        return _root;
                     });
                     renderAnchor(__slot, parent, start);
                 }
@@ -255,9 +254,7 @@ const TodoApp: FC = ()=>{
         watchEffect(()=>{
             _$settextContent(_el14, `总计: ${state.todos.length} | 已完成: ${completedCount.value}`);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default TodoApp;

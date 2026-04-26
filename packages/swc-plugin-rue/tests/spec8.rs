@@ -22,7 +22,8 @@ export default Hello;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$setStyle, _$appendChild } from "@rue-js/rue/vapor";
+import { type FC, ref, h } from '@rue-js/rue';
 const Hello: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
         const _el1 = _$createElement("h1");
@@ -32,9 +33,7 @@ const Hello: FC = ()=>vapor(()=>{
             color: '#e07721ff'
         });
         _$appendChild(_el1, _$createTextNode("Rue 响应式框架示例"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Hello;
 "##;

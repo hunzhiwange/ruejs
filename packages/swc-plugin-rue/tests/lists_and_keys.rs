@@ -35,7 +35,8 @@ export default ListsAndKeys;
     // - renderItem：使用 renderAnchor(vapor(()=>{...}), parent, start) 渲染每项
     // - 更新：watch 中对 elements 引用进行复用更新
     let expected_fragment = r##"
-import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const list = [
     'Apple',
@@ -86,9 +87,7 @@ const ListsAndKeys: FC = ()=>vapor(()=>{
                         watchEffect(()=>{
                             _$settextContent(_el5, item);
                         });
-                        return {
-                            vaporElement: _root
-                        };
+                        return _root;
                     });
                     renderAnchor(__slot, parent, start);
                 }
@@ -103,9 +102,7 @@ const ListsAndKeys: FC = ()=>vapor(()=>{
         _$addEventListener(_el6, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el6, "text-blue-600 hover:underline");
         _$appendChild(_el6, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default ListsAndKeys;
 "##;

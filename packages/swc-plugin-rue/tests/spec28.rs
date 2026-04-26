@@ -18,8 +18,8 @@ const Chain: FC = () => {
   return (
     <div>
       <div v-if={a}>A</div>
-      <div v-elif={b}>B</div>
-      <div v-elif={c}>C</div>
+      <div v-else-if={b}>B</div>
+      <div v-else-if={c}>C</div>
       <div v-else-if={d}>D</div>
       <div v-else>Else</div>
     </div>
@@ -33,7 +33,8 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const Chain: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = _$vaporWithHookId("ref:1:0", ()=>ref(true));

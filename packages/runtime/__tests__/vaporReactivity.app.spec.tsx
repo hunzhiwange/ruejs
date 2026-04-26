@@ -11,7 +11,10 @@ import {
   vapor,
   watchEffect,
 } from '../src'
-import { SortFilterPreview, TogglePanel } from '../../../app/test-fixtures/VaporReactivityFixture'
+import {
+  SortFilterPreview,
+  TogglePanel,
+} from '../../../app/test-fixtures/VaporReactivityFixture'
 
 setReactiveScheduling('sync')
 
@@ -51,7 +54,7 @@ const ManualSetupToggle = () => {
       )
     })
 
-    return { vaporElement: root }
+    return root
   })
 }
 
@@ -66,7 +69,7 @@ const ManualPropChild = (props: { query: string }) => {
       text.textContent = props.query
     })
 
-    return { vaporElement: root }
+    return root
   })
 }
 
@@ -88,7 +91,7 @@ const ManualPropParent = () => {
       renderAnchor(<ManualPropChild query={query.value} />, root, anchor)
     })
 
-    return { vaporElement: root }
+    return root
   })
 }
 
@@ -109,7 +112,7 @@ const ManualComputedChild = (props: { query: string }) => {
       text.textContent = setupState.derived.get()
     })
 
-    return { vaporElement: root }
+    return root
   })
 }
 
@@ -131,7 +134,7 @@ const ManualComputedParent = () => {
       renderAnchor(<ManualComputedChild query={query.value} />, root, anchor)
     })
 
-    return { vaporElement: root }
+    return root
   })
 }
 
@@ -148,7 +151,7 @@ const ManualDirectComputedChild = (props: { query: string }) => {
       text.textContent = derived.get()
     })
 
-    return { vaporElement: root }
+    return root
   })
 }
 
@@ -170,7 +173,147 @@ const ManualDirectComputedParent = () => {
       renderAnchor(<ManualDirectComputedChild query={query.value} />, root, anchor)
     })
 
-    return { vaporElement: root }
+    return root
+  })
+}
+
+const ManualIntervalCounter = () => {
+  const setupState = _$vaporWithHookId('useSetup:manual-interval:0', () =>
+    useSetup(() => {
+      const tick = ref(0)
+      let timer: ReturnType<typeof setInterval> | null = null
+
+      timer = setInterval(() => {
+        if (timer != null) {
+          clearInterval(timer)
+          timer = null
+        }
+        tick.value = 1
+      }, 0)
+
+      return { tick }
+    }),
+  ) as { tick: { value: number } }
+
+  return vapor(() => {
+    const root = document.createElement('section')
+    const text = document.createElement('span')
+    text.dataset.testid = 'manual-interval-value'
+    root.appendChild(text)
+
+    watchEffect(() => {
+      text.textContent = String(setupState.tick.value)
+    })
+
+    return root
+  })
+}
+
+const NestedVaporValue = (props: { value: number }) => {
+  return vapor(() => {
+    const root = document.createElement('div')
+    const anchor = document.createComment('nested-vapor-value-anchor')
+    root.appendChild(anchor)
+
+    watchEffect(() => {
+      renderAnchor(<span data-testid="nested-vapor-value">{props.value}</span>, root, anchor)
+    })
+
+    return root
+  })
+}
+
+const NestedVaporParent = () => {
+  const tick = ref(0)
+
+  return vapor(() => {
+    const root = document.createElement('section')
+    const button = document.createElement('button')
+    const anchor = document.createComment('nested-vapor-parent-anchor')
+
+    button.dataset.testid = 'nested-vapor-bump'
+    button.addEventListener('click', () => {
+      tick.value += 1
+    })
+
+    root.append(button, anchor)
+
+    watchEffect(() => {
+      button.textContent = String(tick.value)
+      renderAnchor(<NestedVaporValue value={tick.value} />, root, anchor)
+    })
+
+    return root
+  })
+}
+
+const StableMixedChild = (props: { slot: any; children?: any[] }) => {
+  const setupState = _$vaporWithHookId('useSetup:stable-mixed:0', () =>
+    useSetup(() => {
+      const root = document.createElement('div')
+      const slotRuns = document.createElement('span')
+      const childrenRuns = document.createElement('span')
+
+      slotRuns.dataset.testid = 'stable-mixed-slot-runs'
+      childrenRuns.dataset.testid = 'stable-mixed-children-runs'
+      root.append(slotRuns, childrenRuns)
+
+      let slotCount = 0
+      let childrenCount = 0
+
+      watchEffect(() => {
+        props.slot
+        slotCount += 1
+        slotRuns.textContent = String(slotCount)
+      })
+
+      watchEffect(() => {
+        props.children
+        childrenCount += 1
+        childrenRuns.textContent = String(childrenCount)
+      })
+
+      return { root }
+    }),
+  ) as { root: HTMLDivElement }
+
+  return vapor(() => setupState.root)
+}
+
+const StableMixedParent = () => {
+  const tick = ref(0)
+  const legacyChild = <em data-testid="stable-mixed-legacy">legacy</em>
+  const stableNode = document.createElement('strong')
+  stableNode.dataset.testid = 'stable-mixed-node'
+  stableNode.textContent = 'bridge'
+
+  const makeStableNode = () => stableNode
+
+  return vapor(() => {
+    const root = document.createElement('section')
+    const button = document.createElement('button')
+    const anchor = document.createComment('stable-mixed-anchor')
+
+    button.dataset.testid = 'stable-mixed-rerender'
+    button.addEventListener('click', () => {
+      tick.value += 1
+    })
+
+    root.append(button, anchor)
+
+    watchEffect(() => {
+      button.textContent = String(tick.value)
+      renderAnchor(
+        <StableMixedChild slot={makeStableNode()}>
+          {legacyChild}
+          {makeStableNode() as any}
+        </StableMixedChild>,
+        root,
+        anchor,
+      )
+    })
+
+    return root
   })
 }
 
@@ -249,6 +392,74 @@ describe('app fixture vapor reactivity', () => {
     ).toBe('bru')
   })
 
+  it('updates watchEffect after ref mutation from setInterval in useSetup', async () => {
+    const container = mount(
+      <div>
+        <ManualIntervalCounter />
+      </div>,
+    )
+    await flush()
+
+    expect(container.querySelector('[data-testid="manual-interval-value"]')?.textContent).toBe(
+      '0',
+    )
+
+    await new Promise(resolve => setTimeout(resolve, 20))
+    await flush()
+
+    expect(container.querySelector('[data-testid="manual-interval-value"]')?.textContent).toBe(
+      '1',
+    )
+  })
+
+  it('keeps nested vapor child props reactive across parent renderAnchor updates', async () => {
+    const container = mount(
+      <div>
+        <NestedVaporParent />
+      </div>,
+    )
+    await flush()
+
+    expect(container.querySelector('[data-testid="nested-vapor-value"]')?.textContent).toBe('0')
+
+    const button = container.querySelector(
+      '[data-testid="nested-vapor-bump"]',
+    ) as HTMLButtonElement
+    button.click()
+    await flush()
+
+    expect(container.querySelector('[data-testid="nested-vapor-value"]')?.textContent).toBe('1')
+  })
+
+  it('keeps mixed slot props and children stable across unrelated parent rerenders', async () => {
+    const container = mount(
+      <div>
+        <StableMixedParent />
+      </div>,
+    )
+    await flush()
+
+    expect(container.querySelector('[data-testid="stable-mixed-slot-runs"]')?.textContent).toBe(
+      '1',
+    )
+    expect(
+      container.querySelector('[data-testid="stable-mixed-children-runs"]')?.textContent,
+    ).toBe('1')
+
+    const button = container.querySelector(
+      '[data-testid="stable-mixed-rerender"]',
+    ) as HTMLButtonElement
+    button.click()
+    await flush()
+
+    expect(container.querySelector('[data-testid="stable-mixed-slot-runs"]')?.textContent).toBe(
+      '1',
+    )
+    expect(
+      container.querySelector('[data-testid="stable-mixed-children-runs"]')?.textContent,
+    ).toBe('1')
+  })
+
   it('updates local ref-driven content immediately', async () => {
     const container = mount(
       <div>
@@ -316,4 +527,5 @@ describe('app fixture vapor reactivity', () => {
       ),
     ).toEqual(['Bruce Lee'])
   })
+
 })

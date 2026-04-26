@@ -66,7 +66,7 @@ export default Page;
     let out = utils::normalize(&transform(src));
 
     assert!(out.contains("rue:slot:anchor"));
-    assert!(out.contains(&utils::normalize("renderAnchor(_$vaporCreateVNode(__slot")));
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains("watchEffect(()"));
     assert!(!out.contains("renderBetween("));
 }

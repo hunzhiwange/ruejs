@@ -1,5 +1,5 @@
 use js_sys::{Array, Function, Object, Reflect};
-use rue_runtime_vapor::hook::reactive::props_reactive_js;
+use rue_runtime_vapor::hook::reactive::{props_reactive_js, shallow_equal_prop};
 use rue_runtime_vapor::reactive::signal::create_reactive;
 use rue_runtime_vapor::{create_effect, set_reactive_scheduling};
 use std::cell::RefCell;
@@ -356,25 +356,33 @@ fn props_reactive_nested_array_length_accessible() {
     assert_eq!(len, 2.0);
 }
 
-/// propsReactive 应保持 VNode-like prop 为原始对象，避免 JSX/VNode 被二次代理后失真。
+/// propsReactive 应保持 host-node renderable prop 为原始对象，避免渲染桥接对象被二次代理后失真。
 #[wasm_bindgen_test]
-fn props_reactive_keeps_tagged_vnode_prop_raw() {
-    let tagged_vnode = Object::new();
+fn props_reactive_keeps_host_node_prop_raw() {
+    let host_node = Object::new();
     Reflect::set(
-        &tagged_vnode,
-        &JsValue::from_str("__rue_vnode_id"),
-        &JsValue::from_f64(7.0),
+        &host_node,
+        &JsValue::from_str("nodeType"),
+        &JsValue::from_f64(1.0),
+    )
+    .unwrap();
+
+    let renderable_owner = Object::new();
+    Reflect::set(
+        &renderable_owner,
+        &JsValue::from_str("__rue_host_node"),
+        &host_node.clone().into(),
     )
     .unwrap();
 
     let props_obj = Object::new();
-    Reflect::set(&props_obj, &JsValue::from_str("header"), &tagged_vnode).unwrap();
+    Reflect::set(&props_obj, &JsValue::from_str("header"), &renderable_owner).unwrap();
     Reflect::set(&props_obj, &JsValue::from_str("children"), &Array::new().into()).unwrap();
 
     let props = props_reactive_js(props_obj.into(), Some(true));
     let header = Reflect::get(&props, &JsValue::from_str("header")).unwrap();
 
-    assert!(js_sys::Object::is(&header, &tagged_vnode.clone().into()));
+    assert!(js_sys::Object::is(&header, &renderable_owner.clone().into()));
 
     let is_reactive = Reflect::get(&header, &JsValue::from_str("__isReactive__"))
         .unwrap_or(JsValue::FALSE)
@@ -382,11 +390,37 @@ fn props_reactive_keeps_tagged_vnode_prop_raw() {
         .unwrap_or(false);
     assert!(!is_reactive);
 
-    let vnode_id = Reflect::get(&header, &JsValue::from_str("__rue_vnode_id"))
-        .unwrap()
-        .as_f64()
-        .unwrap();
-    assert_eq!(vnode_id, 7.0);
+    let bridged_host = Reflect::get(&header, &JsValue::from_str("__rue_host_node")).unwrap();
+    assert!(js_sys::Object::is(&bridged_host, &host_node.into()));
+}
+
+/// shallow_equal_prop 对可挂载值采用 host-node / DOM identity 优先，而不是旧的对象桥接结构判等。
+#[wasm_bindgen_test]
+fn shallow_equal_prop_prefers_host_node_identity() {
+    let host = Object::new();
+    Reflect::set(&host, &JsValue::from_str("nodeType"), &JsValue::from_f64(1.0)).unwrap();
+
+    let left = Object::new();
+    Reflect::set(&left, &JsValue::from_str("__rue_host_node"), &host.clone().into()).unwrap();
+    Reflect::set(&left, &JsValue::from_str("type"), &JsValue::from_str("legacy-a")).unwrap();
+
+    let right = Object::new();
+    Reflect::set(&right, &JsValue::from_str("__rue_host_node"), &host.clone().into()).unwrap();
+    Reflect::set(&right, &JsValue::from_str("type"), &JsValue::from_str("legacy-b")).unwrap();
+
+    assert!(shallow_equal_prop(&left.clone().into(), &right.clone().into()));
+
+    let other_host = Object::new();
+    Reflect::set(&other_host, &JsValue::from_str("nodeType"), &JsValue::from_f64(1.0)).unwrap();
+    let third = Object::new();
+    Reflect::set(
+        &third,
+        &JsValue::from_str("__rue_host_node"),
+        &other_host.clone().into(),
+    )
+    .unwrap();
+
+    assert!(!shallow_equal_prop(&left.into(), &third.into()));
 }
 
 /// 只读代理：写入被拒绝（返回 false/不生效），原始快照保持不变

@@ -119,7 +119,8 @@ export default FetchingData;
     // - 文本插值：_$createTextWrapper + _$settextContent + watch
     // - 条件插槽：commits.length > 0 → vapor 片段；否则 ""；统一转为 vnode 并 renderAnchor
     let expected_fragment = r##"
-import { FC, ref, useEffect, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue, _$setChecked } from "@rue-js/rue/vapor";
+import { FC, ref, useEffect } from '@rue-js/rue';
 type CommitItem = {
     html_url: string;
     sha: string;
@@ -234,9 +235,7 @@ const FetchingData: FC = ()=>{
                         watchEffect(()=>{
                             _$settextContent(_el7, branch);
                         });
-                        return {
-                            vaporElement: _root
-                        };
+                        return _root;
                     });
                     renderAnchor(__slot, parent, start);
                 }
@@ -338,9 +337,7 @@ const FetchingData: FC = ()=>{
                                         watchEffect(()=>{
                                             _$settextContent(_el21, commit.author.name);
                                         });
-                                        return {
-                                            vaporElement: _root
-                                        };
+                                        return _root;
                                     }) : vapor(()=>{
                                         const _root = _$createDocumentFragment();
                                         const _el22 = _$createElement("span");
@@ -350,12 +347,9 @@ const FetchingData: FC = ()=>{
                                         watchEffect(()=>{
                                             _$settextContent(_el23, commit.author.name);
                                         });
-                                        return {
-                                            vaporElement: _root
-                                        };
+                                        return _root;
                                     });
-                                    const __vnode = _$vaporCreateVNode(__slot);
-                                    renderAnchor(__vnode, _el19, _list5);
+                                    renderAnchor(__slot, _el19, _list5);
                                 });
                                 const _el24 = _$createElement("span");
                                 _$appendChild(_el11, _el24);
@@ -368,25 +362,18 @@ const FetchingData: FC = ()=>{
                                 watchEffect(()=>{
                                     _$settextContent(_el26, formatDate(commit.author.date));
                                 });
-                                return {
-                                    vaporElement: _root
-                                };
+                                return _root;
                             });
                             renderAnchor(__slot, parent, start);
                         }
                     });
                     _map2_elements = _map2_newElements;
                 });
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : "";
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _el1, _list6);
+            renderAnchor(__slot, _el1, _list6);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default FetchingData;

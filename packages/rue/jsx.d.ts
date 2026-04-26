@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // global JSX namespace registration
 // somehow we have to copy=pase the jsx-runtime types here to make TypeScript happy
-import type { VNode } from '@rue-js/runtime'
+import type { RenderableOutput } from '@rue-js/runtime'
 
 declare global {
   namespace JSX {
-    export interface Element extends VNode {}
+    export type Element = RenderableOutput
     export interface ElementClass {
       $props: {}
     }

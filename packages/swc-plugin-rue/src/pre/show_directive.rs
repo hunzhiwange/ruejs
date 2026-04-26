@@ -5,12 +5,14 @@ use crate::emit;
 use crate::log;
 use crate::utils::unwrap_expr;
 
+const SHOW_DIRECTIVE_NAMES: &[&str] = &["v-show", "r-show"];
+
 /*
-模块职责与 AST 说明（中文详解）：
-- 目标：将 JSXOpeningElement 上的 `v-show/show` 指令改写为样式驱动的显示控制：
+模块职责与 AST 说明：
+- 目标：将 JSXOpeningElement 上的 `v-show/r-show` 指令改写为样式驱动的显示控制：
   - 若存在 style 属性：改写为 `style={_$vaporShowStyle(styleValue, cond)}`
   - 若不存在 style 属性：插入 `style={_$vaporShowStyle(undefined, cond)}`
-  - 保留其他属性不变，并移除原 `v-show/show` 指令属性
+    - 保留其他属性不变，并移除原 `v-show/r-show` 指令属性
 - 设计动机：统一以样式控制显隐，避免在编译期生成额外的条件控制流或包裹节点，从而保持 JSX 结构的稳定
 
 相关 SWC AST 类型：
@@ -121,26 +123,26 @@ fn set_style_expr_value(style_attr: &mut JSXAttr, expr: Expr) {
     }));
 }
 
-/// `v-show/show` 指令改写：
+/// `v-show/r-show` 指令改写：
 /// - 若存在 `style`，将其改为调用 `_$vaporShowStyle(style, cond)`；否则插入一个 `style={_$vaporShowStyle(undefined, cond)}`
 /// - 设计动机：统一以样式驱动显示隐藏，避免在编译期生成额外的控制流程与节点结构。
 pub fn transform_opening(opening: &mut JSXOpeningElement) {
     log::debug("pre: show_directive transform_opening");
-    // 1) 扫描是否存在 v-show/show 指令属性，并记录其索引
+    // 1) 扫描是否存在 v-show/r-show 指令属性，并记录其索引
     let mut show_directive_idx: Option<usize> = None;
     for (i, a) in opening.attrs.iter().enumerate() {
         if let JSXAttrOrSpread::JSXAttr(attr) = a {
             if let JSXAttrName::Ident(n) = &attr.name {
                 let name = n.sym.as_ref();
-                if name == "show" || name == "v-show" {
+                if SHOW_DIRECTIVE_NAMES.contains(&name) {
                     show_directive_idx = Some(i);
                 }
             }
         }
     }
     if let Some(vi) = show_directive_idx {
-        log::debug("pre: found v-show/show attribute");
-        // 2) 解析 v-show/show 的条件表达式 cond：
+        log::debug("pre: found v-show/r-show attribute");
+        // 2) 解析 v-show/r-show 的条件表达式 cond：
         //    - 支持表达式容器（{cond}）与字符串字面量（"cond"）
         //    - 其他情况（如空、复杂 JSX 表达式）视为 None（不进行改写）
         let cond_opt: Option<Expr> = match &opening.attrs[vi] {
@@ -196,11 +198,11 @@ pub fn transform_opening(opening: &mut JSXOpeningElement) {
                             });
                         set_style_expr_value(style_attr, next_expr);
                     }
-                    // 移除 v-show/show 指令属性
+                    // 移除 v-show/r-show 指令属性
                     opening.attrs.remove(vi);
                 }
                 None => {
-                    log::debug("pre: insert style from v-show");
+                    log::debug("pre: insert style from v-show/r-show");
                     // 4b) 不存在 style：插入一个 style，并以 undefined 作为默认样式值
                     let undef = Expr::Ident(emit::ident("undefined"));
                     let next_expr = static_cond
@@ -212,7 +214,7 @@ pub fn transform_opening(opening: &mut JSXOpeningElement) {
                         let mut style_attr = attr.clone();
                         style_attr.name = JSXAttrName::Ident(emit::ident("style").into());
                         set_style_expr_value(&mut style_attr, next_expr);
-                        // 直接用新 style 属性覆盖原 v-show/show 属性位置
+                        // 直接用新 style 属性覆盖原 v-show/r-show 属性位置
                         opening.attrs[vi] = JSXAttrOrSpread::JSXAttr(style_attr);
                     }
                 }

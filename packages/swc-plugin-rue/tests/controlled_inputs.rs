@@ -39,7 +39,8 @@ export default ControlledInputs;
     // - 受控 input：value 走 watch；onInput 绑定更新 state
     // - 文本回显：_$createTextWrapper + _$settextContent + watch
     let expected_fragment = r##"
-import { type FC, useState, _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, _$createElement, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/vapor";
+import { type FC, useState } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const ControlledInputs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -81,9 +82,7 @@ const ControlledInputs: FC = ()=>{
         _$addEventListener(_el5, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el5, "text-blue-600 hover:underline");
         _$appendChild(_el5, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default ControlledInputs;

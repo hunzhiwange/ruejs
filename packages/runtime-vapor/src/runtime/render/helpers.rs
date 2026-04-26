@@ -1,12 +1,11 @@
 use super::super::Rue;
-use super::super::types::{ComponentProps, VNode};
+use super::super::types::{AnchorMountState, ComponentProps, RangeMountState};
 use crate::reactive::core::{create_effect_scope, dispose_effect_scope};
 use crate::reactive::signal::signal_from_proxy;
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::{Array, Function, Object, Reflect};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
-use wasm_bindgen::throw_str;
 
 // 渲染辅助方法：
 // - reset_hook_index：重置组件宿主上的 hooks 索引，确保从头执行
@@ -70,8 +69,8 @@ where
     {
     }
 
-    /// 清理单锚点映射中过期记录，并触发对应 vnode 的卸载生命周期
-    pub(crate) fn compact_anchor_map(&mut self)
+    /// 清理单锚点映射中过期记录，并触发对应 mounted subtree 的卸载生命周期
+    pub(crate) fn compact_anchor_map_preserving(&mut self, preserve_anchor: Option<&A::Element>)
     where
         <A as DomAdapter>::Element: Into<JsValue>,
     {
@@ -117,20 +116,33 @@ where
 
         let adapter_owned = self.get_dom_adapter().cloned();
         let drained = std::mem::take(&mut self.anchor_map);
-        let mut kept: Vec<(A::Element, Option<VNode<A>>)> = Vec::with_capacity(drained.len());
+        let mut kept: Vec<AnchorMountState<A>> = Vec::with_capacity(drained.len());
 
-        for (anchor, mut vnode_opt) in drained.into_iter() {
-            let av: JsValue = anchor.clone().into();
+        for mut entry in drained.into_iter() {
+            if let Some(preserve) = preserve_anchor {
+                let entry_js: JsValue = entry.anchor.clone().into();
+                let preserve_js: JsValue = preserve.clone().into();
+                let matches_current = js_sys::Object::is(&entry_js, &preserve_js)
+                    || adapter_owned.as_ref().is_some_and(|adapter| {
+                        adapter.contains(&entry.anchor, preserve)
+                            && adapter.contains(preserve, &entry.anchor)
+                    });
+                if matches_current {
+                    kept.push(entry);
+                    continue;
+                }
+            }
+
+            let av: JsValue = entry.anchor.clone().into();
             let connected = Reflect::get(&av, &JsValue::from_str("isConnected"))
                 .ok()
                 .and_then(|v| v.as_bool());
             let keep = match connected {
                 Some(true) => true,
-                Some(false) => false,
-                None => {
+                Some(false) | None => {
                     if let Some(adapter) = adapter_owned.as_ref() {
-                        adapter.get_parent_node(&anchor).is_some()
-                            && !has_detached_fragment_ancestor_by_adapter(adapter, &anchor)
+                        adapter.get_parent_node(&entry.anchor).is_some()
+                            && !has_detached_fragment_ancestor_by_adapter(adapter, &entry.anchor)
                     } else {
                         let ret = js_sys::Reflect::get(&av, &JsValue::from_str("parentNode"))
                             .unwrap_or(JsValue::UNDEFINED);
@@ -140,20 +152,28 @@ where
             };
 
             if keep {
-                kept.push((anchor, vnode_opt));
-            } else if let Some(mut vnode) = vnode_opt.take() {
-                self.invoke_before_unmount_vnode(&mut vnode);
-                self.invoke_unmounted_vnode(&mut vnode);
+                kept.push(entry);
+            } else if let Some(mount) = entry.take_mount() {
+                let lifecycle = mount.into_lifecycle();
+                self.invoke_before_unmount_record(&lifecycle);
+                self.invoke_unmounted_record(&lifecycle);
             }
         }
 
         self.anchor_map = kept;
     }
 
+    pub(crate) fn compact_anchor_map(&mut self)
+    where
+        <A as DomAdapter>::Element: Into<JsValue>,
+    {
+        self.compact_anchor_map_preserving(None);
+    }
+
     /// 清理区间映射中过期记录
     ///
     /// 为什么需要“带卸载的 compact”：
-    /// - `renderBetween(start,end)` 会把 (start -> vnode) 记录到 `range_map`，用于后续命中做 patch。
+    /// - `renderBetween(start,end)` 会把 (start -> mounted state) 记录到 `range_map`，用于后续命中做 patch。
     /// - 在路由切换/条件分支切换等场景里，旧的 Vapor 子树会被 DOM 删除，但：
     ///   - 旧的 `range_map` entry 可能仍残留（仅靠 `find_range_index` 可能匹配不到新的 start）。
     ///   - 若残留的 entry 没有走 `before_unmount/unmounted`，它在内部注册的响应式副作用（watchEffect 等）
@@ -161,7 +181,7 @@ where
     ///
     /// 因此这里做两件事：
     /// 1) 判定一个 range 的 start 锚点是否仍“连接在文档中”；
-    /// 2) 对已断开的 range：除了从 `range_map` 删除，还要主动触发 vnode 的卸载生命周期，
+    /// 2) 对已断开的 range：除了从 `range_map` 删除，还要主动触发 mounted subtree 的卸载生命周期，
     ///    让 Vapor scope / effect cleanup 有机会运行，完成资源回收。
     ///
     /// 连接性判定策略（从强到弱）：
@@ -248,10 +268,10 @@ where
         let adapter_owned = self.get_dom_adapter().cloned();
         let drained = std::mem::take(&mut self.range_map);
         let original_len = drained.len();
-        let mut kept: Vec<(A::Element, Option<VNode<A>>)> = Vec::with_capacity(original_len);
+        let mut kept: Vec<RangeMountState<A>> = Vec::with_capacity(original_len);
 
-        for (s, mut vnode_opt) in drained.into_iter() {
-            let sv: JsValue = s.clone().into();
+        for mut entry in drained.into_iter() {
+            let sv: JsValue = entry.start.clone().into();
             // 尝试读取 `isConnected`：
             // - 浏览器 DOM 节点上该字段是 boolean；
             // - 若不是 DOM 节点（例如测试的 TestNode），Reflect::get 会返回 undefined，
@@ -268,8 +288,12 @@ where
                 None => {
                     if let Some(adapter) = adapter_owned.as_ref() {
                         let anchor_opt = self.current_anchor.as_ref();
-                        adapter.get_parent_node(&s).is_some()
-                            && !has_detached_fragment_ancestor_by_adapter(adapter, &s, anchor_opt)
+                        adapter.get_parent_node(&entry.start).is_some()
+                            && !has_detached_fragment_ancestor_by_adapter(
+                                adapter,
+                                &entry.start,
+                                anchor_opt,
+                            )
                     } else {
                         // 无适配器时，额外通过 JS 反射判定是否处于“未挂载的 fragment”
                         let ca_js_opt = self.current_anchor.as_ref().map(|e| {
@@ -289,18 +313,19 @@ where
             };
 
             if keep {
-                kept.push((s, vnode_opt));
+                kept.push(entry);
             } else {
                 // 关键：丢弃 range 前必须触发卸载生命周期。
                 // - 这能保证 Vapor 子树的 `before_unmount` 被调用，从而 dispose scope，
                 //   清理 watchEffect/createEffect 注册的副作用；
                 // - 也能让组件的 `unmounted` 正常执行，清理事件/定时器等资源。
-                if let Some(mut vnode) = vnode_opt.take() {
+                if let Some(mount) = entry.take_mount() {
                     // 为什么这个代码会影响切换路由后组件的生命周期无法恢复了。
                     // 说明：在丢弃过期区间前调用卸载钩子，确保 Vapor scope 与副作用得到释放，
                     // 否则切换场景中旧副作用残留会导致生命周期异常与资源泄漏。
-                    self.invoke_before_unmount_vnode(&mut vnode);
-                    self.invoke_unmounted_vnode(&mut vnode);
+                    let lifecycle = mount.into_lifecycle();
+                    self.invoke_before_unmount_record(&lifecycle);
+                    self.invoke_unmounted_record(&lifecycle);
                 }
             }
         }
@@ -319,29 +344,22 @@ where
         self.range_map = kept;
     }
 
-    /// 将新 props 与 children 同步写入只读 reactive 视图（props_ro）
-    ///
-    /// 参数：
-    /// - props_ro：只读 reactive 视图（JS proxy）
-    /// - new_props/new_children：需同步的属性与子节点
-    /// 行为：
-    /// - 对非 children 的属性做浅比较后再写入
-    /// - children 序列化为 Array，避免空写造成多余更新
-    pub fn sync_props_children(
+    /// 将新的 MountInput props 与 children 同步写入只读 reactive 视图（props_ro）。
+    pub(crate) fn sync_props_children_input(
         &self,
         props_ro: &JsValue,
         new_props: &ComponentProps,
-        new_children: &Vec<super::super::types::Child<A>>,
+        new_children: &Vec<super::super::types::MountInputChild<A>>,
     ) where
-        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue> + Clone,
     {
-        use super::super::types::Child;
+        use super::super::types::{MountInputChild, MountInputType};
         use crate::hook::reactive::shallow_equal_prop;
+
         let sig = match signal_from_proxy(props_ro) {
             Some(s) => s,
             None => return,
         };
-        // 提取 peekPath/setPath 方法，以路径写入只读视图
         let peek = Reflect::get(&sig, &JsValue::from_str("peekPath")).unwrap_or(JsValue::UNDEFINED);
         let set = Reflect::get(&sig, &JsValue::from_str("setPath")).unwrap_or(JsValue::UNDEFINED);
         let peek_f = match peek.dyn_ref::<Function>() {
@@ -352,48 +370,68 @@ where
             Some(f) => f,
             None => return,
         };
-        // 非 children 属性的浅比较与写入
-        for (k, nv) in new_props.iter() {
-            if k == "children" {
-                // children 将在后续专门序列化与比较，跳过此处
+
+        for (key, new_value) in new_props.iter() {
+            if key == "children" {
                 continue;
             }
             let path = Array::new();
-            path.push(&JsValue::from_str(k));
-            // 读取旧值并进行浅比较，避免无意义写入触发更新
-            let ov = peek_f.call1(&sig, &path.clone().into()).unwrap_or(JsValue::UNDEFINED);
-            if !shallow_equal_prop(&ov, nv) {
-                let _ = set_f.call2(&sig, &path.clone().into(), &nv.clone());
+            path.push(&JsValue::from_str(key));
+            let old_value = peek_f.call1(&sig, &path.clone().into()).unwrap_or(JsValue::UNDEFINED);
+            if !shallow_equal_prop(&old_value, new_value) {
+                let _ = set_f.call2(&sig, &path.clone().into(), &new_value.clone());
             }
         }
-        // 将 children 序列化为 Array，避免写入空数组的无效更新
-        let ncv = Array::new();
-        for c in new_children.iter() {
-            match c {
-                Child::Text(s) => {
-                    ncv.push(&JsValue::from_str(s));
+
+        let next_children = if new_children.is_empty() {
+            if let Some(existing_children) = new_props.get("children") {
+                if Array::is_array(existing_children) {
+                    Array::from(existing_children)
+                } else if existing_children.is_undefined() || existing_children.is_null() {
+                    Array::new()
+                } else {
+                    let arr = Array::new();
+                    arr.push(existing_children);
+                    arr
                 }
-                Child::Bool(b) => {
-                    ncv.push(&JsValue::from_bool(*b));
-                }
-                Child::Null => {
-                    ncv.push(&JsValue::NULL);
-                }
-                Child::VNode(v) => {
-                    let o = self.vnode_to_dev_object(v);
-                    ncv.push(&o.into());
+            } else {
+                Array::new()
+            }
+        } else {
+            let arr = Array::new();
+            for child in new_children.iter() {
+                match child {
+                    MountInputChild::Text(text) => {
+                        arr.push(&JsValue::from_str(text));
+                    }
+                    MountInputChild::Input(node) => match &node.r#type {
+                        MountInputType::Text(text) => {
+                            arr.push(&JsValue::from_str(text));
+                        }
+                        _ => {
+                            let handle = self.input_to_mount_handle_value(node);
+                            arr.push(&handle);
+                        }
+                    },
                 }
             }
-        }
+            arr
+        };
+
         let path_children = Array::new();
         path_children.push(&JsValue::from_str("children"));
-        let ov_c = peek_f.call1(&sig, &path_children.clone().into()).unwrap_or(JsValue::UNDEFINED);
+        let old_children = peek_f
+            .call1(&sig, &path_children.clone().into())
+            .unwrap_or(JsValue::UNDEFINED);
         let skip_empty_children_write =
-            (ov_c.is_undefined() || ov_c.is_null()) && ncv.length() == 0;
-        let ncv_value: JsValue = ncv.clone().into();
-        // 避免空 children 写入：减少无效信号更新
-        if !skip_empty_children_write && !shallow_equal_prop(&ov_c, &ncv_value) {
-            let _ = set_f.call2(&sig, &path_children.clone().into(), &ncv_value);
+            (old_children.is_undefined() || old_children.is_null()) && next_children.length() == 0;
+        let next_children_value: JsValue = next_children.clone().into();
+        if !skip_empty_children_write && !shallow_equal_prop(&old_children, &next_children_value) {
+            let _ = set_f.call2(
+                &sig,
+                &path_children.clone().into(),
+                &next_children_value,
+            );
         }
     }
 
@@ -405,9 +443,11 @@ where
     /// - Some(index) 或 None
     pub(crate) fn find_container_index(&mut self, container: &A::Element) -> Option<usize> {
         if let Some(adapter) = self.get_dom_adapter() {
-            for (i, (c, _)) in self.container_map.iter().enumerate() {
+            for (i, entry) in self.container_map.iter().enumerate() {
                 // 双向 contains 作为“等价容器”的判定准则
-                if adapter.contains(c, container) && adapter.contains(container, c) {
+                if adapter.contains(&entry.container, container)
+                    && adapter.contains(container, &entry.container)
+                {
                     return Some(i);
                 }
             }
@@ -423,14 +463,15 @@ where
         if self.anchor_map.is_empty() {
             return None;
         }
-        for (i, (a, _)) in self.anchor_map.iter().enumerate() {
-            let av: JsValue = a.clone().into();
+        for (i, entry) in self.anchor_map.iter().enumerate() {
+            let av: JsValue = entry.anchor.clone().into();
             let at: JsValue = anchor.clone().into();
             if js_sys::Object::is(&av, &at) {
                 return Some(i);
             }
             if let Some(adapter) = self.get_dom_adapter() {
-                if adapter.contains(a, anchor) && adapter.contains(anchor, a) {
+                if adapter.contains(&entry.anchor, anchor) && adapter.contains(anchor, &entry.anchor)
+                {
                     return Some(i);
                 }
             }
@@ -452,14 +493,14 @@ where
             return None;
         }
         // 优先对象同一性（Object::is），其次用适配器双向 contains 判断等价
-        for (i, (s, _)) in self.range_map.iter().enumerate() {
-            let sv: JsValue = s.clone().into();
+        for (i, entry) in self.range_map.iter().enumerate() {
+            let sv: JsValue = entry.start.clone().into();
             let st: JsValue = start.clone().into();
             if js_sys::Object::is(&sv, &st) {
                 return Some(i);
             }
             if let Some(adapter) = self.get_dom_adapter() {
-                if adapter.contains(s, start) && adapter.contains(start, s) {
+                if adapter.contains(&entry.start, start) && adapter.contains(start, &entry.start) {
                     return Some(i);
                 }
             }

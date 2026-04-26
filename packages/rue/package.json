@@ -19,6 +19,7 @@
     "index.js",
     "index.mjs",
     "dist",
+    "src/vapor.ts",
     "jsx-runtime",
     "jsx-dev-runtime",
     "jsx.d.ts"
@@ -44,6 +45,18 @@
         },
         "default": "./index.js"
       }
+    },
+    "./vapor": {
+      "types": "./src/vapor.ts",
+      "development": "./src/vapor.ts",
+      "node": {
+        "production": "./dist/rue.vapor.cjs.prod.js",
+        "development": "./dist/rue.vapor.cjs.js",
+        "default": "./dist/rue.vapor.cjs.js"
+      },
+      "module": "./dist/rue.vapor.esm-bundler.js",
+      "import": "./dist/rue.vapor.esm-bundler.js",
+      "require": "./dist/rue.vapor.cjs.js"
     },
     "./jsx-runtime": {
       "types": "./jsx-runtime/index.d.ts",
@@ -81,6 +94,16 @@
       "global-runtime",
       "esm-browser",
       "esm-browser-runtime"
+    ],
+    "subEntries": [
+      {
+        "entry": "src/vapor.ts",
+        "filename": "rue.vapor",
+        "formats": [
+          "esm-bundler",
+          "cjs"
+        ]
+      }
     ]
   }
 }

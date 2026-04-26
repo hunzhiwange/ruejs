@@ -14,17 +14,17 @@ const Hello: FC = () => {
   const color = ref("blue")
   return (
     <div>
-      <div show={true} style={{ fontWeight: 'bold', color: 'red' }}>hello world</div>
-      <div show={true} style="color:blue;">hello world</div>
-      <div show={true} style={"color:" + color.value + ";"}>hello world</div>
-      <div show={true} style={null}>hello world</div>
-      <div show={true} style={undefined}>hello world</div>
-      <div show={true} style={0}>hello world</div>
-      <div show={true}>hello world</div>
-      <div show={true} style="">hello world</div>
-      <div show={true} style=" ">hello world</div>
-      <div show={true} style>hello world</div>
-      <div show={true}>hello world</div>
+      <div r-show={true} style={{ fontWeight: 'bold', color: 'red' }}>hello world</div>
+      <div r-show={true} style="color:blue;">hello world</div>
+      <div r-show={true} style={"color:" + color.value + ";"}>hello world</div>
+      <div r-show={true} style={null}>hello world</div>
+      <div r-show={true} style={undefined}>hello world</div>
+      <div r-show={true} style={0}>hello world</div>
+      <div r-show={true}>hello world</div>
+      <div r-show={true} style="">hello world</div>
+      <div r-show={true} style=" ">hello world</div>
+      <div r-show={true} style>hello world</div>
+      <div r-show={true}>hello world</div>
     </div>
   )
 }
@@ -36,7 +36,8 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const Hello: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const color = _$vaporWithHookId("ref:1:0", ()=>ref("blue"));

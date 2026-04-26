@@ -64,7 +64,8 @@ export default About
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { useState, type FC, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener } from "@rue-js/rue/vapor";
+import { useState, type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const About: FC<{
     theme: string;
@@ -85,8 +86,7 @@ const About: FC<{
         _$appendChild(_root, _list1);
         watchEffect(()=>{
             const __slot = !!open.value ? '是' : '否';
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
         const _el1 = _$createElement("ul");
         _$appendChild(_root, _el1);
@@ -168,9 +168,7 @@ const About: FC<{
             _$settextContent(_el16, 1 + 1);
         });
         _$appendChild(_el14, _$createTextNode(" hello world 48"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default About;

@@ -1,5 +1,5 @@
 use super::super::Rue;
-use super::super::types::VNode;
+use super::super::types::MountInput;
 use crate::reactive::core::batch_scope;
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::Array;
@@ -34,10 +34,24 @@ where
         }
     }
 
-    /// 在单个锚点前执行一次性静态挂载，并在成功后移除锚点
-    pub fn render_static(
+    /// 在单个锚点前执行一次性静态 MountInput 挂载，并在成功后移除锚点。
+    ///
+    /// 默认公开路径直接消费 MountInput；静态挂载只在局部边界记录 mounted state，
+    /// 不再经过额外树对象协议。
+    pub fn render_static_input(
         &mut self,
-        mut vnode: VNode<A>,
+        input: MountInput<A>,
+        parent: &mut A::Element,
+        anchor: A::Element,
+    ) where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        self.render_static_impl(&input, parent, anchor);
+    }
+
+    fn render_static_impl(
+        &mut self,
+        input: &MountInput<A>,
         parent: &mut A::Element,
         anchor: A::Element,
     ) where
@@ -62,10 +76,13 @@ where
 
             let mut dest_parent = self.resolve_dest_parent_for_end(parent, &anchor);
             let mut mounted_nodes: Vec<A::Element> = Vec::new();
-            let mounted = if let Some(el) = self.create_real_dom(&mut vnode) {
+            let mounted = if let Some(mounted) = self.mount_from_input(input) {
+                let Some(el) = mounted.host_cloned() else {
+                    return;
+                };
                 if let Some(adapter) = self.get_dom_adapter() {
                     if adapter.is_fragment(&el) {
-                        mounted_nodes = adapter.collect_fragment_children(&el);
+                        mounted_nodes = mounted.fragment_nodes_cloned();
                         self.insert_fragment_children_preferring_end(
                             &mut dest_parent,
                             &el,

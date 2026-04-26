@@ -2,8 +2,8 @@
 架构设计总览
 - 插件目标：在 Vite transform 阶段使用 SWC + 自研 wasm 插件对 TSX/JSX 进行转换，支持 Vapor 开关。
 - 转换管线：transform 钩子判断文件类型与包含规则，调用 transformWithSwcPlugin 完成转换，并输出标记。
-- vaporFlag 判定：首行注释是否为 '\/** @virtual *\/'，用于向 wasm 插件传递 vapor 布尔开关。
-  - wasm 加载策略：优先使用项目默认路径，写入环境变量 RUE_SWC_PLUGIN。
+- Vapor 配置：不再向 wasm 插件传递显式开关，由编译器内部固定执行 Vapor 深编译。
+- wasm 加载策略：优先使用项目默认路径，写入环境变量 RUE_SWC_PLUGIN。
   */
 import swc from '@swc/core'
 import { createRequire } from 'node:module'
@@ -33,10 +33,9 @@ export default function VitePluginRue(options = {}) {
   /**
    * 使用 SWC + wasm 插件进行代码转换
    * @param {string} code 输入源码
-   * @param {boolean} vaporFlag Vapor 模式开关
    * @returns {string} 转换后的源码（带标记头）
    */
-  const transformWithSwcPlugin = (code, vaporFlag) => {
+  const transformWithSwcPlugin = code => {
     const out = swc.transformSync(code, {
       filename: 'rue.tsx',
       jsc: {
@@ -54,9 +53,7 @@ export default function VitePluginRue(options = {}) {
           plugins: [
             [
               process.env.RUE_SWC_PLUGIN,
-              {
-                vapor: !!vaporFlag,
-              },
+              {},
             ],
           ],
         },
@@ -96,15 +93,12 @@ export default function VitePluginRue(options = {}) {
       if (!isIncluded(id)) return null
       // 已包含 RUE 头标记则直接跳过
       if (code.startsWith('/* RUE_VAPOR_TRANSFORMED */')) return null
-      // 读取首行用于判定 Vapor 开关：首行为 '/** @virtual */' 则非 Vapor
-      const firstLine = code.split(/\r?\n/, 1)[0]?.trim()
-      const vaporFlag = firstLine !== '/** @virtual */'
       const base = code
 
       let out = null
       // 若找到 wasm 插件路径，则执行转换
       if (process.env.RUE_SWC_PLUGIN) {
-        out = transformWithSwcPlugin(base, vaporFlag)
+        out = transformWithSwcPlugin(base)
       }
 
       // 无输出或无变化时跳过

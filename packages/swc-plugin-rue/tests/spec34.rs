@@ -164,7 +164,8 @@ export default DocDetail
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useEffect, useState, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute, _$addEventListener, _$setClassName, _$setInnerHTML } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setInnerHTML } from "@rue-js/rue/vapor";
+import { type FC, useEffect, useState } from '@rue-js/rue';
 import { RouterLink, useRoute } from '@rue-js/router';
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlayground';
 import MarkdownIt from 'markdown-it';
@@ -333,16 +334,16 @@ const DocDetail: FC = ()=>{
                 });
                 _$setInnerHTML(_el1, __obj && "__html" in __obj ? __obj.__html : "");
             });
-            const _list1 = _$createComment("rue:slot:anchor");
-            _$appendChild(_root, _list1);
+            const _list3 = _$createComment("rue:slot:anchor");
+            _$appendChild(_root, _list3);
             watchEffect(()=>{
                 const __slot = currentIndex >= 0 ? vapor(()=>{
                     const _root = _$createDocumentFragment();
                     const _el2 = _$createElement("div");
                     _$appendChild(_root, _el2);
                     _$setClassName(_el2, "mt-8 flex justify-between");
-                    const _list2 = _$createComment("rue:slot:anchor");
-                    _$appendChild(_el2, _list2);
+                const _list1 = _$createComment("rue:slot:anchor");
+                _$appendChild(_el2, _list1);
                     watchEffect(()=>{
                         const __slot = prev ? vapor(()=>{
                             const _root = _$createDocumentFragment();
@@ -359,23 +360,18 @@ const DocDetail: FC = ()=>{
                             watchEffect(()=>{
                                 _$settextContent(_el4, prev.title);
                             });
-                            return {
-                                vaporElement: _root
-                            };
+                            return _root;
                         }) : vapor(()=>{
                             const _root = _$createDocumentFragment();
                             const _el5 = _$createElement("span");
                             _$appendChild(_root, _el5);
-                            return {
-                                vaporElement: _root
-                            };
+                            return _root;
                         });
-                        const __vnode = _$vaporCreateVNode(__slot);
-                        renderAnchor(__vnode, _el2, _list2);
+                        renderAnchor(__slot, _el2, _list1);
                     });
                     _$appendChild(_el2, _$createTextNode(" "));
-                    const _list3 = _$createComment("rue:slot:anchor");
-                    _$appendChild(_el2, _list3);
+                      const _list2 = _$createComment("rue:slot:anchor");
+                      _$appendChild(_el2, _list2);
                     watchEffect(()=>{
                         const __slot = next ? vapor(()=>{
                             const _root = _$createDocumentFragment();
@@ -393,38 +389,26 @@ const DocDetail: FC = ()=>{
                                 _$settextContent(_el7, next.title);
                             });
                             _$appendChild(_el6, _$createTextNode(" →"));
-                            return {
-                                vaporElement: _root
-                            };
+                            return _root;
                         }) : vapor(()=>{
                             const _root = _$createDocumentFragment();
                             const _el8 = _$createElement("span");
                             _$appendChild(_root, _el8);
-                            return {
-                                vaporElement: _root
-                            };
+                            return _root;
                         });
-                        const __vnode = _$vaporCreateVNode(__slot);
-                        renderAnchor(__vnode, _el2, _list3);
+                        renderAnchor(__slot, _el2, _list2);
                     });
-                    return {
-                        vaporElement: _root
-                    };
+                    return _root;
                 }) : "";
-                const __vnode = _$vaporCreateVNode(__slot);
-                renderAnchor(__vnode, _root, _list1);
+                    renderAnchor(__slot, _root, _list3);
             });
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
         watchEffect(()=>{
             const __slot5 = <SidebarPlayground type={sidebarType} children={__child1}/>;
             renderAnchor(__slot5, _root, _list4);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default DocDetail;

@@ -125,7 +125,8 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 const ThemePicker: FC<{
     value: string;
     onChange: (t: string) => void;
@@ -244,18 +245,14 @@ const ThemePicker: FC<{
                         watchEffect(()=>{
                             _$settextContent(_el2, labels[name] ? `${labels[name]} (${name})` : name);
                         });
-                        return {
-                            vaporElement: _root
-                        };
+                        return _root;
                     });
                     renderAnchor(__slot, parent, start);
                 }
             });
             _map1_elements = _map1_newElements;
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 const HelloWorld: FC = ()=>{
@@ -301,9 +298,7 @@ const HelloWorld: FC = ()=>{
         watchEffect(()=>{
             _$settextContent(_el8, theme.value);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default HelloWorld;

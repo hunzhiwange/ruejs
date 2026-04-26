@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { FC } from '../src'
-import { h, render, ref } from '../src'
+import { h, ref, render } from '../src'
 
 afterEach(() => {
   document.body.innerHTML = ''

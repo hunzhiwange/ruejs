@@ -30,34 +30,25 @@
 
 ## render {#render}
 
-以编程方式返回组件虚拟 DOM 树的函数。
+以编程方式返回组件渲染输出的函数。
 
 - **类型**
 
   ```ts
   interface ComponentOptions {
-    render?(this: ComponentPublicInstance) => VNodeChild
+    render?(this: ComponentPublicInstance): RenderOutput
   }
 
-  type VNodeChild = VNodeChildAtom | VNodeArrayChildren
-
-  type VNodeChildAtom =
-    | VNode
-    | string
-    | number
-    | boolean
-    | null
-    | undefined
-    | void
-
-  type VNodeArrayChildren = (VNodeArrayChildren | VNodeChildAtom)[]
+  type RenderOutput = RenderableOutput
   ```
 
 - **详情**
 
   `render` 是字符串模板的替代方案，允许您利用 JavaScript 的完整编程能力来声明组件的渲染输出。
 
-  预编译的模板，例如单文件组件中的模板，在构建时编译为 `render` 选项。如果组件中同时存在 `render` 和 `template`，`render` 将具有更高优先级。
+  在 Rue 当前默认路径里，这个“渲染输出”并不要求是一棵完整的运行时对象树；它可以是字符串、数组、Renderables、mount handle，或它们的组合。
+
+  预编译的模板，例如单文件组件中的模板，会在构建时被转换为更接近 Block / Vapor 的渲染产物。如果组件中同时存在 `render` 和 `template`，`render` 将具有更高优先级。
 
 - **另请参阅**
   - [渲染机制](/guide/extras/rendering-mechanism)

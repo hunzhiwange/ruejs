@@ -24,6 +24,7 @@
     "size-esm-runtime": "node scripts/build.js rue -f esm-bundler-runtime",
     "size-esm": "node scripts/build.js runtime shared -f esm-bundler",
     "check": "tsc --incremental --noEmit",
+    "check:compat-cleanup": "node scripts/check-compat-cleanup.js",
     "lint": "oxlint -c ./.oxlintrc.json .",
     "lint-fix": "oxlint -c ./.oxlintrc.json . --fix",
     "oxlint": "oxlint -c ./.oxlintrc.json .",
@@ -32,7 +33,7 @@
     "prettier-format-check": "oxfmt --check .",
     "format": "oxfmt .",
     "format-check": "oxfmt --check .",
-    "test": "vitest run",
+    "test": "pnpm check:compat-cleanup && vitest run",
     "test-watch": "vitest",
     "test-unit": "vitest run --project unit*",
     "test-unit-watch": "vitest --project unit*",
@@ -57,11 +58,8 @@
     "postinstall": "simple-git-hooks"
   },
   "dependencies": {
-    "@rue-js/app-rust": "workspace:*",
     "@rue-js/design": "workspace:*",
     "@rue-js/jsx-runtime": "workspace:*",
-    "@rue-js/learn-wgpu": "workspace:*",
-    "@rue-js/plugin": "workspace:*",
     "@rue-js/router": "workspace:*",
     "@rue-js/rue": "workspace:*",
     "@rue-js/runtime": "workspace:*",

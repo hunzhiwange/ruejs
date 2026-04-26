@@ -1,31 +1,58 @@
 /*
 TransitionGroup 组件概述
-- 列表过渡：以 key 作为稳定标识，跟踪新增/移动/移除并分别应用 enter/leave/move 效果。
-- FLIP 技术：通过“快照前后位置差异”计算位移（First-Last-Invert-Play），以 transform 触发流畅移动。
-- 容器策略：可指定 tag 作为容器；未指定时使用 display: contents 的 span，避免多余语义干扰布局。
-- 事件流：新增元素触发 enter/appear，移除元素先移出渲染区再执行 leave，移动元素执行 moveClass 过渡。
+- 结构更新交给外层正常 keyed patch，组件自身只负责在提交前后读取 DOM 快照并附加动画。
+- enter：对本轮新增元素执行 enter/appear。
+- move：基于前后矩形差值执行 FLIP。
+- leave：元素被外层 patch 移除后，临时重新插回容器尾部并执行 leave，结束后再真正删除。
 */
-// 参考 Vue3 的 TransitionGroup 设计思路，结合 Rue 的 renderBetween/vapor 机制
 
-import {
-  type FC,
-  Fragment,
-  type VNode,
-  emitted,
-  h,
-  onMounted,
-  onUnmounted,
-  renderBetween,
-  vapor,
-} from '../rue'
-import { createElement, createComment, appendChild, insertBefore, contains } from '../dom'
-import type { DomNodeLike } from '../dom'
-import { watchEffect } from '../reactivity'
+import { type FC, h, onUnmounted } from '../rue'
+import { appendChild, contains } from '../dom'
+import { useRef, useSetup } from '@rue-js/runtime-vapor'
 import type { BaseTransitionProps } from './BaseTransition'
 import { createTransitionRunner } from './BaseTransition'
 import * as TransitionUtils from './transitionUtils'
 
 import type { TransitionType } from './transitionUtils'
+
+type TransitionGroupChildInput = unknown
+
+const cloneRenderableChildren = (children: unknown): unknown =>
+  Array.isArray(children) ? children.map(cloneRenderableChildren) : children
+
+const normalizeTransitionGroupChildren = (children: unknown): TransitionGroupChildInput[] => {
+  const out: TransitionGroupChildInput[] = []
+
+  const visit = (value: unknown) => {
+    if (value == null || value === false) {
+      return
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+
+    out.push(value as TransitionGroupChildInput)
+  }
+
+  visit(children)
+  return out
+}
+
+const readTransitionGroupKey = (child: unknown): string => {
+  if ((typeof child !== 'object' && typeof child !== 'function') || child == null) {
+    return ''
+  }
+
+  const key = (child as { key?: unknown; props?: { key?: unknown } }).key ?? (child as any).props?.key
+  return key == null ? '' : String(key)
+}
+
+const snapshotTransitionGroupProps = (props: TransitionGroupProps): TransitionGroupProps => ({
+  ...(props as Record<string, unknown>),
+  children: cloneRenderableChildren(props.children),
+})
 
 export interface TransitionGroupProps {
   name?: string
@@ -35,7 +62,6 @@ export interface TransitionGroupProps {
   duration?: number | { enter: number; leave: number }
   moveClass?: string
   appear?: boolean
-  keepJSX?: boolean
   // JS hooks (per-item)
   onBeforeEnter?: (el: HTMLElement) => void
   onEnter?: (el: HTMLElement, done: () => void) => void
@@ -47,133 +73,125 @@ export interface TransitionGroupProps {
 
 /** TransitionGroup：为多元素列表应用过渡与 FLIP 移动 */
 export const TransitionGroup: FC<TransitionGroupProps> = props => {
-  const name = props.name || 'rue'
-  const moveClass = props.moveClass ?? `${name}-move`
+  const containerRef = useRef<HTMLElement>()
+  const ctx = useSetup(() => ({
+    firstRender: true,
+    renderVersion: null as symbol | null,
+  }))
 
-  const container = (props.tag ? createElement(props.tag) : createElement('span')) as HTMLElement
-  if (!props.tag) container.style.display = 'contents'
-  const startEl = createComment('rue-tg-start')
-  const endEl = createComment('rue-tg-end')
+  const collectDirectElements = (container: HTMLElement): HTMLElement[] =>
+    Array.from(container.children).filter(
+      (node): node is HTMLElement =>
+        (node as any).nodeType === 1 && !(node as HTMLElement).hasAttribute('data-rue-leaving'),
+    )
 
-  const em = emitted(props)
-  const { runEnter, runLeave } = createTransitionRunner(props as BaseTransitionProps)
+  onUnmounted(() => {
+    ctx.renderVersion = null
+  })
 
-  /** 收集区间内所有元素节点 */
-  function collectElementsBetween(): HTMLElement[] {
-    const els: HTMLElement[] = []
-    let n: DomNodeLike | null = (startEl as any).nextSibling || null
-    while (n && n !== endEl) {
-      if ((n as any).nodeType === 1) els.push(n as any as HTMLElement)
-      n = (n as any).nextSibling || null
-    }
-    return els
+  const curProps = snapshotTransitionGroupProps(props)
+  const name = curProps.name || 'rue'
+  const moveClass = curProps.moveClass ?? `${name}-move`
+  const { runEnter, runLeave } = createTransitionRunner(curProps as BaseTransitionProps)
+
+  const prevElementsByKey: Map<string, HTMLElement> = new Map()
+  const prevRects: Map<string, DOMRect> = new Map()
+  const prevContainer = containerRef.current
+  if (prevContainer) {
+    collectDirectElements(prevContainer).forEach(el => {
+      const key = el.getAttribute('data-rue-key')
+      if (!key) return
+      prevElementsByKey.set(key, el)
+      prevRects.set(key, el.getBoundingClientRect())
+    })
   }
 
-  onMounted(() => {
-    appendChild(container, startEl)
-    appendChild(container, endEl)
+  const nextChildren = normalizeTransitionGroupChildren(curProps.children)
+  const nextKeys = nextChildren.map(readTransitionGroupKey)
+  const renderVersion = Symbol('transition-group-render')
+  const isFirstRender = ctx.firstRender
+  ctx.renderVersion = renderVersion
 
-    let firstRender = true
+  queueMicrotask(() => {
+    if (ctx.renderVersion !== renderVersion) return
 
-    watchEffect(() => {
-      // 1) 快照阶段：记录当前区间内已渲染元素的 key 与布局矩形
-      const prevElementsByKey: Map<string, HTMLElement> = new Map()
-      const prevRects: Map<string, DOMRect> = new Map()
-      {
-        let n: DomNodeLike | null = (startEl as any).nextSibling || null
-        while (n && n !== endEl) {
-          if ((n as any).nodeType === 1) {
-            const el = n as any as HTMLElement
-            const k = el.getAttribute('data-rue-key')
-            if (k) {
-              prevElementsByKey.set(k, el)
-              prevRects.set(k, el.getBoundingClientRect())
-            }
-          }
-          n = (n as any).nextSibling || null
-        }
+    const container = containerRef.current
+    if (!container) return
+
+    const nextElements = collectDirectElements(container)
+    const elementsByKey: Map<string, HTMLElement> = new Map()
+
+    for (let index = 0; index < nextChildren.length; index++) {
+      const el = nextElements[index]
+      if (!el) continue
+      const key = nextKeys[index]
+      if (key) {
+        el.setAttribute('data-rue-key', key)
+        elementsByKey.set(key, el)
+      } else {
+        el.removeAttribute('data-rue-key')
+      }
+    }
+
+    nextKeys.forEach(key => {
+      if (!key) return
+      const el = elementsByKey.get(key)
+      if (!el) return
+      if (prevElementsByKey.has(key)) return
+
+      if (isFirstRender) {
+        if (curProps.appear) runEnter(el, 'appear')
+        return
       }
 
-      // 2) 渲染阶段：将下一轮 children 渲染到区间
-      const ch = props.children as VNode[]
-      const nextChildren: VNode[] = Array.isArray(ch) ? ch : ch ? [ch as any] : []
-      renderBetween(h(Fragment, null, ...nextChildren), container, startEl, endEl)
+      runEnter(el, 'enter')
+    })
 
-      // 3) 关联阶段：按 DOM 顺序为渲染出的元素写入 key 属性，建立 key→元素映射
-      const nextKeys: string[] = nextChildren.map((c: any) => String(c.key ?? ''))
-      const elements = collectElementsBetween()
-      const elementsByKey: Map<string, HTMLElement> = new Map()
-      let ei = 0
-      for (let i = 0; i < nextKeys.length; i++) {
-        const key = nextKeys[i]
-        if (!key) continue
-        while (ei < elements.length && !elements[ei]) ei++
-        const el = elements[ei++]
-        if (el) {
-          el.setAttribute('data-rue-key', key)
-          elementsByKey.set(key, el)
-        }
+    prevRects.forEach((prevRect, key) => {
+      const el = elementsByKey.get(key)
+      if (!el) return
+      const nextRect = el.getBoundingClientRect()
+      const dx = prevRect.left - nextRect.left
+      const dy = prevRect.top - nextRect.top
+      if (!dx && !dy) return
+
+      el.style.transform = `translate(${dx}px, ${dy}px)`
+      el.style.transition = 'transform 0s'
+      TransitionUtils.forceReflow(el)
+      el.style.transform = ''
+      el.style.transition = ''
+      TransitionUtils.addClass(el, moveClass)
+
+      const type = curProps.type ?? TransitionUtils.inferType(el)
+      const stylesTimeout = Math.max(
+        TransitionUtils.resolveDuration(el, 'transition', undefined, 'enter'),
+        TransitionUtils.resolveDuration(el, 'animation', undefined, 'enter'),
+      )
+      TransitionUtils.whenTransitionEnds(el, type ?? null, stylesTimeout, () =>
+        TransitionUtils.removeClass(el, moveClass),
+      )
+    })
+
+    const nextKeySet = new Set(nextKeys.filter(Boolean))
+    prevElementsByKey.forEach((oldEl, key) => {
+      if (nextKeySet.has(key)) return
+
+      oldEl.setAttribute('data-rue-leaving', 'true')
+      if (!contains(container, oldEl)) {
+        appendChild(container, oldEl)
       }
-
-      // 4) 进入阶段：为新增 key 执行 enter；首次渲染且允许 appear 时走 appear
-      nextKeys.forEach(k => {
-        if (!k) return
-        const el = elementsByKey.get(k)
-        if (!el) return
-        const isNew = !prevElementsByKey.has(k)
-        if (isNew) runEnter(el, firstRender && props.appear ? 'appear' : 'enter')
+      runLeave(oldEl, () => {
+        oldEl.remove()
       })
-
-      // 5) 移动阶段（FLIP）：比较快照与当前布局，存在位移则通过 transform 触发过渡
-      prevRects.forEach((prev, key) => {
-        const el = elementsByKey.get(key)
-        if (!el) return
-        const next = el.getBoundingClientRect()
-        const dx = prev.left - next.left
-        const dy = prev.top - next.top
-        if (dx || dy) {
-          // Invert：先将元素临时移动回旧位置
-          el.style.transform = `translate(${dx}px, ${dy}px)`
-          el.style.transition = 'transform 0s'
-          TransitionUtils.forceReflow(el)
-          // Play：再清除临时 transform，让浏览器过渡到新位置
-          el.style.transform = ''
-          el.style.transition = ''
-          TransitionUtils.addClass(el, moveClass)
-          // 计算移动动画的最大时长，用于确定何时移除 moveClass
-          const type = props.type ?? TransitionUtils.inferType(el)
-          const stylesTimeout = Math.max(
-            TransitionUtils.resolveDuration(el, 'transition', undefined, 'enter'),
-            TransitionUtils.resolveDuration(el, 'animation', undefined, 'enter'),
-          )
-          TransitionUtils.whenTransitionEnds(el, type ?? null, stylesTimeout, () =>
-            TransitionUtils.removeClass(el, moveClass),
-          )
-        }
-      })
-
-      // 6) 离开阶段：对被移除的 key 进行离开动画
-      //    实现策略：将旧元素暂时移出锚点区间（插到 endEl 后或容器末尾）以便其在 DOM 中可见，然后执行 leave，结束后移除。
-      prevElementsByKey.forEach((oldEl, k) => {
-        if (!nextKeys.includes(k)) {
-          const afterEnd = (endEl as any).nextSibling
-          if (afterEnd && contains(container, afterEnd as any))
-            insertBefore(container, oldEl, afterEnd as any)
-          else appendChild(container, oldEl)
-          runLeave(oldEl, () => {
-            oldEl.remove()
-            em('after-leave')
-          })
-        }
-      })
-
-      firstRender = false
     })
   })
 
-  onUnmounted(() => {
-    /* no-op */
-  })
+  ctx.firstRender = false
 
-  return vapor(() => ({ vaporElement: container }))
+  const containerTag = (props.tag || 'span') as any
+  const containerProps = props.tag
+    ? { ref: containerRef }
+    : { ref: containerRef, style: 'display: contents' }
+
+  return h(containerTag, containerProps as any, props.children as any)
 }

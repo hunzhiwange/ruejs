@@ -30,7 +30,8 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setAttribute } from '@rue-js/rue';
+import { _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from "@rue-js/rue/vapor";
+import { type FC, ref, h } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(22));
 const Comp: FC = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -43,9 +44,7 @@ const Comp: FC = ()=>vapor(()=>{
                 _$appendChild(_root, _el1);
                 _$setAttribute(_el1, "id", "empty");
                 _$appendChild(_el1, _$createTextNode("empty"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : vapor(()=>{
                 const _root = _$createDocumentFragment();
                 const _el2 = _$createElement("ul");
@@ -53,12 +52,9 @@ const Comp: FC = ()=>vapor(()=>{
                 const _el3 = _$createElement("li");
                 _$appendChild(_el2, _el3);
                 _$appendChild(_el3, _$createTextNode("ok"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
         const _el4 = _$createElement("span");
         _$appendChild(_root, _el4);
@@ -68,9 +64,7 @@ const Comp: FC = ()=>vapor(()=>{
         watchEffect(()=>{
             _$settextContent(_el5, count.value);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Comp;
 "##;

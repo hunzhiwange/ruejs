@@ -400,7 +400,93 @@ export function useMachine<T>(options: T) {
 
 从根本上讲，signals 与 Rue refs 是同一种响应式原语。它是一个值容器，在访问时提供依赖跟踪，在修改时触发副作用。这种基于响应式原语的范式在前端世界中并不是一个特别新的概念：它可以追溯到十多年前的实现，如 [Knockout observables](https://knockoutjs.com/documentation/observables.html) 和 [Meteor Tracker](https://docs.meteor.com/api/tracker.html)。Rue Options API 和 React 状态管理库 [MobX](https://mobx.js.org/) 也基于相同的原理，但将原语隐藏在对象属性后面。
 
-虽然不是某物有资格成为 signals 的必要特征，但如今这个概念经常与通过细粒度订阅执行更新的渲染模型一起讨论。由于使用虚拟 DOM，Rue 目前[依靠编译器来实现类似的优化](/guide/extras/rendering-mechanism#compiler-informed-virtual-dom)。然而，我们也在探索一种受 Solid 启发的新编译策略，称为 [Vapor Mode](https://github.com/@rue-js/ruejs/core-vapor)，它不依赖虚拟 DOM，并更多地利用 Rue 的内置响应式系统。
+虽然不是某物有资格成为 signals 的必要特征，但如今这个概念经常与通过细粒度订阅执行更新的渲染模型一起讨论。Rue 当前默认已经把编译期知识下沉到 Block / Vapor 渲染路径中，并通过[编译器知情的 Block / Vapor](/guide/extras/rendering-mechanism#compiler-informed-virtual-dom)把更新收敛到更小的动态边界，而不是依赖整棵运行时树的全量 diff。
+
+这也是 Rue 响应式系统与运行时结合的关键点：响应式依赖不只是决定“重新执行哪段代码”，还决定“重新接管哪个 block、哪个区间、哪个 DOM 边界”。
+*** Add File: /Users/Shared/work/dir/data/codes/rue/docs/guide/migration/renderable-default.md
+# 默认 Block / Vapor 路径迁移
+
+Rue 当前默认的编译与运行时路径已经是 Block / Vapor / Renderable-first。对大多数应用来说，这只是内部实现升级，你仍然写模板或普通 JSX；但如果你维护的是旧的手写渲染 helper、库级桥接层或预编译产物，这一页就是你需要的迁移清单。
+
+## 谁需要关注这次迁移
+
+下面这些场景需要显式检查：
+
+- 你从默认主入口导入过旧的手写渲染 helper
+- 你手写过依赖旧渲染输出内部字段的渲染 helper
+- 你分发的是预编译后的组件、指令或运行时桥接代码
+- 你在库内部手动拼接 children / slot 对象以模拟旧渲染路径
+
+如果你的应用只是写模板、普通 JSX、`FC` 组件和响应式状态，通常无需改动。
+
+## 需要修改的导入
+
+默认主入口和显式 compat 子路径都已经不再提供这类 helper。历史导入现在都需要直接改写为默认 Renderable / children / raw node 路径，而不是切到新的 compat 导入。
+
+## 推荐迁移方式
+
+### 1. 新代码不要继续扩历史桥接边界
+
+新组件优先使用：
+
+- 模板
+- 普通 JSX
+- `props.children`
+- render prop / callback props
+
+如果仍有历史桥接文件，请在这轮升级里直接重写，不要继续保留 compat 壳层。
+
+### 2. 不要继续依赖旧渲染输出内部结构
+
+Rue 公开的历史渲染输出别名仍然存在，但它现在只是显式边界上的兼容说法。请不要继续假设所有输出都具备稳定的 `type / props / children / patchFlag` 内部布局。
+
+如果你仍在维护旧的对象形态桥接，请在迁移时直接删除这层桥接，而不是继续让业务组件感知它。
+
+### 3. 子内容优先建模成 children / render prop
+
+对默认内容，直接传 `children`。
+
+```tsx
+<Card>body</Card>
+```
+
+对作用域插槽，直接传函数：
+
+```tsx
+<List>{item => <span>{item.label}</span>}</List>
+```
+
+对具名内容，优先使用显式 props，而不是继续拼 slot 对象：
+
+```tsx
+<Layout footer={({ text }) => <small>{text}</small>}>body</Layout>
+```
+
+## 库作者还需要检查什么
+
+- 编译器与运行时请保持同一小版本线
+- 如果你分发预编译产物，请在 peer 依赖中声明最低运行时版本
+- 如果你内部还有历史桥接文件，请在升级时一并改写，而不是继续保留 compat 壳层
+
+## compat 的当前状态
+
+显式 compat 子路径已经删除。历史 helper、render-function 桥接和预编译产物都需要直接迁到默认路径，而不是继续保留任何兼容壳层。
+
+迁移方向只有四类：
+
+- 直接传 `children`
+- 直接传 render prop / callback props
+- 直接返回 raw node / fragment / mount handle
+- 直接使用默认 `render*` 入口
+
+## 迁移后的判断标准
+
+完成迁移后，你的代码应尽量符合下面这些特征：
+
+- 新组件不再从默认主入口期待 compat-only helper
+- 业务组件不用感知旧渲染输出内部字段
+- children / render prop / callback props 取代旧的手写 slot 对象桥接
+- 历史桥接文件已经完成重写，而不是继续保留 compat 壳层
 
 ### API 设计权衡 {#api-design-trade-offs}
 

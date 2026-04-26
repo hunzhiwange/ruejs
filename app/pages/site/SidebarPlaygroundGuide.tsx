@@ -211,8 +211,6 @@ export const SECTIONS_BY_TYPE: Record<'guide', Section[]> = {
           title: '路由',
           href: '/guide/guide/scaling-up/routing',
         },
-        { id: 'guide/scaling-up/sfc', title: '单文件组件', href: '/guide/guide/scaling-up/sfc' },
-        { id: 'guide/scaling-up/ssr', title: '服务端渲染', href: '/guide/guide/scaling-up/ssr' },
         {
           id: 'guide/scaling-up/state-management',
           title: '状态管理',
@@ -261,19 +259,14 @@ export const SECTIONS_BY_TYPE: Record<'guide', Section[]> = {
       title: 'TypeScript',
       items: [
         {
-          id: 'guide/typescript/composition-api',
-          title: '组合式 API',
-          href: '/guide/guide/typescript/composition-api',
-        },
-        {
-          id: 'guide/typescript/options-api',
-          title: '选项式 API',
-          href: '/guide/guide/typescript/options-api',
-        },
-        {
           id: 'guide/typescript/overview',
           title: '概览',
           href: '/guide/guide/typescript/overview',
+        },
+        {
+          id: 'guide/typescript/composition-api',
+          title: '组合式 API',
+          href: '/guide/guide/typescript/composition-api',
         },
       ],
     },

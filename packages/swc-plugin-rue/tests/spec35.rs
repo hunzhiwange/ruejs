@@ -141,7 +141,8 @@ export default HandlingInput
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { type FC, ref } from '@rue-js/rue';
 import SidebarPlayground from '../site/SidebarPlayground';
 import Code from '../site/components/Code';
 const HandlingInput: FC = ()=>{

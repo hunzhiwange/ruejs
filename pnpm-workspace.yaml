@@ -17,9 +17,6 @@ catalog:
   '@rue-js/router': ^0.0.1
   '@rue-js/design': ^0.0.1
   '@rue-js/runtime-vapor': ^0.0.1
-  '@rue-js/learn-wgpu': ^0.0.1
-  '@rue-js/app-rust': ^0.0.1
-  '@rue-js/plugin': ^0.0.1
 
 onlyBuiltDependencies:
   - '@swc/core'

@@ -1,91 +1,169 @@
-import { type FC, Teleport, Transition, onMounted, onUnmounted, ref, useState } from '@rue-js/rue'
+import { type FC, Teleport, Transition, ref, useState } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
-// Modal component with customizable header/body/footer and CSS transitions
-const Modal: FC<{
-  visible: boolean
-  onClose?: () => void
-  header?: any
-  body?: any
-  footer?: any
-  to?: string | HTMLElement
-}> = props => {
-  // 键盘 ESC 关闭支持
-  onMounted(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && props.visible) {
-        if (props.onClose) props.onClose()
-      }
-    }
-    const add = (globalThis as any).addEventListener
-    if (typeof add === 'function') add('keydown', onKey)
-    onUnmounted(() => {
-      const remove = (globalThis as any).removeEventListener
-      if (typeof remove === 'function') remove('keydown', onKey)
-    })
-  })
-
-  const content = (
-    <>
-      <style>{`
-/* Modal styles (Transition-driven) */
+const modalStyles = `
 .modal-mask {
   position: fixed;
+  inset: 0;
   z-index: 9998;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  transition: opacity 300ms ease;
-  opacity: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
 }
 
 .modal-container {
-  width: 300px;
-  margin: auto;
-  padding: 20px 30px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
-  backface-visibility: hidden;
+  width: min(100%, 28rem);
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
 }
 
 .modal-header h3 {
-  margin-top: 0;
-  color: #42b983;
+  margin: 0;
+  color: #0f172a;
 }
 
 .modal-body {
-  margin: 20px 0;
+  margin: 1rem 0 1.25rem;
+  color: #475569;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .modal-default-button {
-  float: right;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  cursor: pointer;
 }
 
-/* Transition classes for modal */
-.modal-enter-active, .modal-leave-active { transition: opacity 300ms ease; }
-.modal-enter-from { opacity: 0; }
-.modal-leave-to { opacity: 0; }
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 300ms ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
 
 .modal-enter-active .modal-container,
 .modal-leave-active .modal-container {
-  transition: transform 600ms ease, opacity 600ms ease;
-  will-change: transform, opacity;
+  transition: transform 300ms ease, opacity 300ms ease;
 }
 
 .modal-enter-from .modal-container,
 .modal-leave-to .modal-container {
-  transform: scale(2.5);
-  opacity: 0.70;
+  transform: translateY(16px) scale(0.96);
+  opacity: 0;
 }
-`}</style>
+`
 
-      {props.visible ? (
-        <Transition name="modal" type="transition" duration={{ enter: 1220, leave: 2200 }} appear>
+const modalSource = `import { type FC, Teleport, Transition, useState } from '@rue-js/rue';
+
+const modalStyles = \`
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.modal-container {
+  width: min(100%, 28rem);
+  border-radius: 1rem;
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 300ms ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .modal-container,
+.modal-leave-active .modal-container {
+  transition: transform 300ms ease, opacity 300ms ease;
+}
+
+.modal-enter-from .modal-container,
+.modal-leave-to .modal-container {
+  transform: translateY(16px) scale(0.96);
+  opacity: 0;
+}
+\`;
+
+const Modal: FC<{ visible: boolean; onClose?: () => void }> = (props) => (
+  <Teleport to="body">
+    <>
+      <style>{modalStyles}</style>
+      <Transition name="modal" type="transition" duration={300} appear>
+        {props.visible ? (
+          <div className="modal-mask" onClick={() => props.onClose && props.onClose()}>
+            <div className="modal-container" onClick={(event: any) => event.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Custom Header</h3>
+              </div>
+              <div className="modal-body">
+                <p>Custom body content here...</p>
+              </div>
+              <div className="modal-footer">
+                <button className="modal-default-button" onClick={() => props.onClose && props.onClose()}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Transition>
+    </>
+  </Teleport>
+);
+
+const ModalExample: FC = () => {
+  const [visibleModal, setVisibleModal] = useState(false);
+
+  return (
+    <div className="card bg-base-100 shadow">
+      <div className="card-body grid gap-4">
+        <button id="visible-modal" className="btn btn-primary w-fit" onClick={() => setVisibleModal(true)}>
+          Visible Modal
+        </button>
+        <Modal visible={visibleModal.value} onClose={() => setVisibleModal(false)} />
+      </div>
+    </div>
+  );
+};
+
+export default ModalExample;`
+
+const Modal: FC<{
+  visible: boolean
+  onClose?: () => void
+}> = props => (
+  <Teleport to="body">
+    <>
+      <style>{modalStyles}</style>
+      <Transition name="modal" type="transition" duration={300} appear>
+        {props.visible ? (
           <div
             className="modal-mask"
             onClick={() => {
@@ -94,36 +172,33 @@ const Modal: FC<{
           >
             <div
               className="modal-container"
-              onClick={(e: any) => {
-                e.stopPropagation()
+              onClick={(event: any) => {
+                event.stopPropagation()
               }}
             >
-              <div className="modal-header">{props.header ?? <h3>default header</h3>}</div>
-              <div className="modal-body">{props.body ?? <p>default body</p>}</div>
+              <div className="modal-header">
+                <h3>Custom Header</h3>
+              </div>
+              <div className="modal-body">
+                <p>Custom body content here...</p>
+              </div>
               <div className="modal-footer">
-                {props.footer ?? (
-                  <>
-                    default footer
-                    <button
-                      className="modal-default-button"
-                      onClick={() => {
-                        if (props.onClose) props.onClose()
-                      }}
-                    >
-                      OK
-                    </button>
-                  </>
-                )}
+                <button
+                  className="modal-default-button"
+                  onClick={() => {
+                    if (props.onClose) props.onClose()
+                  }}
+                >
+                  OK
+                </button>
               </div>
             </div>
-          </div>{' '}
-        </Transition>
-      ) : null}
+          </div>
+        ) : null}
+      </Transition>
     </>
-  )
-
-  return <Teleport to={props.to ?? ('body' as any)}>{content}</Teleport>
-}
+  </Teleport>
+)
 
 const ModalExample: FC = () => {
   const [visibleModal, setVisibleModal] = useState(false)
@@ -157,146 +232,7 @@ const ModalExample: FC = () => {
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
         {activeTab.value === 'code' && (
           <div className="card bg-base-100 shadow overflow-auto h-[360px] md:h-[560px]">
-            <Code
-              className="h-full"
-              lang="tsx"
-              code={`import { type FC, useState, onMounted, onUnmounted, Transition, Teleport, ref } from '@rue-js/rue';
-            
-// Modal component with customizable header/body/footer and CSS transitions
-const Modal: FC<{
-  visible: boolean;
-  onClose?: () => void;
-  header?: any;
-  body?: any;
-  footer?: any;
-  to?: string | HTMLElement;
-}> = (props) => {
-  // 键盘 ESC 关闭支持
-  onMounted(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && props.visible) {
-        props.onClose && props.onClose();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    onUnmounted(() => {
-      document.removeEventListener('keydown', onKey);
-    });
-  });
-
-  const content = (
-    <>
-    <style>{\`
-/* Modal styles (Transition-driven) */
-.modal-mask {
-  position: fixed;
-  z-index: 9998;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  transition: opacity 300ms ease;
-  opacity: 1;
-}
-
-.modal-container {
-  width: 300px;
-  margin: auto;
-  padding: 20px 30px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
-  backface-visibility: hidden;
-}
-
-.modal-header h3 {
-  margin-top: 0;
-  color: #42b983;
-}
-
-.modal-body {
-  margin: 20px 0;
-}
-
-.modal-default-button {
-  float: right;
-}
-
-/* Transition classes for modal */
-.modal-enter-active, .modal-leave-active { transition: opacity 300ms ease; }
-.modal-enter-from { opacity: 0; }
-.modal-leave-to { opacity: 0; }
-
-.modal-enter-active .modal-container,
-.modal-leave-active .modal-container {
-  transition: transform 600ms ease, opacity 600ms ease;
-  will-change: transform, opacity;
-}
-
-.modal-enter-from .modal-container,
-.modal-leave-to .modal-container {
-  transform: scale(2.5);
-  opacity: 0.70;
-}
-\`}</style>
-
-      {props.visible ? (
-            <Transition name="modal" type="transition" duration={{ enter: 1220, leave: 2200 }} appear>
-        <div className="modal-mask" onClick={() => props.onClose && props.onClose()}>
-          <div className="modal-container" onClick={(e: any) => { e.stopPropagation(); }}>
-            <div className="modal-header">
-              {props.header ?? <h3>default header</h1>}
-            </div>
-            <div className="modal-body">
-              {props.body ?? <p>default body</p>}
-            </div>
-            <div className="modal-footer">
-              {props.footer ?? (
-                <>
-                  default footer
-                  <button className="modal-default-button" onClick={() => props.onClose && props.onClose()}>OK</button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>    </Transition>
-      ) : null} 
-
-      </>
-  );
-
-  return props.to ? (<Teleport to={props.to}>{content}</Teleport>) : (<Teleport to={document.body as any}>{content}</Teleport>);
-};   
-
-const ModalExample: FC = () => {
-  const [visibleModal, setVisibleModal] = useState(false);
-  return (
-    <div className="card bg-base-100 shadow">
-      <div className="card-body grid gap-4">
-        <button
-          id="visible-modal"
-          className="btn btn-primary w-fit"
-          onClick={() => setVisibleModal(true)}
-        >
-          Visible Modal
-        </button>
-        {/* Teleport 到 body */}
-        <Modal
-          visible={visibleModal.value}
-          onClose={() => setVisibleModal(false)}
-          header={<h3>Custom Header</h1>}
-          body={<p>Custom body content here...</p>}
-          to="body"
-        />
-      </div>
-    </div>
-  );
-};
-
-export default ModalExample;`}
-            />
+            <Code className="h-full" lang="tsx" code={modalSource} />
           </div>
         )}
 
@@ -310,15 +246,7 @@ export default ModalExample;`}
               >
                 Visible Modal
               </button>
-              {/* Teleport 到 body */}
-              --------{visibleModal.value}-------
-              <Modal
-                visible={visibleModal.value}
-                onClose={() => setVisibleModal(false)}
-                header={<h3>Custom Header</h3>}
-                body={<p>Custom body content here...</p>}
-                to="body"
-              />
+              <Modal visible={visibleModal.value} onClose={() => setVisibleModal(false)} />
             </div>
           </div>
         )}

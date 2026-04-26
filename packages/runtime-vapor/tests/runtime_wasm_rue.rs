@@ -162,7 +162,7 @@ async fn wasm_render_async_flush_appends() {
     let adapter = make_adapter();
     let rue = createRue(adapter.clone());
     let container = js_obj();
-    // element vnode: <span class="x">hello</span>
+    // element handle: <span class="x">hello</span>
     let props = Object::new();
     let _ = Reflect::set(&props, &JsValue::from_str("className"), &JsValue::from_str("x"));
     let children = Array::new();
@@ -211,7 +211,7 @@ async fn wasm_render_between_async_insert_and_fallback() {
         let _ = func.call2(&adapter, &parent, &start);
         let _ = func.call2(&adapter, &parent, &end);
     }
-    // vnode: <span>B</span>
+    // element handle: <span>B</span>
     let children = Array::new();
     children.push(&JsValue::from_str("B"));
     let id =
@@ -309,7 +309,7 @@ async fn wasm_vapor_wasm_renders_host_element() {
 
     let setup = Function::new_with_args(
         "",
-        "const el = { tag: 'span', children: [] }; return { vaporElement: el }",
+        "const el = { tag: 'span', children: [] }; return el",
     );
     let id = rue.vapor_wasm(setup.into());
     rue.render_wasm(id, container.clone());

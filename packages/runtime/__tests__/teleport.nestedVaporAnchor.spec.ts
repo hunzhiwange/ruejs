@@ -4,13 +4,11 @@ import {
   Teleport,
   Transition,
   h,
-  render,
-  renderAnchor,
   setReactiveScheduling,
   vapor,
   watchEffect,
-  _$vaporCreateVNode,
 } from '../src'
+import { render, renderAnchor } from '../src'
 import type { FC } from '../src'
 
 setReactiveScheduling('sync')
@@ -55,11 +53,10 @@ describe('Teleport nested vapor anchor', () => {
           childRoot.appendChild(slotAnchor)
 
           watchEffect(() => {
-            const vnode = _$vaporCreateVNode(content)
-            renderAnchor(vnode as any, childRoot as any, slotAnchor as any)
+            renderAnchor(content as any, childRoot as any, slotAnchor as any)
           })
 
-          return { vaporElement: childRoot as any }
+          return childRoot as any
         })
 
         watchEffect(() => {
@@ -70,7 +67,7 @@ describe('Teleport nested vapor anchor', () => {
           )
         })
 
-        return { vaporElement: root as any }
+        return root as any
       }) as any
     }
 
@@ -124,11 +121,10 @@ describe('Teleport nested vapor anchor', () => {
           childRoot.appendChild(slotAnchor)
 
           watchEffect(() => {
-            const vnode = _$vaporCreateVNode(content)
-            renderAnchor(vnode as any, childRoot as any, slotAnchor as any)
+            renderAnchor(content as any, childRoot as any, slotAnchor as any)
           })
 
-          return { vaporElement: childRoot as any }
+          return childRoot as any
         })
 
         watchEffect(() => {
@@ -139,7 +135,7 @@ describe('Teleport nested vapor anchor', () => {
           )
         })
 
-        return { vaporElement: root as any }
+        return root as any
       }) as any
     }
 
@@ -186,11 +182,10 @@ describe('Teleport nested vapor anchor', () => {
           childRoot.appendChild(slotAnchor)
 
           watchEffect(() => {
-            const vnode = _$vaporCreateVNode(content)
-            renderAnchor(vnode as any, childRoot as any, slotAnchor as any)
+            renderAnchor(content as any, childRoot as any, slotAnchor as any)
           })
 
-          return { vaporElement: childRoot as any }
+          return childRoot as any
         })
 
         watchEffect(() => {
@@ -201,7 +196,7 @@ describe('Teleport nested vapor anchor', () => {
           )
         })
 
-        return { vaporElement: root as any }
+        return root as any
       }) as any
     }
 

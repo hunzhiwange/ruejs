@@ -40,7 +40,7 @@ pub fn createRue(adapter: JsValue) -> WasmRue {
     //
     // root_effect 初始为 None：
     // - 只有调用 mount(app, container) 时才会创建
-    // - 仅调用 render(vnode, container) 不会创建 root effect
+    // - 仅调用 render(input, container) 不会创建 root effect
     WasmRue {
         inner: RefCell::new(rue),
         last_container: RefCell::new(None),

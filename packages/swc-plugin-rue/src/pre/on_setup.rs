@@ -2,7 +2,7 @@ use swc_core::common::{DUMMY_SP, SyntaxContext};
 use swc_core::ecma::ast::*;
 
 /*
-本模块职责（中文详解）：
+本模块职责：
 - 构造组件层面的 `useSetup(() => { ...; return { ... } })` 包裹与解构绑定；
 - 以统一的 Hook 包裹 `_$vaporWithHookId("useSetup:0:0", runner)` 固定其 Hook 槽位索引；
 - 输出三部分代码：

@@ -22,8 +22,8 @@ use super::show_directive;
 - 目标：在不生成原生 DOM 的前提下，对指令与组件 useSetup 进行形态规整，使后续 Vapor 深编译更简单。
 - 功能：
   1) 指令处理：
-     - `v-show/show` → 改写为统一的 `style` 表达式，运行时 `_$vaporShowStyle` 决定隐藏显示
-     - `v-if/else-if/else` → 连续兄弟 JSX 改写为一个条件表达式容器
+    - `v-show/r-show` → 改写为统一的 `style` 表达式，运行时 `_$vaporShowStyle` 决定隐藏显示
+    - `v-if/v-else-if/v-else` 与 `r-if/r-else-if/r-else` → 连续兄弟 JSX 改写为一个条件表达式容器
   2) 组件 useSetup 注入：
      - 收集 return 之前的“安全声明与副作用”（常量/函数/已知 watcher 等），插入到返回 JSX 前
      - 白名单与纯度分析结合，避免把带副作用的表达式错误地移动
@@ -41,7 +41,7 @@ use super::show_directive;
 // 输出（概要）：
 //   - Hook 包装：ref → _$vaporWithHookId("ref:1:0", () => ref(0))
 //   - v-show 改写：在 opening.attrs 上生成 style 表达式（运行时 _$vaporShowStyle）
-//   - 条件容器：children 中的三元保持表达式形态（Cons/Alt 内含 JSX），后续 Vapor 阶段统一转 vnode
+//   - 条件容器：children 中的三元保持表达式形态（Cons/Alt 内含 JSX），后续 Vapor 阶段统一转可挂载槽值
 /// 预处理器状态：
 /// - in_component：当前遍历是否处于组件语境（用于在函数退出时决定是否注入 useSetup）
 /// - seen_ids/dup_count：保留字段（可用于未来重复 ID 统计或消歧）
@@ -97,13 +97,13 @@ impl VisitMut for PreTransform {
     }
 
     fn visit_mut_jsx_opening_element(&mut self, opening: &mut JSXOpeningElement) {
-        // v-show/show → 样式驱动显示控制
+        // v-show/r-show → 样式驱动显示控制
         show_directive::transform_opening(opening);
     }
 
     fn visit_mut_jsx_element(&mut self, el: &mut JSXElement) {
         el.visit_mut_children_with(self);
-        // v-if/else-if/else → 条件表达式容器
+        // v-if/v-else-if/v-else 与 r-if/r-else-if/r-else → 条件表达式容器
         if_directive::transform_element(el);
     }
 

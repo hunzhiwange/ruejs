@@ -2,7 +2,7 @@
 过渡工具集概述
 - 类型定义：TransitionType/TransitionPhase 用于标识过渡类型与阶段，统一 API 输入输出。
 - 类名操作：addClass/removeClass 支持空格分隔批量处理，减少 DOM 接触次数。
-- 帧控制与布局：nextFrame 通过双 RAF 保证样式变更跨帧应用；forceReflow 通过读取布局触发重排。
+- 帧控制与布局：nextFrame 默认在下一帧执行，并在 RAF 被异常拖慢时使用定时器兜底；forceReflow 通过读取布局触发重排。
 - 时间解析：toMs 解析 CSS 时间字符串（含逗号分段）；sumTimeTokens 解析 style 行内配置的每段 duration+delay 总和。
 - 类型推断与时长：inferType/resolveDuration 综合 computed styles 与显式配置，得到最终过渡类型与时长（毫秒）。
 - 结束监听：whenTransitionEnds 通过事件监听并结合超时兜底，确保在最坏情况下也能执行回调。
@@ -22,9 +22,28 @@ export function removeClass(el: HTMLElement, cls?: string) {
   cls.split(/\s+/).forEach(c => c && el.classList.remove(c))
 }
 
-/** 在下一帧的下一帧执行函数（确保样式应用） */
+/**
+ * 在下一帧执行函数，并在 RAF 被环境节流时提供超时兜底。
+ *
+ * 某些运行环境里第二次 requestAnimationFrame 可能被拖到几百毫秒之后，
+ * 会导致 enter-from 在整个过渡周期里都来不及切到 enter-to。
+ * 这里保留“跨帧执行”的语义，但只依赖一次 RAF，并用定时器保证不会晚于正常动画时长。
+ */
 export function nextFrame(fn: () => void) {
-  requestAnimationFrame(() => requestAnimationFrame(fn))
+  let called = false
+  const run = () => {
+    if (called) return
+    called = true
+    fn()
+  }
+
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(run)
+    setTimeout(run, 34)
+    return
+  }
+
+  setTimeout(run, 16)
 }
 
 /** 强制触发布局计算（用于确保过渡起点生效） */

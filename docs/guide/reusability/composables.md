@@ -304,8 +304,6 @@ console.log(mouse.x)
 
 在 composables 中执行副作用（例如添加 DOM 事件监听器或获取数据）是可以的，但请注意以下规则：
 
-- 如果你正在开发使用[服务端渲染](/guide/scaling-up/ssr)（SSR）的应用，请确保在挂载后的生命周期钩子（例如 `onMounted()`）中执行 DOM 特定的副作用。这些钩子只在浏览器中调用，因此你可以确信其中的代码可以访问 DOM。
-
 - 记得在 `onUnmounted()` 中清理副作用。例如，如果 composable 设置了 DOM 事件监听器，它应该在 `onUnmounted()` 中移除该监听器，正如我们在 `useMouse()` 示例中看到的那样。使用一个自动为你执行此操作的 composable 是个好主意，就像 `useEventListener()` 示例那样。
 
 ### 使用限制 {#usage-restrictions}

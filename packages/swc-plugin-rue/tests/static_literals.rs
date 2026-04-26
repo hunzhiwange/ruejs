@@ -167,10 +167,10 @@ import { type FC } from '@rue-js/rue';
 
 const StaticShowStyles: FC = () => (
     <section>
-        <div show={true} style={{ color: 'tomato' }}>A</div>
-        <div show={false} style={{ color: 'tomato' }}>B</div>
-        <div show={true}>C</div>
-        <div show={false}>D</div>
+        <div r-show={true} style={{ color: 'tomato' }}>A</div>
+        <div r-show={false} style={{ color: 'tomato' }}>B</div>
+        <div r-show={true}>C</div>
+        <div r-show={false}>D</div>
     </section>
 );
 

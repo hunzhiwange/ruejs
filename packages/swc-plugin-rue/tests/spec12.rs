@@ -32,7 +32,8 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, _$createElement, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$setClassName } from '@rue-js/rue';
+import { vapor, _$createElement, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 const Hello: FC = ()=>{
     return vapor(()=>{
         const _root = _$createDocumentFragment();
@@ -53,9 +54,7 @@ const Hello: FC = ()=>{
         const _el4 = _$createElement("span");
         _$appendChild(_el2, _el4);
         _$appendChild(_el4, _$createTextNode("world"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default Hello;

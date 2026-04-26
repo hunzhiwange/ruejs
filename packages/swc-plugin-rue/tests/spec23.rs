@@ -29,7 +29,8 @@ export default OrCases
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect, _$vaporCreateVNode } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, watchEffect } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 const show = false;
 const a = false;
 const b = false;
@@ -44,12 +45,9 @@ const OrCases: FC = ()=>{
                 const _el1 = _$createElement("div");
                 _$appendChild(_root, _el1);
                 _$appendChild(_el1, _$createTextNode("Alt"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list1);
+            renderAnchor(__slot, _root, _list1);
         });
         _$appendChild(_root, _$createTextNode(" "));
         const _list2 = _$createComment("rue:slot:anchor");
@@ -60,24 +58,17 @@ const OrCases: FC = ()=>{
                 const _el2 = _$createElement("div");
                 _$appendChild(_root, _el2);
                 _$appendChild(_el2, _$createTextNode("A"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             }) : b || vapor(()=>{
                 const _root = _$createDocumentFragment();
                 const _el3 = _$createElement("div");
                 _$appendChild(_root, _el3);
                 _$appendChild(_el3, _$createTextNode("B"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _root, _list2);
+            renderAnchor(__slot, _root, _list2);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default OrCases;

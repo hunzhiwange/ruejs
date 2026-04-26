@@ -97,7 +97,7 @@ const ListTransitionExample: FC = () => {
         </div>
 
         <ul className="container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3">
-          <TransitionGroup name="fade" keepJSX>
+          <TransitionGroup name="fade">
             {items.value.map(item => (
               <li
                 className="item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm"
@@ -123,7 +123,8 @@ export default ListTransitionExample
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, TransitionGroup, ref, _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporWithKey, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC, TransitionGroup, ref } from '@rue-js/rue';
 const ListTransitionExample: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const items = _$vaporWithHookId("ref:1:0", ()=>ref<number[]>([
@@ -247,19 +248,32 @@ const ListTransitionExample: FC = ()=>{
         const _list1 = _$createComment("rue:component:anchor");
         _$appendChild(_el8, _list1);
         watchEffect(()=>{
-            const __slot2 = <TransitionGroup name="fade" keepJSX>
-            {items.value.map((item)=>(<li className="item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm" key={item}>
-                <span className="text-base-content">{item}</span>
-                <button className="btn btn-sm" onClick={()=>remove(item)}>
-                  x
-                </button>
-              </li>))}
-          </TransitionGroup>;
+            const __slot2 = <TransitionGroup name="fade" children={items.value.map((item)=>_$vaporWithKey(vapor(()=>{
+                const _root = _$createDocumentFragment();
+                const _el9 = _$createElement("li");
+                _$appendChild(_root, _el9);
+                _$setClassName(_el9, "item px-3 py-2 rounded-md border border-base-200 bg-base-100 shadow-sm");
+                watchEffect(()=>{
+                    _$setAttribute(_el9, "key", String((item)));
+                });
+                const _el10 = _$createElement("span");
+                _$appendChild(_el9, _el10);
+                _$setClassName(_el10, "text-base-content");
+                const _el11 = _$createTextWrapper(_el10);
+                _$appendChild(_el10, _el11);
+                watchEffect(()=>{
+                    _$settextContent(_el11, item);
+                });
+                const _el12 = _$createElement("button");
+                _$appendChild(_el9, _el12);
+                _$setClassName(_el12, "btn btn-sm");
+                _$addEventListener(_el12, "click", (()=>remove(item)));
+                _$appendChild(_el12, _$createTextNode("x"));
+                return _root;
+            }), item))}/>;
             renderAnchor(__slot2, _el8, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default ListTransitionExample;

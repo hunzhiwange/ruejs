@@ -29,6 +29,17 @@ Rue 遵循 [Semantic Versioning](https://semver.org/)，但在以下场景可能
 
 较新的 Rue 编译器（小版本）可能生成对旧运行时（较早小版本）不完全兼容的代码。对于应用开发者，编译器与运行时版本通常一致，因此影响有限；但对库作者而言，如果你分发的是预编译的组件或指令代码，被更旧版本的运行时消费时可能出现行为差异。此时建议在包的 peer 依赖中明确最低要求的小版本。
 
+### 默认渲染路径与 compat 删除
+
+Rue 当前默认渲染路径已经切到 Block / Vapor / Renderable-first。与此同时，显式 compat 子路径也已经作为 breaking change 删除。也就是说：
+
+- 主入口默认描述的是当前渲染路径
+- `@rue-js/runtime/compat` 与 `@rue-js/rue/compat` 已不存在
+- `_\$vaporCreateVNode` 与 `renderCompat*` 系列 helper 已移除
+- 默认公开 helper 会继续围绕 MountInput / mounted snapshot 组织，而不是继续扩大 VNode-first 契约
+
+如果你维护的是旧的手写渲染 helper、历史 render-function 桥接或预编译产物，请直接改写到默认路径，而不是继续寻找 compat 替代导入。当前迁移指引见 [默认 Block / Vapor 路径迁移](/guide/migration/renderable-default)。
+
 ## 预发布版本
 
 小版本通常会经历若干次 beta 预发布；大版本则会经历 alpha 与 beta 阶段。Rue 也可能通过 npm 标签（如 `next` / `beta`）提供早期构建用于集成与稳定性测试。
@@ -38,6 +49,13 @@ Rue 遵循 [Semantic Versioning](https://semver.org/)，但在以下场景可能
 ## 弃用策略
 
 Rue 会在小版本中逐步引入更好的替代方案，并将旧特性标记为“弃用”。被弃用的能力在当前主版本中仍可使用，但会在下一个主版本移除。我们会在发布说明中注明弃用条目与迁移路径。
+
+对涉及默认渲染路径、compat 子路径、预编译产物边界的调整，发布说明会明确包含以下信息：
+
+- 主入口是否发生默认语义变化
+- 已删除的 compat 命名或旧 helper 是否被重新引入
+- 旧 helper / 旧导入路径的替代写法
+- 库作者在 peer 依赖和预编译产物上的最低版本要求
 
 ## RFC 流程
 

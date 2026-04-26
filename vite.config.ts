@@ -106,10 +106,7 @@ export default defineConfig({
       '@rue-js/design': path.resolve(rootDir, 'packages/rue-design/src'),
       '@rue-js/runtime-vapor': process.env.VITEST
         ? path.resolve(rootDir, 'packages/runtime-vapor/pkg-node/rue_runtime_vapor.js')
-        : path.resolve(rootDir, 'packages/runtime-vapor/pkg/rue_runtime_vapor.js'),
-      // '@rue-js/learn-wgpu': path.resolve(rootDir, 'packages/learn-wgpu/index.js'),
-      // '@rue-js/app-rust': path.resolve(rootDir, 'packages/app-rust/pkg/app_rust.js'),
-      // '@rue-js/plugin': path.resolve(rootDir, 'packages/rue-rs-plugin/pkg/rue_rs_plugin.js'),
-    },
+        : path.resolve(rootDir, 'packages/runtime-vapor/pkg/rue_runtime_vapor.js')
+    }
   },
 })

@@ -91,7 +91,8 @@ export default PostDetail
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { ref, _$vaporWithHookId, useSetup } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup } from "@rue-js/rue/vapor";
+import { ref } from '@rue-js/rue';
 function PostDetail() {
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
         console.log('我是setup');

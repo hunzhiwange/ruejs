@@ -37,10 +37,6 @@
 
 - **参阅** [指南 - 创建一个 Rue 应用](/guide/essentials/application)
 
-## createSSRApp() {#createssrapp} @todo
-
-以 [SSR 水合](/guide/scaling-up/ssr#client-hydration)模式创建应用实例。用法与 `createApp()` 完全相同。
-
 ## app.mount() {#app-mount}
 
 将应用实例挂载到容器元素中。

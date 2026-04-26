@@ -1,5 +1,5 @@
 use super::super::Rue;
-use super::super::types::VNode;
+use super::super::types::{MountLifecycleRecord, MountedState};
 use crate::runtime::dom_adapter::DomAdapter;
 use js_sys::JsString;
 use wasm_bindgen::{JsCast, JsValue};
@@ -7,7 +7,7 @@ use wasm_bindgen::{JsCast, JsValue};
 // 替换与插入辅助工具：
 // - resolve_dest_parent：当父为片段或锚点/旧 el 不在父内时，解析真实父节点。
 // - insert_with_anchor_opt：依据锚点存在与否选择前插或尾部追加。
-// - clear_vapor_frag_nodes：根据 __fragNodes 移除片段中记录的旧子节点。
+// - clear_fragment_nodes：根据 mounted snapshot 中记录的 fragment node identity 移除旧子节点。
 // - clear_old_el_if_present：若旧 el 仍在父内，执行移除以避免重复。
 // - insert_fragment_children：收集片段子节点并逐一插入到目标父节点。
 
@@ -15,8 +15,83 @@ impl<A: DomAdapter> Rue<A>
 where
     A::Element: Clone,
 {
+    fn clear_mounted_block_dom(
+        &mut self,
+        parent: &mut A::Element,
+        host: Option<&A::Element>,
+        fragment_nodes: &[A::Element],
+    ) where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        if !fragment_nodes.is_empty() {
+            for node_el in fragment_nodes.iter() {
+                self.clear_anchor_entry_if_present(parent, node_el);
+                self.clear_range_entry_if_present(parent, node_el);
+                if let Some(adapter) = self.get_dom_adapter_mut() {
+                    if adapter.contains(parent, node_el) {
+                        let mut p2 = parent.clone();
+                        adapter.remove_child(&mut p2, node_el);
+                    }
+                }
+            }
+            return;
+        }
+
+        if let Some(host_el) = host {
+            self.clear_old_el_if_present(parent, host_el);
+        }
+    }
+
+    pub(super) fn clear_mounted_dom_identity(
+        &mut self,
+        parent: &mut A::Element,
+        host: Option<&A::Element>,
+        fragment_nodes: &[A::Element],
+    ) where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        self.clear_mounted_block_dom(parent, host, fragment_nodes);
+    }
+
+    pub(crate) fn clear_mounted_state(&mut self, parent: &mut A::Element, mounted: MountedState<A>)
+    where
+        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
+    {
+        match mounted {
+            MountedState::Block(block) => {
+                let lifecycle = block.lifecycle;
+
+                self.invoke_before_unmount_record(&lifecycle);
+                self.clear_mounted_block_dom(
+                    parent,
+                    block.host.as_ref(),
+                    &block.fragment_nodes,
+                );
+                self.invoke_unmounted_record(&lifecycle);
+            }
+            MountedState::Element(element) => {
+                let lifecycle = element.lifecycle;
+
+                self.invoke_before_unmount_record(&lifecycle);
+                self.clear_mounted_block_dom(parent, element.host.as_ref(), &[]);
+                self.invoke_unmounted_record(&lifecycle);
+            }
+            MountedState::Component(component) => {
+                let lifecycle = component.lifecycle;
+
+                self.invoke_before_unmount_record(&lifecycle);
+                self.clear_mounted_block_dom(
+                    parent,
+                    component.host.as_ref(),
+                    &component.fragment_nodes,
+                );
+                self.invoke_unmounted_record(&lifecycle);
+            }
+        }
+    }
+
     /// 若某个待删除的片段节点本身是 renderAnchor 管理的锚点，
-    /// 需要先完整卸载该锚点关联的 vnode，再移除锚点本身。
+    /// 需要先完整卸载该锚点关联的 mounted subtree，再移除锚点本身。
     fn clear_anchor_entry_if_present(&mut self, parent: &mut A::Element, anchor: &A::Element)
     where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
@@ -24,14 +99,16 @@ where
         let idx = {
             let anchor_js: JsValue = anchor.clone().into();
             let mut hit = None;
-            for (i, (a, _)) in self.anchor_map.iter().enumerate() {
-                let av: JsValue = a.clone().into();
+            for (i, entry) in self.anchor_map.iter().enumerate() {
+                let av: JsValue = entry.anchor.clone().into();
                 if js_sys::Object::is(&av, &anchor_js) {
                     hit = Some(i);
                     break;
                 }
                 if let Some(adapter) = self.get_dom_adapter() {
-                    if adapter.contains(a, anchor) && adapter.contains(anchor, a) {
+                    if adapter.contains(&entry.anchor, anchor)
+                        && adapter.contains(anchor, &entry.anchor)
+                    {
                         hit = Some(i);
                         break;
                     }
@@ -46,31 +123,18 @@ where
 
         let taken = {
             let entry = self.anchor_map.get_mut(idx).unwrap();
-            entry.1.take()
+            entry.take_mount()
         };
 
-        let Some(mut vnode) = taken else {
+        let Some(old_mount) = taken else {
             return;
         };
 
-        self.invoke_before_unmount_vnode(&mut vnode);
-
-        self.clear_vapor_frag_nodes(parent, &mut vnode);
-        if let Some(ref el_old) = vnode.el {
-            self.clear_old_el_if_present(parent, el_old);
-        }
-        if let Some(sub) = vnode.comp_subtree.as_deref_mut() {
-            self.clear_vapor_frag_nodes(parent, sub);
-            if let Some(ref sub_el) = sub.el {
-                self.clear_old_el_if_present(parent, sub_el);
-            }
-        }
-
-        self.invoke_unmounted_vnode(&mut vnode);
+        self.clear_mounted_state(parent, old_mount);
     }
 
     /// 若某个待删除的片段节点本身是 renderBetween 管理的 start 锚点，
-    /// 需要先完整卸载该范围关联的 vnode，再移除 start/end 与范围内容。
+    /// 需要先完整卸载该范围关联的 mounted subtree，再移除 start/end 与范围内容。
     fn clear_range_entry_if_present(&mut self, parent: &mut A::Element, start: &A::Element)
     where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
@@ -78,14 +142,16 @@ where
         let idx = {
             let start_js: JsValue = start.clone().into();
             let mut hit = None;
-            for (i, (s, _)) in self.range_map.iter().enumerate() {
-                let sv: JsValue = s.clone().into();
+            for (i, entry) in self.range_map.iter().enumerate() {
+                let sv: JsValue = entry.start.clone().into();
                 if js_sys::Object::is(&sv, &start_js) {
                     hit = Some(i);
                     break;
                 }
                 if let Some(adapter) = self.get_dom_adapter() {
-                    if adapter.contains(s, start) && adapter.contains(start, s) {
+                    if adapter.contains(&entry.start, start)
+                        && adapter.contains(start, &entry.start)
+                    {
                         hit = Some(i);
                         break;
                     }
@@ -100,27 +166,14 @@ where
 
         let taken = {
             let entry = self.range_map.get_mut(idx).unwrap();
-            entry.1.take()
+            entry.take_mount()
         };
 
-        let Some(mut vnode) = taken else {
+        let Some(old_mount) = taken else {
             return;
         };
 
-        self.invoke_before_unmount_vnode(&mut vnode);
-
-        self.clear_vapor_frag_nodes(parent, &mut vnode);
-        if let Some(ref el_old) = vnode.el {
-            self.clear_old_el_if_present(parent, el_old);
-        }
-        if let Some(sub) = vnode.comp_subtree.as_deref_mut() {
-            self.clear_vapor_frag_nodes(parent, sub);
-            if let Some(ref sub_el) = sub.el {
-                self.clear_old_el_if_present(parent, sub_el);
-            }
-        }
-
-        self.invoke_unmounted_vnode(&mut vnode);
+        self.clear_mounted_state(parent, old_mount);
     }
 
     // 片段子节点插入（优先 end 锚点）：
@@ -221,7 +274,7 @@ where
 
         if let Some(start) = start_opt {
             let start_js: JsValue = start.clone().into();
-            let mut pending_unmounted: Vec<VNode<A>> = Vec::new();
+            let mut pending_unmounted: Vec<MountLifecycleRecord> = Vec::new();
             let mut cur = js_sys::Reflect::get(&start_js, &JsValue::from_str("nextSibling"))
                 .unwrap_or(JsValue::UNDEFINED);
             while !cur.is_undefined() && !cur.is_null() {
@@ -235,8 +288,8 @@ where
                 let idx = {
                     let mut hit: Option<usize> = None;
                     let node_js: JsValue = node_el.clone().into();
-                    for (i, (s, _)) in self.range_map.iter().enumerate() {
-                        let sv: JsValue = s.clone().into();
+                    for (i, entry) in self.range_map.iter().enumerate() {
+                        let sv: JsValue = entry.start.clone().into();
                         if js_sys::Object::is(&sv, &node_js) {
                             hit = Some(i);
                             break;
@@ -247,11 +300,12 @@ where
                 if let Some(idx) = idx {
                     let taken = {
                         let entry = self.range_map.get_mut(idx).unwrap();
-                        entry.1.take()
+                        entry.take_mount()
                     };
-                    if let Some(mut vnode) = taken {
-                        self.invoke_before_unmount_vnode(&mut vnode);
-                        pending_unmounted.push(vnode);
+                    if let Some(mount) = taken {
+                        let lifecycle = mount.into_lifecycle();
+                        self.invoke_before_unmount_record(&lifecycle);
+                        pending_unmounted.push(lifecycle);
                     }
                 }
 
@@ -264,8 +318,8 @@ where
                 cur = next;
             }
 
-            for mut vnode in pending_unmounted.into_iter() {
-                self.invoke_unmounted_vnode(&mut vnode);
+            for record in pending_unmounted.into_iter() {
+                self.invoke_unmounted_record(&record);
             }
         }
     }
@@ -327,6 +381,7 @@ where
     {
         // 复制 parent：后续可能解析为真实父节点（避免直接修改传入的引用）
         let mut dest_parent = parent.clone();
+        let had_old_el = old_el.is_some();
         if let Some(adapter) = self.get_dom_adapter_mut() {
             if let Some(el_old) = old_el {
                 // 若父为片段或父不包含旧 el，尝试从旧 el 上解析 parentNode
@@ -342,8 +397,13 @@ where
                 }
             }
             if let Some(anchor) = anchor_opt {
-                // 旧 el 可能是已脱离的 DocumentFragment，无法提供真实父节点；此时继续回退到锚点的 parentNode。
-                if adapter.is_fragment(&dest_parent) || !adapter.contains(&dest_parent, &anchor) {
+                // 仅在当前父本身是片段，或根本没有旧 el 可用于定位时，才允许借助锚点反推真实父。
+                // 对普通元素子节点 patch（如 TransitionGroup 内部的 ul > li），外层 renderAnchor 的锚点
+                // 不属于当前父元素；若这里继续用锚点 parentNode 覆盖 dest_parent，会把真实父从 ul
+                // 错改成外层容器，导致 removeChild 静默失败并不断累积重复节点。
+                if adapter.is_fragment(&dest_parent)
+                    || (!had_old_el && !adapter.contains(&dest_parent, &anchor))
+                {
                     let pn = js_sys::Reflect::get(
                         &anchor.clone().into(),
                         &JsValue::from_str("parentNode"),
@@ -384,43 +444,34 @@ where
         }
     }
 
-    /// 清理 __fragNodes 记录的片段子节点
+    /// 清理 mounted snapshot 记录的片段子节点
     ///
     /// 参数：
     /// - parent：父元素（移除操作的作用域）
-    /// - old：包含 __fragNodes 的旧 VNode
+    /// - fragment_nodes：旧侧 snapshot 中记录的真实片段子节点 identity
     /// 返回：
     /// - 是否进行了清理（存在且成功移除）
-    pub(crate) fn clear_vapor_frag_nodes(
+    pub(crate) fn clear_fragment_nodes(
         &mut self,
         parent: &mut A::Element,
-        old: &mut VNode<A>,
+        fragment_nodes: &[A::Element],
     ) -> bool
     where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
-        // 根据 __fragNodes 清理片段记录的旧子节点；返回是否进行了清理
+        // 根据 mounted snapshot 中记录的 fragment node identity 清理旧子节点；返回是否进行了清理
         let mut cleared = false;
-        if let Some(jsv) = old.props.get("__fragNodes") {
-            let arr = js_sys::Array::from(jsv);
-            let len = arr.length();
-            if len > 0 {
-                let mut nodes: Vec<A::Element> = Vec::with_capacity(len as usize);
-                for i in 0..len {
-                    let v = arr.get(i);
-                    nodes.push(v.into());
-                }
-                for node_el in nodes.into_iter() {
-                    self.clear_anchor_entry_if_present(parent, &node_el);
-                    self.clear_range_entry_if_present(parent, &node_el);
-                    if let Some(adapter) = self.get_dom_adapter_mut() {
-                        if adapter.contains(parent, &node_el) {
-                            let mut p2 = parent.clone();
-                            adapter.remove_child(&mut p2, &node_el);
-                        }
+        if !fragment_nodes.is_empty() {
+            for node_el in fragment_nodes.iter() {
+                self.clear_anchor_entry_if_present(parent, node_el);
+                self.clear_range_entry_if_present(parent, node_el);
+                if let Some(adapter) = self.get_dom_adapter_mut() {
+                    if adapter.contains(parent, node_el) {
+                        let mut p2 = parent.clone();
+                        adapter.remove_child(&mut p2, node_el);
+                        cleared = true;
                     }
                 }
-                cleared = true;
             }
         }
         cleared

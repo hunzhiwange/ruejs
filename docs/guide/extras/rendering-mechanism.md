@@ -1,44 +1,33 @@
 # 渲染机制 {#rendering-mechanism}
 
-Rue 如何将模板转换为实际的 DOM 节点？Rue 如何高效地更新这些 DOM 节点？我们将尝试通过深入探讨 Rue 的内部渲染机制来阐明这些问题。
+Rue 当前默认的渲染机制是 Block / Vapor。模板与 JSX 在编译阶段会尽量直接降到可执行的 Renderable / Block 指令，运行时围绕 DOM 锚点、区间和响应式副作用做最小更新，而不是把整棵界面都当成一棵需要反复 diff 的对象树。
 
-## 虚拟 DOM {#virtual-dom}
+这并不意味着文档里完全不会再出现旧的公开对象术语。`h()` 和少量迁移说明仍会提到它们，用来解释历史上的手写渲染输出；但 Rue 的默认主入口已经不再提供 compat 子路径，也不再接受旧的 compat helper。
 
-你可能听说过"虚拟 DOM"这个词，Rue 的渲染系统就是基于它的。
+## 公开渲染输出与默认 Block / Vapor {#virtual-dom}
 
-虚拟 DOM（VDOM）是一种编程概念，其中 UI 的理想或"虚拟"表示保存在内存中，并与"真实"DOM 同步。这个概念由 [React](https://react.dev/) 开创，并已被许多其他框架采用，包括 Rue，但实现方式不同。
+如果你从旧版本或其他框架迁移过来，最容易混淆的一点是：
 
-虚拟 DOM 与其说是一种特定技术，不如说是一种模式，因此没有一种规范的实现。我们可以使用一个简单的示例来说明这个想法：
+- Rue 仍然允许你手写 `h()` 或 JSX
+- 历史文档里仍可能看到旧的公开对象术语
+- 但 Rue 默认编译产物已经优先走 Block / Vapor / Renderable 路径
 
-```js
-const vnode = {
-  type: 'div',
-  props: {
-    id: 'hello',
-  },
-  children: [
-    /* 更多 vnodes */
-  ],
-}
-```
+在默认路径中，编译器会提前把静态结构、动态绑定、锚点布局和清理边界编码进输出。运行时拿到的不是“先完整建一棵对象树，再整树比较”，而是“直接执行一段更接近真实 DOM 操作的渲染计划”。
 
-这里，`vnode` 是一个表示 `<div>` 元素的普通 JavaScript 对象（"虚拟节点"）。它包含我们需要创建实际元素的所有信息。它还包含更多的子 vnode，这使它成为虚拟 DOM 树的根。
+只有在以下情况，你才会明显接触到历史对象桥接/compat 语义：
 
-运行时渲染器可以遍历虚拟 DOM 树并从中构建真实的 DOM 树。这个过程称为**挂载**。
-
-如果我们有两个虚拟 DOM 树的副本，渲染器还可以遍历并比较两棵树，找出差异，并将这些更改应用到实际的 DOM。这个过程称为**补丁**，也称为"差异比较"或"调和"。
-
-虚拟 DOM 的主要好处是它为开发者提供了以声明方式编程创建、检查和组合所需 UI 结构的能力，同时将直接 DOM 操作留给渲染器。
+- 你在手写渲染函数
+- 你在桥接历史库或老 helper
+- 你在迁移已经被删除的 compat 子路径与旧 helper
 
 ## 渲染管道 {#render-pipeline}
 
-在高层次上，当挂载 Rue 组件时会发生以下情况：
+在高层次上，当 Rue 组件挂载和更新时，会发生以下事情：
 
-1. **编译**：Rue 模板被编译成**渲染函数**：返回虚拟 DOM 树的函数。这一步可以通过构建步骤提前完成，也可以通过使用运行时编译器即时完成。
-
-2. **挂载**：运行时渲染器调用渲染函数，遍历返回的虚拟 DOM 树，并基于它创建实际的 DOM 节点。这一步作为[响应式 effect](./reactivity-in-depth)执行，因此它会跟踪所有使用过的响应式依赖。
-
-3. **补丁**：当挂载期间使用的依赖发生更改时，effect 重新运行。这次，创建了一个新的、更新的虚拟 DOM 树。运行时渲染器遍历新树，将其与旧树比较，并将必要的更新应用到实际的 DOM。
+1. **编译**：模板或 JSX 被编译成 Block / Renderable 导向的输出。静态结构、动态区段、锚点与更新提示会尽可能在构建时确定。
+2. **挂载**：运行时执行编译产物，创建真实 DOM、插入锚点、建立区间边界，并在执行过程中收集相关响应式依赖。
+3. **更新**：依赖变更后，只重新执行受影响的 block / effect。运行时直接更新对应 DOM 节点、区间或组件边界，而不是重新比较整棵对象树。
+4. **清理**：当分支切换、组件卸载或 renderable 边界失效时，对应 owner / cleanup bucket 会被回收，事件、订阅与 DOM 区间一并释放。
 
 ![render pipeline](./images/render-pipeline.png)
 
@@ -46,143 +35,70 @@ const vnode = {
 
 ## 模板与渲染函数 {#templates-vs-render-functions}
 
-Rue 模板被编译成虚拟 DOM 渲染函数。Rue 还提供了允许我们跳过模板编译步骤并直接编写渲染函数的 API。在处理高度动态逻辑时，渲染函数比模板更灵活，因为你可以使用 JavaScript 的完整能力与 vnode 一起工作。
+Rue 依然支持手写渲染函数，但默认推荐模板或普通 JSX，原因和以前不同了：
 
-那么为什么 Rue 默认推荐模板呢？有很多原因：
+1. 它们更接近 HTML 与组件声明，适合大多数应用代码。
+2. 它们能让编译器更早识别静态段、动态段、锚点和清理边界，从而直接生成更高效的 Block / Vapor 输出。
+3. 它们不需要你手动维护旧桥接对象细节，也更不容易意外依赖内部字段。
 
-1. 模板更接近实际的 HTML。这使得重用现有的 HTML 片段、应用可访问性最佳实践、使用 CSS 样式以及让设计师理解和修改变得更加容易。
+手写渲染函数仍然有价值，尤其适合：
 
-2. 由于其更具确定性的语法，模板更容易进行静态分析。这允许 Rue 的模板编译器应用许多编译时优化来提高虚拟 DOM 的性能（我们将在下面讨论）。
+- 高度动态的可复用组件
+- 需要精确控制 children / render prop 的库代码
+- 迁移中的旧 helper 或预编译产物桥接
 
-在实践中，模板足以满足应用程序中的大多数用例。渲染函数通常只用于需要处理高度动态渲染逻辑的可复用组件。渲染函数的使用在[渲染函数与 JSX](./render-function)中更详细地讨论。
+如果你需要手写 `h()` 或维护旧的渲染桥接，请把它们视为显式边界，而不是默认开发路径。相关写法见 [渲染函数与 JSX](./render-function)，迁移事项见 [默认 Block / Vapor 路径迁移](/guide/migration/renderable-default)。
 
-## 编译器知情的虚拟 DOM {#compiler-informed-virtual-dom}
+## 编译器知情的 Block / Vapor {#compiler-informed-virtual-dom}
 
-React 和大多数其他虚拟 DOM 实现中的虚拟 DOM 实现纯粹是运行时的：调和算法不能对传入的虚拟 DOM 树做出任何假设，因此它必须完全遍历树并比较每个 vnode 的 props 以确保正确性。此外，即使树的某部分永远不会更改，每次重新渲染时都会为它们创建新的 vnode，导致不必要的内存压力。这是虚拟 DOM 最受批评的方面之一：有些蛮力的调和过程以效率换取声明性和正确性。
+Rue 的核心优势在于同时掌控编译器与运行时。编译器可以提前知道哪些结构稳定、哪些片段会更新、哪些区段需要锚点、哪些分支在切换时必须清理；运行时则只执行这些已经被压缩过的信息。
 
-但不必如此。在 Rue 中，框架同时控制编译器和运行时。这使我们能够实现许多只有紧密耦合的渲染器才能利用的编译时优化。编译器可以静态分析模板并在生成的代码中留下提示，以便运行时可以在可能的情况下走捷径。同时，我们仍然保留让用户在边缘情况下下降到渲染函数层以获得更直接控制的能力。我们称这种混合方法为**编译器知情的虚拟 DOM**。
+旧文档里把这类优化描述成“编译器知情的整树协调模型”。今天更准确的说法是：Rue 会把编译期知识直接下沉到 Block / Vapor 运行时，让更新路径尽量接近真实 DOM 变更本身。
 
-下面，我们将讨论 Rue 模板编译器为改善虚拟 DOM 运行时性能所做的一些主要优化。
+下面这些优化依旧存在，只是它们服务的对象已经不是“整树对象 diff”，而是“编译后可直接执行的渲染计划”。
 
 ### 静态提升 {#cache-static}
 
-模板中经常会有不包含任何动态绑定的部分：
+模板中不含动态绑定的片段，会在编译阶段被提升、缓存或折叠成可复用的静态结构。这样更新时无需重新创建这些节点，也无需再次遍历它们。
 
 ```vue-html{2-3}
 <div>
-  <div>foo</div> <!-- 缓存 -->
-  <div>bar</div> <!-- 缓存 -->
+  <div>foo</div>
+  <div>bar</div>
   <div>{{ dynamic }}</div>
 </div>
 ```
 
-[在模板资源管理器中检查](https://template-explorer.@rue-js/ruejs.org/#eyJzcmMiOiI8ZGl2PlxuICA8ZGl2PmZvbzwvZGl2PiA8IS0tIGNhY2hlZCAtLT5cbiAgPGRpdj5iYXI8L2Rpdj4gPCEtLSBjYWNoZWQgLS0+XG4gIDxkaXY+e3sgZHluYW1pYyB9fTwvZGl2PlxuPC9kaXY+XG4iLCJvcHRpb25zIjp7ImhvaXN0U3RhdGljIjp0cnVlfX0=)
+在这个例子里，只有 `dynamic` 所在的片段需要参与更新；静态节点会在初次挂载后尽量复用。
 
-`foo` 和 `bar` div 是静态的——在每次重新渲染时重新创建 vnode 并比较它们是不必要的。渲染器在初始渲染期间创建这些 vnode，缓存它们，并在每次后续重新渲染时重用相同的 vnode。当渲染器注意到旧 vnode 和新 vnode 是同一个时，它还能够完全跳过比较它们。
+### Patch 标记与精准更新 {#patch-flags}
 
-此外，当有足够多的连续静态元素时，它们将被压缩成一个包含所有这些节点的纯 HTML 字符串的单个"静态 vnode"（[示例](https://template-explorer.@rue-js/ruejs.org/#eyJzcmMiOiI8ZGl2PlxuICA8ZGl2IGNsYXNzPVwiZm9vXCI+Zm9vPC9kaXY+XG4gIDxkaXYgY2xhc3M9XCJmb29cIj5mb288L2Rpdj5cbiAgPGRpdiBjbGFzcz1cImZvb1wiPmZvbzwvZGl2PlxuICA8ZGl2IGNsYXNzPVwiZm9vXCI+Zm9vPC9kaXY+XG4gIDxkaXYgY2xhc3M9XCJmb29cIj5mb288L2Rpdj5cbiAgPGRpdj57eyBkeW5hbWljIH19PC9kaXY+XG48L2Rpdj4iLCJzc3IiOmZhbHNlLCJvcHRpb25zIjp7ImhvaXN0U3RhdGljIjp0cnVlfX0=)）。这些静态 vnode 通过直接设置 `innerHTML` 来挂载。
-
-### Patch 标志 {#patch-flags}
-
-对于具有动态绑定的单个元素，我们也可以在编译时从中推断出很多信息：
+对于有动态绑定的节点，编译器会把“究竟什么会变”编码进产物，例如文本、class、style、属性或稳定片段。运行时据此直接走对应的更新路径，而不是重新检查整组 props。
 
 ```vue-html
-<!-- 仅 class 绑定 -->
 <div :class="{ active }"></div>
-
-<!-- 仅 id 和 value 绑定 -->
 <input :id="id" :value="value">
-
-<!-- 仅文本 children -->
 <div>{{ dynamic }}</div>
 ```
 
-[在模板资源管理器中检查](https://template-explorer.@rue-js/ruejs.org/#eyJzcmMiOiI8ZGl2IDpjbGFzcz1cInsgYWN0aXZlIH1cIj48L2Rpdj5cblxuPGlucHV0IDppZD1cImlkXCIgOnZhbHVlPVwidmFsdWVcIj5cblxuPGRpdj57eyBkeW5hbWljIH19PC9kaXY+Iiwib3B0aW9ucyI6e319)
+这类提示让运行时可以把更新收敛为“改 class”“改 value”“改 text”这样的定点操作。
 
-在为这些元素生成渲染函数代码时，Rue 将每个元素需要的更新类型直接编码在 vnode 创建调用中：
+### 树扁平化与区间更新 {#tree-flattening}
 
-```js{3}
-createElementVNode("div", {
-  class: _normalizeClass({ active: _ctx.active })
-}, null, 2 /* CLASS */)
-```
+编译器会把真正可能变化的后代节点提取出来，以 block 或区间边界的方式组织。这样组件更新时，运行时通常只需要遍历动态段，而不是重新访问整个静态子树。
 
-最后一个参数 `2` 是一个 [patch flag](https://github.com/@rue-js/ruejs/core/blob/main/packages/shared/src/patchFlags.ts)。一个元素可以有多个 patch flag，它们将被合并为一个数字。然后运行时渲染器可以使用[位运算](https://en.wikipedia.org/wiki/Bitwise_operation)检查标志以确定是否需要执行某些工作：
-
-```js
-if (vnode.patchFlag & PatchFlags.CLASS /* 2 */) {
-  // 更新元素的 class
-}
-```
-
-位运算检查极快。使用 patch flags，Rue 能够在更新具有动态绑定的元素时完成最少的工作量。
-
-Rue 还对 vnode 具有的 children 类型进行编码。例如，具有多个根节点的模板被表示为片段。在大多数情况下，我们确信这些根节点的顺序永远不会改变，因此这些信息也可以作为 patch flag 提供给运行时：
-
-```js{4}
-export function render() {
-  return (_openBlock(), _createElementBlock(_Fragment, null, [
-    /* children */
-  ], 64 /* STABLE_FRAGMENT */))
-}
-```
-
-因此，运行时可以完全跳过根片段的子顺序调和。
-
-### 树扁平化 {#tree-flattening}
-
-再看一下前面示例中的生成代码，你会注意到返回的虚拟 DOM 树的根是使用特殊的 `createElementBlock()` 调用创建的：
-
-```js{2}
-export function render() {
-  return (_openBlock(), _createElementBlock(_Fragment, null, [
-    /* children */
-  ], 64 /* STABLE_FRAGMENT */))
-}
-```
-
-从概念上讲，"块"是模板中具有稳定内部结构的部分。在这种情况下，整个模板有一个块，因为它不包含任何像 `v-if` 和 `v-for` 这样的结构指令。
-
-每个块跟踪任何具有 patch flags 的后代节点（不仅仅是直接子节点）。例如：
-
-```vue-html{3,5}
-<div> <!-- 根块 -->
-  <div>...</div>         <!-- 未跟踪 -->
-  <div :id="id"></div>   <!-- 已跟踪 -->
-  <div>                  <!-- 未跟踪 -->
-    <div>{{ bar }}</div> <!-- 已跟踪 -->
-  </div>
-</div>
-```
-
-结果是一个扁平化的数组，只包含动态后代节点：
-
-```
-div (块根)
-- 带有 :id 绑定的 div
-- 带有 {{ bar }} 绑定的 div
-```
-
-当这个组件需要重新渲染时，它只需要遍历扁平化的树而不是完整的树。这称为**树扁平化**，它大大减少了虚拟 DOM 调和期间需要遍历的节点数量。模板的任何静态部分实际上都被跳过了。
-
-`v-if` 和 `v-for` 指令将创建新的块节点：
-
-```vue-html
-<div> <!-- 根块 -->
-  <div>
-    <div v-if> <!-- if 块 -->
-      ...
-    </div>
-  </div>
-</div>
-```
-
-子块在父块的动态后代数组中被跟踪。这为父块保留了稳定的结构。
+遇到 `v-if`、`v-for`、`Teleport`、`Transition` 之类结构性边界时，Rue 会把它们当作独立的 block / range 处理，并通过锚点定位插入、移动和清理范围。
 
 ### 对 SSR 水合的影响 {#impact-on-ssr-hydration}
 
-Patch flags 和树扁平化也大大提高了 Rue 的 [SSR 水合](/guide/scaling-up/ssr#client-hydration)性能：
+同样的编译期提示也会影响 SSR 水合。客户端不需要把服务端 HTML 再还原成完整对象树后重跑 diff，而是可以按 block、动态节点和锚点边界接管现有 DOM。
 
-- 单个元素水合可以基于相应 vnode 的 patch flag 采取快速路径。
+这意味着：
 
-- 只有块节点及其动态后代需要在水合期间遍历，有效地在模板级别实现部分水合。
+- 静态片段可以更快跳过
+- 动态节点可以直接进入对应更新路径
+- 结构化边界可以在更小的粒度上完成接管与后续更新
+
+## compat 与迁移边界
+
+显式 compat 子路径已经删除。默认主入口也不再保留 compat-only helper。新代码应优先沿用模板、普通 JSX、`props.children` 与 render prop 等 Rue 当前主路径；旧的手写渲染 helper 则需要直接重写为默认 Renderable / raw node / mount handle 方案。

@@ -25,7 +25,7 @@ export const VaporCounter: FC = () =>
     onBeforeUnmount(() => {
       stop.dispose()
     })
-    return { vaporElement: root, update }
+    return root
   })
 
 export default VaporCounter

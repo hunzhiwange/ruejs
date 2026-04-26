@@ -6,10 +6,33 @@
 - 容器规范化：支持字符串选择器与元素容器，统一转为 DomElementLike。
 - 生命周期：提供 use/mount/unmount 三个方法管理应用，链式调用更便捷。
 */
-import rue, { FC, ComponentInstance, VNode, Rue } from '../rue'
+import rue, {
+  FC,
+  ComponentInstance,
+  RenderableOutput,
+  Rue,
+  getMarkedRuntimeDOMBridge,
+  markRuntimeDOMBridge,
+  runWithRuntime,
+} from '../rue'
 import { BrowserDOMAdapter, setDOMAdapter } from '../dom'
 import type { DomElementLike } from '../dom'
 import { querySelector, settextContent, setAttribute } from '../dom'
+
+const ensureRuntimeDOMBridge = (runtime: Rue) => {
+  if (typeof (runtime as any)?.setDOMAdapter !== 'function') {
+    return
+  }
+  if (!(globalThis as any).__rue_dom) {
+    setDOMAdapter(new BrowserDOMAdapter())
+  }
+  const bridge = (globalThis as any).__rue_dom
+  if (getMarkedRuntimeDOMBridge(runtime) === bridge) {
+    return
+  }
+  ;(runtime as any).setDOMAdapter(bridge)
+  markRuntimeDOMBridge(runtime, bridge)
+}
 
 /** 创建应用管理器
  * @param AppOrOptions 组件或 {setup, render} 配置
@@ -21,25 +44,23 @@ export function useApp(
     | ComponentInstance
     | {
         setup?: () => any
-        render?: (ctx: any) => VNode
+        render?: (ctx: any) => RenderableOutput
       },
   runtime?: Rue,
 ) {
   let containerRef: DomElementLike | null = null
   const appRue = (runtime as any) || (rue as any)
-  if (typeof appRue.setDOMAdapter === 'function') {
-    if (!(globalThis as any).__rue_dom) {
-      setDOMAdapter(new BrowserDOMAdapter())
-    }
-    appRue.setDOMAdapter((globalThis as any).__rue_dom)
-  }
+  ensureRuntimeDOMBridge(appRue)
 
   // 统一包装 App 为 FC
   const App: ComponentInstance =
     typeof AppOrOptions === 'function'
       ? (AppOrOptions as ComponentInstance)
       : (() => {
-          const opts = (AppOrOptions || {}) as { setup?: () => any; render?: (ctx: any) => VNode }
+          const opts = (AppOrOptions || {}) as {
+            setup?: () => any
+            render?: (ctx: any) => RenderableOutput
+          }
           const Wrapper: FC = () => {
             // setup：计算上下文（例如依赖注入、状态初始化）
             const ctx = typeof opts.setup === 'function' ? opts.setup() : {}
@@ -63,7 +84,9 @@ export function useApp(
     /** 安装插件到应用 */
     use(plugin: any, ...options: any[]) {
       // 透传到 Rue.use，支持多插件链式安装
-      appRue.use(plugin, ...options)
+      runWithRuntime(appRue, () => {
+        appRue.use(plugin, ...options)
+      })
       return this
     },
     /** 挂载应用到容器 */
@@ -75,7 +98,9 @@ export function useApp(
         settextContent(el, '')
       }
       // 执行挂载：将 App 渲染到容器
-      appRue.mount(App, el)
+      runWithRuntime(appRue, () => {
+        appRue.mount(App, el)
+      })
       // 为容器打标记，便于调试或样式定位
       if ((el as any).nodeType === 1) setAttribute(el, 'data-rue-app', '')
       containerRef = el
@@ -84,7 +109,9 @@ export function useApp(
     unmount() {
       if (containerRef) {
         // 执行卸载，释放容器引用
-        appRue.unmount(containerRef)
+        runWithRuntime(appRue, () => {
+          appRue.unmount(containerRef)
+        })
         containerRef = null
       }
     },

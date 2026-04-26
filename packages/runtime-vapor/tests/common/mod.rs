@@ -101,6 +101,25 @@ impl TestAdapter {
         Self::consume_event(&e);
         self.events.push(e);
     }
+
+    fn sync_child_snapshots(children: &mut [TestNode], updated: &TestNode) {
+        for child in children.iter_mut() {
+            if child.id == updated.id {
+                *child = updated.clone();
+            }
+            Self::sync_child_snapshots(&mut child.children, updated);
+        }
+    }
+
+    fn sync_node_snapshots(&mut self, updated_id: u64) {
+        let Some(updated) = self.nodes.get(&updated_id).cloned() else {
+            return;
+        };
+
+        for node in self.nodes.values_mut() {
+            Self::sync_child_snapshots(&mut node.children, &updated);
+        }
+    }
 }
 impl From<JsValue> for TestNode {
     fn from(value: JsValue) -> Self {
@@ -160,6 +179,7 @@ impl DomAdapter for TestAdapter {
         if let Some(n) = self.nodes.get_mut(&el.id) {
             n.text = text.into();
         }
+        self.sync_node_snapshots(el.id);
     }
     fn append_child(&mut self, parent: &mut Self::Element, child: &Self::Element) {
         // 片段会被展开为其子节点，其它节点直接附加

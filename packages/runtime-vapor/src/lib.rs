@@ -13,6 +13,10 @@ Rust 提示：
 // `reactive` 提供 Signal/Effect/Computed/Watch/Resource 等特性
 // `log` 提供运行时日志（支持 localStorage 配置）
 pub mod hook;
+#[cfg(feature = "log")]
+pub mod log;
+#[cfg(not(feature = "log"))]
+#[path = "log_disabled.rs"]
 pub mod log;
 pub mod reactive;
 pub mod runtime;

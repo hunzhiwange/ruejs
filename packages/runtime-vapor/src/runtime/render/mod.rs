@@ -1,7 +1,7 @@
 //! 渲染子系统总览
 //!
 //! - container：面向容器的渲染入口（render），负责首次挂载与后续增量更新
-//! - anchor：在单个尾锚点前渲染并复用 vnode，适合组件等自管理子树
+//! - anchor：在单个尾锚点前渲染并复用已挂载子树，适合组件等自管理子树
 //! - range：在父元素的两个锚点之间渲染（render_between），适用于区间更新
 //! - static_mount：在单个锚点前执行一次性静态挂载，避免不必要的 range_map 记录
 //! - range_ops：render_between 的原子操作集合（解析父、清理区间、插入前端）
@@ -14,9 +14,3 @@ mod helpers;
 mod range;
 mod range_ops;
 mod static_mount;
-
-pub use anchor::*;
-pub use container::*;
-pub use range::*;
-pub use range_ops::*;
-pub use static_mount::*;

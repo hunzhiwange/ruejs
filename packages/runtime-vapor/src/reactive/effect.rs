@@ -31,9 +31,8 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 
 use crate::reactive::core::{
-    BATCH_DEPTH, CURRENT_EFFECT, EFFECTS, Effect, NEXT_EFFECT_ID, PENDING_EFFECTS,
-    current_effect_scope, dispose_effect, register_effect_in_scope, run_effect,
-    schedule_effect_run,
+    CURRENT_EFFECT, EFFECTS, Effect, NEXT_EFFECT_ID, current_effect_scope, dispose_effect,
+    register_effect_in_scope, run_effect,
 };
 
 #[wasm_bindgen]

@@ -195,7 +195,7 @@ const SiteHome: FC = () => (
     <section className="grid md:grid-cols-3 gap-6 max-w-[1100px] mx-auto">
       <FeatureCard
         title="简洁易用"
-        desc="基于标准 HTML/CSS/TSX/WebAssembly，虚拟 DOM 与原生 DOM 双引擎渲染，组件语法直观，开发体验轻松高效。"
+        desc="基于标准 HTML/CSS/TSX/WebAssembly，编译驱动与原生 DOM 双路径渲染，组件语法直观，开发体验轻松高效。"
         icon="✅"
       />
       <FeatureCard
@@ -388,9 +388,7 @@ const Hello = ()=>vapor(()=>{
         _$appendChild(_el1, _el3);
         _$setClassName(_el3, "mt-2 text-sm opacity-90");
         _$appendChild(_el3, _$createTextNode("Hello component"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const World = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -406,9 +404,7 @@ const World = ()=>vapor(()=>{
         _$appendChild(_el4, _el6);
         _$setClassName(_el6, "mt-2 text-sm text-base-content/70");
         _$appendChild(_el6, _$createTextNode("World component"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const HelloRue = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -424,9 +420,7 @@ const HelloRue = ()=>vapor(()=>{
         _$appendChild(_el7, _el9);
         _$setClassName(_el9, "mt-2 text-sm opacity-90");
         _$appendChild(_el9, _$createTextNode("Rue"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const IAmRue = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -442,9 +436,7 @@ const IAmRue = ()=>vapor(()=>{
         _$appendChild(_el10, _el12);
         _$setClassName(_el12, "mt-2 text-sm text-base-content/70");
         _$appendChild(_el12, _$createTextNode("My name is Rue"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const HelloWorld = ()=>vapor(()=>{
         const _root = _$createElement("div");
@@ -489,9 +481,7 @@ const HelloWorld = ()=>vapor(()=>{
             columnNumber: 5
         }, this);
         renderBetween(__slot12, _root, _list10, _list11);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default HelloWorld;`}
           />
@@ -499,8 +489,8 @@ export default HelloWorld;`}
       </div>
       <div className="mt-6 space-y-3 text-gray-700">
         <p>
-          Vapor 模式优势： 直接创建与更新原生 DOM，避免虚拟 DOM
-          协调开销；按需、细粒度响应式更新，组件级挂载与卸载更高效；更小的运行时路径与更少的内存占用，在复杂界面中表现尤为稳定。
+          Vapor 模式优势： 直接创建与更新原生 DOM，避免额外的整树协调
+          开销；按需、细粒度响应式更新，组件级挂载与卸载更高效；更小的运行时路径与更少的内存占用，在复杂界面中表现尤为稳定。
         </p>
       </div>
     </section>

@@ -23,7 +23,8 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, ref, h, Fragment, _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from '@rue-js/rue';
+import { _$vaporWithHookId, vapor, renderAnchor, _$createElement, _$createComment, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute } from "@rue-js/rue/vapor";
+import { type FC, ref, h, Fragment } from '@rue-js/rue';
 const count = _$vaporWithHookId("ref:1:0", ()=>ref(0));
 const Comp: FC = ()=>vapor(()=>{
         const _root = _$createDocumentFragment();
@@ -39,15 +40,11 @@ const Comp: FC = ()=>vapor(()=>{
             watchEffect(()=>{
                 _$settextContent(_el2, count.value);
             });
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
-        const __slot2 = <Fragment children={__child1}/>;
+        const __slot2 = __child1;
         renderAnchor(__slot2, _root, _list1);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Comp;
 "##;

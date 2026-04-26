@@ -1,10 +1,10 @@
 use super::super::Rue;
+use super::super::types::MountLifecycleRecord;
 use crate::runtime::dom_adapter::DomAdapter;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
 // 区间渲染的原子操作集合：
-// - vapor_clear_old_range：清理旧范围（优先片段子节点，再移除旧宿主）
 // - vapor_insert_new_range：将新范围插入到 end 前（片段走子节点原子插入）
 // - collect_fragment_children_atomic / insert_fragment_children_atomic：片段子节点的原子化收集与插入
 // - resolve_dest_parent_for_end：解析 end 的真实父元素（片段/不包含 end 时）
@@ -18,7 +18,7 @@ where
     fn drain_range_entries_within_root(
         &mut self,
         root: &A::Element,
-        pending_unmounted: &mut Vec<super::super::types::VNode<A>>,
+        pending_unmounted: &mut Vec<MountLifecycleRecord>,
     ) where
         <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
     {
@@ -44,56 +44,18 @@ where
 
         let drained = std::mem::take(&mut self.range_map);
         let mut kept = Vec::with_capacity(drained.len());
-        for (start, mut vnode_opt) in drained.into_iter() {
-            if should_remove(&start) {
-                if let Some(mut vnode) = vnode_opt.take() {
-                    self.invoke_before_unmount_vnode(&mut vnode);
-                    pending_unmounted.push(vnode);
+        for mut entry in drained.into_iter() {
+            if should_remove(&entry.start) {
+                if let Some(mount) = entry.take_mount() {
+                    let lifecycle = mount.into_lifecycle();
+                    self.invoke_before_unmount_record(&lifecycle);
+                    pending_unmounted.push(lifecycle);
                 }
             } else {
-                kept.push((start, vnode_opt));
+                kept.push(entry);
             }
         }
         self.range_map = kept;
-    }
-
-    /// Vapor 快速路径：清理旧范围并返回真实父元素
-    ///
-    /// 参数：
-    /// - parent/end：原父元素与区间结束锚点
-    /// - old_vnode：旧 vnode（可能携带片段子节点或子树）
-    /// 返回：
-    /// - 解析后的真实父元素，用于后续插入
-    pub(super) fn vapor_clear_old_range(
-        &mut self,
-        parent: &A::Element,
-        end: &A::Element,
-        old_vnode: &mut super::super::types::VNode<A>,
-    ) -> A::Element
-    where
-        <A as DomAdapter>::Element: From<JsValue> + Into<JsValue>,
-    {
-        // 解析 end 的真实父元素
-        let mut dest_parent = self.resolve_dest_parent_for_end(parent, end);
-        // 优先清理旧 vnode 的片段子节点；若未清理成功则尝试其子树
-        let mut cleared = self.clear_vapor_frag_nodes(&mut dest_parent, old_vnode);
-        if !cleared {
-            if let Some(sub) = old_vnode.comp_subtree.as_deref_mut() {
-                cleared = self.clear_vapor_frag_nodes(&mut dest_parent, sub);
-            }
-        }
-        // 仍未清理：若旧 el 存在且在父内，直接移除
-        if !cleared {
-            if let Some(ref el_old) = old_vnode.el {
-                if let Some(adapter) = self.get_dom_adapter_mut() {
-                    if adapter.contains(&dest_parent, el_old) {
-                        let mut p2 = dest_parent.clone();
-                        adapter.remove_child(&mut p2, el_old);
-                    }
-                }
-            }
-        }
-        dest_parent
     }
 
     /// 将新范围插入到 end 前：片段走原子化插入，普通节点直接插入
@@ -186,7 +148,7 @@ where
     {
         let start_js: JsValue = start.clone().into();
         let end_js: JsValue = end.clone().into();
-        let mut pending_unmounted: Vec<super::super::types::VNode<A>> = Vec::new();
+        let mut pending_unmounted: Vec<MountLifecycleRecord> = Vec::new();
 
         let mut cur = js_sys::Reflect::get(&start_js, &JsValue::from_str("nextSibling"))
             .unwrap_or(JsValue::UNDEFINED);
@@ -210,8 +172,8 @@ where
             cur = next;
         }
 
-        for mut vnode in pending_unmounted.into_iter() {
-            self.invoke_unmounted_vnode(&mut vnode);
+        for record in pending_unmounted.into_iter() {
+            self.invoke_unmounted_record(&record);
         }
     }
 

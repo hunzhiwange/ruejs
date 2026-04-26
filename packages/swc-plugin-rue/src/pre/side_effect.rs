@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use swc_core::ecma::ast::*;
 
 /*
-模块职责与分析策略（中文详解）：
+模块职责与分析策略：
 - 目标：在预处理阶段进行“近似保守”的纯度与副作用分析，辅助 helpers 收集可安全搬迁的语句；
 - 两个核心工具函数：
   1) collect_idents_in_expr：遍历表达式（含嵌套语句与对象方法体等），收集其中出现的标识符名称；

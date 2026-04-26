@@ -41,6 +41,11 @@ export const SECTIONS_BY_TYPE: Record<'examples', Section[]> = {
           title: '简单组件',
           href: '/examples/simple-component',
         },
+        {
+          id: 'web-components',
+          title: '原生 Web Components',
+          href: '/examples/web-components',
+        },
       ],
     },
     {
@@ -106,6 +111,11 @@ export const SECTIONS_BY_TYPE: Record<'examples', Section[]> = {
           id: 'fetching-data',
           title: '获取数据',
           href: '/examples/fetching-data',
+        },
+        {
+          id: 'todo-app',
+          title: 'Todo 应用',
+          href: '/examples/todo-app',
         },
         {
           id: 'sort-filter-grid',

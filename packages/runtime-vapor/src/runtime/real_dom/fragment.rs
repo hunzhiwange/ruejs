@@ -1,78 +1,78 @@
-use super::super::{Child, Rue, VNode};
+use super::super::types::{
+    MountInput, MountInputChild, MountedPatchSubtree, MountedPatchSubtreeType,
+    MountedSubtreeChild, MountedSubtreeState,
+};
+use super::super::Rue;
 use crate::runtime::dom_adapter::DomAdapter;
-use js_sys::Array;
 use wasm_bindgen::JsValue;
-use wasm_bindgen::JsCast;
 
-/// 构建 DocumentFragment 并追加解析后的子节点
-///
-/// 通过 DomAdapter 创建片段，渲染子 VNode/文本到其中，
-/// 并将片段真实子节点收集进 `__fragNodes`，用于后续区间操作。
-pub(crate) fn real_dom_fragment<A: DomAdapter>(
+pub(crate) fn mount_fragment<A: DomAdapter>(
     rue: &mut Rue<A>,
-    vnode: &mut VNode<A>,
-) -> Option<A::Element>
+    input: &MountInput<A>,
+) -> Option<MountedSubtreeState<A>>
 where
     A::Element: Clone + From<JsValue> + Into<JsValue>,
 {
-    // 通过适配器创建片段；若缺少适配器则记录错误并返回 None
-    let mut frag = {
-        match rue.get_dom_adapter_mut() {
-            Some(a) => a.create_document_fragment(),
-            None => {
-                rue.handle_error(JsValue::from_str("runtime:create_real_dom Fragment no adapter"));
-                return None;
-            }
+    let mut frag = match rue.get_dom_adapter_mut() {
+        Some(adapter) => adapter.create_document_fragment(),
+        None => {
+            rue.handle_error(JsValue::from_str("runtime:mount Fragment no adapter"));
+            return None;
         }
     };
-    // 将片段元素缓存到 VNode，避免重复创建
-    vnode.el = Some(frag.clone());
-    // 渲染子节点：VNode 子节点递归创建，文本子节点直接创建/追加
-    for c in vnode.children.iter_mut() {
-        if let Child::VNode(ref mut n) = c {
-            if let Some(child_el) = rue.create_real_dom(n) {
-                if let Some(a) = rue.get_dom_adapter_mut() {
-                    a.append_child(&mut frag, &child_el);
-                } else {
-                    rue.handle_error(JsValue::from_str(
-                        "runtime:create_real_dom Fragment append no adapter",
-                    ));
+
+    let mut mounted_children = Vec::new();
+    for child in input.children.iter() {
+        match child {
+            MountInputChild::Input(node) => {
+                if let Some(mounted_child) = rue.mount_from_input(node) {
+                    if let Some(child_el) = mounted_child.host_cloned() {
+                        if let Some(adapter) = rue.get_dom_adapter_mut() {
+                            adapter.append_child(&mut frag, &child_el);
+                        }
+                    }
+                    mounted_children.push(MountedSubtreeChild::Subtree(mounted_child));
                 }
-            } else {
-                rue.handle_error(JsValue::from_str(
-                    "runtime:create_real_dom Fragment child create failed",
-                ));
             }
-        } else if let Child::Text(s) = c {
-            if let Some(a) = rue.get_dom_adapter_mut() {
-                let tn = a.create_text_node(s);
-                a.append_child(&mut frag, &tn);
-            } else {
-                rue.handle_error(JsValue::from_str(
-                    "runtime:create_real_dom Fragment text no adapter",
-                ));
+            MountInputChild::Text(text) => {
+                if let Some(adapter) = rue.get_dom_adapter_mut() {
+                    let tn = adapter.create_text_node(text);
+                    adapter.append_child(&mut frag, &tn);
+                    mounted_children.push(MountedSubtreeChild::Subtree(MountedSubtreeState::Text(
+                        super::super::types::MountedTextSubtree {
+                            host: Some(tn),
+                            key: None,
+                            cleanup_bucket: None,
+                            effect_scope_id: None,
+                        },
+                    )));
+                }
             }
         }
     }
-    // 若元素确为片段，则收集其真实子节点并存入 props，供后续区间操作使用
-    if let Some(a) = rue.get_dom_adapter() {
-        if a.is_fragment(&frag) {
-            let list = a.collect_fragment_children(&frag);
-            let js_arr = Array::new();
-            for item in list.into_iter() {
-                let v: JsValue = item.into();
-                js_arr.push(&v);
-            }
-            vnode
-                .props
-                .insert("__fragNodes".to_string(), js_arr.clone().into());
-            let frag_js: JsValue = frag.clone().into();
-            let _ = js_sys::Reflect::set(
-                &frag_js,
-                &JsValue::from_str("__rue_frag_nodes_ref"),
-                js_arr.unchecked_ref(),
-            );
+
+    let fragment_nodes = if let Some(adapter) = rue.get_dom_adapter() {
+        if adapter.is_fragment(&frag) {
+            adapter.collect_fragment_children(&frag)
+        } else {
+            Vec::new()
         }
-    }
-    Some(frag)
+    } else {
+        Vec::new()
+    };
+
+    Some(MountedSubtreeState::Patch(MountedPatchSubtree {
+        r#type: MountedPatchSubtreeType::Fragment,
+        props: input.props.clone(),
+        children: mounted_children,
+        el: Some(frag),
+        key: input.key.clone(),
+        fragment_nodes,
+        mount_cleanup_bucket: input.mount_cleanup_bucket.clone(),
+        mount_effect_scope_id: input.mount_effect_scope_id,
+        component_before_unmount_hooks: Vec::new(),
+        component_unmounted_hooks: Vec::new(),
+        comp_subtree: None,
+        comp_inst_index: None,
+    }))
 }

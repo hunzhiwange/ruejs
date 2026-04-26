@@ -48,7 +48,7 @@ describe('vaporKeyedList', () => {
               const row = document.createElement('div')
               row.className = 'row'
               row.textContent = item.label
-              return { vaporElement: row as any }
+              return row as any
             }) as any,
             listParent,
             anchor,

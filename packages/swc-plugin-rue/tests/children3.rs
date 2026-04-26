@@ -41,7 +41,8 @@ export default Children;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$vaporCreateVNode, _$setClassName } from '@rue-js/rue';
+import { vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, watchEffect, _$createTextWrapper, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC } from '@rue-js/rue';
 const Box: FC<{
     title: string;
 }> = (props)=>vapor(()=>{
@@ -61,12 +62,9 @@ const Box: FC<{
         _$appendChild(_el3, _list1);
         watchEffect(()=>{
             const __slot = (props.children);
-            const __vnode = _$vaporCreateVNode(__slot);
-            renderAnchor(__vnode, _el3, _list1);
+            renderAnchor(__slot, _el3, _list1);
         });
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 const Children: FC = ()=>vapor(()=>{
         const _root = _$createDocumentFragment();
@@ -90,9 +88,7 @@ const Children: FC = ()=>vapor(()=>{
                 const _el7 = _$createElement("span");
                 _$appendChild(_root, _el7);
                 _$appendChild(_el7, _$createTextNode("内部1-子元素"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
             const __slot3 = <Box title="内部1" children={__child2}/>;
             renderAnchor(__slot3, _root, _list2);
@@ -104,21 +100,15 @@ const Children: FC = ()=>vapor(()=>{
                 const _el8 = _$createElement("span");
                 _$appendChild(_root, _el8);
                 _$appendChild(_el8, _$createTextNode("内部2-子元素"));
-                return {
-                    vaporElement: _root
-                };
+                return _root;
             });
             const __slot5 = <Box title="内部2" children={__child3}/>;
             renderAnchor(__slot5, _root, _list4);
-            return {
-                vaporElement: _root
-            };
+            return _root;
         });
         const __slot7 = <Box title="外层" children={__child1}/>;
         renderAnchor(__slot7, _root, _list6);
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 export default Children;
 "##;

@@ -1,110 +1,291 @@
-import { type FC, computed, ref } from '@rue-js/rue'
+import { type FC, ref, watchEffect } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
-type Row = Record<string, string | number>
+const API_URL = 'https://api.github.com/repos/rust-lang/rust/commits?per_page=3&sha='
+const BRANCHES = ['main', 'beta', 'stable'] as const
 
-const DemoGrid: FC<{
-  data: Row[]
-  columns: string[]
-  filterKey: string
-}> = props => {
-  const sortKey = ref<string>('')
-  const sortOrders = ref<Record<string, number>>(
-    props.columns.reduce(
-      (o, k) => {
-        ;(o as any)[k] = 1
-        return o
-      },
-      {} as Record<string, number>,
-    ),
-  )
+type Branch = (typeof BRANCHES)[number]
 
-  const filteredData = computed(() => {
-    let data: Row[] = props.data
-    let filterKey = props.filterKey
-    if (filterKey) {
-      const q = String(filterKey).toLowerCase()
-      data = data.filter(row =>
-        Object.keys(row).some(key => String(row[key]).toLowerCase().includes(q)),
-      )
+type CommitItem = {
+  html_url: string
+  sha: string
+  author: {
+    html_url: string
+  } | null
+  commit: {
+    message: string
+    author: {
+      name: string
+      date: string
     }
-    const key = sortKey.value
-    if (key) {
-      const order = sortOrders.value[key]
-      data = data.slice().sort((a, b) => {
-        const av = a[key] as any
-        const bv = b[key] as any
-        return (av === bv ? 0 : av > bv ? 1 : -1) * order
-      })
-    }
-    return data
+  }
+}
+
+const SOURCE_CODE = [
+  "import { type FC, ref, watchEffect } from '@rue-js/rue';",
+  '',
+  "const API_URL = 'https://api.github.com/repos/rust-lang/rust/commits?per_page=3&sha=';",
+  "const BRANCHES = ['main', 'beta', 'stable'] as const;",
+  '',
+  'type Branch = (typeof BRANCHES)[number];',
+  '',
+  'type CommitItem = {',
+  '  html_url: string;',
+  '  sha: string;',
+  '  author: { html_url: string } | null;',
+  '  commit: {',
+  '    message: string;',
+  '    author: {',
+  '      name: string;',
+  '      date: string;',
+  '    };',
+  '  };',
+  '};',
+  '',
+  'const truncate = (value: string) => {',
+  "  const newline = value.indexOf('\\n');",
+  '  return newline > 0 ? value.slice(0, newline) : value;',
+  '};',
+  '',
+  "const formatDate = (value: string) => value.replace(/T|Z/g, ' ');",
+  '',
+  'const PreviewPanel: FC = () => {',
+  '  const currentBranch = ref<Branch>(BRANCHES[0]);',
+  '  const commits = ref<CommitItem[]>([]);',
+  '  const loading = ref(true);',
+  "  const errorMessage = ref('');",
+  '  let fetchVersion = 0;',
+  '',
+  '  watchEffect(() => {',
+  '    const branch = currentBranch.value;',
+  '    const version = ++fetchVersion;',
+  '    loading.value = true;',
+  "    errorMessage.value = '';",
+  '',
+  '    void (async () => {',
+  '      try {',
+  '        const response = await fetch(`${API_URL}${branch}`);',
+  '        if (!response.ok) {',
+  '          throw new Error(`GitHub API 返回 ${response.status}`);',
+  '        }',
+  '',
+  '        const data = (await response.json()) as CommitItem[];',
+  '        if (version !== fetchVersion) {',
+  '          return;',
+  '        }',
+  '',
+  '        commits.value = Array.isArray(data) ? data : [];',
+  '      } catch (error) {',
+  '        if (version !== fetchVersion) {',
+  '          return;',
+  '        }',
+  '',
+  '        commits.value = [];',
+  "        errorMessage.value = error instanceof Error ? error.message : '请求失败';",
+  '      } finally {',
+  '        if (version === fetchVersion) {',
+  '          loading.value = false;',
+  '        }',
+  '      }',
+  '    })();',
+  '  });',
+  '',
+  '  return (',
+  '    <div className="card bg-base-100 shadow">',
+  '      <div className="card-body gap-4">',
+  '        <h2 className="text-2xl font-semibold">Latest Rust Lang Commits</h2>',
+  '',
+  '        <div className="flex flex-wrap gap-4">',
+  '          {BRANCHES.map((branch) => (',
+  '            <label key={branch} htmlFor={branch} className="inline-flex items-center gap-2">',
+  '              <input',
+  '                id={branch}',
+  '                type="radio"',
+  '                name="branch"',
+  '                className="radio radio-sm radio-success"',
+  '                checked={currentBranch.value === branch}',
+  '                onChange={() => {',
+  '                  currentBranch.value = branch;',
+  '                }}',
+  '              />',
+  '              <span className="font-medium">{branch}</span>',
+  '            </label>',
+  '          ))}',
+  '        </div>',
+  '',
+  '        <p className="text-sm text-base-content/70">vuejs/core@{currentBranch.value}</p>',
+  '',
+  '        {loading.value && <p className="text-base-content/70">加载中...</p>}',
+  '',
+  '        {!loading.value && errorMessage.value && (',
+  '          <div role="alert" className="alert alert-error alert-soft">',
+  '            <span>{errorMessage.value}</span>',
+  '          </div>',
+  '        )}',
+  '',
+  '        {!loading.value && !errorMessage.value && commits.value.length > 0 && (',
+  '          <ul className="space-y-5">',
+  '            {commits.value.map((item) => (',
+  '              <li key={item.sha} className="leading-7">',
+  '                <a',
+  '                  href={item.html_url}',
+  '                  target="_blank"',
+  '                  rel="noreferrer"',
+  '                  className="font-mono text-success hover:underline"',
+  '                >',
+  '                  {item.sha.slice(0, 7)}',
+  '                </a>',
+  '                <span> - </span>',
+  '                <span className="text-base-content">{truncate(item.commit.message)}</span>',
+  '                <br />',
+  '                <span>by </span>',
+  '                <span className="font-semibold">',
+  '                  <a',
+  '                    href={item.author?.html_url || item.html_url}',
+  '                    target="_blank"',
+  '                    rel="noreferrer"',
+  '                    className="text-success hover:underline"',
+  '                  >',
+  '                    {item.commit.author.name}',
+  '                  </a>',
+  '                </span>',
+  '                <span> at </span>',
+  '                <span className="font-semibold">{formatDate(item.commit.author.date)}</span>',
+  '              </li>',
+  '            ))}',
+  '          </ul>',
+  '        )}',
+  '      </div>',
+  '    </div>',
+  '  );',
+  '};',
+].join('\n')
+
+const truncate = (value: string) => {
+  const newline = value.indexOf('\n')
+  return newline > 0 ? value.slice(0, newline) : value
+}
+
+const formatDate = (value: string) => value.replace(/T|Z/g, ' ')
+
+const PreviewPanel: FC = () => {
+  const currentBranch = ref<Branch>(BRANCHES[0])
+  const commits = ref<CommitItem[]>([])
+  const loading = ref(true)
+  const errorMessage = ref('')
+  let fetchVersion = 0
+
+  watchEffect(() => {
+    const branch = currentBranch.value
+    const version = ++fetchVersion
+    loading.value = true
+    errorMessage.value = ''
+
+    void (async () => {
+      try {
+        const response = await fetch(`${API_URL}${branch}`)
+        if (!response.ok) {
+          throw new Error(`GitHub API 返回 ${response.status}`)
+        }
+
+        const data = (await response.json()) as CommitItem[]
+        if (version !== fetchVersion) {
+          return
+        }
+
+        commits.value = Array.isArray(data) ? data : []
+      } catch (error) {
+        if (version !== fetchVersion) {
+          return
+        }
+
+        commits.value = []
+        errorMessage.value = error instanceof Error ? error.message : '请求失败'
+      } finally {
+        if (version === fetchVersion) {
+          loading.value = false
+        }
+      }
+    })()
   })
 
-  const sortBy = (key: string) => {
-    sortKey.value = key
-    sortOrders.value[key] = (sortOrders.value[key] || 1) * -1
-  }
-
-  const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
-
   return (
-    <div>
-      {filteredData.get().length ? (
-        <table className="min-w-full border-2 border-emerald-500 rounded-md bg-white">
-          <thead>
-            <tr>
-              {props.columns.map(key => (
-                <th
-                  key={key}
-                  className={`bg-emerald-500 text-white/90 cursor-pointer select-none px-5 py-2 ${sortKey.value === key ? 'text-white' : ''}`}
-                  onClick={() => sortBy(key)}
+    <div className="card bg-base-100 shadow">
+      <div className="card-body gap-4">
+        <h2 className="text-2xl font-semibold">Latest Rust Lang Commits</h2>
+
+        <div className="flex flex-wrap gap-4">
+          {BRANCHES.map(branch => (
+            <label key={branch} htmlFor={branch} className="inline-flex items-center gap-2">
+              <input
+                id={branch}
+                type="radio"
+                name="branch"
+                className="radio radio-sm radio-success"
+                checked={currentBranch.value === branch}
+                onChange={() => {
+                  currentBranch.value = branch
+                }}
+              />
+              <span className="font-medium">{branch}</span>
+            </label>
+          ))}
+        </div>
+
+        <p className="text-sm text-base-content/70">vuejs/core@{currentBranch.value}</p>
+
+        {loading.value && <p className="text-base-content/70">加载中...</p>}
+
+        {!loading.value && errorMessage.value && (
+          <div role="alert" className="alert alert-error alert-soft">
+            <span>{errorMessage.value}</span>
+          </div>
+        )}
+
+        {!loading.value && !errorMessage.value && commits.value.length > 0 && (
+          <ul className="space-y-5">
+            {commits.value.map(item => (
+              <li key={item.sha} className="leading-7">
+                <a
+                  href={item.html_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-success hover:underline"
                 >
-                  {capitalize(key)}
-                  <span
-                    className={`ml-2 inline-block align-middle opacity-80 ${sortOrders.value[key] > 0 ? 'border-l-4 border-r-4 border-b-4 border-transparent border-b-white h-0 w-0' : 'border-l-4 border-r-4 border-t-4 border-transparent border-t-white h-0 w-0'}`}
-                  ></span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.get().map((entry: Row, idx: number) => (
-              <tr key={idx}>
-                {props.columns.map(key => (
-                  <td key={key} className="bg-gray-50 min-w-[120px] px-5 py-2">
-                    {String(entry[key])}
-                  </td>
-                ))}
-              </tr>
+                  {item.sha.slice(0, 7)}
+                </a>
+                <span> - </span>
+                <span className="text-base-content">{truncate(item.commit.message)}</span>
+                <br />
+                <span>by </span>
+                <span className="font-semibold">
+                  <a
+                    href={item.author?.html_url || item.html_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-success hover:underline"
+                  >
+                    {item.commit.author.name}
+                  </a>
+                </span>
+                <span> at </span>
+                <span className="font-semibold">{formatDate(item.commit.author.date)}</span>
+              </li>
             ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="text-gray-700">No matches found.</p>
-      )}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
 
-const SortFilterGrid: FC = () => {
-  const searchQuery = ref('')
-  const gridColumns = ['name', 'power']
-  const gridData: Row[] = [
-    { name: 'Chuck Norris', power: Infinity },
-    { name: 'Bruce Lee', power: 9000 },
-    { name: 'Jackie Chan', power: 7000 },
-    { name: 'Jet Li', power: 8000 },
-  ]
-
-  const updateQuery = (e: any) => {
-    searchQuery.value = (e.target as HTMLInputElement).value
-  }
+const FetchingData: FC = () => {
   const activeTab = ref<'preview' | 'code'>('preview')
 
   return (
     <SidebarPlayground>
-      <h1 className="text-5xl font-semibold mb-4 md:mb-4">带有排序和过滤器的网格（移植自 Vue）</h1>
+      <h1 className="text-5xl font-semibold mb-4 md:mb-4">获取数据（移植自 Vue）</h1>
 
       <div role="tablist" className="tabs tabs-box">
         <button
@@ -128,128 +309,12 @@ const SortFilterGrid: FC = () => {
       </div>
 
       <div className="mt-4 grid md:grid-cols-1 gap-6 items-start">
+        {activeTab.value === 'preview' && <PreviewPanel />}
+
         {activeTab.value === 'code' && (
           <div className="card bg-base-100 shadow overflow-auto h-[360px] md:h-[720px]">
             <div className="card-body p-0">
-              <Code
-                className="h-full"
-                lang="tsx"
-                code={`import { type FC, ref, computed } from '@rue-js/rue';
-
-type Row = Record<string, string | number>;
-
-const DemoGrid: FC<{ data: Row[]; columns: string[]; filterKey: string }> = (props) => {
-  const sortKey = ref<string>('');
-  const sortOrders = ref<Record<string, number>>(props.columns.reduce((o, k) => { (o as any)[k] = 1; return o; }, {} as Record<string, number>));
-
-  const filteredData = computed(() => {
-    let data: Row[] = props.data;
-    let filterKey = props.filterKey;
-    if (filterKey) {
-      const q = String(filterKey).toLowerCase();
-      data = data.filter((row) => Object.keys(row).some((key) => String(row[key]).toLowerCase().includes(q)));
-    }
-    const key = sortKey.value;
-    if (key) {
-      const order = sortOrders.value[key];
-      data = data.slice().sort((a, b) => {
-        const av = a[key] as any;
-        const bv = b[key] as any;
-        return (av === bv ? 0 : av > bv ? 1 : -1) * order;
-      });
-    }
-    return data;
-  });
-
-  const sortBy = (key: string) => {
-    sortKey.value = key;
-    sortOrders.value[key] = (sortOrders.value[key] || 1) * -1;
-  };
-
-  const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
-
-  return (
-    <div>
-      {filteredData.value.length ? (
-        <table className="min-w-full border-2 border-emerald-500 rounded-md bg-white">
-          <thead>
-            <tr>
-              {props.columns.map((key) => (
-                <th
-                  key={key}
-                  className={\`bg-emerald-500 text-white/90 cursor-pointer select-none px-5 py-2 \${sortKey.value === key ? 'text-white' : ''}\`}
-                  onClick={() => sortBy(key)}
-                >
-                  {capitalize(key)}
-                  <span className={\`ml-2 inline-block align-middle opacity-80 \${sortOrders.value[key] > 0 ? 'border-l-4 border-r-4 border-b-4 border-transparent border-b-white h-0 w-0' : 'border-l-4 border-r-4 border-t-4 border-transparent border-t-white h-0 w-0'}\`}></span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.value.map((entry, idx) => (
-              <tr key={idx}>
-                {props.columns.map((key) => (
-                  <td key={key} className="bg-gray-50 min-w-[120px] px-5 py-2">{String(entry[key])}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="text-gray-700">No matches found.</p>
-      )}
-    </div>
-  );
-};
-
-const SortFilterGrid: FC = () => {
-  const searchQuery = ref('');
-  const gridColumns = ['name', 'power'];
-  const gridData: Row[] = [
-    { name: 'Chuck Norris', power: Infinity },
-    { name: 'Bruce Lee', power: 9000 },
-    { name: 'Jackie Chan', power: 7000 },
-    { name: 'Jet Li', power: 8000 },
-  ];
-  const updateQuery = (e: any) => { searchQuery.value = (e.target as HTMLInputElement).value; };
-  return (
-    <div className="card bg-base-100 shadow">
-      <div className="card-body grid gap-4">
-        <form id="search" className="flex items-center gap-2">
-          <span>Search</span>
-          <input
-            name="query"
-            className="input input-bordered"
-            value={searchQuery.value}
-            onInput={updateQuery}
-          />
-        </form>
-        <DemoGrid data={gridData} columns={gridColumns} filterKey={searchQuery.value} />
-      </div>
-    </div>
-  );
-};
-
-export default SortFilterGrid;`}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab.value === 'preview' && (
-          <div className="card bg-base-100 shadow">
-            <div className="card-body grid gap-4">
-              <form id="search" className="flex items-center gap-2">
-                <span>Search</span>
-                <input
-                  name="query"
-                  className="input input-bordered"
-                  value={searchQuery.value}
-                  onInput={updateQuery}
-                />
-              </form>
-              <DemoGrid data={gridData} columns={gridColumns} filterKey={searchQuery.value} />
+              <Code className="h-full" lang="tsx" code={SOURCE_CODE} />
             </div>
           </div>
         )}
@@ -258,4 +323,4 @@ export default SortFilterGrid;`}
   )
 }
 
-export default SortFilterGrid
+export default FetchingData

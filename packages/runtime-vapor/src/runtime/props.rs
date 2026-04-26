@@ -1,7 +1,7 @@
 /*
 属性补丁（patch_props）与后置修补（post_patch_element）
 -----------------------------------------------
-运行时在渲染/更新阶段将 VNode 的 props 翻译为宿主操作：
+运行时在渲染/更新阶段将挂载输入与 mounted snapshot 中记录的 props 翻译为宿主操作：
 - 删除旧属性：未出现在新 props 中的键需要被撤销或复位；
 - 设置新属性：把新 props 应用到元素；
 - 特例处理：className/style/innerHTML/value/checked/disabled/ref/onXxx 等。

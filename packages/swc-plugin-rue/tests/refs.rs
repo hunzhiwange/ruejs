@@ -35,7 +35,8 @@ export default Refs;
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { type FC, useRef, _$vaporWithHookId, useSetup, vapor, onBeforeUnmount, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$vaporBindUseRef, _$setAttribute, _$addEventListener, _$setClassName } from '@rue-js/rue';
+import { _$vaporWithHookId, useSetup, vapor, onBeforeUnmount, _$createElement, _$createTextNode, _$appendChild, watchEffect, _$vaporBindUseRef, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/vapor";
+import { type FC, useRef } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const Refs: FC = ()=>{
     const _$useSetup = _$vaporWithHookId("useSetup:0:0", ()=>useSetup(()=>{
@@ -78,9 +79,7 @@ const Refs: FC = ()=>{
         _$addEventListener(_el4, "click", ((e)=>RouterLink.__rueOnClick(e, "/jsx", false)));
         _$setClassName(_el4, "text-blue-600 hover:underline");
         _$appendChild(_el4, _$createTextNode("返回目录"));
-        return {
-            vaporElement: _root
-        };
+        return _root;
     });
 };
 export default Refs;
