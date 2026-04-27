@@ -32,6 +32,8 @@ export interface TeleportProps {
   children?: any
 }
 
+type TeleportChildInput = Parameters<typeof h>[2]
+
 const resolveTarget = (to?: string | HTMLElement): HTMLElement | null => {
   if (!to) return null
   if (typeof to === 'string') {
@@ -51,7 +53,8 @@ const snapshotTeleportProps = (props: TeleportProps): TeleportProps => ({
 
 const toRenderable = (children: unknown) => {
   if (Array.isArray(children)) {
-    return h('fragment', null, ...(children.filter(child => child != null) as unknown[]))
+    const filteredChildren = children.filter((child): child is TeleportChildInput => child != null)
+    return h('fragment', null, ...filteredChildren)
   }
   return children ?? []
 }

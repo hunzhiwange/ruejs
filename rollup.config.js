@@ -119,7 +119,9 @@ const packageFormats = inlineFormats || packageOptions.formats || defaultFormats
 function resolveEntryFormats(formats) {
   const configuredFormats = formats || packageOptions.formats || defaultFormats
   return inlineFormats
-    ? configuredFormats.filter(format => inlineFormats.includes(format))
+    ? configuredFormats.filter(
+        /** @param {PackageFormat} format */ format => inlineFormats.includes(format),
+      )
     : configuredFormats
 }
 
@@ -133,14 +135,19 @@ const buildEntries = [
   },
   ...(packageOptions.subEntries || [])
     /** @type {SubEntryOptions[]} */
-    .map(subEntry => ({
-      entryFile: subEntry.entry,
-      fileName: subEntry.filename || '',
-      globalName: subEntry.name,
-      formats: resolveEntryFormats(subEntry.formats),
-      isMain: false,
-    }))
-    .filter(subEntry => subEntry.entryFile && subEntry.fileName && subEntry.formats.length > 0),
+    .map(
+      /** @param {SubEntryOptions} subEntry */ subEntry => ({
+        entryFile: subEntry.entry,
+        fileName: subEntry.filename || '',
+        globalName: subEntry.name,
+        formats: resolveEntryFormats(subEntry.formats),
+        isMain: false,
+      }),
+    )
+    .filter(
+      /** @param {BuildEntry} subEntry */ subEntry =>
+        subEntry.entryFile && subEntry.fileName && subEntry.formats.length > 0,
+    ),
 ]
 
 const packageConfigs = process.env.PROD_ONLY

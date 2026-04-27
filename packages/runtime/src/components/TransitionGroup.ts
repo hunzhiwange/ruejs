@@ -6,19 +6,28 @@ TransitionGroup 组件概述
 - leave：元素被外层 patch 移除后，临时重新插回容器尾部并执行 leave，结束后再真正删除。
 */
 
-import { type FC, h, onUnmounted } from '../rue'
+import { type FC, h, onUnmounted, type PropsWithChildren } from '../rue'
 import { appendChild, contains } from '../dom'
 import { useRef, useSetup } from '@rue-js/runtime-vapor'
 import type { BaseTransitionProps } from './BaseTransition'
 import { createTransitionRunner } from './BaseTransition'
 import * as TransitionUtils from './transitionUtils'
 
-import type { TransitionType } from './transitionUtils'
-
 type TransitionGroupChildInput = unknown
 
-const cloneRenderableChildren = (children: unknown): unknown =>
-  Array.isArray(children) ? children.map(cloneRenderableChildren) : children
+export type TransitionGroupProps = PropsWithChildren<
+  BaseTransitionProps & {
+    tag?: string
+    moveClass?: string
+  }
+>
+
+const cloneRenderableChildren = (
+  children: TransitionGroupProps['children'],
+): TransitionGroupProps['children'] =>
+  Array.isArray(children)
+    ? (children.map(child => cloneRenderableChildren(child)) as TransitionGroupProps['children'])
+    : children
 
 const normalizeTransitionGroupChildren = (children: unknown): TransitionGroupChildInput[] => {
   const out: TransitionGroupChildInput[] = []
@@ -54,23 +63,6 @@ const snapshotTransitionGroupProps = (props: TransitionGroupProps): TransitionGr
   ...(props as Record<string, unknown>),
   children: cloneRenderableChildren(props.children),
 })
-
-export interface TransitionGroupProps {
-  name?: string
-  tag?: string
-  type?: TransitionType
-  css?: boolean
-  duration?: number | { enter: number; leave: number }
-  moveClass?: string
-  appear?: boolean
-  // JS hooks (per-item)
-  onBeforeEnter?: (el: HTMLElement) => void
-  onEnter?: (el: HTMLElement, done: () => void) => void
-  onAfterEnter?: (el: HTMLElement) => void
-  onBeforeLeave?: (el: HTMLElement) => void
-  onLeave?: (el: HTMLElement, done: () => void) => void
-  onAfterLeave?: (el: HTMLElement) => void
-}
 
 /** TransitionGroup：为多元素列表应用过渡与 FLIP 移动 */
 export const TransitionGroup: FC<TransitionGroupProps> = props => {

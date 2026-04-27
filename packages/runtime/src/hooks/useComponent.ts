@@ -119,7 +119,14 @@ export function useComponent<P = any>(
         renderBetween(nextOutput as any, container, startEl as any, endEl as any)
       })
 
-      return { container, startEl, endEl, propsSig, lastProps: props, effect }
+      return {
+        container,
+        startEl,
+        endEl,
+        propsSig,
+        lastProps: props,
+        effect: effect as ReturnType<typeof watchEffect> | null,
+      }
     })
 
     onBeforeUnmount(() => {

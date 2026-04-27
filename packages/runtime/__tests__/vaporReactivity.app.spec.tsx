@@ -259,13 +259,13 @@ const StableMixedChild = (props: { slot: any; children?: any[] }) => {
       let childrenCount = 0
 
       watchEffect(() => {
-        props.slot
+        void props.slot
         slotCount += 1
         slotRuns.textContent = String(slotCount)
       })
 
       watchEffect(() => {
-        props.children
+        void props.children
         childrenCount += 1
         childrenRuns.textContent = String(childrenCount)
       })

@@ -9,7 +9,6 @@ import {
   vapor,
   watchEffect,
 } from '@rue-js/rue'
-import { useRoute } from '@rue-js/router'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Tabs } from '@rue-js/design'
@@ -59,7 +58,6 @@ const LiveCountdown: FC<{
   })
 
 const CountdownDemo: FC = () => {
-  const route = useRoute()
   const counter = ref(59)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 

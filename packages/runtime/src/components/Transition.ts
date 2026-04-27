@@ -5,14 +5,21 @@ Transition 组件概述
 - 容器策略：默认以 display: contents 的 span 作为占位容器，保持文档语义与样式继承的稳定。
 */
 // 参考 Vue3 的 Transition 设计思路，结合 Rue 的信号与默认区间渲染机制
-import { type FC, onMounted, onUnmounted, renderBetween, vapor } from '../rue'
+import {
+  type FC,
+  onMounted,
+  onUnmounted,
+  type PropsWithChildren,
+  renderBetween,
+  vapor,
+} from '../rue'
 import { signal, watchEffect } from '../reactivity'
 import { type BaseTransitionProps, createTransitionRunner } from './BaseTransition'
 import { createElement, createComment, appendChild } from '../dom'
 import type { DomNodeLike } from '../dom'
 import { useSetup } from '@rue-js/runtime-vapor'
 
-export type TransitionProps = BaseTransitionProps
+export type TransitionProps = PropsWithChildren<BaseTransitionProps>
 
 type TransitionChildInput = Parameters<typeof renderBetween>[0]
 
@@ -33,8 +40,12 @@ const collectTransitionChildren = (
   return out
 }
 
-const cloneRenderableChildren = (children: unknown): unknown =>
-  Array.isArray(children) ? children.map(cloneRenderableChildren) : children
+const cloneRenderableChildren = (
+  children: TransitionProps['children'],
+): TransitionProps['children'] =>
+  Array.isArray(children)
+    ? (children.map(child => cloneRenderableChildren(child)) as TransitionProps['children'])
+    : children
 
 const resolveTransitionChild = (children: unknown): TransitionChildInput | null =>
   collectTransitionChildren(children)[0] ?? null

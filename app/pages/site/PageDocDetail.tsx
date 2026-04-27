@@ -22,20 +22,7 @@ import html from '@shikijs/langs/html'
 import css from '@shikijs/langs/css'
 import tokyoNight from '@shikijs/themes/tokyo-night'
 
-// 从 SidebarPlayground 的 SECTIONS_BY_TYPE 派生 DOCS_META，用于上一页/下一页
-type MenuItem = { id: string; title: string; href?: string; children?: MenuItem[] }
-function flatten(items: MenuItem[]): { id: string; title: string }[] {
-  const out: { id: string; title: string }[] = []
-  for (const it of items || []) {
-    if (it.children && it.children.length) {
-      out.push(...it.children.map(c => ({ id: c.id, title: c.title })))
-    } else {
-      out.push({ id: it.id, title: it.title })
-    }
-  }
-  return out
-}
-function getContext(pathname: string): {
+function getContext(): {
   uiBase: string
   docBase: string
 } {
@@ -110,15 +97,13 @@ async function mdToHtml(md: string): Promise<string> {
 
 const PageDocDetail: FC = () => {
   const route = useRoute()
-  const [_title, setTitle] = useState<string>('')
   const [html, setHtml] = useState<string>('')
   const [_results, _setResults] = useState<{ id: string; title: string; snippet: string }[]>([])
 
   watch(
     route,
     async (data: any) => {
-      const p = route.get()?.path || ''
-      const ctx = getContext(p)
+      const ctx = getContext()
       const seg = (data?.params?.path as string) || ''
       if (!seg) return
       const base = ctx.docBase

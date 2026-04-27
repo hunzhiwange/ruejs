@@ -4,9 +4,23 @@ import VitePluginRue from '../index.mjs'
 
 const createPlugin = () => VitePluginRue({ include: ['/app/'] })
 
+const invokeTransform = async (source: string, id: string) => {
+  const plugin = createPlugin()
+  const transformHook = plugin.transform
+
+  if (!transformHook) {
+    return null
+  }
+
+  if (typeof transformHook === 'function') {
+    return transformHook.call({} as any, source, id)
+  }
+
+  return transformHook.handler.call({} as any, source, id)
+}
+
 describe('vite-plugin-rue repeated computed branch transform', () => {
   it.fails('hoists repeated computed reads inside sibling conditional branches', async () => {
-    const plugin = createPlugin()
     const source = `
       import { computed, ref, type FC } from '@rue-js/rue'
 
@@ -43,16 +57,15 @@ describe('vite-plugin-rue repeated computed branch transform', () => {
       export default Demo
     `
 
-    const result = await plugin.transform?.(
+    const result = await invokeTransform(
       source,
       '/Users/dyhb/code/rue/app/test-fixtures/RepeatedComputedBranch.tsx',
     )
 
-    expect(result && typeof result !== 'string' ? result.code : '').toContain(
-      '/* RUE_VAPOR_TRANSFORMED */',
-    )
+    const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
-    const code = result && typeof result !== 'string' ? result.code : ''
+    expect(code).toContain('/* RUE_VAPOR_TRANSFORMED */')
+
     const prevReads = code.match(/\bprev\.get\(\)/g)?.length ?? 0
     const nextReads = code.match(/\bnext\.get\(\)/g)?.length ?? 0
 

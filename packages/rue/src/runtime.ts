@@ -1,3 +1,3 @@
-/// <reference path="../jsx.d.ts" />
+import type {} from '../jsx'
 
 export * from './index'

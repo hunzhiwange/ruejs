@@ -1,4 +1,4 @@
-import { type FC, useState, watch, computed, signal, useEffect } from '@rue-js/rue'
+import { type FC, useState, watch, computed, useEffect } from '@rue-js/rue'
 import { RouterLink, useRoute } from '@rue-js/router'
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlaygroundGuide'
 // @ts-ignore
@@ -35,7 +35,7 @@ function flatten(items: MenuItem[]): { id: string; title: string }[] {
   }
   return out
 }
-function getContext(pathname: string): {
+function getContext(): {
   uiBase: string
   docBase: string
 } {
@@ -115,15 +115,12 @@ const GuideDocDetail: FC = () => {
   const [_results, _setResults] = useState<{ id: string; title: string; snippet: string }[]>([])
   const [docPath, setDocPath] = useState<string>('')
   const [uiBase, setUiBase] = useState<string>('')
-  const [docBase, setDocBase] = useState<string>('/docs')
 
   watch(
     route,
     async (data: any) => {
-      const p = route.get()?.path || ''
-      const ctx = getContext(p)
+      const ctx = getContext()
       setUiBase(ctx.uiBase)
-      setDocBase(ctx.docBase)
       const seg = (data?.params?.path as string) || ''
       if (!seg) return
       setDocPath(seg)

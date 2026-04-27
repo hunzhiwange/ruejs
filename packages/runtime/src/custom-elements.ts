@@ -217,8 +217,6 @@ const setPropsState = (host: HTMLElement, state: Record<string, unknown> | null)
   propsStateByHost.delete(host)
 }
 
-const getPropsVersion = (host: HTMLElement) => propsVersionByHost.get(host) ?? null
-
 const setPropsVersion = (host: HTMLElement, version: { value: number } | null) => {
   if (version) {
     propsVersionByHost.set(host, version)

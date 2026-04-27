@@ -288,7 +288,6 @@ const makePath = (field: 'mysqlY' | 'pgY' | 'redisY' | 'apiY') =>
   latencyLines.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p[field]}`).join(' ')
 
 const maxThroughput = Math.max(...throughputs.map(t => t.value))
-const tpBarWidth = 100 / throughputs.length
 
 const biStyles = `
 .bi-scope.bi-page {

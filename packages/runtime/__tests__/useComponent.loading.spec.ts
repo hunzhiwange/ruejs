@@ -40,7 +40,7 @@ function createSignal<T>(initial: T) {
     },
     set(next: T) {
       value = next
-      for (const subscriber of [...subscribers]) subscriber()
+      for (const subscriber of subscribers) subscriber()
     },
   }
 }
