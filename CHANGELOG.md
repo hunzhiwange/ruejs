@@ -1,3 +1,10 @@
+## [0.0.33](https://github.com/hunzhiwange/ruejs/compare/v0.0.32...v0.0.33) (2026-04-27)
+
+
+### Bug Fixes
+
+* 修复打包 ([f41f234](https://github.com/hunzhiwange/ruejs/commit/f41f23427048cdd80c997c17dbe124521cf94272))
+* 修复警告和错误 ([83403e4](https://github.com/hunzhiwange/ruejs/commit/83403e4d1fb1faecbb1b46a0c3510fbfb11e1fc9))
 ## [0.0.32](https://github.com/hunzhiwange/ruejs/compare/v0.0.31...v0.0.32) (2026-04-22)
 
 
