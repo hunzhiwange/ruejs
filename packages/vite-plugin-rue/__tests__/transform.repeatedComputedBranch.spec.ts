@@ -43,9 +43,14 @@ describe('vite-plugin-rue repeated computed branch transform', () => {
       export default Demo
     `
 
-    const result = await plugin.transform?.(source, '/Users/dyhb/code/rue/app/test-fixtures/RepeatedComputedBranch.tsx')
+    const result = await plugin.transform?.(
+      source,
+      '/Users/dyhb/code/rue/app/test-fixtures/RepeatedComputedBranch.tsx',
+    )
 
-    expect(result && typeof result !== 'string' ? result.code : '').toContain('/* RUE_VAPOR_TRANSFORMED */')
+    expect(result && typeof result !== 'string' ? result.code : '').toContain(
+      '/* RUE_VAPOR_TRANSFORMED */',
+    )
 
     const code = result && typeof result !== 'string' ? result.code : ''
     const prevReads = code.match(/\bprev\.get\(\)/g)?.length ?? 0

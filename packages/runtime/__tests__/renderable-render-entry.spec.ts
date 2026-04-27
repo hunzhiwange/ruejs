@@ -67,7 +67,12 @@ describe('render entry Renderable bridge', () => {
     parent.appendChild(start)
     parent.appendChild(end)
 
-    renderBetween(createTextBlock('between', 'between') as any, parent as any, start as any, end as any)
+    renderBetween(
+      createTextBlock('between', 'between') as any,
+      parent as any,
+      start as any,
+      end as any,
+    )
 
     await flushEffects()
 
@@ -275,7 +280,11 @@ describe('render entry Renderable bridge', () => {
 
     parent.append(anchor)
 
-    renderAnchor(h('div', { id: 'preview-panel' }, 'Preview panel') as any, parent as any, anchor as any)
+    renderAnchor(
+      h('div', { id: 'preview-panel' }, 'Preview panel') as any,
+      parent as any,
+      anchor as any,
+    )
     await flushEffects()
 
     expect(parent.querySelector('#preview-panel')?.textContent).toBe('Preview panel')

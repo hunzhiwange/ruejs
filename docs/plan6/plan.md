@@ -10,7 +10,7 @@
 2. 默认 Wasm / real_dom 边界仍识别 vnode-like 对象：`packages/runtime-vapor/src/runtime/bridge/input.rs` 的 `looks_like_dev_object()`、`mount_input_from_dev_object_or_registry()`，以及 `runtime/real_dom/convert.rs` 的 `looks_like_default_vnode_object()`、`dev_object_to_input()`、`input_to_dev_object()` 仍保留默认 dev object 协议。
 3. runtime-vapor 内核仍保留 `VNode / Child / VNodeType` 实体：`packages/runtime-vapor/src/runtime/types.rs` 仍定义这些类型，`runtime/core.rs` 的 `create_element()` 仍直接构造 compat `VNode`。
 4. mounted snapshot / patch / lifecycle 仍通过 `from_vnode()`、`into_patch_vnode()`、`Child::VNode`、`MountedSubtreeChild::VNode` 等回退链路把 mounted state 和 `VNode` 互转。
-5. swc-plugin-rue 仍把编译器内部协议表述为“转 vnode / Rue VNode / __vnodeX”：`element_expr.rs`、`element_fragment.rs`、`vapor/block/expr.rs`、`vapor/helpers.rs` 都还保留 vnode IR 命名。
+5. swc-plugin-rue 仍把编译器内部协议表述为“转 vnode / Rue VNode / \_\_vnodeX”：`element_expr.rs`、`element_fragment.rs`、`vapor/block/expr.rs`、`vapor/helpers.rs` 都还保留 vnode IR 命名。
 6. 仓库文档、测试和生成产物仍残留虚拟 DOM 叙事：`docs/glossary/index.md`、`docs/guide/reusability/custom-directives.md`、部分 runtime tests、runtime-vapor tests，以及已生成的 `dist/pkg/pkg-node` 产物仍出现 `VNode`、`虚拟 DOM`、`__rue_vnode_id`、`compat` 等字样。
 
 ## 当前进度

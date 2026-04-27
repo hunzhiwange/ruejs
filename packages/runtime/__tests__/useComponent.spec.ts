@@ -37,11 +37,13 @@ describe('useComponent', () => {
     })
     await flushAsyncComponent()
 
-    expect(Array.from(container.querySelectorAll('section'), el => el.textContent)).toEqual(['A', 'B'])
-    expect(Array.from(container.querySelectorAll('section'), el => el.getAttribute('data-label'))).toEqual([
+    expect(Array.from(container.querySelectorAll('section'), el => el.textContent)).toEqual([
       'A',
       'B',
     ])
+    expect(
+      Array.from(container.querySelectorAll('section'), el => el.getAttribute('data-label')),
+    ).toEqual(['A', 'B'])
   })
 
   it('removes the previous async wrapper subtree when switching loaders', async () => {

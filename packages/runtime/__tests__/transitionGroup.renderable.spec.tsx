@@ -73,7 +73,11 @@ describe('TransitionGroup renderable boundary', () => {
     await flush()
 
     expect(Array.from(container.querySelectorAll(':scope li li')).length).toBe(0)
-    expect(Array.from(container.querySelectorAll('li'), el => el.textContent)).toEqual(['b', 'e', 'd'])
+    expect(Array.from(container.querySelectorAll('li'), el => el.textContent)).toEqual([
+      'b',
+      'e',
+      'd',
+    ])
   })
 
   it('keeps repeated same-slot insertions flat in tag mode without transition timing', async () => {

@@ -106,7 +106,7 @@ export default defineConfig({
       '@rue-js/design': path.resolve(rootDir, 'packages/rue-design/src'),
       '@rue-js/runtime-vapor': process.env.VITEST
         ? path.resolve(rootDir, 'packages/runtime-vapor/pkg-node/rue_runtime_vapor.js')
-        : path.resolve(rootDir, 'packages/runtime-vapor/pkg/rue_runtime_vapor.js')
-    }
+        : path.resolve(rootDir, 'packages/runtime-vapor/pkg/rue_runtime_vapor.js'),
+    },
   },
 })

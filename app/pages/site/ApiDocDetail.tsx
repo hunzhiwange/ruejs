@@ -198,7 +198,10 @@ const ApiDocDetail: FC = () => {
       {currentIndex.get() >= 0 && (
         <div className="mt-8 flex justify-between">
           {prev.get() ? (
-            <RouterLink to={`${uiBase.value}/${prev?.get()?.id}`} className="btn btn-outline btn-sm">
+            <RouterLink
+              to={`${uiBase.value}/${prev?.get()?.id}`}
+              className="btn btn-outline btn-sm"
+            >
               ← 上一页：{prev?.get()?.title}
             </RouterLink>
           ) : (

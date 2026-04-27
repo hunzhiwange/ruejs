@@ -79,9 +79,7 @@ import router from './router'
 
 const rustPlugin = createPlugin()
 
-useApp(App)
-  .use(router)
-  .mount('#app')
+useApp(App).use(router).mount('#app')
 ```
 
 这使得 `router` 和 `rustPlugin` 可以在我们的整个应用中使用。我们将在本指南的后续部分讨论组件和其他类型资源的注册。你还可以在其 [API 参考](/api/application) 中浏览应用实例 API 的完整列表。

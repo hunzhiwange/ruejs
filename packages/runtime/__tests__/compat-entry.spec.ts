@@ -97,7 +97,10 @@ describe('removed compat subpaths', () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
 
-    runtimeMain.render(runtimeMain.vapor(() => fragment as any), container)
+    runtimeMain.render(
+      runtimeMain.vapor(() => fragment as any),
+      container,
+    )
     await flush()
 
     expect(container.textContent).toBe('default-vapor-handle')

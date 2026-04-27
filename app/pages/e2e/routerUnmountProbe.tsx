@@ -1,6 +1,20 @@
-import { type FC, onBeforeUnmount, onMounted, onUnmounted, ref, vapor, watchEffect } from '@rue-js/rue'
+import {
+  type FC,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  ref,
+  vapor,
+  watchEffect,
+} from '@rue-js/rue'
 
-type ProbeKey = 'aMounted' | 'aBeforeUnmount' | 'aUnmounted' | 'bMounted' | 'bBeforeUnmount' | 'bUnmounted'
+type ProbeKey =
+  | 'aMounted'
+  | 'aBeforeUnmount'
+  | 'aUnmounted'
+  | 'bMounted'
+  | 'bBeforeUnmount'
+  | 'bUnmounted'
 
 const ensureProbeState = () => {
   const scope = globalThis as typeof globalThis & {
@@ -91,7 +105,8 @@ const ProbePanel: FC<{
     title.textContent = `Hash 路由卸载探针 ${props.currentRoute}`
     const desc = document.createElement('p')
     desc.className = 'text-sm text-base-content/70'
-    desc.textContent = '当前页是 route 组件本身。点击切到另一条 hash 路由后，观察对侧页面里的卸载计数。'
+    desc.textContent =
+      '当前页是 route 组件本身。点击切到另一条 hash 路由后，观察对侧页面里的卸载计数。'
     intro.appendChild(title)
     intro.appendChild(desc)
 
@@ -215,7 +230,13 @@ export const RouterUnmountProbeA: FC = () => {
     writeProbe('aUnmounted', 'A onUnmounted')
   })
 
-  return <ProbePanel currentRoute="/e2e/router-unmount-a" nextTo="/e2e/router-unmount-b" nextLabel="跳到 B" />
+  return (
+    <ProbePanel
+      currentRoute="/e2e/router-unmount-a"
+      nextTo="/e2e/router-unmount-b"
+      nextLabel="跳到 B"
+    />
+  )
 }
 
 export const RouterUnmountProbeB: FC = () => {
@@ -229,5 +250,11 @@ export const RouterUnmountProbeB: FC = () => {
     writeProbe('bUnmounted', 'B onUnmounted')
   })
 
-  return <ProbePanel currentRoute="/e2e/router-unmount-b" nextTo="/e2e/router-unmount-a" nextLabel="跳到 A" />
+  return (
+    <ProbePanel
+      currentRoute="/e2e/router-unmount-b"
+      nextTo="/e2e/router-unmount-a"
+      nextLabel="跳到 A"
+    />
+  )
 }

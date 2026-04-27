@@ -2,28 +2,27 @@
 Teleport 组件概述
 - 使用场景：需要将某段内容“传送”到文档中另一个位置（如模态框、浮层、全局通知）。
 - 行为：将子内容渲染到指定目标容器（字符串选择器或元素），禁用时在原位置本地渲染。
-- 锚点区间：通过两段注释节点标记内容范围，可在目标变化时整体搬运该范围，保证 DOM 结构稳定。
-- 生命周期：组件卸载时清理目标区间内容与锚点，避免遗留节点。
-- 依赖追踪：通过 effect 显式读取 props.children 建立依赖，确保子内容变化时重新渲染。
+- 锚点区间：通过两组注释节点分别维护“本地占位区间”和“目标区间”，目标变化时整体搬运目标区间。
+- 生命周期：组件卸载时清理本地/目标区间，避免遗留节点。
+- 依赖追踪：通过内部 signal + watchEffect 监听 props 变化，统一处理目标切换与 children 更新。
 */
-// 参考 Vue3 的 Teleport 设计思想，结合 Rue 的默认区间渲染机制实现
 
-import { type FC, h, onMounted, onUnmounted, renderBetween, vapor } from '../rue'
+import { type FC, h, onMounted, onUnmounted, render, renderBetween, vapor } from '../rue'
 import { signal, watchEffect } from '../reactivity'
 import {
+  appendChild,
+  contains,
   createComment,
   createDocumentFragment,
-  insertBefore,
-  appendChild,
-  removeChild,
-  querySelector,
   createElement,
-  contains,
   getParentNode,
-  settextContent,
+  insertBefore,
+  querySelector,
+  removeChild,
   setStyle,
+  settextContent,
 } from '../dom'
-import type { DomNodeLike, DomElementLike } from '../dom'
+import type { DomElementLike, DomNodeLike } from '../dom'
 import { useSetup } from '@rue-js/runtime-vapor'
 
 export interface TeleportProps {
@@ -33,11 +32,9 @@ export interface TeleportProps {
   children?: any
 }
 
-/** 解析 Teleport 目标容器 */
 const resolveTarget = (to?: string | HTMLElement): HTMLElement | null => {
   if (!to) return null
   if (typeof to === 'string') {
-    // 特殊值 'body'：直接选择文档 body
     if (to === 'body') return querySelector('body') as HTMLElement
     return querySelector(to) as HTMLElement | null
   }
@@ -52,74 +49,84 @@ const snapshotTeleportProps = (props: TeleportProps): TeleportProps => ({
   children: cloneRenderableChildren(props.children),
 })
 
-/** Teleport 组件：将 children 渲染到目标容器 */
-export const Teleport: FC<TeleportProps> = props => {
-  const ctx = useSetup(() => ({
-    target: null as HTMLElement | null,
-    startEl: createComment('rue-teleport-start'),
-    endEl: createComment('rue-teleport-end'),
-    propsSig: signal(snapshotTeleportProps(props), {}, true),
-    started: false,
-    effect: null as { dispose: () => void } | null,
-  }))
+const toRenderable = (children: unknown) => {
+  if (Array.isArray(children)) {
+    return h('fragment', null, ...(children.filter(child => child != null) as unknown[]))
+  }
+  return children ?? []
+}
 
-  /** 判断锚点区间是否存在非注释内容 */
+export const Teleport: FC<TeleportProps> = props => {
+  const ctx = useSetup(() => {
+    const container = createElement('span') as HTMLElement
+    setStyle(container, { display: 'contents' })
+
+    return {
+      container,
+      targetStart: createComment('rue-teleport-start'),
+      targetEnd: createComment('rue-teleport-end'),
+      propsSig: signal(snapshotTeleportProps(props), {}, true),
+      target: null as HTMLElement | null,
+      started: false,
+      effect: null as { dispose: () => void } | null,
+    }
+  })
+
+  const clearLocalRange = () => {
+    render([], ctx.container)
+  }
+
+  const clearTargetRange = (target: HTMLElement | null) => {
+    if (!target) return
+    renderBetween([], target, ctx.targetStart, ctx.targetEnd)
+  }
+
+  const detachTargetAnchors = () => {
+    const parent = getParentNode(ctx.targetStart) as HTMLElement | null
+    if (!parent) return
+    if (contains(parent, ctx.targetStart)) removeChild(parent, ctx.targetStart)
+    if (contains(parent, ctx.targetEnd)) removeChild(parent, ctx.targetEnd)
+  }
+
   const hasContentBetween = (): boolean => {
-    let n: DomNodeLike | null = (ctx.startEl as any).nextSibling || null
-    while (n && n !== ctx.endEl) {
-      if ((n as any).nodeType !== 8) return true
-      n = (n as any).nextSibling || null
+    let node: DomNodeLike | null = (ctx.targetStart as any).nextSibling || null
+    while (node && node !== ctx.targetEnd) {
+      if ((node as any).nodeType !== 8) return true
+      node = (node as any).nextSibling || null
     }
     return false
   }
 
-  /** 清空目标区间内容 */
-  const clearRange = (el: HTMLElement | null) => {
-    if (!el) return
-    renderBetween([], el, ctx.startEl, ctx.endEl)
-  }
-
-  /** 从当前父级中移除锚点 */
-  const detachAnchors = () => {
-    const parent = getParentNode(ctx.startEl) as HTMLElement | null
-    if (!parent) return
-    if (contains(parent, ctx.startEl)) removeChild(parent, ctx.startEl)
-    if (contains(parent, ctx.endEl)) removeChild(parent, ctx.endEl)
-  }
-
-  /** 将锚点与区间块搬运并渲染到目标容器 */
-  const mountChildren = (el: HTMLElement | null, children: unknown) => {
-    if (!el) return
-    if (!contains(el, ctx.startEl)) {
-      // 若锚点尚未在目标内：把锚点之间的现有内容转移到一个 Fragment 中，并移动锚点到目标
-      const block = createDocumentFragment()
-      {
-        let n: DomNodeLike | null = (ctx.startEl as any).nextSibling || null
-        while (n && n !== ctx.endEl) {
-          const next = (n as any).nextSibling as DomNodeLike | null
-          appendChild(block, n)
-          n = next
-        }
-        // 清理旧父级中的锚点
-        detachAnchors()
-      }
-      // 将锚点插入到目标，并将区间内容插入到 end 锚点之前
-      appendChild(el, ctx.startEl)
-      appendChild(el, ctx.endEl)
-      insertBefore(el, block, ctx.endEl)
+  const ensureTargetAnchors = (target: HTMLElement) => {
+    if (contains(target, ctx.targetStart)) {
+      return
     }
 
-    const nextRenderable = Array.isArray(children)
-      ? h('fragment', null, ...(children as unknown[]))
-      : children
-    renderBetween(nextRenderable as any, el, ctx.startEl, ctx.endEl)
-    const has = hasContentBetween()
-    if (!has) {
-      // 若区间为空，插入无语义占位以提升调试可读性
+    const block = createDocumentFragment()
+    let node: DomNodeLike | null = (ctx.targetStart as any).nextSibling || null
+    while (node && node !== ctx.targetEnd) {
+      const next = (node as any).nextSibling as DomNodeLike | null
+      appendChild(block, node)
+      node = next
+    }
+
+    detachTargetAnchors()
+    appendChild(target, ctx.targetStart)
+    appendChild(target, ctx.targetEnd)
+    insertBefore(target, block, ctx.targetEnd)
+  }
+
+  const renderTargetChildren = (target: HTMLElement | null, children: unknown) => {
+    if (!target) return
+
+    ensureTargetAnchors(target)
+    renderBetween(toRenderable(children) as any, target, ctx.targetStart, ctx.targetEnd)
+
+    if (!hasContentBetween()) {
       const fallback = createElement('span') as DomElementLike
       settextContent(fallback, '[Teleport] fallback: empty region after renderBetween')
       setStyle(fallback, { display: 'contents' })
-      insertBefore(el, fallback, ctx.endEl)
+      insertBefore(target, fallback, ctx.targetEnd)
     }
   }
 
@@ -132,19 +139,27 @@ export const Teleport: FC<TeleportProps> = props => {
       const disabled = !!curProps.disabled
       const nextTarget = disabled ? null : resolveTarget(curProps.to)
 
+      if (disabled) {
+        if (ctx.target) {
+          clearTargetRange(ctx.target)
+          detachTargetAnchors()
+          ctx.target = null
+        }
+        render(toRenderable(curProps.children) as any, ctx.container)
+        return
+      }
+
+      clearLocalRange()
+
       if (nextTarget !== ctx.target) {
-        if (!nextTarget && ctx.target) {
-          clearRange(ctx.target)
-          detachAnchors()
+        if (ctx.target) {
+          clearTargetRange(ctx.target)
+          detachTargetAnchors()
         }
         ctx.target = nextTarget
       }
 
-      if (!ctx.target) {
-        return
-      }
-
-      mountChildren(ctx.target, curProps.children)
+      renderTargetChildren(ctx.target, curProps.children)
     })
   })
 
@@ -155,15 +170,16 @@ export const Teleport: FC<TeleportProps> = props => {
     }
     ctx.started = false
 
+    clearLocalRange()
     if (ctx.target) {
-      // 清空区间并移除锚点，避免残留
-      clearRange(ctx.target)
-      detachAnchors()
+      clearTargetRange(ctx.target)
+      detachTargetAnchors()
+      ctx.target = null
     }
   })
 
   return vapor(() => {
     ctx.propsSig.set(snapshotTeleportProps(props))
-    return (props.disabled ? props.children : h('fragment', null)) as any
+    return ctx.container
   })
 }

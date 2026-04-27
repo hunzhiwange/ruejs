@@ -324,7 +324,8 @@ const parseTagInput = (value: string) =>
 const readRecordProp = (value: unknown) =>
   value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
 
-const readShadowCompact = (props: Record<string, unknown>) => readRecordProp(props.config)?.compact === true
+const readShadowCompact = (props: Record<string, unknown>) =>
+  readRecordProp(props.config)?.compact === true
 
 const readShadowPreset = (props: Record<string, unknown>) => {
   const presetValue = readRecordProp(props.config)?.preset
@@ -362,7 +363,8 @@ const resolveLightMountId = (host: HTMLElement | null) => {
 const readLightEvents = (props: Record<string, unknown>) =>
   Number(readRecordProp(props.metrics)?.events ?? 0)
 
-const readLightTags = (props: Record<string, unknown>) => Number(readRecordProp(props.metrics)?.tags ?? 0)
+const readLightTags = (props: Record<string, unknown>) =>
+  Number(readRecordProp(props.metrics)?.tags ?? 0)
 
 const toneToLight = (accent: AccentTone) => accent
 
@@ -415,7 +417,10 @@ const ShadowConsole: FC<Record<string, unknown>> = props => {
               emit(
                 'save',
                 { mountId, panelTitle, count, tags, busy },
-                { host: host?.tagName.toLowerCase() ?? 'unknown', rootMode: shadowRoot ? 'shadow' : 'light' },
+                {
+                  host: host?.tagName.toLowerCase() ?? 'unknown',
+                  rootMode: shadowRoot ? 'shadow' : 'light',
+                },
               )
             }}
           >
@@ -536,43 +541,43 @@ const demoCode = [
   '',
   '  return (',
   '    <article>',
-  '      <h2>{props.panelTitle ?? \"Shadow console\"}</h2>',
-  '      <p>{host?.tagName.toLowerCase()} / {shadowRoot ? \"shadow\" : \"light\"}</p>',
-  '      <button onClick={() => emit(\"save\", { count: props.count, tags: props.tags })}>',
+  '      <h2>{props.panelTitle ?? "Shadow console"}</h2>',
+  '      <p>{host?.tagName.toLowerCase()} / {shadowRoot ? "shadow" : "light"}</p>',
+  '      <button onClick={() => emit("save", { count: props.count, tags: props.tags })}>',
   '        emit save',
   '      </button>',
-  '      <slot name=\"meta\"></slot>',
+  '      <slot name="meta"></slot>',
   '      <slot></slot>',
   '    </article>',
   '  )',
   '}',
   '',
   'const ShadowConsoleElement = useCustomElement(ShadowConsole, {',
-  '  styles: [\':host { display:block }\', \'.frame { border-radius:24px }\'],',
-  '  nonce: \"rue-demo-nonce\",',
+  "  styles: [':host { display:block }', '.frame { border-radius:24px }'],",
+  '  nonce: "rue-demo-nonce",',
   '  configureApp() {',
-  '    console.log(\"configureApp runs once per host instance\")',
+  '    console.log("configureApp runs once per host instance")',
   '  },',
   '})',
   '',
   'const LightSignalElement = useCustomElement(LightSignal, {',
   '  shadowRoot: false,',
-  '  styles: [\'.lightShell { display:grid }\'],',
+  "  styles: ['.lightShell { display:grid }'],",
   '})',
   '',
-  'customElements.define(\"rue-shadow-console\", ShadowConsoleElement)',
-  'customElements.define(\"rue-light-signal\", LightSignalElement)',
+  'customElements.define("rue-shadow-console", ShadowConsoleElement)',
+  'customElements.define("rue-light-signal", LightSignalElement)',
   '',
-  'const shadowHost = document.querySelector(\"rue-shadow-console\")',
-  'shadowHost.setAttribute(\"panel-title\", \"Ops Console\")',
+  'const shadowHost = document.querySelector("rue-shadow-console")',
+  'shadowHost.setAttribute("panel-title", "Ops Console")',
   'shadowHost.props = {',
   '  count: 7,',
-  '  tags: [\"shadow\", \"events\", \"slots\"],',
-  '  config: { compact: false, preset: \"ops\" },',
+  '  tags: ["shadow", "events", "slots"],',
+  '  config: { compact: false, preset: "ops" },',
   '  busy: true,',
   '}',
   '',
-  'shadowHost.addEventListener(\"save\", event => {',
+  'shadowHost.addEventListener("save", event => {',
   '  console.log((event as CustomEvent).detail)',
   '})',
 ].join('\n')
@@ -619,9 +624,8 @@ const WebComponents: FC = () => {
     shadowStyleCount.value =
       shadowHost?.shadowRoot?.querySelectorAll('style[data-rue-ce-style]').length ?? 0
     shadowNonce.value =
-      shadowHost?.shadowRoot
-        ?.querySelector('style[data-rue-ce-style]')
-        ?.getAttribute('nonce') ?? '未找到 nonce'
+      shadowHost?.shadowRoot?.querySelector('style[data-rue-ce-style]')?.getAttribute('nonce') ??
+      '未找到 nonce'
     lightStyleCount.value = lightHost?.querySelectorAll('style[data-rue-ce-style]').length ?? 0
   }
 
@@ -960,11 +964,14 @@ const WebComponents: FC = () => {
                 <button className="btn btn-outline" onClick={removeLastTag}>
                   删除最后一个 tag
                 </button>
-                <button className="btn btn-secondary" onClick={() => {
-                  count.value += 2
-                  syncShadowHost()
-                  scheduleDiagnostics()
-                }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    count.value += 2
+                    syncShadowHost()
+                    scheduleDiagnostics()
+                  }}
+                >
                   count + 2
                 </button>
                 <button className="btn btn-ghost" onClick={clearTitleAttr}>
@@ -995,7 +1002,9 @@ const WebComponents: FC = () => {
                     </div>
                     <div className="stat py-3 px-4">
                       <div className="stat-title">mounted instances</div>
-                      <div className="stat-value text-lg">{shadowMounts.value + lightMounts.value}</div>
+                      <div className="stat-value text-lg">
+                        {shadowMounts.value + lightMounts.value}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1063,22 +1072,31 @@ const WebComponents: FC = () => {
                   <div className="space-y-3 max-h-[320px] overflow-auto pr-1">
                     {eventLog.value.length ? (
                       eventLog.value.map((entry, index) => (
-                        <div key={`${entry.name}-${entry.at}-${index}`} className="rounded-2xl border border-base-300 bg-base-200/60 p-3">
+                        <div
+                          key={`${entry.name}-${entry.at}-${index}`}
+                          className="rounded-2xl border border-base-300 bg-base-200/60 p-3"
+                        >
                           <div className="flex items-center justify-between gap-3 text-sm">
                             <div className="flex items-center gap-2">
-                              <span className={`badge ${entry.source === 'shadow' ? 'badge-primary' : 'badge-secondary'} badge-outline`}>
+                              <span
+                                className={`badge ${entry.source === 'shadow' ? 'badge-primary' : 'badge-secondary'} badge-outline`}
+                              >
                                 {entry.source}
                               </span>
                               <span className="font-medium">{entry.name}</span>
                             </div>
                             <span className="text-base-content/50">{entry.at}</span>
                           </div>
-                          <pre className="mt-2 text-xs whitespace-pre-wrap break-words">{entry.detail}</pre>
+                          <pre className="mt-2 text-xs whitespace-pre-wrap break-words">
+                            {entry.detail}
+                          </pre>
                         </div>
                       ))
                     ) : (
                       <div className="alert alert-soft">
-                        <span>点击自定义元素内部按钮后，这里会收到桥接出来的宿主 CustomEvent。</span>
+                        <span>
+                          点击自定义元素内部按钮后，这里会收到桥接出来的宿主 CustomEvent。
+                        </span>
                       </div>
                     )}
                   </div>

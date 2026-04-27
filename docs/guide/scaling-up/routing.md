@@ -3,6 +3,7 @@
 ## 客户端路由
 
 服务端路由意味着服务器根据用户访问的 URL 路径发送响应。
+
 ## 官方路由 {#official-router}
 
 Rue 非常适合构建 SPA。对于大多数 SPA，建议使用官方支持的 [Rue Router](https://github.com/ruejs/router) 库。更多详情请参见 Rue Router 的[文档](https://router.ruejs.org/)。

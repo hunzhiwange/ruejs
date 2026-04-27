@@ -1,13 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import {
-  Teleport,
-  Transition,
-  h,
-  setReactiveScheduling,
-  vapor,
-  watchEffect,
-} from '../src'
+import { Teleport, Transition, h, setReactiveScheduling, vapor, watchEffect } from '../src'
 import { render, renderAnchor } from '../src'
 import type { FC } from '../src'
 

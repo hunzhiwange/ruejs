@@ -50,12 +50,7 @@ export default function VitePluginRue(options = {}) {
           },
         },
         experimental: {
-          plugins: [
-            [
-              process.env.RUE_SWC_PLUGIN,
-              {},
-            ],
-          ],
+          plugins: [[process.env.RUE_SWC_PLUGIN, {}]],
         },
       },
       minify: process.env.NODE_ENV === 'production',

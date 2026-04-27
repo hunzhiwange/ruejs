@@ -268,8 +268,15 @@ const createRouteComponentBlock = (
       insertNodeAtTarget(target, routeEnd)
 
       const parent =
-        target.kind === 'container' ? (target.container as unknown as Node) : (target.parent as Node)
-      renderBetween(h(component, { params }) as any, parent as any, routeStart as any, routeEnd as any)
+        target.kind === 'container'
+          ? (target.container as unknown as Node)
+          : (target.parent as Node)
+      renderBetween(
+        h(component, { params }) as any,
+        parent as any,
+        routeStart as any,
+        routeEnd as any,
+      )
     },
     unmount() {
       if (!start || !end) {
@@ -312,7 +319,11 @@ export const RouterView: FC = () => {
       if (!data) {
         renderAnchor([] as any, parent, anchorEl)
       } else {
-        renderAnchor(createRouteComponentBlock(data.record.component, data.params) as any, parent, anchorEl)
+        renderAnchor(
+          createRouteComponentBlock(data.record.component, data.params) as any,
+          parent,
+          anchorEl,
+        )
       }
     })
 

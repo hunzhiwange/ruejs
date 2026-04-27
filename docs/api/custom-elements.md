@@ -58,13 +58,16 @@
   ```js
   import { useCustomElement } from '@rue-js/rue'
 
-  const MyElement = useCustomElement(props => {
-    return <p>{props.label ?? 'hello'}</p>
-  }, {
-    configureApp(app) {
-      // app.use(...)
+  const MyElement = useCustomElement(
+    props => {
+      return <p>{props.label ?? 'hello'}</p>
     },
-  })
+    {
+      configureApp(app) {
+        // app.use(...)
+      },
+    },
+  )
 
   customElements.define('my-element', MyElement)
   ```
@@ -76,11 +79,14 @@
   ```js
   import { useCustomElement } from '@rue-js/rue'
 
-  const MyRueElement = useCustomElement(props => {
-    return <div>{props.label ?? 'hello'}</div>
-  }, {
-    styles: [':host { display: block; }'],
-  })
+  const MyRueElement = useCustomElement(
+    props => {
+      return <div>{props.label ?? 'hello'}</div>
+    },
+    {
+      styles: [':host { display: block; }'],
+    },
+  )
 
   // 注册自定义元素。
   customElements.define('my-rue-element', MyRueElement)

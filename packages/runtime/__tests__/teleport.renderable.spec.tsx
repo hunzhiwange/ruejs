@@ -33,9 +33,7 @@ const TeleportHarness: FC<{ to: HTMLElement; label: string; visible: boolean }> 
 
     watchEffect(() => {
       renderAnchor(
-        props.visible
-          ? h(Teleport, { to: props.to }, h('strong', null, props.label))
-          : null,
+        props.visible ? h(Teleport, { to: props.to }, h('strong', null, props.label)) : null,
         root as any,
         anchor as any,
       )
@@ -95,7 +93,11 @@ describe('Teleport renderable boundary', () => {
         root.appendChild(anchor)
 
         watchEffect(() => {
-          renderAnchor(h(Teleport, { to: target }, h('strong', null, label.get())), root as any, anchor as any)
+          renderAnchor(
+            h(Teleport, { to: target }, h('strong', null, label.get())),
+            root as any,
+            anchor as any,
+          )
         })
 
         return root as any
@@ -132,7 +134,11 @@ describe('Teleport renderable boundary', () => {
         root.appendChild(anchor)
 
         watchEffect(() => {
-          renderAnchor(h(ExternalTextBridge, { to: to.get(), label: label.get() }), root as any, anchor as any)
+          renderAnchor(
+            h(ExternalTextBridge, { to: to.get(), label: label.get() }),
+            root as any,
+            anchor as any,
+          )
         })
 
         return root as any

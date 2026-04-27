@@ -11,10 +11,7 @@ import {
   vapor,
   watchEffect,
 } from '../src'
-import {
-  SortFilterPreview,
-  TogglePanel,
-} from '../../../app/test-fixtures/VaporReactivityFixture'
+import { SortFilterPreview, TogglePanel } from '../../../app/test-fixtures/VaporReactivityFixture'
 
 setReactiveScheduling('sync')
 
@@ -400,16 +397,12 @@ describe('app fixture vapor reactivity', () => {
     )
     await flush()
 
-    expect(container.querySelector('[data-testid="manual-interval-value"]')?.textContent).toBe(
-      '0',
-    )
+    expect(container.querySelector('[data-testid="manual-interval-value"]')?.textContent).toBe('0')
 
     await new Promise(resolve => setTimeout(resolve, 20))
     await flush()
 
-    expect(container.querySelector('[data-testid="manual-interval-value"]')?.textContent).toBe(
-      '1',
-    )
+    expect(container.querySelector('[data-testid="manual-interval-value"]')?.textContent).toBe('1')
   })
 
   it('keeps nested vapor child props reactive across parent renderAnchor updates', async () => {
@@ -422,9 +415,7 @@ describe('app fixture vapor reactivity', () => {
 
     expect(container.querySelector('[data-testid="nested-vapor-value"]')?.textContent).toBe('0')
 
-    const button = container.querySelector(
-      '[data-testid="nested-vapor-bump"]',
-    ) as HTMLButtonElement
+    const button = container.querySelector('[data-testid="nested-vapor-bump"]') as HTMLButtonElement
     button.click()
     await flush()
 
@@ -439,12 +430,10 @@ describe('app fixture vapor reactivity', () => {
     )
     await flush()
 
-    expect(container.querySelector('[data-testid="stable-mixed-slot-runs"]')?.textContent).toBe(
+    expect(container.querySelector('[data-testid="stable-mixed-slot-runs"]')?.textContent).toBe('1')
+    expect(container.querySelector('[data-testid="stable-mixed-children-runs"]')?.textContent).toBe(
       '1',
     )
-    expect(
-      container.querySelector('[data-testid="stable-mixed-children-runs"]')?.textContent,
-    ).toBe('1')
 
     const button = container.querySelector(
       '[data-testid="stable-mixed-rerender"]',
@@ -452,12 +441,10 @@ describe('app fixture vapor reactivity', () => {
     button.click()
     await flush()
 
-    expect(container.querySelector('[data-testid="stable-mixed-slot-runs"]')?.textContent).toBe(
+    expect(container.querySelector('[data-testid="stable-mixed-slot-runs"]')?.textContent).toBe('1')
+    expect(container.querySelector('[data-testid="stable-mixed-children-runs"]')?.textContent).toBe(
       '1',
     )
-    expect(
-      container.querySelector('[data-testid="stable-mixed-children-runs"]')?.textContent,
-    ).toBe('1')
   })
 
   it('updates local ref-driven content immediately', async () => {
@@ -527,5 +514,4 @@ describe('app fixture vapor reactivity', () => {
       ),
     ).toEqual(['Bruce Lee'])
   })
-
 })

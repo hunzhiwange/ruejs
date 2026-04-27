@@ -403,7 +403,8 @@ export function useMachine<T>(options: T) {
 虽然不是某物有资格成为 signals 的必要特征，但如今这个概念经常与通过细粒度订阅执行更新的渲染模型一起讨论。Rue 当前默认已经把编译期知识下沉到 Block / Vapor 渲染路径中，并通过[编译器知情的 Block / Vapor](/guide/extras/rendering-mechanism#compiler-informed-virtual-dom)把更新收敛到更小的动态边界，而不是依赖整棵运行时树的全量 diff。
 
 这也是 Rue 响应式系统与运行时结合的关键点：响应式依赖不只是决定“重新执行哪段代码”，还决定“重新接管哪个 block、哪个区间、哪个 DOM 边界”。
-*** Add File: /Users/Shared/work/dir/data/codes/rue/docs/guide/migration/renderable-default.md
+\*\*\* Add File: /Users/Shared/work/dir/data/codes/rue/docs/guide/migration/renderable-default.md
+
 # 默认 Block / Vapor 路径迁移
 
 Rue 当前默认的编译与运行时路径已经是 Block / Vapor / Renderable-first。对大多数应用来说，这只是内部实现升级，你仍然写模板或普通 JSX；但如果你维护的是旧的手写渲染 helper、库级桥接层或预编译产物，这一页就是你需要的迁移清单。

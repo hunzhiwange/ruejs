@@ -23,8 +23,7 @@ const sharedArgs = [
 const checks = [
   {
     name: 'removed compat symbols',
-    pattern:
-      String.raw`__rue_vnode_id|RueVNodeHandle|_\$vaporCreateVNode|renderCompat|renderBetweenCompat|renderAnchorCompat|renderStaticCompat|adaptVNodeToRenderableCompat|@rue-js/runtime/compat|@rue-js/rue/compat`,
+    pattern: String.raw`__rue_vnode_id|RueVNodeHandle|_\$vaporCreateVNode|renderCompat|renderBetweenCompat|renderAnchorCompat|renderStaticCompat|adaptVNodeToRenderableCompat|@rue-js/runtime/compat|@rue-js/rue/compat`,
   },
   {
     name: 'legacy virtual-dom terminology',

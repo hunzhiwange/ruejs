@@ -10,10 +10,8 @@ import { fileURLToPath } from 'node:url'
 const resolveEntryForPkg = (/** @type {string} */ p) =>
   path.resolve(fileURLToPath(import.meta.url), `../../packages/${p}/src/index.ts`)
 
-const resolveSubEntryForPkg = (
-  /** @type {string} */ p,
-  /** @type {string} */ subEntry,
-) => path.resolve(fileURLToPath(import.meta.url), `../../packages/${p}/src/${subEntry}.ts`)
+const resolveSubEntryForPkg = (/** @type {string} */ p, /** @type {string} */ subEntry) =>
+  path.resolve(fileURLToPath(import.meta.url), `../../packages/${p}/src/${subEntry}.ts`)
 
 const dirs = readdirSync(new URL('../packages', import.meta.url))
 

@@ -30,6 +30,4 @@ const RootApp: FC = () => {
 }
 
 // 创建并挂载应用，安装路由
-useApp(RootApp)
-  .use(router)
-  .mount('#app')
+useApp(RootApp).use(router).mount('#app')

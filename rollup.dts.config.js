@@ -29,7 +29,12 @@ export default targetPackages.map(
         file: resolvePackageTypesOutput(pkg),
         format: 'es',
       },
-      plugins: [rewriteRuntimeVaporImports(), dts(), patchTypes(pkg), ...(pkg === 'vue' ? [copyMts()] : [])],
+      plugins: [
+        rewriteRuntimeVaporImports(),
+        dts(),
+        patchTypes(pkg),
+        ...(pkg === 'vue' ? [copyMts()] : []),
+      ],
       onwarn(warning, warn) {
         // during dts rollup, everything is externalized by default
         if (warning.code === 'UNRESOLVED_IMPORT' && !warning.exporter?.startsWith('.')) {

@@ -1,5 +1,14 @@
 import type { FC } from '@rue-js/rue'
-import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, useRef, vapor, watchEffect } from '@rue-js/rue'
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  ref,
+  useRef,
+  vapor,
+  watchEffect,
+} from '@rue-js/rue'
 import { useRoute } from '@rue-js/router'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
@@ -17,35 +26,37 @@ type LiveCountdownItem =
       className?: string
     }
 
-const LiveCountdown: FC<{ className?: string; getItems: () => ReadonlyArray<LiveCountdownItem> }> =
-  props =>
-    vapor(() => {
-      const root = document.createElement('span')
+const LiveCountdown: FC<{
+  className?: string
+  getItems: () => ReadonlyArray<LiveCountdownItem>
+}> = props =>
+  vapor(() => {
+    const root = document.createElement('span')
 
-      watchEffect(() => {
-        root.className = props.className ? `countdown ${props.className}` : 'countdown'
+    watchEffect(() => {
+      root.className = props.className ? `countdown ${props.className}` : 'countdown'
 
-        const nodes = props.getItems().map<Node>(item => {
-          if ('value' in item) {
-            const span = document.createElement('span')
-            if (item.className) span.className = item.className
-            span.setAttribute('aria-live', 'polite')
-            span.setAttribute('aria-label', item.ariaLabel ?? String(item.value))
-            span.style.setProperty('--value', String(item.value))
-            if (item.digits != null) span.style.setProperty('--digits', String(item.digits))
-            span.textContent = String(item.value)
-            return span
-          }
+      const nodes = props.getItems().map<Node>(item => {
+        if ('value' in item) {
+          const span = document.createElement('span')
+          if (item.className) span.className = item.className
+          span.setAttribute('aria-live', 'polite')
+          span.setAttribute('aria-label', item.ariaLabel ?? String(item.value))
+          span.style.setProperty('--value', String(item.value))
+          if (item.digits != null) span.style.setProperty('--digits', String(item.digits))
+          span.textContent = String(item.value)
+          return span
+        }
 
-          // daisyUI countdown expects separators like "h" or ":" to be plain text nodes.
-          return document.createTextNode(item.content)
-        })
-
-        root.replaceChildren(...nodes)
+        // daisyUI countdown expects separators like "h" or ":" to be plain text nodes.
+        return document.createTextNode(item.content)
       })
 
-      return root
+      root.replaceChildren(...nodes)
     })
+
+    return root
+  })
 
 const CountdownDemo: FC = () => {
   const route = useRoute()
@@ -115,7 +126,9 @@ const CountdownDemo: FC = () => {
             className="mb-3"
           />
           {tabBasic.value === 'preview' ? (
-            <LiveCountdown getItems={() => [{ value: counter.value, ariaLabel: String(counter.value) }]} />
+            <LiveCountdown
+              getItems={() => [{ value: counter.value, ariaLabel: String(counter.value) }]}
+            />
           ) : (
             <Code
               className="mt-2"
@@ -144,7 +157,9 @@ const CountdownDemo: FC = () => {
           {tabLarge2.value === 'preview' ? (
             <LiveCountdown
               className="font-mono text-6xl"
-              getItems={() => [{ value: counter.value, digits: 2, ariaLabel: String(counter.value) }]}
+              getItems={() => [
+                { value: counter.value, digits: 2, ariaLabel: String(counter.value) },
+              ]}
             />
           ) : (
             <Code
@@ -281,15 +296,24 @@ const items = [
           {tabLabels.value === 'preview' ? (
             <div className="flex gap-5">
               <div>
-                <LiveCountdown className="font-mono text-4xl" getItems={() => [{ value: 15, ariaLabel: '15' }]} />
+                <LiveCountdown
+                  className="font-mono text-4xl"
+                  getItems={() => [{ value: 15, ariaLabel: '15' }]}
+                />
                 days
               </div>
               <div>
-                <LiveCountdown className="font-mono text-4xl" getItems={() => [{ value: 10, ariaLabel: '10' }]} />
+                <LiveCountdown
+                  className="font-mono text-4xl"
+                  getItems={() => [{ value: 10, ariaLabel: '10' }]}
+                />
                 hours
               </div>
               <div>
-                <LiveCountdown className="font-mono text-4xl" getItems={() => [{ value: 24, ariaLabel: '24' }]} />
+                <LiveCountdown
+                  className="font-mono text-4xl"
+                  getItems={() => [{ value: 24, ariaLabel: '24' }]}
+                />
                 minutes
               </div>
               <div>
@@ -350,15 +374,24 @@ const items = [
           {tabLabelsUnder.value === 'preview' ? (
             <div className="grid grid-flow-col gap-5 text-center auto-cols-max">
               <div className="flex flex-col">
-                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 15, ariaLabel: '15' }]} />
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: 15, ariaLabel: '15' }]}
+                />
                 days
               </div>
               <div className="flex flex-col">
-                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 10, ariaLabel: '10' }]} />
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: 10, ariaLabel: '10' }]}
+                />
                 hours
               </div>
               <div className="flex flex-col">
-                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 24, ariaLabel: '24' }]} />
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: 24, ariaLabel: '24' }]}
+                />
                 min
               </div>
               <div className="flex flex-col">
@@ -417,15 +450,24 @@ const items = [
           {tabInBoxes.value === 'preview' ? (
             <div className="grid grid-flow-col gap-5 text-center auto-cols-max">
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 15, ariaLabel: '15' }]} />
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: 15, ariaLabel: '15' }]}
+                />
                 days
               </div>
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 10, ariaLabel: '10' }]} />
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: 10, ariaLabel: '10' }]}
+                />
                 hours
               </div>
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">
-                <LiveCountdown className="font-mono text-5xl" getItems={() => [{ value: 24, ariaLabel: '24' }]} />
+                <LiveCountdown
+                  className="font-mono text-5xl"
+                  getItems={() => [{ value: 24, ariaLabel: '24' }]}
+                />
                 min
               </div>
               <div className="flex flex-col p-2 bg-neutral rounded-box text-neutral-content">

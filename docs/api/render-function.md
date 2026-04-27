@@ -58,9 +58,13 @@
   h(Foo, 'default content')
   h(Foo, scope => h('span', scope.label))
 
-  h(MyComponent, {
-    footer: ({ text }) => h('small', text),
-  }, 'body')
+  h(
+    MyComponent,
+    {
+      footer: ({ text }) => h('small', text),
+    },
+    'body',
+  )
   ```
 
 - **另请参阅** [指南 - 渲染函数 - 创建渲染输出](/guide/extras/render-function#creating-vnodes)

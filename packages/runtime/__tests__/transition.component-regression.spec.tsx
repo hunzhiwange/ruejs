@@ -79,21 +79,16 @@ describe('built-in transition component regressions', () => {
     render(<Example />, container)
     await flush()
 
-    expect(Array.from(container.querySelectorAll('[data-testid^="plain-item-"]'), el => el.textContent)).toEqual([
-      '1',
-      '2',
-      '3',
-    ])
+    expect(
+      Array.from(container.querySelectorAll('[data-testid^="plain-item-"]'), el => el.textContent),
+    ).toEqual(['1', '2', '3'])
 
     ;(container.querySelector('#insert-plain') as HTMLButtonElement).click()
     await flush()
 
-    expect(Array.from(container.querySelectorAll('[data-testid^="plain-item-"]'), el => el.textContent)).toEqual([
-      '1',
-      '4',
-      '2',
-      '3',
-    ])
+    expect(
+      Array.from(container.querySelectorAll('[data-testid^="plain-item-"]'), el => el.textContent),
+    ).toEqual(['1', '4', '2', '3'])
   })
 
   it('keeps TransitionGroup children stable in a vapor-style stateful component update', async () => {
@@ -161,19 +156,17 @@ describe('built-in transition component regressions', () => {
       '2x',
       '3x',
     ])
-    expect(container.querySelector('[data-testid="item-4"]')?.classList.contains('fade-enter-active')).toBe(true)
+    expect(
+      container.querySelector('[data-testid="item-4"]')?.classList.contains('fade-enter-active'),
+    ).toBe(true)
 
     ;(container.querySelector('#insert') as HTMLButtonElement).click()
     await flush()
 
     expect(Array.from(container.querySelectorAll('li li'))).toHaveLength(0)
-    expect(Array.from(container.querySelectorAll('li'), el => el.querySelectorAll('button').length)).toEqual([
-      1,
-      1,
-      1,
-      1,
-      1,
-    ])
+    expect(
+      Array.from(container.querySelectorAll('li'), el => el.querySelectorAll('button').length),
+    ).toEqual([1, 1, 1, 1, 1])
   })
 
   it('opens and closes a Teleport + Transition modal from vapor-style component state', async () => {

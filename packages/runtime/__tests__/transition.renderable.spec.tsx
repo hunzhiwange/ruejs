@@ -95,7 +95,9 @@ describe('Transition renderable boundary', () => {
 
         watchEffect(() => {
           renderAnchor(
-            <Transition duration={0}>{visible.get() ? [createTransitionChild('a')] : []}</Transition>,
+            <Transition duration={0}>
+              {visible.get() ? [createTransitionChild('a')] : []}
+            </Transition>,
             root,
             anchor,
           )

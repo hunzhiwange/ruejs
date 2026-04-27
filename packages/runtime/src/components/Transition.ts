@@ -101,13 +101,11 @@ export const Transition: FC<TransitionProps> = props => {
         renderBetween(child as TransitionChildInput, ctx.container, ctx.startEl, ctx.endEl)
         if (!ctx.prevShown) {
           if (ctx.firstRender) {
-            if (curProps.appear) {
-              queueMicrotask(() => {
-                if ((ctx as any).renderVersion !== renderVersion) return
-                const el = firstElementBetween()
-                if (el) runEnter(el, 'appear')
-              })
-            }
+            queueMicrotask(() => {
+              if ((ctx as any).renderVersion !== renderVersion) return
+              const el = firstElementBetween()
+              if (el) runEnter(el, curProps.appear ? 'appear' : 'enter')
+            })
           } else {
             queueMicrotask(() => {
               if ((ctx as any).renderVersion !== renderVersion) return

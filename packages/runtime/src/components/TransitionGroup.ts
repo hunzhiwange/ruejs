@@ -45,7 +45,8 @@ const readTransitionGroupKey = (child: unknown): string => {
     return ''
   }
 
-  const key = (child as { key?: unknown; props?: { key?: unknown } }).key ?? (child as any).props?.key
+  const key =
+    (child as { key?: unknown; props?: { key?: unknown } }).key ?? (child as any).props?.key
   return key == null ? '' : String(key)
 }
 

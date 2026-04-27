@@ -443,11 +443,7 @@ type GlobalDOMBridge = {
   removeAttribute: (el: DomElementLike, name: string) => void
   getTagName: (el: DomElementLike) => string
   addEventListener: (el: DomElementLike, eventName: string, listener: DOMEventHandler) => void
-  removeEventListener: (
-    el: DomElementLike,
-    eventName: string,
-    listener: DOMEventHandler,
-  ) => void
+  removeEventListener: (el: DomElementLike, eventName: string, listener: DOMEventHandler) => void
   hasValueProperty: (el: DomElementLike) => boolean
   isSelectMultiple: (el: DomElementLike) => boolean
   querySelector: (selector: string) => DomElementLike | null
@@ -460,10 +456,12 @@ const createGlobalDOMBridge = (): GlobalDOMBridge => ({
   isFragment: (node: DomNodeLike) => CURRENT_ADAPTER.isFragment(node),
   collectFragmentChildren: (node: DomNodeLike) => CURRENT_ADAPTER.collectFragmentChildren(node),
   setTextContent: (el: DomNodeLike, val: any) => CURRENT_ADAPTER.settextContent(el, val),
-  appendChild: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.appendChild(parent, child),
+  appendChild: (parent: DomNodeLike, child: DomNodeLike) =>
+    CURRENT_ADAPTER.appendChild(parent, child),
   insertBefore: (parent: DomNodeLike, child: DomNodeLike, ref: DomNodeLike | null) =>
     CURRENT_ADAPTER.insertBefore(parent, child, ref),
-  removeChild: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.removeChild(parent, child),
+  removeChild: (parent: DomNodeLike, child: DomNodeLike) =>
+    CURRENT_ADAPTER.removeChild(parent, child),
   contains: (parent: DomNodeLike, child: DomNodeLike) => CURRENT_ADAPTER.contains(parent, child),
   setClassName: (el: DomElementLike, value: string) => CURRENT_ADAPTER.setClassName(el, value),
   patchStyle: (

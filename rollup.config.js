@@ -118,7 +118,9 @@ const packageFormats = inlineFormats || packageOptions.formats || defaultFormats
  */
 function resolveEntryFormats(formats) {
   const configuredFormats = formats || packageOptions.formats || defaultFormats
-  return inlineFormats ? configuredFormats.filter(format => inlineFormats.includes(format)) : configuredFormats
+  return inlineFormats
+    ? configuredFormats.filter(format => inlineFormats.includes(format))
+    : configuredFormats
 }
 
 /** @type {BuildEntry[]} */
@@ -129,7 +131,7 @@ const buildEntries = [
     formats: packageFormats,
     isMain: true,
   },
-  ...((packageOptions.subEntries || [])
+  ...(packageOptions.subEntries || [])
     /** @type {SubEntryOptions[]} */
     .map(subEntry => ({
       entryFile: subEntry.entry,
@@ -138,13 +140,17 @@ const buildEntries = [
       formats: resolveEntryFormats(subEntry.formats),
       isMain: false,
     }))
-    .filter(subEntry => subEntry.entryFile && subEntry.fileName && subEntry.formats.length > 0)),
+    .filter(subEntry => subEntry.entryFile && subEntry.fileName && subEntry.formats.length > 0),
 ]
 
-const packageConfigs = process.env.PROD_ONLY ? [] : buildEntries.flatMap(buildEntry => {
-  const outputConfigs = resolveOutputConfigs(buildEntry.fileName)
-  return buildEntry.formats.map(format => createConfig(format, outputConfigs[format], [], buildEntry))
-})
+const packageConfigs = process.env.PROD_ONLY
+  ? []
+  : buildEntries.flatMap(buildEntry => {
+      const outputConfigs = resolveOutputConfigs(buildEntry.fileName)
+      return buildEntry.formats.map(format =>
+        createConfig(format, outputConfigs[format], [], buildEntry),
+      )
+    })
 
 if (process.env.NODE_ENV === 'production') {
   buildEntries.forEach(buildEntry => {
@@ -204,7 +210,8 @@ function createConfig(format, output, plugins = [], buildEntry = buildEntries[0]
     output.name = buildEntry.globalName || packageOptions.name
   }
 
-  let entryFile = buildEntry.entryFile || (format.endsWith('runtime') ? `src/runtime.ts` : `src/index.ts`)
+  let entryFile =
+    buildEntry.entryFile || (format.endsWith('runtime') ? `src/runtime.ts` : `src/index.ts`)
 
   // the compat build needs both default AND named exports. This will cause
   // Rollup to complain for non-ESM targets, so we use separate entries for
@@ -389,10 +396,15 @@ function createProductionConfig(
   /** @type {BuildEntry} */ buildEntry,
 ) {
   const outputConfigs = resolveOutputConfigs(buildEntry.fileName)
-  return createConfig(format, {
-    file: outputConfigs[format].file.replace(/\.js$/, '.prod.js'),
-    format: outputConfigs[format].format,
-  }, [], buildEntry)
+  return createConfig(
+    format,
+    {
+      file: outputConfigs[format].file.replace(/\.js$/, '.prod.js'),
+      format: outputConfigs[format].format,
+    },
+    [],
+    buildEntry,
+  )
 }
 
 function createMinifiedConfig(

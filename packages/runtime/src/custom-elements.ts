@@ -71,7 +71,7 @@ const getActiveCustomElementContext = () => {
   return lastCustomElementContext
 }
 
-const withActiveCustomElementContext = <T,>(
+const withActiveCustomElementContext = <T>(
   context: ActiveCustomElementContext,
   runner: () => T,
 ) => {
@@ -165,7 +165,7 @@ const readOwnPropertyProps = (host: HTMLElement) => {
   return props
 }
 
-const normalizePropsBag = <P,>(value: Partial<P> | null | undefined) => {
+const normalizePropsBag = <P>(value: Partial<P> | null | undefined) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {} as Record<string, unknown>
   }
@@ -175,7 +175,7 @@ const normalizePropsBag = <P,>(value: Partial<P> | null | undefined) => {
 const collectInputProps = (host: HTMLElement) => ({
   ...readAttributeProps(host),
   ...readOwnPropertyProps(host),
-  ...(propsByHost.get(host) ?? {}),
+  ...propsByHost.get(host),
 })
 
 const createCustomElementEmitBridge = (host: HTMLElement): CustomElementEmitBridge => {
@@ -200,14 +200,13 @@ const createReactivePropsState = (host: HTMLElement) => {
   return shallowReactive(initialState as any) as Record<string, unknown>
 }
 
-const getPropsBag = <P,>(host: HTMLElement) =>
-  (propsByHost.get(host) ?? {}) as Partial<P>
+const getPropsBag = <P>(host: HTMLElement) => (propsByHost.get(host) ?? {}) as Partial<P>
 
-const setPropsBag = <P,>(host: HTMLElement, value: Partial<P> | null | undefined) => {
+const setPropsBag = <P>(host: HTMLElement, value: Partial<P> | null | undefined) => {
   propsByHost.set(host, normalizePropsBag(value))
 }
 
-const getPropsState = <P,>(host: HTMLElement) =>
+const getPropsState = <P>(host: HTMLElement) =>
   (propsStateByHost.get(host) ?? null) as Partial<P> | null
 
 const setPropsState = (host: HTMLElement, state: Record<string, unknown> | null) => {
@@ -347,11 +346,11 @@ export function useCustomElement<P = Record<string, unknown>>(
   const ResolvedComponent: ComponentInstance<any> =
     typeof component === 'function'
       ? (component as ComponentInstance<any>)
-      : ((props: Partial<P>) => {
+      : (props: Partial<P>) => {
           const ctx =
             typeof component.setup === 'function' ? useSetup(() => component.setup!(props)) : props
           return typeof component.render === 'function' ? component.render(ctx) : []
-        })
+        }
 
   const mountHost = (host: HTMLElement) => {
     const target = createMountTarget(host, shadowRoot)

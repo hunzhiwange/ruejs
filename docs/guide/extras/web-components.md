@@ -88,12 +88,15 @@ Rue 当前提供一个最小但可用的 `useCustomElement()` 包装器，用于
 ```js
 import { useCustomElement } from '@rue-js/rue'
 
-const MyRueElement = useCustomElement(props => {
-  return <p>{props.label ?? 'hello'}</p>
-}, {
-  styles: [':host { display: block; }'],
-  shadowRoot: true,
-})
+const MyRueElement = useCustomElement(
+  props => {
+    return <p>{props.label ?? 'hello'}</p>
+  },
+  {
+    styles: [':host { display: block; }'],
+    shadowRoot: true,
+  },
+)
 
 // 注册自定义元素。
 // 注册后，页面上所有 <my-rue-element> 标签都会被升级。

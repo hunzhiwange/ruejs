@@ -1,9 +1,4 @@
-export {
-  vapor,
-  onBeforeUnmount,
-  renderAnchor,
-  renderBetween,
-} from './rue'
+export { vapor, onBeforeUnmount, renderAnchor, renderBetween } from './rue'
 
 export {
   createComment as _$createComment,
