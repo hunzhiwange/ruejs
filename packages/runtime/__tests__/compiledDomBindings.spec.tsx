@@ -1,8 +1,51 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+import swc from '@swc/core'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as compiledRuntime from '../src/internal'
+
+const pluginPath = resolve(process.cwd(), 'packages/swc-plugin-rue/swc-plugin-rue.wasm')
+
+const compileDirectTextSource = (source: string): string => {
+  expect(readFileSync(pluginPath).byteLength).toBeGreaterThan(0)
+  return swc.transformSync(source, {
+    filename: 'compiled-direct-text.tsx',
+    jsc: {
+      parser: { syntax: 'typescript', tsx: true },
+      target: 'es2020',
+      transform: {
+        react: {
+          runtime: 'automatic',
+          importSource: '@rue-js',
+          development: false,
+          throwIfNamespace: false,
+        },
+      },
+      experimental: { plugins: [[pluginPath, {}]] },
+    },
+    module: { type: 'commonjs' },
+  }).code
+}
+
+const evaluateDirectTextSource = (output: string) => {
+  const module = { exports: {} as Record<string, unknown> }
+  new Function('require', 'module', 'exports', output)(
+    (id: string) => {
+      if (id.startsWith('@rue-js/rue')) return compiledRuntime
+      throw new Error(`Unexpected generated import: ${id}`)
+    },
+    module,
+    module.exports,
+  )
+  return module.exports as {
+    state: { set(value: unknown): void }
+    View(): compiledRuntime.CompiledRootHandle
+  }
+}
 
 const step = compiledRuntime.signal(0)
 
@@ -106,9 +149,70 @@ afterEach(() => {
   compiledRuntime.setReactiveScheduling('frame')
   step.set(0)
   document.body.innerHTML = ''
+  vi.restoreAllMocks()
 })
 
 describe('compiled scalar DOM bindings', () => {
+  it('mounts proven scalar template children as one directly updated Text node', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const output = compileDirectTextSource(`
+      import { signal } from '@rue-js/rue'
+      export const state = signal('ready')
+      export const View = () => <section><span>{state.get()}</span></section>
+    `)
+    const directText = evaluateDirectTextSource(output)
+    const host = document.createElement('main')
+    document.body.appendChild(host)
+    const created = vi.spyOn(document, 'createTextNode')
+    const inserted = vi.spyOn(Node.prototype, 'insertBefore')
+    const removed = vi.spyOn(Node.prototype, 'removeChild')
+
+    const handle = directText.View()
+    const root = handle.__rue_compiled_mount(host)
+    if (root != null && root.parentNode !== host) host.appendChild(root)
+    const span = host.querySelector('span')
+    if (span == null) throw new Error('Expected compiled text host')
+    const text = span?.firstChild
+    if (!(text instanceof Text)) throw new Error('Expected one direct Text child')
+    const writes = trackPropertyWrites(text, 'textContent')
+
+    directText.state.set('ready')
+    expect(writes()).toBe(0)
+    directText.state.set(0)
+    directText.state.set('0')
+    expect({ text: text.textContent, writes: writes() }).toEqual({ text: '0', writes: 1 })
+    directText.state.set(null)
+    directText.state.set(false)
+    directText.state.set(undefined)
+    directText.state.set('')
+    expect({ text: text.textContent, writes: writes() }).toEqual({ text: '', writes: 2 })
+
+    expect({
+      comments: [...host.querySelectorAll('*')]
+        .flatMap(element => [...element.childNodes])
+        .filter(node => node.nodeType === Node.COMMENT_NODE).length,
+      explicitTextAllocations: created.mock.calls.filter(([value]) => value === '').length,
+      insertedTexts: inserted.mock.calls.filter(([node]) => node.nodeType === Node.TEXT_NODE)
+        .length,
+      removedComments: removed.mock.calls.filter(([node]) => node.nodeType === Node.COMMENT_NODE)
+        .length,
+      spanChildren: span.childNodes.length,
+    }).toEqual({
+      comments: 0,
+      explicitTextAllocations: 0,
+      insertedTexts: 0,
+      removedComments: 0,
+      spanChildren: 1,
+    })
+    expect(output).not.toContain('rue:text-hole')
+    expect(output).not.toContain('renderAnchor')
+
+    handle.dispose()
+    expect(host.innerHTML).toBe('')
+    directText.state.set('after-dispose')
+    expect(writes()).toBe(2)
+  })
+
   it('normalizes text and skips writes when raw values render identically', () => {
     compiledRuntime.setReactiveScheduling('sync')
     const source = compiledRuntime.signal<unknown>(null)

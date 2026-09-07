@@ -202,7 +202,8 @@ describe('vite-plugin-rue compiler-only JSX contract', () => {
       `,
       { id: '/app/StandaloneDefaults.tsx', production: false },
     )
-    expect(code).toContain('_$mountCompiledComponent(_el6, Card')
+    expect(code).toContain('_$compiledComponent(Card')
+    expect(code).toContain('_$mountCompiledSlotAt')
     expectClosedCompiledAbi(code)
   })
 

@@ -350,7 +350,7 @@ export function UnsupportedView(props) {
 
     assert!(!compact.contains("vapor("), "{output}");
     assert!(compact.contains("_$template("), "{output}");
-    assert!(compact.contains("<!--rue:text-hole:0-->"), "{output}");
+    assert!(compact.contains("<p>rue:direct-text</p>"), "{output}");
     assert!(!compact.contains("renderAnchor("), "{output}");
     assert!(!compact.contains("_$createElement"), "{output}");
     assert!(compact.contains("_$compiledBranch("), "{output}");
@@ -397,7 +397,8 @@ export function Parent() {
 
     assert!(compact.contains("functionLeaf()"), "{output}");
     assert!(compact.contains("functionParent()"), "{output}");
-    assert!(compact.contains("_$mountCompiledComponent(_el3,Leaf,()=>({}))"), "{output}");
+    assert!(compact.contains("_$compiledComponent(Leaf,()=>({}))"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
     assert!(!compact.contains("_$createComponent"), "{output}");
     assert!(!compact.contains("\"@rue-js/rue/internal\""), "{output}");
 }
@@ -453,7 +454,7 @@ export function Page() {
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
-    assert!(compact.contains("_$mountCompiledComponent("), "{output}");
+    assert!(compact.contains("_$compiledComponent(Frame"), "{output}");
     assert!(
         compact.contains("children:[(target,slotProps,owner)=>_$mountCompiledSlotFactory("),
         "{output}"
@@ -621,7 +622,8 @@ fn compiles_native_spread_with_local_component_child() {
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
     assert!(!compact.contains("\"@rue-js/rue/internal\""), "{output}");
     assert!(!compact.contains("_$createComponent"), "{output}");
-    assert!(compact.contains("_$mountCompiledComponent"), "{output}");
+    assert!(compact.contains("_$compiledComponent(Child"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
 }
 
 #[test]
@@ -639,7 +641,8 @@ export const Parent = ({ children, ...rest }) => <button {...rest}><Child icon="
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
     assert!(!compact.contains("\"@rue-js/rue/internal\""), "{output}");
-    assert!(compact.contains("_$mountCompiledComponent"), "{output}");
+    assert!(compact.contains("_$compiledComponent(Child"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
 }
 
 #[test]
@@ -661,7 +664,8 @@ export function Builtins(props) {
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
-    assert_eq!(compact.matches("_$mountCompiledComponent(").count(), 4, "{output}");
+    assert_eq!(compact.matches("_$compiledComponent(").count(), 4, "{output}");
+    assert_eq!(compact.matches("_$mountCompiledSlotAt(").count(), 4, "{output}");
     assert_eq!(compact.matches("children:(target,slotProps,owner)=>").count(), 4, "{output}");
     assert!(compact.contains("cacheKey:_$rueCompiledProp0.get()"), "{output}");
     assert!(compact.contains("cacheName:\"u\""), "{output}");

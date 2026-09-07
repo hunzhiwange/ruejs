@@ -173,15 +173,56 @@ const App = () => <View label="初始" />;
 
     assert_eq!(compact.matches("const_$getTemplate1=_$template(").count(), 1, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 1, "{output}");
-    assert_eq!(compact.matches("<!--rue:text-hole:").count(), 1, "{output}");
-    assert_eq!(compact.matches("_$compiledCreateTextNode(\"\")").count(), 1, "{output}");
+    assert_eq!(compact.matches("<!--rue:text-hole:").count(), 0, "{output}");
+    assert!(compact.contains("<div>rue:direct-text</div>"), "{output}");
+    assert_eq!(compact.matches("_$compiledCreateTextNode(\"\")").count(), 0, "{output}");
     assert!(compact.contains(".childNodes[1].childNodes[0]"), "{output}");
-    assert!(compact.contains(".insertBefore("), "{output}");
-    assert!(compact.contains(".removeChild("), "{output}");
+    assert!(!compact.contains(".insertBefore("), "{output}");
+    assert!(!compact.contains(".removeChild("), "{output}");
     assert_eq!(compact.matches("_$compiledText(").count(), 1, "{output}");
+    assert!(!compact.contains("renderAnchor"), "{output}");
     assert!(!compact.contains("Object.is("), "{output}");
     assert!(!compact.contains("_$compiledCreateElement("), "{output}");
     assert!(!compact.contains("_$compiledAppendChild("), "{output}");
+}
+
+#[test]
+fn template_shell_keeps_opaque_single_children_on_the_anchor_path() {
+    let output = transform_module(
+        r#"
+const View = () => <section><div>{renderValue()}</div></section>;
+"#,
+    );
+    let compact = compact(&output);
+
+    assert!(compact.contains("renderAnchor"), "{output}");
+    assert!(!compact.contains("_$compiledText("), "{output}");
+}
+
+#[test]
+fn direct_text_candidates_keep_mixed_svg_and_table_boundaries_safe() {
+    let output = transform_module_with_static_props(
+        r#"
+function Mixed(props) {
+  return <div>prefix {props.value}</div>;
+}
+function SvgValue(props) {
+  return <svg><text>{props.value}</text></svg>;
+}
+function TableValue(props) {
+  return <table><tbody><tr><td>{props.value}</td></tr></tbody></table>;
+}
+const App = () => <><Mixed value="mixed" /><SvgValue value="svg" /><TableValue value="cell" /></>;
+"#,
+        true,
+    );
+    let compact = compact(&output);
+
+    assert_eq!(compact.matches("rue:direct-text").count(), 1, "{output}");
+    assert!(compact.contains("<div>prefix<!--rue:text-hole:0--></div>"), "{output}");
+    assert!(compact.contains("<td>rue:direct-text</td>"), "{output}");
+    assert!(compact.contains("_$createElement(\"svg\""), "{output}");
+    assert!(!compact.contains("<text>rue:direct-text</text>"), "{output}");
 }
 
 #[test]
@@ -199,8 +240,9 @@ const App = () => <View label="标签" value="值" note="说明" tail="结尾" /
 
     assert_eq!(compact.matches("const_$getTemplate1=_$template(").count(), 1, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 1, "{output}");
-    assert_eq!(compact.matches("<!--rue:text-hole:").count(), 4, "{output}");
-    assert_eq!(compact.matches("_$compiledCreateTextNode(\"\")").count(), 4, "{output}");
+    assert_eq!(compact.matches("<!--rue:text-hole:").count(), 3, "{output}");
+    assert_eq!(compact.matches("rue:direct-text").count(), 1, "{output}");
+    assert_eq!(compact.matches("_$compiledCreateTextNode(\"\")").count(), 3, "{output}");
     assert!(compact.contains(".childNodes[0].childNodes[0]"), "{output}");
     assert!(compact.contains(".childNodes[0].childNodes[2]"), "{output}");
     assert!(compact.contains(".childNodes[1].childNodes[1]"), "{output}");
@@ -215,8 +257,8 @@ const App = () => <View label="标签" value="值" note="说明" tail="结尾" /
     ] {
         assert!(compact.find(path).expect("anchor path") < first_dom_mutation, "{output}");
     }
-    assert_eq!(compact.matches(".insertBefore(").count(), 4, "{output}");
-    assert_eq!(compact.matches(".removeChild(").count(), 4, "{output}");
+    assert_eq!(compact.matches(".insertBefore(").count(), 3, "{output}");
+    assert_eq!(compact.matches(".removeChild(").count(), 3, "{output}");
     assert!(!compact.contains("_$compiledCreateElement("), "{output}");
     assert!(!compact.contains("_$compiledAppendChild("), "{output}");
 }
@@ -312,9 +354,10 @@ const App = () => <View label="标签" attrs={{}} items={[]} />;
     let compact = compact(&output);
 
     assert_eq!(compact.matches("<!--rue:text-hole:").count(), 2, "{output}");
+    assert!(compact.contains("<div>rue:direct-text</div>"), "{output}");
     assert_eq!(compact.matches("<!--rue:opaque-hole:").count(), 1, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 5, "{output}");
-    assert_eq!(compact.matches("_$template(").count(), 3, "{output}");
+    assert_eq!(compact.matches("_$template(").count(), 4, "{output}");
     assert!(compact.contains("_$createComponent(Child"), "{output}");
     assert!(!compact.contains("_$createElement(\"div\""), "{output}");
 }
@@ -1014,7 +1057,8 @@ const View = props => (
     );
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 3, "{output}");
     assert!(compact.contains("_$createComponent(Panel"), "{output}");
-    assert!(compact.contains("_$mountCompiledComponent("), "{output}");
+    assert!(compact.contains("_$compiledComponent(CompiledPanel"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
     assert!(compact.contains("_$createComponent(Widgets.Member"), "{output}");
     assert!(compact.contains("_$createElement(\"x-card\""), "{output}");
     assert!(compact.contains("_$createElement(\"svg\""), "{output}");
@@ -1141,6 +1185,43 @@ const _$mountCompiledComponent = (parent, factory, readProps) => {{
     else handle.__update(next);
   }});
   return result;
+}};
+const _$compiledComponent = (factory, readProps) => {{
+  const handle = factory(readProps());
+  let initialized = false;
+  return {{
+    __rue_compiled_mount(parent) {{
+      const result = handle.__rue_compiled_mount(parent);
+      effect(() => {{
+        const next = readProps();
+        if (initialized) handle.__update?.(next);
+        else initialized = true;
+      }});
+      return result;
+    }},
+    dispose() {{ handle.dispose?.(); }}
+  }};
+}};
+const _$mountCompiledSlotFactory = (target, _owner, create) => {{
+  const handle = create();
+  const result = handle.__rue_compiled_mount(target.parent);
+  const nodes = result?.nodeType === 11 ? Array.from(result.childNodes) : result ? [result] : [];
+  for (const node of nodes) target.parent.insertBefore(node, target.before);
+  return {{ node: nodes[0] ?? null, last: nodes.at(-1) ?? null, dispose: () => handle.dispose?.() }};
+}};
+const _$mountCompiledSlotAt = (target, read) => {{
+  let mounted;
+  let previous;
+  effect(() => {{
+    const value = read();
+    if (Object.is(previous, value)) return;
+    previous = value;
+    mounted?.dispose?.();
+    mounted = typeof value === "function"
+      ? value(target, {{}}, null)
+      : (() => {{ renderAnchor(value, target.parent, target.before); return null; }})();
+  }});
+  if (activeBucket) activeBucket.push(() => mounted?.dispose?.());
 }};
 {executable}
 const appendHandle = (handle, parent) => {{

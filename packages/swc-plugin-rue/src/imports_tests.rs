@@ -279,6 +279,27 @@ markRender;
 }
 
 #[test]
+fn ensure_runtime_imports_keeps_public_ref_value_semantics_with_compiled_text() {
+    let out = ensure_and_emit(
+        r#"
+import { ref } from '@rue-js/rue';
+const value = ref(0);
+_$compiledRoot;
+_$compiledText;
+value.value += 1;
+"#,
+    );
+
+    assert_eq!(import_source_count(&out, "@rue-js/rue"), 0, "{out}");
+    assert_eq!(import_source_count(&out, "@rue-js/rue/internal/compiler"), 0, "{out}");
+    assert_eq!(import_source_count(&out, "@rue-js/rue/internal/component"), 1, "{out}");
+    let component_clause = import_clause_for_source(&out, "@rue-js/rue/internal/component");
+    assert!(component_clause.contains("ref"), "{out}");
+    assert!(component_clause.contains("_$compiledRoot"), "{out}");
+    assert!(component_clause.contains("_$compiledText"), "{out}");
+}
+
+#[test]
 fn ensure_runtime_imports_preserves_aliases_and_collisions_across_runtime_sources() {
     let out = ensure_and_emit(
         r#"

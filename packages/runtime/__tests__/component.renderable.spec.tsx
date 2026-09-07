@@ -80,7 +80,9 @@ describe('Component renderable boundary', () => {
       export const View = () => <main><Child label="compiled" /></main>
     `)
 
-    expect(output).toContain('_$mountCompiledComponent')
+    expect(output).toContain('_$mountCompiledSlotAt')
+    expect(output).toContain('_$mountCompiledSlotFactory')
+    expect(output).not.toContain('renderAnchor')
     expect(output).not.toMatch(/\bh\s*\(/)
     expect(output).not.toContain('jsx-runtime')
   })

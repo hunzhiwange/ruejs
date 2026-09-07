@@ -180,7 +180,7 @@ export default Expressions;
     std::fs::write("target/vapor_outputs/expressions.out.js", utils::strip_marker(&out)).ok();
     let normalized = utils::normalize(&utils::strip_marker(&out));
     assert!(normalized.contains("_$template('<div class=\"max-w-4xl"), "{out}");
-    assert!(normalized.contains("rue:text-hole:0"), "{out}");
+    assert!(normalized.contains("rue:text-hole:2"), "{out}");
     assert!(normalized.contains("renderAnchor(__slot"), "{out}");
     assert!(normalized.contains("RouterLink.__rueHref(\"/jsx\")"), "{out}");
     assert_eq!(normalized.matches("onScopeDispose(").count(), 5, "{out}");

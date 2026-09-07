@@ -9,6 +9,7 @@ import {
   useState,
 } from '@rue-js/rue'
 import { _$createComponent } from '@rue-js/rue/internal'
+import { hydrateRoot } from '@rue-js/rue/island'
 import { deleteContextRuntime, setContextRuntime } from '../src/shims/context-runtime-global.js'
 import { renderSlotElement } from '../src/shims/slot-core.js'
 import { normalizeAppClientReferences } from '../src/server/app-client-reference-normalization.js'
@@ -263,7 +264,7 @@ describe('slot browser hydration', () => {
     expect(clicks).toBe(1)
   })
 
-  it('mounts transport client references over existing SSR markup', async () => {
+  it('hydrates transport client references over existing SSR markup', async () => {
     setReactiveScheduling('sync')
     let renders = 0
     let clicks = 0
@@ -304,13 +305,27 @@ describe('slot browser hydration', () => {
     const root = document.createElement('div')
     root.innerHTML = '<button class="like-button" type="button">Like · 16</button>'
     document.body.append(root)
-    mount(() => _$createComponent(BrowserRootLike, null), root)
+    const serverButton = root.querySelector('button')
+    const onMismatch = vi.fn()
+    const hydrated = hydrateRoot(root, _$createComponent(BrowserRootLike, null), {
+      adoptComponents: true,
+      onMismatch,
+      replace: false,
+    })
 
     const button = root.querySelector('button')
     expect(renders).toBe(1)
+    expect(onMismatch).not.toHaveBeenCalled()
+    expect(button).toBe(serverButton)
+    expect(root.querySelectorAll('button')).toHaveLength(1)
     button?.click()
 
     expect(clicks).toBe(1)
+    expect(root.querySelector('button')).toBe(serverButton)
+    expect(root.querySelectorAll('button')).toHaveLength(1)
+
+    hydrated.unmount()
+    expect(root.childNodes).toHaveLength(0)
   })
 
   it('mounts transport client references into document.body with SSR fragment markup', async () => {

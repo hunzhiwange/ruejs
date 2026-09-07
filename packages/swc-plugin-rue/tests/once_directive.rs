@@ -29,7 +29,7 @@ export default OnceDemo
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/once_directive.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("@rue-js/rue/internal/compiler"), "{normalized}");
+    assert!(normalized.contains("@rue-js/rue/internal/component"), "{normalized}");
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
     assert_eq!(normalized.matches("_$compiledMemo(\"memo:").count(), 2);
     assert!(!normalized.contains("useMemo"));

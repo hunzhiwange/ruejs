@@ -156,3 +156,23 @@ fn appends_normalized_jsx_text_as_text_node() {
     assert!(out.contains("_$createTextNode(\"hello rue\")"));
     assert!(out.contains("_$appendChild(root"));
 }
+
+#[test]
+fn replaces_unproven_template_text_markers_with_comment_anchors() {
+    let mut vt = new_vt();
+    let mut stmts = Vec::new();
+
+    let anchor = replace_template_text_marker_with_comment(
+        &mut vt,
+        &crate::emit::ident("parent"),
+        &crate::emit::ident("marker"),
+        3,
+        "_$createComment",
+        &mut stmts,
+    );
+    let out = compact(&emit_stmts(stmts));
+
+    assert_eq!(anchor.sym.as_ref(), "_el1");
+    assert!(out.contains("const_el1=_$createComment(\"rue:text-hole:3\")"), "{out}");
+    assert!(out.contains("parent.replaceChild(_el1,marker)"), "{out}");
+}

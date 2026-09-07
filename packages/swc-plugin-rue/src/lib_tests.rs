@@ -172,7 +172,7 @@ const View: FC = () => {
     assert!(out.contains("_$compiledRoot"));
     assert!(out.contains("_$compiledText"));
     assert!(out.contains("_$template"));
-    assert!(out.contains(&normalize(r#"<div class="box"><!--rue:text-hole:0--></div>"#)));
+    assert!(out.contains(&normalize(r#"<div class="box">rue:direct-text</div>"#)));
     assert!(out.contains(".content.cloneNode(true)"));
     assert!(!out.contains("renderAnchor(__slot"));
     assert!(!out.contains(&normalize(r#"_$createElement("div""#)));

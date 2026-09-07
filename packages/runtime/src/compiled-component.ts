@@ -165,10 +165,10 @@ const isCompiledBranchCase = (
 
 const mountCompiledBranch = (
   initialParent: ParentNode,
-  anchor: Node,
+  anchor: Node | null,
   branch: CompiledRootHandle | null | undefined | false,
 ): { dispose: () => void; root: Node | null } => {
-  const parent = anchor.parentNode ?? initialParent
+  const parent = anchor?.parentNode ?? initialParent
   if (!branch) return { dispose: () => {}, root: null }
   const existingNodes = new Set(Array.from(parent.childNodes))
   let result: Node | null | undefined
@@ -304,10 +304,10 @@ export const _$compiledBranch = (readBranch: CompiledBranchFactory): CompiledRoo
   })
 }
 
-/** Mount a closed compiled branch at an existing template anchor. */
+/** Mount a closed compiled branch at a stable sibling boundary or the parent tail. */
 export const _$compiledBranchAt = (
   parent: ParentNode,
-  anchor: Node,
+  anchor: Node | null,
   readBranch: CompiledBranchFactory,
 ): ReturnType<typeof effect> => {
   let initialized = false

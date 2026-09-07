@@ -66,6 +66,7 @@
     "bench": "vitest bench --project=unit --outputJson=temp/bench.json",
     "bench-compare": "vitest bench --project=unit --compare=temp/bench.json",
     "benchmark:js-framework": "node scripts/js-framework-performance.mjs",
+    "benchmark:anchor-tiering": "node scripts/anchor-tiering-performance.mjs",
     "benchmark:js-framework:check": "pnpm run benchmark:js-framework -- --compare scripts/js-framework-performance-baseline.json --budget scripts/js-framework-performance-budget.json --output temp/performance/final.json",
     "benchmark:js-framework:install-local": "node scripts/install-local-js-framework-benchmark.mjs",
     "release": "node scripts/release.js",

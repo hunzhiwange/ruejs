@@ -24,6 +24,8 @@ enum StaticTemplateKind {
 struct TextHolePlan {
     index: usize,
     path: Vec<usize>,
+    parent_path: Option<Vec<usize>>,
+    before_path: Option<Vec<usize>>,
     kind: TemplateHoleKind,
     reuse_text: bool,
 }
@@ -42,6 +44,8 @@ struct AttrTargetPlan {
 pub(crate) struct MarkedTextHole<'a> {
     pub(crate) index: usize,
     pub(crate) path: Vec<usize>,
+    pub(crate) parent_path: Option<Vec<usize>>,
+    pub(crate) before_path: Option<Vec<usize>>,
     pub(crate) reuse_text: bool,
     pub(crate) source: MarkedHoleSource<'a>,
 }
@@ -90,10 +94,9 @@ impl StaticTemplate {
             return None;
         }
         for hole in &mut text_holes {
-            hole.reuse_text &= row_text;
             if hole.reuse_text {
-                html =
-                    html.replace(&format!("<!--rue:text-hole:{}-->", hole.index), "rue:row-text");
+                let marker = if row_text { "rue:row-text" } else { "rue:direct-text" };
+                html = html.replace(&format!("<!--rue:text-hole:{}-->", hole.index), marker);
             }
         }
         let kind = if text_holes.is_empty() && attr_targets.is_empty() {
@@ -476,6 +479,8 @@ fn serialize_children_at(
                     text_holes.push(TextHolePlan {
                         index: hole_index,
                         path: path.clone(),
+                        parent_path: None,
+                        before_path: None,
                         kind: TemplateHoleKind::OpaqueElement,
                         reuse_text: false,
                     });
@@ -519,18 +524,40 @@ fn serialize_children_at(
                 }
             }
             JSXElementChild::JSXExprContainer(container) if is_child_hole_container(container) => {
-                let mut hole_path = path.clone();
-                hole_path.push(*child_node_index);
                 let hole_index = text_holes.len();
+                let next_static_path =
+                    stable_static_successor_path(children, index + 1, path, *child_node_index);
+                let sole_tail_branch = *child_node_index == 0
+                    && !*previous_is_text
+                    && only_ignorable_children(&children[index + 1..])
+                    && is_proven_non_empty_single_root_branch(container);
+                let real_boundary = next_static_path.is_some()
+                    && (is_proven_non_empty_single_root_branch(container)
+                        || matches!(
+                            &container.expr,
+                            JSXExpr::Expr(expr)
+                                if crate::element_expr::is_compiled_slot_source_expr(expr.as_ref())
+                        ))
+                    || sole_tail_branch;
+                let mut hole_path = path.clone();
+                if let Some(before_path) = &next_static_path {
+                    hole_path = before_path.clone();
+                } else if !real_boundary {
+                    hole_path.push(*child_node_index);
+                }
                 text_holes.push(TextHolePlan {
                     index: hole_index,
                     path: hole_path,
+                    parent_path: real_boundary.then(|| path.clone()),
+                    before_path: real_boundary.then_some(next_static_path).flatten(),
                     kind: TemplateHoleKind::Expression,
                     reuse_text: false,
                 });
-                out.push_str(&format!("<!--rue:text-hole:{hole_index}-->"));
-                *child_node_index += 1;
-                *previous_is_text = false;
+                if !real_boundary {
+                    out.push_str(&format!("<!--rue:text-hole:{hole_index}-->"));
+                    *child_node_index += 1;
+                    *previous_is_text = false;
+                }
             }
             JSXElementChild::JSXExprContainer(_) | JSXElementChild::JSXSpreadChild(_) => {
                 return None;
@@ -538,6 +565,56 @@ fn serialize_children_at(
         }
     }
     Some(())
+}
+
+fn only_ignorable_children(children: &[JSXElementChild]) -> bool {
+    children.iter().all(|child| match child {
+        JSXElementChild::JSXText(text) => {
+            crate::text::normalize_text(&text.value).trim().is_empty()
+        }
+        JSXElementChild::JSXExprContainer(container) => {
+            matches!(container.expr, JSXExpr::JSXEmptyExpr(_))
+        }
+        _ => false,
+    })
+}
+
+fn stable_static_successor_path(
+    children: &[JSXElementChild],
+    start: usize,
+    parent_path: &[usize],
+    child_node_index: usize,
+) -> Option<Vec<usize>> {
+    for child in &children[start..] {
+        match child {
+            JSXElementChild::JSXText(text)
+                if crate::text::normalize_text(&text.value).trim().is_empty() => {}
+            JSXElementChild::JSXExprContainer(container)
+                if matches!(container.expr, JSXExpr::JSXEmptyExpr(_)) => {}
+            JSXElementChild::JSXElement(element) if StaticTemplate::classify(element).is_some() => {
+                let mut path = parent_path.to_vec();
+                path.push(child_node_index);
+                return Some(path);
+            }
+            _ => return None,
+        }
+    }
+    None
+}
+
+fn is_proven_non_empty_single_root_branch(container: &JSXExprContainer) -> bool {
+    fn result(expr: &Expr) -> bool {
+        match crate::utils::unwrap_expr(expr) {
+            Expr::JSXElement(element) => {
+                !crate::utils::is_component(&element.opening.name)
+                    && StaticTemplate::classify(element).is_some()
+            }
+            Expr::Cond(cond) => result(cond.cons.as_ref()) && result(cond.alt.as_ref()),
+            _ => false,
+        }
+    }
+
+    matches!(&container.expr, JSXExpr::Expr(expr) if matches!(crate::utils::unwrap_expr(expr.as_ref()), Expr::Cond(_)) && result(expr.as_ref()))
 }
 
 fn serialize_element(
@@ -586,8 +663,10 @@ fn serialize_element(
     if matches!(
         tag,
         "a" | "span" | "li" | "div" | "p" | "b" | "strong" | "em" | "td" | "th" | "button"
-    ) && matches!(element.children.as_slice(), [JSXElementChild::JSXExprContainer(_)])
-        && text_holes.len() == holes_start + 1
+    ) && matches!(
+        element.children.as_slice(),
+        [JSXElementChild::JSXExprContainer(container)] if is_direct_text_candidate(container)
+    ) && text_holes.len() == holes_start + 1
     {
         text_holes[holes_start].reuse_text = true;
     }
@@ -611,6 +690,58 @@ fn is_child_hole_container(container: &JSXExprContainer) -> bool {
             if !crate::utils::is_static_empty_like(expr.as_ref())
                 && crate::utils::get_static_text_literal_expr(expr.as_ref()).is_none()
     )
+}
+
+fn is_direct_text_candidate(container: &JSXExprContainer) -> bool {
+    fn candidate(expr: &Expr) -> bool {
+        match crate::utils::unwrap_expr(expr) {
+            Expr::Lit(Lit::Str(_) | Lit::Bool(_) | Lit::Null(_) | Lit::Num(_) | Lit::BigInt(_)) => {
+                true
+            }
+            Expr::Ident(ident) => ident.sym.as_ref() == "undefined",
+            Expr::Member(member) => {
+                !matches!(&member.prop, MemberProp::Ident(property) if property.sym == *"children")
+            }
+            Expr::Call(call) => {
+                let Callee::Expr(callee) = &call.callee else {
+                    return false;
+                };
+                match crate::utils::unwrap_expr(callee.as_ref()) {
+                    Expr::Ident(name)
+                        if matches!(name.sym.as_ref(), "String" | "Number" | "Boolean") =>
+                    {
+                        call.args.len() == 1
+                            && call.args[0].spread.is_none()
+                            && candidate(call.args[0].expr.as_ref())
+                    }
+                    Expr::Member(member) if matches!(&member.prop, MemberProp::Ident(property) if property.sym == *"get") => {
+                        call.args.is_empty()
+                            && !matches!(
+                                crate::utils::unwrap_expr(member.obj.as_ref()),
+                                Expr::Ident(object) if object.sym.starts_with("_$rueCompiledSlot")
+                            )
+                    }
+                    _ => false,
+                }
+            }
+            Expr::Unary(unary) => {
+                !matches!(unary.op, UnaryOp::Delete) && candidate(unary.arg.as_ref())
+            }
+            Expr::Bin(binary) => {
+                candidate(binary.left.as_ref()) && candidate(binary.right.as_ref())
+            }
+            Expr::Cond(cond) => {
+                candidate(cond.test.as_ref())
+                    && candidate(cond.cons.as_ref())
+                    && candidate(cond.alt.as_ref())
+            }
+            Expr::Tpl(template) => template.exprs.iter().all(|expr| candidate(expr.as_ref())),
+            Expr::Seq(sequence) => sequence.exprs.iter().all(|expr| candidate(expr.as_ref())),
+            _ => false,
+        }
+    }
+
+    matches!(&container.expr, JSXExpr::Expr(expr) if candidate(expr.as_ref()))
 }
 
 fn marker_id(element: &JSXElement) -> Option<usize> {
@@ -710,6 +841,8 @@ pub(crate) fn marked_dynamic_template(
             (plan.kind == source_kind).then_some(MarkedTextHole {
                 index: plan.index,
                 path: plan.path,
+                parent_path: plan.parent_path,
+                before_path: plan.before_path,
                 reuse_text: plan.reuse_text,
                 source,
             })
@@ -945,6 +1078,75 @@ fn child_node_path(root: Expr, path: &[usize]) -> Expr {
     })
 }
 
+fn resolve_vapor_hole(
+    transform: &mut super::VaporTransform,
+    root: &Ident,
+    hole: &MarkedTextHole<'_>,
+    path_stmts: &mut Vec<Stmt>,
+    mutation_stmts: &mut Vec<Stmt>,
+) -> (Ident, Ident, bool) {
+    if let Some(parent_path) = &hole.parent_path {
+        let hole_parent = transform.next_el_ident();
+        path_stmts.push(crate::emit::const_decl(
+            hole_parent.clone(),
+            child_node_path(Expr::Ident(root.clone()), parent_path),
+        ));
+        let before = hole
+            .before_path
+            .as_ref()
+            .map(|path| {
+                let before = transform.next_el_ident();
+                path_stmts.push(crate::emit::const_decl(
+                    before.clone(),
+                    child_node_path(Expr::Ident(root.clone()), path),
+                ));
+                Expr::Ident(before)
+            })
+            .unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })));
+        let anchor = transform.next_el_ident();
+        mutation_stmts.push(crate::emit::const_decl(
+            anchor.clone(),
+            call_ident("_$createComment", vec![string_expr("rue:slot:anchor")]),
+        ));
+        mutation_stmts.push(expr_stmt(call_member(
+            Expr::Ident(hole_parent.clone()),
+            "insertBefore",
+            vec![Expr::Ident(anchor.clone()), before],
+        )));
+        return (hole_parent, anchor, false);
+    }
+
+    let anchor = transform.next_el_ident();
+    path_stmts.push(crate::emit::const_decl(
+        anchor.clone(),
+        child_node_path(Expr::Ident(root.clone()), &hole.path),
+    ));
+    let hole_parent = transform.next_el_ident();
+    path_stmts.push(crate::emit::const_decl(
+        hole_parent.clone(),
+        member_expr(Expr::Ident(anchor.clone()), "parentNode"),
+    ));
+    let direct_text = hole.reuse_text
+        && matches!(
+            &hole.source,
+            MarkedHoleSource::Expression(container)
+                if super::block::expr_container::is_compiled_text_container(transform, container)
+        );
+    let anchor = if hole.reuse_text && !direct_text {
+        crate::element_text::replace_template_text_marker_with_comment(
+            transform,
+            &hole_parent,
+            &anchor,
+            hole.index,
+            "_$createComment",
+            mutation_stmts,
+        )
+    } else {
+        anchor
+    };
+    (hole_parent, anchor, direct_text)
+}
+
 pub(crate) fn emit_marked_template_child(
     transform: &mut super::VaporTransform,
     element: &JSXElement,
@@ -982,32 +1184,16 @@ pub(crate) fn emit_marked_template_child(
             (target, target_ident)
         })
         .collect::<Vec<_>>();
+    let mut hole_mutations = Vec::new();
     let hole_idents = holes
         .iter()
         .map(|hole| {
-            let anchor = transform.next_el_ident();
-            stmts.push(crate::emit::const_decl(
-                anchor.clone(),
-                child_node_path(Expr::Ident(root.clone()), &hole.path),
-            ));
-            if hole.reuse_text {
-                stmts.push(expr_stmt(Expr::Assign(AssignExpr {
-                    span: DUMMY_SP,
-                    op: AssignOp::Assign,
-                    left: Box::new(member_expr(Expr::Ident(anchor.clone()), "data"))
-                        .try_into()
-                        .unwrap(),
-                    right: Box::new(string_expr("")),
-                })));
-            }
-            let hole_parent = transform.next_el_ident();
-            stmts.push(crate::emit::const_decl(
-                hole_parent.clone(),
-                member_expr(Expr::Ident(anchor.clone()), "parentNode"),
-            ));
-            (hole, hole_parent, anchor)
+            let (hole_parent, anchor, direct_text) =
+                resolve_vapor_hole(transform, &root, hole, stmts, &mut hole_mutations);
+            (hole, hole_parent, anchor, direct_text)
         })
         .collect::<Vec<_>>();
+    stmts.append(&mut hole_mutations);
     stmts.push(expr_stmt(call_member(
         Expr::Ident(parent.clone()),
         "appendChild",
@@ -1016,12 +1202,14 @@ pub(crate) fn emit_marked_template_child(
     for (target, target_ident) in &target_idents {
         crate::attrs::emit_attrs_for(stmts, target_ident, target.opening);
     }
-    for (expected_index, (hole, hole_parent, anchor)) in hole_idents.into_iter().enumerate() {
+    for (expected_index, (hole, hole_parent, anchor, direct_text)) in
+        hole_idents.into_iter().enumerate()
+    {
         if hole.index != expected_index {
             return false;
         }
         match &hole.source {
-            MarkedHoleSource::Expression(container) if hole.reuse_text => {
+            MarkedHoleSource::Expression(container) if direct_text => {
                 if super::block::expr_container::emit_compiled_text_effect(
                     transform, &anchor, container, stmts,
                 )
@@ -1068,41 +1256,27 @@ pub(crate) fn dynamic_template_to_vapor_block(
             child_node_path(Expr::Ident(root.clone()), &target.path),
         ));
     }
+    let mut hole_mutations = Vec::new();
     let hole_idents = holes
         .iter()
         .map(|hole| {
-            let anchor = transform.next_el_ident();
-            stmts.push(crate::emit::const_decl(
-                anchor.clone(),
-                child_node_path(Expr::Ident(root.clone()), &hole.path),
-            ));
-            if hole.reuse_text {
-                stmts.push(expr_stmt(Expr::Assign(AssignExpr {
-                    span: DUMMY_SP,
-                    op: AssignOp::Assign,
-                    left: Box::new(member_expr(Expr::Ident(anchor.clone()), "data"))
-                        .try_into()
-                        .unwrap(),
-                    right: Box::new(string_expr("")),
-                })));
-            }
-            let hole_parent = transform.next_el_ident();
-            stmts.push(crate::emit::const_decl(
-                hole_parent.clone(),
-                member_expr(Expr::Ident(anchor.clone()), "parentNode"),
-            ));
-            (hole, hole_parent, anchor)
+            let (hole_parent, anchor, direct_text) =
+                resolve_vapor_hole(transform, &root, hole, &mut stmts, &mut hole_mutations);
+            (hole, hole_parent, anchor, direct_text)
         })
         .collect::<Vec<_>>();
+    stmts.append(&mut hole_mutations);
     for (target, target_ident) in &target_idents {
         crate::attrs::emit_attrs_for(&mut stmts, target_ident, target.opening);
     }
-    for (expected_index, (hole, hole_parent, anchor)) in hole_idents.into_iter().enumerate() {
+    for (expected_index, (hole, hole_parent, anchor, direct_text)) in
+        hole_idents.into_iter().enumerate()
+    {
         if hole.index != expected_index {
             return None;
         }
         match &hole.source {
-            MarkedHoleSource::Expression(container) if hole.reuse_text => {
+            MarkedHoleSource::Expression(container) if direct_text => {
                 super::block::expr_container::emit_compiled_text_effect(
                     transform, &anchor, container, &mut stmts,
                 )?;

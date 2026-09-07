@@ -9,6 +9,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as compiledRuntime from '../src/internal'
 import * as internalRuntime from '../src/internal'
 import * as runtimeRoot from '../src'
+import { _$mountCompiledSlotAt } from '../src/compiler-runtime/compact-component-abi'
+import {
+  disposeOwner,
+  onOwnerCleanup,
+  runWithOwner,
+  setReactiveScheduling as setCompiledReactiveScheduling,
+  signal as compiledSignal,
+  type CompiledOwner,
+} from '../src/runtime-core/compiled'
+import type { CompiledBlock, CompiledTarget } from '../src/compiler-runtime/types'
 
 runtimeRoot.setReactiveScheduling('sync')
 
@@ -20,6 +30,16 @@ type BoundaryModule = {
     branchRenders: number
     mounted: number
     plainRenders: number
+    unmounted: number
+  }
+}
+
+type DirectComponentModule = {
+  View: () => unknown
+  setLabel(value: string): void
+  trace: {
+    mounted: number
+    renders: number
     unmounted: number
   }
 }
@@ -78,10 +98,58 @@ export const setBranch = (value) => branch.set(value)
 export const View: FC = () => <main><PlainFallback /><BranchBoundary /><LifecycleLeaf /></main>
 `
 
+const directComponentSource = `
+import {
+  type FC,
+  onMounted,
+  onUnmounted,
+  signal,
+} from '@rue-js/rue'
+
+const label = signal('one')
+
+export const trace = {
+  mounted: 0,
+  renders: 0,
+  unmounted: 0,
+}
+
+const DirectLeaf: FC<{ label: string }> = props => {
+  trace.renders += 1
+  onMounted(() => trace.mounted += 1)
+  onUnmounted(() => trace.unmounted += 1)
+  return <span data-testid="direct-leaf">{props.label}</span>
+}
+
+export const setLabel = (value) => label.set(value)
+export const View: FC = () => <main><DirectLeaf label={label.get()} /></main>
+`
+
 const compile = (moduleType: 'es6' | 'commonjs'): string => {
   expect(readFileSync(pluginPath).byteLength).toBeGreaterThan(0)
   return swc.transformSync(source, {
     filename: 'compiled-render-boundary.tsx',
+    jsc: {
+      parser: { syntax: 'typescript', tsx: true },
+      target: 'es2020',
+      transform: {
+        react: {
+          runtime: 'automatic',
+          importSource: '@rue-js',
+          development: false,
+          throwIfNamespace: false,
+        },
+      },
+      experimental: { plugins: [[pluginPath, {}]] },
+    },
+    module: { type: moduleType },
+  }).code
+}
+
+const compileDirectComponent = (moduleType: 'es6' | 'commonjs'): string => {
+  expect(readFileSync(pluginPath).byteLength).toBeGreaterThan(0)
+  return swc.transformSync(directComponentSource, {
+    filename: 'compiled-direct-component.tsx',
     jsc: {
       parser: { syntax: 'typescript', tsx: true },
       target: 'es2020',
@@ -116,6 +184,23 @@ const evaluate = (): BoundaryModule => {
   return module.exports as BoundaryModule
 }
 
+const evaluateDirectComponent = (): DirectComponentModule => {
+  const module = { exports: {} as Record<string, unknown> }
+  const runtimeRequire = (id: string): Record<string, unknown> => {
+    if (id === '@rue-js/rue/internal/compiler') return compiledRuntime
+    if (id === '@rue-js/rue/internal/component') return internalRuntime
+    if (id === '@rue-js/rue/internal') return internalRuntime
+    if (id === '@rue-js/rue') return runtimeRoot
+    throw new Error(`Unexpected generated import: ${id}`)
+  }
+  new Function('require', 'module', 'exports', compileDirectComponent('commonjs'))(
+    runtimeRequire,
+    module,
+    module.exports,
+  )
+  return module.exports as DirectComponentModule
+}
+
 const flush = async (): Promise<void> => {
   await Promise.resolve()
   await Promise.resolve()
@@ -128,6 +213,94 @@ afterEach(() => {
 })
 
 describe('compiled component render boundary', () => {
+  it('disposes replaced and failed direct slot component owners exactly once', async () => {
+    setCompiledReactiveScheduling('sync')
+    const host = document.createElement('div')
+    const trace = { first: 0, second: 0, failed: 0 }
+    const factory =
+      (label: keyof typeof trace, throws = false) =>
+      (target: CompiledTarget, _props: object, owner: CompiledOwner): CompiledBlock => {
+        runWithOwner(owner, () => onOwnerCleanup(() => trace[label]++))
+        if (throws) throw new Error('direct mount failed')
+        const node = document.createTextNode(label)
+        target.parent.insertBefore(node, target.before)
+        let disposed = false
+        return {
+          first: node,
+          last: node,
+          owner: owner as unknown as CompiledBlock['owner'],
+          dispose() {
+            if (disposed) return
+            disposed = true
+            node.parentNode?.removeChild(node)
+            disposeOwner(owner)
+          },
+        }
+      }
+    const first = factory('first')
+    const second = factory('second')
+    const failed = factory('failed', true)
+    const current = compiledSignal(first)
+
+    _$mountCompiledSlotAt(
+      { parent: host, before: null },
+      () => current.get(),
+      () => ({}),
+    )
+    expect(host.textContent).toBe('first')
+
+    current.set(second)
+    await flush()
+    expect(host.textContent).toBe('second')
+    expect(trace).toEqual({ first: 1, second: 0, failed: 0 })
+
+    const failedHost = document.createElement('div')
+    expect(() =>
+      _$mountCompiledSlotAt(
+        { parent: failedHost, before: null },
+        () => failed,
+        () => ({}),
+      ),
+    ).toThrow('direct mount failed')
+    expect(failedHost.textContent).toBe('')
+    expect(trace).toEqual({ first: 1, second: 0, failed: 1 })
+  })
+
+  it('mounts a proven local component without renderAnchor and preserves its nodes on prop updates', async () => {
+    const output = compileDirectComponent('es6')
+    expect(output).toContain('_$mountCompiledSlotAt')
+    expect(output).toContain('_$mountCompiledSlotFactory')
+    expect(output).not.toContain('renderAnchor')
+
+    const compiled = evaluateDirectComponent()
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = runtimeRoot.useApp(compiled.View as any)
+
+    app.mount(host)
+    await flush()
+
+    const leaf = host.querySelector('[data-testid="direct-leaf"]')
+    const comments = Array.from(host.querySelectorAll('main')[0].childNodes).filter(
+      node => node.nodeType === Node.COMMENT_NODE,
+    )
+    expect(leaf?.textContent).toBe('one')
+    expect(comments).toHaveLength(0)
+    expect(compiled.trace).toEqual({ mounted: 1, renders: 1, unmounted: 0 })
+
+    compiled.setLabel('two')
+    await flush()
+
+    expect(host.querySelector('[data-testid="direct-leaf"]')).toBe(leaf)
+    expect(leaf?.textContent).toBe('two')
+    expect(compiled.trace).toEqual({ mounted: 1, renders: 1, unmounted: 0 })
+
+    app.unmount()
+    await flush()
+    expect(compiled.trace.unmounted).toBe(1)
+    expect(host.childNodes).toHaveLength(0)
+  })
+
   it('keeps local Vapor bindings fine-grained and reruns setup render control once per change', async () => {
     const esm = compile('es6')
     const plainOutput = esm.split('const BranchBoundary')[0]

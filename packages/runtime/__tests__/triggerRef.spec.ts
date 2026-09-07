@@ -3,7 +3,7 @@
  *
  * 验证 shallowRef 内部对象原地修改后可手动触发依赖更新，并绕过 equals 判断。
  */
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { setReactiveScheduling, shallowRef, triggerRef, watchEffect } from '@rue-js/rue'
 
@@ -50,5 +50,13 @@ describe('triggerRef api', () => {
     expect(seen).toEqual([1, 2])
 
     effect.dispose()
+  })
+
+  it('supports compiler ref wrappers that expose the trigger ABI directly', () => {
+    const trigger = vi.fn()
+
+    triggerRef({ trigger } as never)
+
+    expect(trigger).toHaveBeenCalledOnce()
   })
 })

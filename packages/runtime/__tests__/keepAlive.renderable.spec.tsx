@@ -154,10 +154,18 @@ describe('KeepAlive renderable boundary', () => {
     render(<App />, host)
     await flush()
     const panelA = host.querySelector('[data-testid="panel-A"]')
+    const keepAliveComments = () =>
+      Array.from(host.childNodes).filter(
+        node =>
+          node.nodeType === Node.COMMENT_NODE &&
+          (node.nodeValue === 'rue:keep-alive:start' || node.nodeValue === 'rue:keep-alive:end'),
+      )
 
     revision.set(1)
     await flush()
     expect(host.querySelector('[data-testid="panel-A"]')).toBe(panelA)
+    expect(host.querySelectorAll('[data-testid^="panel-"]')).toHaveLength(1)
+    expect(keepAliveComments()).toHaveLength(2)
     expect(lifecycle).toEqual(['A:activated'])
 
     active.set('B')
@@ -167,6 +175,8 @@ describe('KeepAlive renderable boundary', () => {
     await flush()
 
     expect(host.querySelector('[data-testid="panel-A"]')).toBe(panelA)
+    expect(host.querySelectorAll('[data-testid^="panel-"]')).toHaveLength(1)
+    expect(keepAliveComments()).toHaveLength(2)
     expect(lifecycle).toEqual([
       'A:activated',
       'A:deactivated',
@@ -191,6 +201,7 @@ describe('KeepAlive renderable boundary', () => {
     expect(panelA?.isConnected).toBe(false)
     expect(panelB?.isConnected).toBe(false)
     expect(host.querySelector('[data-testid^="panel-"]')).toBeNull()
+    expect(keepAliveComments()).toHaveLength(0)
   })
 
   it('keeps keyed dynamic component state when switching through Component', async () => {

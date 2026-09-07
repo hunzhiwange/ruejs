@@ -178,7 +178,7 @@ useApp(App).mount('#app');
     let normalized = utils::normalize(&out);
     let first_line = out.lines().next().unwrap_or_default();
 
-    assert!(first_line.contains("from \"@rue-js/rue/internal/compiler\""), "{out}");
+    assert!(first_line.contains("from \"@rue-js/rue/internal/component\""), "{out}");
     assert!(first_line.contains("ref"));
     assert!(first_line.contains("useApp"));
     assert!(normalized.contains(&utils::normalize("import { type FC } from '@rue-js/rue';")));
@@ -266,13 +266,13 @@ const Demo: FC = () => <div title={message.value}>{message.value}</div>;
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
     let vapor_import = out
         .lines()
-        .find(|line| line.contains("@rue-js/rue/internal/compiler"))
-        .expect("compiled runtime import");
+        .find(|line| line.contains("@rue-js/rue/internal/component"))
+        .expect("component runtime import");
 
     for helper in ["ref", "_$compiledRoot", "_$compiledText", "effect"] {
         assert!(vapor_import.contains(helper), "missing {helper}: {out}");
     }
-    assert!(!out.contains("from \"@rue-js/rue/internal/component\""), "{out}");
+    assert!(!out.contains("from \"@rue-js/rue/internal/compiler\""), "{out}");
 }
 
 #[test]

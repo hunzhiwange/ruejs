@@ -541,6 +541,31 @@ fn adjacent_sibling_paths(left: &[usize], right: &[usize]) -> bool {
         && right[right.len() - 1] == left[left.len() - 1] + 1
 }
 
+fn materialize_compiled_hole_anchor(
+    vt: &mut VaporTransform,
+    parent: &Ident,
+    before: &Expr,
+    stmts: &mut Vec<Stmt>,
+) -> Ident {
+    let anchor = vt.next_el_ident();
+    stmts.push(crate::emit::const_decl(
+        anchor.clone(),
+        crate::emit::call_ident(
+            "_$compiledCreateComment",
+            vec![crate::emit::string_expr("rue:compiled-slot")],
+        ),
+    ));
+    stmts.push(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(call_member_expr(
+            Expr::Ident(parent.clone()),
+            "insertBefore",
+            vec![Expr::Ident(anchor.clone()), before.clone()],
+        )),
+    }));
+    anchor
+}
+
 fn compiled_dynamic_template_to_block(
     vt: &mut VaporTransform,
     element: &JSXElement,
@@ -567,27 +592,45 @@ fn compiled_dynamic_template_to_block(
     let anchors = holes
         .iter()
         .map(|hole| {
+            if let Some(parent_path) = &hole.parent_path {
+                let parent = vt.next_el_ident();
+                stmts.push(crate::emit::const_decl(
+                    parent.clone(),
+                    child_node_path(&root, parent_path),
+                ));
+                let before = hole
+                    .before_path
+                    .as_ref()
+                    .map(|path| child_node_path(&root, path))
+                    .unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })));
+                return (hole, parent, before, None, false);
+            }
             let anchor = vt.next_el_ident();
             stmts.push(crate::emit::const_decl(anchor.clone(), child_node_path(&root, &hole.path)));
-            if hole.reuse_text {
-                stmts.push(Stmt::Expr(ExprStmt {
-                    span: DUMMY_SP,
-                    expr: Box::new(Expr::Assign(AssignExpr {
-                        span: DUMMY_SP,
-                        op: AssignOp::Assign,
-                        left: Box::new(member_expr(Expr::Ident(anchor.clone()), "data"))
-                            .try_into()
-                            .unwrap(),
-                        right: Box::new(crate::emit::string_expr("")),
-                    })),
-                }));
-            }
             let parent = vt.next_el_ident();
             stmts.push(crate::emit::const_decl(
                 parent.clone(),
                 member_expr(Expr::Ident(anchor.clone()), "parentNode"),
             ));
-            (hole, parent, anchor)
+            let direct_text = hole.reuse_text
+                && matches!(
+                    &hole.source,
+                    crate::vapor::template::MarkedHoleSource::Expression(container)
+                        if crate::vapor::is_compiled_text_container(vt, container)
+                );
+            let anchor = if hole.reuse_text && !direct_text {
+                crate::element_text::replace_template_text_marker_with_comment(
+                    vt,
+                    &parent,
+                    &anchor,
+                    hole.index,
+                    "_$compiledCreateComment",
+                    &mut stmts,
+                )
+            } else {
+                anchor
+            };
+            (hole, parent, Expr::Ident(anchor.clone()), Some(anchor), direct_text)
         })
         .collect::<Vec<_>>();
 
@@ -596,21 +639,28 @@ fn compiled_dynamic_template_to_block(
     }
     let mut anchor_index = 0;
     while anchor_index < anchors.len() {
-        let (hole, parent, anchor) = &anchors[anchor_index];
+        let (hole, parent, before, anchor, direct_text) = &anchors[anchor_index];
         let expected_index = anchor_index;
         if hole.index != expected_index {
             return None;
         }
-        if hole.reuse_text {
+        if *direct_text {
             let crate::vapor::template::MarkedHoleSource::Expression(container) = &hole.source
             else {
                 return None;
             };
-            crate::vapor::emit_compiled_text_effect(vt, anchor, container, &mut stmts)?;
+            crate::vapor::emit_compiled_text_effect(
+                vt,
+                anchor.as_ref().expect("direct text keeps its text node"),
+                container,
+                &mut stmts,
+            )?;
             anchor_index += 1;
             continue;
         }
-        if matches!(hole.source, crate::vapor::template::MarkedHoleSource::Expression(_)) {
+        if anchor.is_some()
+            && matches!(hole.source, crate::vapor::template::MarkedHoleSource::Expression(_))
+        {
             let mut group_end = anchor_index;
             let mut exprs = Vec::new();
             while group_end < anchors.len() {
@@ -640,9 +690,9 @@ fn compiled_dynamic_template_to_block(
                 let reader = crate::element_expr::compiled_branch_reader_from_handle(&branch)
                     .expect("literal sibling branch must expose a reader");
                 crate::element_slot::render_compiled_branch_for_slot_at(
-                    vt, parent, anchor, &reader, &mut stmts,
+                    vt, parent, before, &reader, &mut stmts,
                 );
-                for (_, extra_parent, extra_anchor) in
+                for (_, extra_parent, _, extra_anchor, _) in
                     anchors.iter().take(group_end).skip(anchor_index + 1)
                 {
                     stmts.push(Stmt::Expr(ExprStmt {
@@ -650,7 +700,9 @@ fn compiled_dynamic_template_to_block(
                         expr: Box::new(call_member_expr(
                             Expr::Ident(extra_parent.clone()),
                             "removeChild",
-                            vec![Expr::Ident(extra_anchor.clone())],
+                            vec![Expr::Ident(
+                                extra_anchor.clone().expect("grouped holes retain comments"),
+                            )],
                         )),
                     }));
                 }
@@ -670,16 +722,32 @@ fn compiled_dynamic_template_to_block(
                         crate::element_expr::try_make_compiled_branch_reader(vt, expr.as_ref())
                 {
                     crate::element_slot::render_compiled_branch_for_slot_at(
-                        vt, parent, anchor, &branch, &mut stmts,
+                        vt, parent, before, &branch, &mut stmts,
                     );
                     anchor_index += 1;
                     continue;
                 }
                 let list_stmt_start = stmts.len();
                 if let JSXExpr::Expr(expr) = &container.expr
+                    && anchor.is_none()
+                    && crate::element_expr::is_compiled_slot_source_expr(expr.as_ref())
+                {
+                    crate::element_slot::render_compiled_slot_for_at(
+                        parent,
+                        before,
+                        expr.as_ref(),
+                        &mut stmts,
+                    );
+                    anchor_index += 1;
+                    continue;
+                }
+                let anchor = anchor.clone().unwrap_or_else(|| {
+                    materialize_compiled_hole_anchor(vt, parent, before, &mut stmts)
+                });
+                if let JSXExpr::Expr(expr) = &container.expr
                     && let Expr::Call(call) = crate::utils::unwrap_expr(expr.as_ref())
                     && crate::element_list::try_build_list_from_map_at(
-                        vt, parent, anchor, call, &mut stmts,
+                        vt, parent, &anchor, call, &mut stmts,
                     )
                     && stmts.len() > list_stmt_start
                 {
@@ -697,7 +765,7 @@ fn compiled_dynamic_template_to_block(
                     crate::element_slot::render_between_for_slot_at(
                         vt,
                         parent,
-                        anchor,
+                        &anchor,
                         expr.as_ref(),
                         &mut stmts,
                     );
@@ -731,7 +799,10 @@ fn compiled_dynamic_template_to_block(
                 crate::vapor::emit_compiled_text_effect(vt, &text, container, &mut stmts)?;
             }
             crate::vapor::template::MarkedHoleSource::OpaqueElement(element) => {
-                crate::elements::build_element_at(vt, element, parent, anchor, &mut stmts);
+                let anchor = anchor.clone().unwrap_or_else(|| {
+                    materialize_compiled_hole_anchor(vt, parent, before, &mut stmts)
+                });
+                crate::elements::build_element_at(vt, element, parent, &anchor, &mut stmts);
             }
         }
         anchor_index += 1;

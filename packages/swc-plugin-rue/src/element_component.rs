@@ -963,34 +963,25 @@ fn try_build_compiled_component_element_with_anchor(
     let JSXElementName::Ident(component) = &element.opening.name else {
         return false;
     };
+    if let Some(anchor) = anchor {
+        let component_expr = Expr::JSXElement(Box::new(element.clone()));
+        let Some(factory) = crate::element_expr::compiled_slot_factory_expr(vt, &component_expr)
+        else {
+            return false;
+        };
+        crate::element_slot::render_compiled_factory_for_slot_at(
+            vt, parent, anchor, factory, stmts,
+        );
+        return true;
+    }
     let Some(read_props) = build_compiled_component_read_props(vt, element) else {
         return false;
     };
-    let mount_parent = if anchor.is_some() {
-        let staging = vt.next_el_ident();
-        stmts.push(const_decl(
-            staging.clone(),
-            call_ident("_$compiledCreateDocumentFragment", vec![Expr::Ident(parent.clone())]),
-        ));
-        staging
-    } else {
-        parent.clone()
-    };
     let mount = call_ident(
         "_$mountCompiledComponent",
-        vec![Expr::Ident(mount_parent.clone()), Expr::Ident(component.clone()), read_props],
+        vec![Expr::Ident(parent.clone()), Expr::Ident(component.clone()), read_props],
     );
     stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(mount) }));
-    if let Some(anchor) = anchor {
-        stmts.push(Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(call_member(
-                parent.clone(),
-                "insertBefore",
-                vec![Expr::Ident(mount_parent), Expr::Ident(anchor.clone())],
-            )),
-        }));
-    }
     true
 }
 

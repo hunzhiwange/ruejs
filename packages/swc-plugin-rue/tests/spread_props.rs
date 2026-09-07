@@ -36,7 +36,7 @@ export default SpreadProps;
 
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(output.contains("_$compiledRoot"), "{output}");
-    assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
+    assert!(output.contains("renderAnchor(__slot1"), "{output}");
     assert!(output.contains("()=>props.text"), "{output}");
     assert!(output.contains("props.className"), "{output}");
     assert!(output.contains("...base"), "{output}");

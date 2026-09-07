@@ -35,6 +35,12 @@ type RepeatedResourceListModule = {
   setRows(rows: string[]): void
 }
 
+type BoundaryReuseModule = {
+  Example: () => compiledRuntime.CompiledRootHandle
+  state: { set(value: boolean): void }
+  trace: { cleanupRuns: number }
+}
+
 type ReactiveCase = {
   name: string
   read: string
@@ -233,6 +239,70 @@ afterEach(() => {
 })
 
 describe('compiled reactive branches', () => {
+  it('reuses a real sibling boundary through 1,000 branch switches and one cleanup', async () => {
+    const source = `
+      import { onScopeDispose, signal } from '@rue-js/rue'
+
+      export const state = signal(true)
+      export const trace = { cleanupRuns: 0 }
+      export function Example() {
+        onScopeDispose(() => { trace.cleanupRuns += 1 })
+        return (
+          <section>
+            {state.get() ? <b data-branch="yes">yes</b> : <i data-branch="no">no</i>}
+            <span data-stable="">stable</span>
+          </section>
+        )
+      }
+    `
+    const generated = compileSource(source, 'es6', 'compiled-real-boundary.tsx')
+    expect(generated).not.toContain('rue:text-hole')
+
+    compiledRuntime.setReactiveScheduling('sync')
+    vaporRuntime.setReactiveScheduling('sync')
+    const compiled = evaluateSource<BoundaryReuseModule>(source)
+    const owner = compiledRuntime.createOwner()
+    const host = document.createElement('main')
+    const handle = compiledRuntime.runWithOwner(owner, () => compiled.Example())
+    if (handle == null) throw new Error('Expected compiled boundary handle')
+    const root = handle.__rue_compiled_mount(host) as HTMLElement
+    if (root.parentNode !== host) host.appendChild(root)
+    const stable = root.querySelector('[data-stable]')
+    if (stable == null) throw new Error('Expected a stable successor')
+    expect(root.childNodes).toHaveLength(2)
+    expect(Array.from(root.childNodes).some(node => node.nodeType === Node.COMMENT_NODE)).toBe(
+      false,
+    )
+
+    const insertBefore = vi.spyOn(root, 'insertBefore')
+    const removeChild = vi.spyOn(root, 'removeChild')
+    const records: MutationRecord[] = []
+    const observer = new MutationObserver(batch => records.push(...batch))
+    observer.observe(root, { childList: true })
+
+    for (let index = 0; index < 1_000; index += 1) {
+      compiled.state.set(index % 2 === 1)
+      expect(root.lastChild).toBe(stable)
+      expect(root.querySelectorAll('[data-branch]')).toHaveLength(1)
+    }
+    await Promise.resolve()
+    observer.disconnect()
+
+    expect(insertBefore).toHaveBeenCalledTimes(1_000)
+    expect(removeChild).toHaveBeenCalledTimes(1_000)
+    expect(records.reduce((count, record) => count + record.addedNodes.length, 0)).toBe(1_000)
+    expect(records.reduce((count, record) => count + record.removedNodes.length, 0)).toBe(1_000)
+    expect(root.lastChild).toBe(stable)
+    expect(Array.from(root.childNodes).some(node => node.nodeType === Node.COMMENT_NODE)).toBe(
+      false,
+    )
+
+    handle.dispose()
+    compiledRuntime.disposeOwner(owner)
+    expect(compiled.trace.cleanupRuns).toBe(1)
+    expect(host.childNodes).toHaveLength(0)
+  })
+
   it('tracks a nested reactive ref value through a compiled prop signal', () => {
     compiledRuntime.setReactiveScheduling('sync')
     const source = runtimeRoot.ref({ open: false })

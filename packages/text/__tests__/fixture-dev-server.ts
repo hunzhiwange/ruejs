@@ -2,7 +2,10 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 
-export const FIXTURE_STARTUP_TIMEOUT_MS = process.env.CI ? 90_000 : 30_000
+// Ecosystem fixtures can spend well over 30 seconds on their first RSC/SSR
+// compilation when the full test suite is competing for CPU. Keep the local
+// budget below CI's while leaving enough room for that cold start to finish.
+export const FIXTURE_STARTUP_TIMEOUT_MS = process.env.CI ? 90_000 : 60_000
 export const FIXTURE_HOOK_TIMEOUT_MS = FIXTURE_STARTUP_TIMEOUT_MS + 15_000
 
 const READY_POLL_INTERVAL_MS = 250

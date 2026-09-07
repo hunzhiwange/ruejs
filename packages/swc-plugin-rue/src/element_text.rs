@@ -151,6 +151,39 @@ pub fn append_normalized_jsx_text(parent_ident: &Ident, raw: &Atom, stmts: &mut 
     stmts.push(append_child(parent_ident.clone(), text_node));
 }
 
+pub(crate) fn replace_template_text_marker_with_comment(
+    vt: &mut VaporTransform,
+    parent: &Ident,
+    marker: &Ident,
+    index: usize,
+    create_comment_helper: &str,
+    stmts: &mut Vec<Stmt>,
+) -> Ident {
+    let anchor = vt.next_el_ident();
+    stmts.push(const_decl(
+        anchor.clone(),
+        call_ident(create_comment_helper, vec![string_expr(&format!("rue:text-hole:{index}"))]),
+    ));
+    stmts.push(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(Expr::Call(CallExpr {
+            span: DUMMY_SP,
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(Expr::Ident(parent.clone())),
+                prop: MemberProp::Ident(ident_name("replaceChild")),
+            }))),
+            args: vec![
+                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
+                ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(marker.clone())) },
+            ],
+            type_args: None,
+            ctxt: SyntaxContext::empty(),
+        })),
+    }));
+    anchor
+}
+
 #[cfg(test)]
 #[path = "element_text_tests.rs"]
 mod tests;

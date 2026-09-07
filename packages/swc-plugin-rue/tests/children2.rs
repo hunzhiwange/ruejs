@@ -36,7 +36,7 @@ export default Children;
 
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(output.contains("_$compiledRoot"), "{output}");
-    assert!(!output.contains("_$compiledText("), "{output}");
+    assert!(output.contains("_$compiledText("), "{output}");
     assert!(!output.contains("_$compiledCreateTextNode("), "{output}");
     assert!(output.contains("_$createComponent(Box"), "{output}");
     assert!(output.contains("<div><span>hello</span><span>嵌套子元素</span></div>"), "{output}");

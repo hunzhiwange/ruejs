@@ -8,11 +8,13 @@ import {
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Teleport, Transition, setReactiveScheduling, watchEffect } from '../src'
 import { render, renderAnchor } from '../src'
 import type { FC } from '../src'
+import { Teleport as CompiledTeleport } from '../src/compiler-runtime/builtins'
+import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
 import { vapor } from './legacy-test-render'
 
 void watchEffect
@@ -40,6 +42,46 @@ const collectBodySlotAnchors = () => {
 }
 
 describe('Teleport nested vapor anchor', () => {
+  it('moves one owned compiled range between targets and removes it on dispose', () => {
+    const host = document.createElement('main')
+    const firstTarget = document.createElement('aside')
+    const secondTarget = document.createElement('aside')
+    const cleanup = vi.fn()
+    document.body.append(host, firstTarget, secondTarget)
+
+    const children: CompiledSlotFactory = (target, _props, owner) => {
+      const node = document.createElement('output')
+      node.dataset.teleported = 'owned'
+      node.textContent = 'teleported'
+      target.parent.insertBefore(node, target.before)
+      return createCompiledBlock(target, owner, { first: node, last: node }, cleanup)
+    }
+    const handle = CompiledTeleport({ to: firstTarget, children })
+    handle.__rue_compiled_mount(host)
+    const teleported = firstTarget.querySelector('[data-teleported="owned"]')
+
+    expect(teleported).not.toBeNull()
+    expect(document.querySelectorAll('[data-teleported="owned"]')).toHaveLength(1)
+    expect(
+      Array.from(host.childNodes).filter(
+        node => node.nodeType === Node.COMMENT_NODE && node.nodeValue === 'rue:compiled-teleport',
+      ),
+    ).toHaveLength(1)
+
+    handle.__rue_compiled_update_props__({ to: secondTarget, children })
+
+    expect(firstTarget.querySelector('[data-teleported="owned"]')).toBeNull()
+    expect(secondTarget.querySelector('[data-teleported="owned"]')).toBe(teleported)
+    expect(document.querySelectorAll('[data-teleported="owned"]')).toHaveLength(1)
+    expect(cleanup).not.toHaveBeenCalled()
+
+    handle.dispose()
+    handle.dispose()
+
+    expect(document.querySelector('[data-teleported="owned"]')).toBeNull()
+    expect(cleanup).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps nested vapor anchor inside teleport range and shows updated content', async () => {
     const ModalLike: FC<{ visible: boolean }> = props => {
       const content = _$createFragment([

@@ -26,7 +26,7 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
         )),
         "{out}"
     );
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el5, _el4)")), "{out}");
+    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el4, _el3)")), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
 }
 

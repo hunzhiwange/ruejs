@@ -8,7 +8,7 @@ mod visitor;
 pub(crate) use block::expr_container::is_compiled_scalar_expr;
 pub(crate) use block::expr_container::{
     emit_compiled_text_binding, emit_compiled_text_effect, is_compiled_reactive_scalar_expr,
-    is_compiled_scalar_expr_with_shadows,
+    is_compiled_scalar_expr_with_shadows, is_compiled_text_container,
 };
 
 use std::collections::HashSet;

@@ -57,6 +57,6 @@ export default VaporJSXDemo;
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$compiledRoot(Object.assign("), "{out}");
     assert!(normalized.contains("__rue_compiled_explicit_roots"), "{out}");
-    assert!(normalized.contains("_$compiledText(_el4"), "{out}");
+    assert!(normalized.contains("_$compiledText(_el5"), "{out}");
     assert!(normalized.contains("_$getTemplate1().content.cloneNode(true)"), "{out}");
 }

@@ -52,7 +52,8 @@ const Page: FC<{ handleClick: () => void }> = props => (
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains("rue:opaque-hole:0"));
-    assert!(out.contains("_$mountCompiledComponent(_el3, RouterLink"), "{out}");
+    assert!(out.contains("_$compiledComponent(RouterLink"), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt"), "{out}");
     assert!(out.contains("onClick: props.handleClick"), "{out}");
     assert!(out.contains("_$mountCompiledSlotFactory"), "{out}");
     assert!(!out.contains("renderAnchor("), "{out}");

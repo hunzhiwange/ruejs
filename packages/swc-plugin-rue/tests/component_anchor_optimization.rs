@@ -3,11 +3,10 @@ use swc_plugin_rue::apply;
 mod utils;
 
 #[test]
-fn lowers_dynamic_component_element_to_render_anchor() {
+fn lowers_compiled_component_element_to_direct_slot_mount() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
-
-const Code: FC<{ code: string }> = props => <div>{props.code}</div>
+import Code from './Code';
 
 const Page: FC<{ code: string }> = props => (
   <section>
@@ -21,8 +20,12 @@ const Page: FC<{ code: string }> = props => (
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
     println!("DEBUG_OUT: {}", out);
 
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
-    assert!(out.contains(&utils::normalize("rue:opaque-hole:0")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt({ parent:")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotFactory(target, owner")));
+    assert!(
+        out.contains(&utils::normalize("_$compiledComponent(Code, ()=>({ code: props.code }))"))
+    );
+    assert!(!out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains("renderBetween(__slot"));
 }
 

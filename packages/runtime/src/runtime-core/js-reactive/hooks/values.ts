@@ -751,7 +751,10 @@ export const createValueHooks = ({
     const triggerPath = safeGet(signal, 'triggerPath')
     if (typeof triggerPath === 'function') {
       Reflect.apply(triggerPath, signal as TriggerableSignalHandle, [['value']])
+      return
     }
+    const trigger = safeGet(refValue, 'trigger')
+    if (typeof trigger === 'function') Reflect.apply(trigger, refValue, [])
   }
 
   function toRef<T>(source: RefLike<T>): RefLike<T>

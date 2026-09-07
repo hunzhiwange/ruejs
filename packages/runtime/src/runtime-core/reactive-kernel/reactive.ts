@@ -354,5 +354,10 @@ export const triggerRef = (value: unknown): void => {
   }
   const signal = safeGet(value, '__signal__')
   const triggerPath = safeGet(signal, 'triggerPath')
-  if (typeof triggerPath === 'function') Reflect.apply(triggerPath, signal, [['value']])
+  if (typeof triggerPath === 'function') {
+    Reflect.apply(triggerPath, signal, [['value']])
+    return
+  }
+  const trigger = safeGet(value, 'trigger')
+  if (typeof trigger === 'function') Reflect.apply(trigger, value, [])
 }

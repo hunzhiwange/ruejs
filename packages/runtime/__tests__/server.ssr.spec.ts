@@ -953,7 +953,10 @@ describe('server renderToString', () => {
           return container
         }) as any
 
-      await expect(renderToString(App)).resolves.toContain('<span>after</span>')
+      const html = await renderToString(App)
+      expect(html).toBe('<div><span>after</span></div>')
+      expect(html.match(/<span>/g)).toHaveLength(1)
+      expect(html).not.toContain('rue:children:anchor')
     } finally {
       setReactiveScheduling('sync')
     }

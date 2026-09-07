@@ -3,12 +3,12 @@ import { KeepAlive, Template, Transition, TransitionGroup } from '../src/compile
 import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
 
 const elementSlot =
-  (tag: string, text: string): CompiledSlotFactory =>
+  (tag: string, text: string, cleanup?: () => void): CompiledSlotFactory =>
   (target, _props, owner) => {
     const node = document.createElement(tag)
     node.textContent = text
     target.parent.insertBefore(node, target.before)
-    return createCompiledBlock(target, owner, { first: node, last: node })
+    return createCompiledBlock(target, owner, { first: node, last: node }, cleanup)
   }
 
 afterEach(() => vi.useRealTimers())
@@ -151,5 +151,34 @@ describe('compiled control builtins', () => {
     await vi.advanceTimersByTimeAsync(30)
     expect(list.contains(removed)).toBe(false)
     handle.dispose()
+  })
+
+  it('disconnects TransitionGroup phases and cleans its owned range exactly once', async () => {
+    vi.useFakeTimers()
+    const host = document.createElement('div')
+    const cleanup = vi.fn()
+    let list!: HTMLUListElement
+    const children: CompiledSlotFactory = (target, _props, owner) => {
+      list = document.createElement('ul')
+      list.innerHTML = '<li data-key="a">a</li>'
+      target.parent.insertBefore(list, target.before)
+      return createCompiledBlock(target, owner, { first: list, last: list }, cleanup)
+    }
+    const handle = TransitionGroup({ name: 'rows', duration: 30, children })
+    handle.__rue_compiled_mount(host)
+    const removed = list.querySelector('[data-key="a"]') as HTMLElement
+
+    removed.remove()
+    await Promise.resolve()
+    expect(list.contains(removed)).toBe(true)
+    expect(host.querySelectorAll('[data-key="a"]')).toHaveLength(1)
+
+    handle.dispose()
+    handle.dispose()
+    await vi.advanceTimersByTimeAsync(30)
+
+    expect(host.childNodes).toHaveLength(0)
+    expect(removed.isConnected).toBe(false)
+    expect(cleanup).toHaveBeenCalledTimes(1)
   })
 })

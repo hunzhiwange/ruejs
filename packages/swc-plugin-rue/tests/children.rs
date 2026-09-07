@@ -39,7 +39,7 @@ export default Children;
 
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(output.contains("_$compiledRoot"), "{output}");
-    assert!(!output.contains("_$compiledText("), "{output}");
+    assert!(output.contains("_$compiledText("), "{output}");
     assert!(!output.contains("_$compiledCreateTextNode("), "{output}");
     assert!(output.contains("_$createComponent(Box"), "{output}");
     assert!(output.contains("RouterLink.__rueHref"), "{output}");

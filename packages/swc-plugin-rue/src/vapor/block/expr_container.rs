@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use swc_core::common::{DUMMY_SP, SyntaxContext};
 use swc_core::ecma::ast::*;
+use swc_core::ecma::visit::{Visit, VisitWith};
 
 use crate::emit::{call_ident, const_decl, ident, string_expr};
 use crate::reactive_provenance::ReactiveKind;
@@ -220,6 +221,50 @@ pub(crate) fn emit_compiled_text_binding(
     }));
     emit_compiled_text_effect(vt, &node, container, stmts)?;
     Some(node)
+}
+
+pub(crate) fn is_compiled_text_container(
+    vt: &VaporTransform,
+    container: &JSXExprContainer,
+) -> bool {
+    let JSXExpr::Expr(expr) = &container.expr else {
+        return false;
+    };
+    let inner = unwrap_expr(expr.as_ref());
+    let shadows = vt.current_scalar_constructor_shadows();
+    let explicitly_coerced = matches!(
+        inner,
+        Expr::Call(CallExpr {
+            callee: Callee::Expr(callee),
+            args,
+            ..
+        }) if matches!(unwrap_expr(callee.as_ref()), Expr::Ident(name)
+            if matches!(name.sym.as_ref(), "String" | "Number" | "Boolean")
+                && !shadows.contains(name.sym.as_ref()))
+            && args.len() == 1
+            && args[0].spread.is_none()
+    );
+    if !explicitly_coerced {
+        struct RenderableLocalRead<'a> {
+            names: &'a HashSet<String>,
+            found: bool,
+        }
+        impl Visit for RenderableLocalRead<'_> {
+            fn visit_ident(&mut self, ident: &Ident) {
+                self.found |= self.names.contains(ident.sym.as_ref())
+                    && !ident.sym.starts_with("_$rueCompiledProp")
+                    && !ident.sym.starts_with("_$row");
+            }
+        }
+
+        let renderable_names = vt.current_renderable_local_names();
+        let mut read = RenderableLocalRead { names: &renderable_names, found: false };
+        inner.visit_with(&mut read);
+        if read.found {
+            return false;
+        }
+    }
+    is_compiled_reactive_scalar_expr(vt, inner, &shadows)
 }
 
 /// Bind a compiler-proven scalar expression to a text node that already exists.

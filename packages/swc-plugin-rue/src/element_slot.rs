@@ -34,49 +34,7 @@ pub(crate) fn render_between_for_slot_at(
     stmts: &mut Vec<Stmt>,
 ) {
     if crate::element_expr::is_compiled_slot_source_expr(inner_expr) {
-        let target = Expr::Object(ObjectLit {
-            span: DUMMY_SP,
-            props: vec![
-                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(ident_name("parent")),
-                    value: Box::new(Expr::Ident(el_ident.clone())),
-                }))),
-                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(ident_name("before")),
-                    value: Box::new(Expr::Ident(anchor.clone())),
-                }))),
-            ],
-        });
-        let read_factory = Expr::Arrow(ArrowExpr {
-            span: DUMMY_SP,
-            params: vec![],
-            body: Box::new(BlockStmtOrExpr::Expr(Box::new(inner_expr.clone()))),
-            is_async: false,
-            is_generator: false,
-            type_params: None,
-            return_type: None,
-            ctxt: SyntaxContext::empty(),
-        });
-        let read_props = Expr::Arrow(ArrowExpr {
-            span: DUMMY_SP,
-            params: vec![],
-            body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Paren(ParenExpr {
-                span: DUMMY_SP,
-                expr: Box::new(Expr::Object(ObjectLit { span: DUMMY_SP, props: vec![] })),
-            })))),
-            is_async: false,
-            is_generator: false,
-            type_params: None,
-            return_type: None,
-            ctxt: SyntaxContext::empty(),
-        });
-        stmts.push(Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(call_ident(
-                "_$mountCompiledSlotAt",
-                vec![target, read_factory, read_props],
-            )),
-        }));
+        render_compiled_slot_for_at(el_ident, &Expr::Ident(anchor.clone()), inner_expr, stmts);
         return;
     }
     // 槽值：对于标识符/成员表达式使用括号包裹以保证后续判断
@@ -141,6 +99,126 @@ pub(crate) fn render_between_for_slot_at(
     stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(watch) }));
 }
 
+pub(crate) fn render_compiled_slot_for_at(
+    el_ident: &Ident,
+    before: &Expr,
+    inner_expr: &Expr,
+    stmts: &mut Vec<Stmt>,
+) {
+    let target = Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props: vec![
+            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name("parent")),
+                value: Box::new(Expr::Ident(el_ident.clone())),
+            }))),
+            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name("before")),
+                value: Box::new(before.clone()),
+            }))),
+        ],
+    });
+    let read_factory = Expr::Arrow(ArrowExpr {
+        span: DUMMY_SP,
+        params: vec![],
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(inner_expr.clone()))),
+        is_async: false,
+        is_generator: false,
+        type_params: None,
+        return_type: None,
+        ctxt: SyntaxContext::empty(),
+    });
+    let read_props = Expr::Arrow(ArrowExpr {
+        span: DUMMY_SP,
+        params: vec![],
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Paren(ParenExpr {
+            span: DUMMY_SP,
+            expr: Box::new(Expr::Object(ObjectLit { span: DUMMY_SP, props: vec![] })),
+        })))),
+        is_async: false,
+        is_generator: false,
+        type_params: None,
+        return_type: None,
+        ctxt: SyntaxContext::empty(),
+    });
+    stmts.push(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(call_ident("_$mountCompiledSlotAt", vec![target, read_factory, read_props])),
+    }));
+}
+
+/// Mount one compiler-proven slot factory at a template hole without retaining the
+/// temporary comment. The real next sibling (or `null` at the tail) remains the
+/// stable insertion boundary for future component updates.
+pub(crate) fn render_compiled_factory_for_slot_at(
+    vt: &mut VaporTransform,
+    el_ident: &Ident,
+    anchor: &Ident,
+    factory_expr: Expr,
+    stmts: &mut Vec<Stmt>,
+) {
+    let factory = vt.next_slot_ident();
+    let before = vt.next_el_ident();
+    stmts.push(const_decl(factory.clone(), factory_expr));
+    stmts.push(const_decl(
+        before.clone(),
+        Expr::Member(MemberExpr {
+            span: DUMMY_SP,
+            obj: Box::new(Expr::Ident(anchor.clone())),
+            prop: MemberProp::Ident(ident_name("nextSibling")),
+        }),
+    ));
+    stmts.push(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(call_member(
+            el_ident.clone(),
+            "removeChild",
+            vec![Expr::Ident(anchor.clone())],
+        )),
+    }));
+
+    let target = Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props: vec![
+            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name("parent")),
+                value: Box::new(Expr::Ident(el_ident.clone())),
+            }))),
+            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name("before")),
+                value: Box::new(Expr::Ident(before)),
+            }))),
+        ],
+    });
+    let read_factory = Expr::Arrow(ArrowExpr {
+        span: DUMMY_SP,
+        params: vec![],
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Ident(factory)))),
+        is_async: false,
+        is_generator: false,
+        type_params: None,
+        return_type: None,
+        ctxt: SyntaxContext::empty(),
+    });
+    let read_props = Expr::Arrow(ArrowExpr {
+        span: DUMMY_SP,
+        params: vec![],
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Paren(ParenExpr {
+            span: DUMMY_SP,
+            expr: Box::new(Expr::Object(ObjectLit { span: DUMMY_SP, props: vec![] })),
+        })))),
+        is_async: false,
+        is_generator: false,
+        type_params: None,
+        return_type: None,
+        ctxt: SyntaxContext::empty(),
+    });
+    stmts.push(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(call_ident("_$mountCompiledSlotAt", vec![target, read_factory, read_props])),
+    }));
+}
+
 pub fn render_once_for_slot(
     vt: &mut VaporTransform,
     el_ident: &Ident,
@@ -178,7 +256,7 @@ pub fn render_compiled_branch_for_slot(
 pub(crate) fn render_compiled_branch_for_slot_at(
     _vt: &mut VaporTransform,
     el_ident: &Ident,
-    anchor: &Ident,
+    before: &Expr,
     branch_expr: &Expr,
     stmts: &mut Vec<Stmt>,
 ) {
@@ -188,7 +266,7 @@ pub(crate) fn render_compiled_branch_for_slot_at(
         span: DUMMY_SP,
         expr: Box::new(call_ident(
             "_$compiledBranchAt",
-            vec![Expr::Ident(el_ident.clone()), Expr::Ident(anchor.clone()), reader],
+            vec![Expr::Ident(el_ident.clone()), before.clone(), reader],
         )),
     }));
 }

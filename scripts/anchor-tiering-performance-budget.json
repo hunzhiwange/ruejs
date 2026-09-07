@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "minimumValidSamples": 5,
+  "size": {
+    "maxBrotliRatio": 1.01
+  },
+  "scenarios": {
+    "textUpdate": {
+      "maxCommentNodes": 0,
+      "maxMutationRatio": 0.3,
+      "minMutationRatio": 0.25,
+      "maxNodeCountRatio": 0.5,
+      "maxCpuRatio": 1.05,
+      "maxHeapRatio": 1.02,
+      "expectedEffectRuns": 0,
+      "requireCpuOrHeapImprovement": true,
+      "maxCpuOrHeapRatio": 0.95
+    },
+    "singleRootBranch": {
+      "maxCommentNodes": 0,
+      "maxMutationRatio": 1,
+      "maxNodeCountRatio": 0.667,
+      "maxCpuRatio": 1.2,
+      "maxHeapRatio": 1.02,
+      "expectedEffectRuns": 1,
+      "requireCpuOrHeapImprovement": true,
+      "maxCpuOrHeapRatio": 0.95
+    },
+    "nullableMultiRoot": {
+      "maxCommentNodes": 2,
+      "maxMutationRatio": 1,
+      "maxNodeCountRatio": 1,
+      "maxCpuRatio": 1.2,
+      "maxHeapRatio": 1.02,
+      "expectedEffectRuns": 1,
+      "requireCpuOrHeapImprovement": false
+    },
+    "compiledComponentSlot": {
+      "maxCommentNodes": 2,
+      "maxMutationRatio": 1,
+      "maxNodeCountRatio": 0.875,
+      "maxCpuRatio": 1.1,
+      "maxHeapRatio": 1.02,
+      "expectedEffectRuns": 1,
+      "requireCpuOrHeapImprovement": true,
+      "maxCpuOrHeapRatio": 0.99
+    }
+  }
+}

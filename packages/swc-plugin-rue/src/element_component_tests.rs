@@ -92,6 +92,30 @@ fn transform_component_module(src: &str) -> String {
     String::from_utf8(buf).expect("utf8")
 }
 
+fn transform_component_module_with_static_props(src: &str) -> String {
+    let cm = Arc::new(SourceMap::default());
+    let fm = cm.new_source_file(
+        FileName::Custom("compiled-component-template-test.tsx".into()).into(),
+        src.to_string(),
+    );
+    let mut parser = Parser::new(
+        Syntax::Typescript(TsSyntax { tsx: true, ..Default::default() }),
+        StringInput::from(&*fm),
+        None,
+    );
+    let program = Program::Module(parser.parse_module().expect("parse module"));
+    let output = crate::run_full_transform_with_options(program, true, true, None);
+    let mut buf = Vec::new();
+    let mut emitter = Emitter {
+        cfg: Default::default(),
+        comments: None,
+        cm: cm.clone(),
+        wr: JsWriter::new(cm, "\n", &mut buf, None),
+    };
+    emitter.emit_program(&output).expect("emit transformed module");
+    String::from_utf8(buf).expect("utf8")
+}
+
 #[test]
 fn lowers_single_static_text_child_to_string_expr() {
     let mut vt = new_vt();
@@ -269,7 +293,6 @@ fn keeps_static_opaque_components_inside_compiled_slot_branches_without_vapor() 
 
     assert!(output.contains("_$compiledBranchAt("), "{output}");
     assert!(output.contains("_$mountCompiledComponent("), "{output}");
-    assert!(output.contains("_$template(\"<div><!--rue:text-hole:0--></div>\")"), "{output}");
     assert!(
         output.contains("_$mountCompiledComponent(_root,Code,()=>({lang:\"tsx\",code:`demo`}))"),
         "{output}"
@@ -366,6 +389,23 @@ fn builds_direct_render_and_dynamic_component_anchor_paths() {
     assert!(component_out.contains("effect(()=>{"));
     assert!(component_out.contains("_$createComponent(Box,()=>({title:title}))"));
     assert!(component_out.contains("renderAnchor(__slot2,root,_list1)"));
+}
+
+#[test]
+fn mounts_proven_local_compiled_component_through_direct_slot_abi() {
+    let output = compact(&transform_component_module_with_static_props(
+        r#"
+        import { type FC } from '@rue-js/rue';
+        const Code: FC<{ code: string }> = props => <strong>{props.code}</strong>;
+        export const Page: FC<{ code: string }> = props => <section><Code code={props.code} /></section>;
+        "#,
+    ));
+
+    assert!(output.contains("_$mountCompiledSlotAt({parent:"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotFactory(target,owner,"), "{output}");
+    assert!(output.contains("_$compiledComponent(Code,()=>({code:"), "{output}");
+    let page_output = output.split("exportconstPage").nth(1).expect("compiled Page output");
+    assert!(!page_output.contains("renderAnchor("), "{output}");
 }
 
 #[test]

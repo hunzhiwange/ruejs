@@ -1656,7 +1656,7 @@ pub(crate) fn emit_element_expr_container_child_at(
         crate::element_slot::render_compiled_branch_for_slot_at(
             vt,
             parent,
-            anchor,
+            &Expr::Ident(anchor.clone()),
             &compiled_branch,
             stmts,
         );
