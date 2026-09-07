@@ -32,7 +32,6 @@ import type {
 const entryErrors: Record<RuntimeEntry, string> = {
   render: 'Rue runtime: render input not supported on the default path',
   renderAnchor: 'Rue runtime: renderAnchor input not supported on the default path',
-  renderBetween: 'Rue runtime: renderBetween input not supported on the default path',
   renderStatic: 'Rue runtime: renderStatic input not supported on the default path',
 }
 

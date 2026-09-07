@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { computed, reactive, renderAnchor, setReactiveScheduling, watchEffect } from '../src'
-import { renderBetween, vapor } from './legacy-test-render'
+import { vapor } from './legacy-test-render'
 import { vaporKeyedList as _$compiledKeyedList } from './legacy-test-render'
 
 setReactiveScheduling('sync')
@@ -37,8 +37,8 @@ describe('vaporKeyedList', () => {
           parent: start.parentNode as any,
           before: end as any,
           start: start as any,
-          renderItem: (item: any, listParent: any, itemStart: any, itemEnd: any) => {
-            renderBetween(
+          renderItem: (item: any, listParent: any, _itemStart: any, itemEnd: any) => {
+            renderAnchor(
               vapor(() => {
                 const row = document.createElement('div')
                 row.className = 'row'
@@ -46,7 +46,6 @@ describe('vaporKeyedList', () => {
                 return row as any
               }) as any,
               listParent,
-              itemStart,
               itemEnd,
             )
           },

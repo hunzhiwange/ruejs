@@ -9,7 +9,7 @@ use crate::vapor::VaporTransform;
 - 目标：统一 props.children 或任意 slot 的渲染路径，在锚点前插入片段；
 - 新协议策略：直接把原始 slot / children 值交给 `renderAnchor`，由 runtime 的 Renderable/compat 边界统一处理。
 - 动机：编译器不再提前依赖旧的中间对象规范化 helper，避免把历史 compat 逻辑继续固化进输出。
-- 性能说明：默认仍可走 `renderBetween` 区间渲染；开启单锚点优化后，改为单注释锚点 + `renderAnchor`，减少额外 range_map 记录。
+- 当前统一使用单注释锚点 + `renderAnchor`，不再生成或维护双边界区间。
 */
 pub fn render_between_for_slot(
     vt: &mut VaporTransform,

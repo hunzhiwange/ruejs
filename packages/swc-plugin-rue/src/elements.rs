@@ -7,12 +7,12 @@ use crate::vapor::VaporTransform;
 
 /*
 元素与组件统一构建入口：
-- 组件：插入占位注释并以 renderBetween 渲染；可能携带 children（按需编译/保留）；
+- 组件：插入占位注释并以 renderAnchor 渲染；可能携带 children（按需编译/保留）；
 - 原生元素：创建节点、设置属性、处理子节点；遇 dangerouslySetInnerHTML 时跳过 children；
 - 动机：集中处理两类分支，避免分散到多个调用点导致逻辑重复与策略不一致。
 */
 /// 根据 JSX 元素构造 Vapor DOM 代码；
-/// - 组件：插入占位注释并使用 `renderBetween` 动态渲染
+/// - 组件：插入占位注释并使用 `renderAnchor` 动态渲染
 /// - 原生元素：创建节点、设置属性、处理子节点
 ///   生成样例（参考 `tests/lists_and_keys.rs`）：
 /// - 原生元素：`const _el1 = _$createElement("ul"); _$appendChild(_root, _el1);`

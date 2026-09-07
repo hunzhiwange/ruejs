@@ -55,7 +55,6 @@ fn classifies_compiled_core_and_vapor_fallback_helpers() {
         "vapor",
         "useSetup",
         "Hydration",
-        "renderBetween",
         "_$compiledMarkComponentRenderReactive",
     ] {
         assert_eq!(runtime_tier_for_helper(helper), Some(RuntimeTier::Vapor), "{helper}");

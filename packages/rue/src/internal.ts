@@ -126,7 +126,6 @@ export {
   ref,
   registerOwnerLifecycle,
   renderAnchor,
-  renderBetween,
   replaceCompiledBlock,
   runOwnerLifecycle,
   runOwnerLifecycleTree,

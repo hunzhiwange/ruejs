@@ -24,7 +24,6 @@ export const createRuntimeState = <HostNode = unknown>({
   pendingComponentLifecycle: [],
   pendingInputs: [],
   renderDepth: 0,
-  rangeMounts: new Map(),
 })
 
 export const assertRuntimeActive = (state: RuntimeState): void => {

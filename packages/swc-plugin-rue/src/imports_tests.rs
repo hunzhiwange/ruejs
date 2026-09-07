@@ -249,13 +249,12 @@ watchEffect(() => state.value);
 fn ensure_runtime_imports_keeps_compiled_helpers_on_the_vapor_graph_in_mixed_modules() {
     let out = ensure_and_emit(
         r#"
-import { type FC, signal, effect, _$compiledRoot, renderBetween, Transition, KeepAlive, Suspense, Hydration, "_$compiledMarkComponentRenderReactive" as markRender } from '@rue-js/rue';
+import { type FC, signal, effect, _$compiledRoot, Transition, KeepAlive, Suspense, Hydration, "_$compiledMarkComponentRenderReactive" as markRender } from '@rue-js/rue';
 
 type View = FC;
 signal;
 effect;
 _$compiledRoot;
-renderBetween;
 Transition;
 KeepAlive;
 Suspense;
@@ -272,7 +271,6 @@ markRender;
     assert!(vapor_clause.contains("_$compiledRoot"), "{out}");
     assert!(vapor_clause.contains("signal"), "{out}");
     assert!(vapor_clause.contains("effect"), "{out}");
-    assert!(out.contains("renderBetween"), "{out}");
     assert!(out.contains("Transition"), "{out}");
     assert!(out.contains("KeepAlive"), "{out}");
     assert!(out.contains("Suspense"), "{out}");
@@ -285,14 +283,12 @@ fn ensure_runtime_imports_preserves_aliases_and_collisions_across_runtime_source
     let out = ensure_and_emit(
         r#"
 import signal, { effect } from '@rue-js/rue/internal/compiler';
-import renderBetween, { "_$compiledMarkComponentRenderReactive" as markRender } from '@rue-js/rue/internal';
-import { "signal" as localSignal, "renderBetween" as localRender, createApp } from '@rue-js/rue';
+import { "_$compiledMarkComponentRenderReactive" as markRender } from '@rue-js/rue/internal';
+import { "signal" as localSignal, createApp } from '@rue-js/rue';
 
 signal;
 effect;
 localSignal;
-renderBetween;
-localRender;
 markRender;
 createApp;
 "#,
@@ -303,7 +299,6 @@ createApp;
     assert_eq!(import_source_count(&out, "@rue-js/rue/internal/component"), 1, "{out}");
     assert_eq!(out.matches("effect").count(), 2, "{out}");
     assert_eq!(out.matches("signalaslocalSignal").count(), 1, "{out}");
-    assert_eq!(out.matches("renderBetweenaslocalRender").count(), 1, "{out}");
     assert_eq!(out.matches("_$compiledMarkComponentRenderReactive").count(), 1, "{out}");
     assert!(out.contains("import{createApp}from'@rue-js/rue'"), "{out}");
 }

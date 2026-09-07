@@ -1,6 +1,6 @@
 //! 组件与 Props 传递的编译结果测试
 //!
-//! 覆盖：子组件作为 slot、父组件 renderBetween 插入、className 与文本生成。
+//! 覆盖：子组件作为 slot、父组件 renderAnchor 插入、className 与文本生成。
 use swc_plugin_rue::apply;
 
 mod utils;

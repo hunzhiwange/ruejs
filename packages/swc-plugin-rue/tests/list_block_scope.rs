@@ -136,7 +136,7 @@ const Demo: FC = () => (
 ///
 /// 这个用例不是要求 direct vapor 快路径继续吃下所有控制流，
 /// 而是要求编译器在复杂 block 下切到更保守的 raw-slot fallback：
-/// 保留原 if/else 结构，先算出 `__slot`，再直接交给 `renderBetween(__slot, ...)`。
+/// 保留原 if/else 结构，先算出 `__slot`，再直接交给 `renderAnchor(__slot, ...)`。
 ///
 /// 这样才能保证多分支 return 的原始语义不被破坏。
 fn preserves_conditional_returns_via_slot_fallback() {

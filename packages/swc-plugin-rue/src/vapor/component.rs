@@ -14,7 +14,7 @@ use super::VaporTransform;
 /// 组件根渲染块：
 /// - 根为 `DocumentFragment`，在其下插入组件占位注释
 /// - 若组件存在内联 children，则复用普通组件元素路径的 children -> props 改写
-/// - 使用 `watchEffect` + `renderBetween` 在占位注释之间渲染组件本身
+/// - 使用 `watchEffect` + `renderAnchor` 在占位注释前渲染组件本身
 ///   参考测试：`tests/components.rs`、`tests/spec11.rs`
 pub fn emit_component_root(transform: &mut VaporTransform, el: &JSXElement) -> BlockStmt {
     if crate::element_component::is_compiled_component_element(transform, el)

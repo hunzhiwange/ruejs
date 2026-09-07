@@ -1,6 +1,6 @@
 import { createHost } from '../host.js'
 import { isObjectLike } from '../types.js'
-import type { DOMHost, Mounted, RangeMountState, RuntimeEntry, RuntimeState } from '../types.js'
+import type { DOMHost, Mounted, RuntimeEntry, RuntimeState } from '../types.js'
 
 type RenderBoundary<HostNode> = readonly [label: string, node: HostNode]
 
@@ -90,43 +90,6 @@ export const insertMountedBefore = <HostNode>(
 const readHostProperty = <HostNode>(node: HostNode, key: PropertyKey): unknown =>
   isObjectLike(node) ? Reflect.get(node, key) : undefined
 
-const nextHostSibling = <HostNode>(node: HostNode): HostNode | null =>
-  (readHostProperty(node, 'nextSibling') as HostNode | null | undefined) ?? null
-
-export const clearBetween = <HostNode>(
-  host: DOMHost<HostNode>,
-  parent: HostNode,
-  start: HostNode,
-  end: HostNode,
-): void => {
-  let current = nextHostSibling(start)
-  let reachedEnd = false
-  while (current) {
-    if (current === end) {
-      reachedEnd = true
-      break
-    }
-    const next = nextHostSibling(current)
-    if (host.getParentNode(current) === parent && host.contains(parent, current)) {
-      host.removeChild(parent, current)
-    }
-    current = next
-  }
-  if (!reachedEnd) {
-    throw renderError('renderBetween end boundary does not follow start boundary')
-  }
-}
-
-const entryBelongsTo = <HostNode>(
-  host: DOMHost<HostNode>,
-  container: HostNode,
-  entry: RangeMountState<HostNode>,
-  boundaryName: 'start',
-): boolean => {
-  const boundary = entry[boundaryName]
-  return boundary === container || host.contains(container, boundary)
-}
-
 export const dropRenderEntriesWithin = <HostNode>(
   state: RuntimeState<HostNode>,
   container: HostNode,
@@ -141,40 +104,6 @@ export const dropRenderEntriesWithin = <HostNode>(
       const parent = host.getParentNode(anchor)
       if (parent) removeMounted(host, parent, mounted)
       else mounted?.dispose?.()
-    }
-  }
-  for (const [start, entry] of state.rangeMounts) {
-    if (entryBelongsTo(host, container, entry, 'start')) {
-      state.rangeMounts.delete(start)
-      const mounted = entry.mounted
-      entry.mounted = undefined
-      const parent = host.getParentNode(entry.end) ?? host.getParentNode(entry.start)
-      if (parent) removeMounted(host, parent, mounted)
-      else mounted?.dispose?.()
-    }
-  }
-}
-
-/** Drop detached global ranges unless they belong to the detached root currently rendering. */
-export const compactRangeMounts = <HostNode>(
-  state: RuntimeState<HostNode>,
-  host: DOMHost<HostNode>,
-  currentParent: HostNode,
-): void => {
-  if (state.renderDepth > 1) return
-  for (const [start, entry] of state.rangeMounts) {
-    if (readHostProperty(start, RUE_KEEP_ALIVE_RANGE_KEY) === true) continue
-    if (readHostProperty(start, 'isConnected') === true) continue
-    const entryParent = host.getParentNode(start)
-    const sharesDetachedRoot =
-      entryParent &&
-      (entryParent === currentParent ||
-        host.contains(entryParent, currentParent) ||
-        host.contains(currentParent, start) ||
-        belongsToSameDetachedRoot(host, entryParent, currentParent))
-    if (!sharesDetachedRoot) {
-      state.rangeMounts.delete(start)
-      entry.mounted = undefined
     }
   }
 }

@@ -129,7 +129,6 @@ const RUNTIME_CAPABILITIES: &[RuntimeCapability] = &[
     capability("unref", RuntimeTier::Vapor, true),
     auto_capability("vapor", RuntimeTier::Vapor, true),
     auto_capability("renderAnchor", RuntimeTier::Compiled, true),
-    auto_capability("renderBetween", RuntimeTier::Vapor, true),
     capability("useApp", RuntimeTier::Compiled, true),
     capability("onBeforeCreate", RuntimeTier::Vapor, true),
     capability("onCreated", RuntimeTier::Vapor, true),

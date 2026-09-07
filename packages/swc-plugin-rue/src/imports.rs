@@ -511,7 +511,6 @@ pub fn ensure_runtime_imports(m: &mut Module) {
         "Template",
         "_$createComponent",
         "renderAnchor",
-        "renderBetween",
         "useApp",
         "_$createElement",
         "_$template",

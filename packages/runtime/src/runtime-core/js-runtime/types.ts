@@ -35,7 +35,7 @@ export type DOMStyle = Record<string, string>
 export type MountKey = string
 export type EffectScopeId = number
 export type MountCleanupBucket = unknown[]
-export type RuntimeEntry = 'render' | 'renderAnchor' | 'renderBetween' | 'renderStatic'
+export type RuntimeEntry = 'render' | 'renderAnchor' | 'renderStatic'
 export type ComponentType<Props extends ComponentProps = ComponentProps> = (props: Props) => unknown
 export type VaporSetup<HostNode = unknown> = (parent?: HostNode) => HostNode | null | undefined
 
@@ -223,7 +223,6 @@ export interface RueRuntime<HostNode = unknown> extends RuntimeController {
   free(): void
   getCurrentContainer(): HostNode | undefined
   globalAnchorMountCount(): number
-  globalRangeMountCount(): number
   mount(app: unknown, container: HostNode): void
   onActivated: RuntimeLifecycleRegistration
   onBeforeCreate: RuntimeLifecycleRegistration
@@ -244,7 +243,6 @@ export interface RueRuntime<HostNode = unknown> extends RuntimeController {
   pendingComponentMountedCount(): number
   render(value: unknown, container: HostNode): void
   renderAnchor(value: unknown, parent: HostNode, anchor: HostNode): void
-  renderBetween(value: unknown, parent: HostNode, start: HostNode, end: HostNode): void
   renderStatic(value: unknown, parent: HostNode, anchor: HostNode): void
   runServerPrefetch(): Promise<unknown[]>
   setDOMAdapter(adapter: unknown): void
@@ -453,12 +451,6 @@ export interface AnchorMountState<HostNode = unknown> {
   mounted: Mounted<HostNode> | undefined
 }
 
-export interface RangeMountState<HostNode = unknown> {
-  start: HostNode
-  end: HostNode
-  mounted: Mounted<HostNode> | undefined
-}
-
 export interface PendingRuntimeInput<HostNode = unknown> {
   entry: RuntimeEntry
   input: MountInput<HostNode> | null
@@ -510,15 +502,12 @@ export type OwnedMountPhase = 'building' | 'committed'
 
 export interface OwnedMountAnchorEntry<HostNode = unknown> extends AnchorMountState<HostNode> {}
 
-export interface OwnedMountRangeEntry<HostNode = unknown> extends RangeMountState<HostNode> {}
-
 export interface OwnedMountLifecycleEntry<
   HostNode = unknown,
 > extends PendingComponentLifecycle<HostNode> {}
 
 export type OwnedMountResource<HostNode = unknown> =
   | { readonly kind: 'anchor'; readonly entry: OwnedMountAnchorEntry<HostNode> }
-  | { readonly kind: 'range'; readonly entry: OwnedMountRangeEntry<HostNode> }
   | { readonly kind: 'lifecycle'; readonly entry: OwnedMountLifecycleEntry<HostNode> }
   | { readonly kind: 'child'; readonly token: OwnedMountToken }
 
@@ -528,7 +517,6 @@ export interface OwnedMountSlot<HostNode = unknown> {
   anchors: OwnedMountAnchorEntry<HostNode>[]
   children: OwnedMountToken[]
   pendingLifecycle: OwnedMountLifecycleEntry<HostNode>[]
-  ranges: OwnedMountRangeEntry<HostNode>[]
 }
 
 export interface OwnedMountManager<HostNode = unknown> {
@@ -538,9 +526,8 @@ export interface OwnedMountManager<HostNode = unknown> {
   currentAnchorEntries(): OwnedMountAnchorEntry<HostNode>[] | undefined
   currentLifecycleEntries(): OwnedMountLifecycleEntry<HostNode>[] | undefined
   currentOwnedMountToken(): OwnedMountHandle | undefined
-  currentRangeEntries(): OwnedMountRangeEntry<HostNode>[] | undefined
   disposeOwnedMount(value: unknown): boolean
-  findRange(start: HostNode): OwnedMountRangeEntry<HostNode> | undefined
+  findAnchor(anchor: HostNode): OwnedMountAnchorEntry<HostNode> | undefined
   flushMounted(value: unknown): boolean
   free(): void
   ownedMountCollecting(): boolean
@@ -552,8 +539,8 @@ export interface OwnedMountManager<HostNode = unknown> {
 }
 
 export interface KeepAliveController<HostNode = unknown> {
-  activate(start: HostNode): void
-  deactivate(start: HostNode): void
+  activate(anchor: HostNode): void
+  deactivate(anchor: HostNode): void
 }
 
 export interface ReactiveKernelBoundary extends ObjectLike {
@@ -591,7 +578,6 @@ export interface RuntimeState<HostNode = unknown> {
   pendingComponentLifecycle: PendingComponentLifecycle<HostNode>[]
   pendingInputs: PendingRuntimeInput<HostNode>[]
   renderDepth: number
-  rangeMounts: Map<HostNode, RangeMountState<HostNode>>
   components?: ComponentInstanceManager<HostNode>
   errors?: ErrorController
   flushPendingComponentLifecycle?: () => void
@@ -677,7 +663,6 @@ export const JS_RUNTIME_METHOD_NAMES = Object.freeze(
     'flushMounted',
     'getCurrentContainer',
     'globalAnchorMountCount',
-    'globalRangeMountCount',
     'mount',
     'onActivated',
     'onBeforeCreate',
@@ -698,7 +683,6 @@ export const JS_RUNTIME_METHOD_NAMES = Object.freeze(
     'pendingComponentMountedCount',
     'render',
     'renderAnchor',
-    'renderBetween',
     'renderStatic',
     'runServerPrefetch',
     'setDOMAdapter',

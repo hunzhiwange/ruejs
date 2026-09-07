@@ -8,10 +8,10 @@ import type {
 } from './types.js'
 
 /*
-KeepAlive 生命周期触发桥接
+KeepAlive 生命周期触发桥接。
 
-JS KeepAlive 负责移动缓存 DOM range；runtime 持有该 range 的 mounted snapshot，
-因此由这里按 start anchor 找到子树并递归触发 activated/deactivated hooks。
+当前编译协议以单锚点持有 mounted snapshot，因此 activated/deactivated 从全局或
+owned anchor 表中定位子树，不再依赖已移除的双边界渲染状态。
 */
 
 const visitMounted = <HostNode>(
@@ -29,20 +29,20 @@ const visitMounted = <HostNode>(
   }
 }
 
-/** Dispatch KeepAlive hooks for the mounted snapshot owned by a range start anchor. */
+/** Dispatch KeepAlive hooks for the mounted snapshot owned by an anchor. */
 export const createKeepAliveController = <HostNode>(
   state: RuntimeState<HostNode>,
   lifecycle: LifecycleController,
 ): KeepAliveController<HostNode> => {
-  const findMounted = (start: HostNode): Mounted<HostNode> | undefined =>
-    state.rangeMounts.get(start)?.mounted ?? state.ownedMounts?.findRange(start)?.mounted
+  const findMounted = (anchor: HostNode): Mounted<HostNode> | undefined =>
+    state.anchorMounts.get(anchor)?.mounted ?? state.ownedMounts?.findAnchor(anchor)?.mounted
 
-  const dispatch = (start: HostNode, name: 'activated' | 'deactivated'): void => {
-    visitMounted(findMounted(start), instance => lifecycle.call(instance.host, name))
+  const dispatch = (anchor: HostNode, name: 'activated' | 'deactivated'): void => {
+    visitMounted(findMounted(anchor), instance => lifecycle.call(instance.host, name))
   }
 
   return {
-    activate: start => dispatch(start, 'activated'),
-    deactivate: start => dispatch(start, 'deactivated'),
+    activate: anchor => dispatch(anchor, 'activated'),
+    deactivate: anchor => dispatch(anchor, 'deactivated'),
   }
 }

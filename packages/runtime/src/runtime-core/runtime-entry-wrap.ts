@@ -10,7 +10,6 @@ interface RuntimeEntryMethodMap {
   mount(app: unknown, container: unknown): unknown
   render(value: unknown, container: unknown): unknown
   renderAnchor(value: unknown, parent: unknown, anchor: unknown): unknown
-  renderBetween(value: unknown, parent: unknown, start: unknown, end: unknown): unknown
   renderStatic(value: unknown, parent: unknown, anchor: unknown): unknown
 }
 
@@ -263,13 +262,7 @@ export const wrapCreateRue =
       return runtime
     }
 
-    for (const methodName of [
-      'mount',
-      'render',
-      'renderAnchor',
-      'renderBetween',
-      'renderStatic',
-    ] as const) {
+    for (const methodName of ['mount', 'render', 'renderAnchor', 'renderStatic'] as const) {
       wrapRuntimeEntryMethod(runtime, methodName)
     }
     wrapRenderTriggeredHook(runtime, normalizeRenderTriggeredEvent)

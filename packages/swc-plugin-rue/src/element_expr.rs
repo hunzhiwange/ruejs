@@ -1440,7 +1440,7 @@ pub fn emit_element_expr_container_child(
     log::debug("element_expr: emit container child");
     // 处理元素子节点中的表达式容器：
     // - 若为 `obj.map(cb)` 且回调返回 JSX，生成 compiled keyed row factory
-    // - 若为 `props.children` 或普通插槽，生成起止注释并以 `renderBetween` 渲染
+    // - 若为 `props.children` 或普通插槽，生成单个注释并以 `renderAnchor` 渲染
     // - 若表达式包含 JSX（条件/逻辑），统一改写为可挂载槽值再作为插槽渲染
     // - 若不含 JSX：
     //   - 父标签为 `style`：直接设置一次或 watch 更新 `textContent`

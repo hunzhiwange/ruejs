@@ -135,12 +135,6 @@ export {
 export { useApp } from '../src/hooks/useApp'
 export { _$template } from '../src/internal'
 
-/** Test-only range adapter used while preserving old behavior cases on the compiled anchor ABI. */
-export const renderBetween = (value: unknown, parent: ParentNode, _start: Node, end: Node) => {
-  if (_start.parentNode !== parent || end.parentNode !== parent) return
-  return renderAnchor(value, parent, end)
-}
-
 /** Test-only renderable constructor; production entries expose no general element factory. */
 const TEST_FRAGMENT = 'fragment'
 

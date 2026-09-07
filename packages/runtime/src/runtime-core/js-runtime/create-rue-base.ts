@@ -1,9 +1,9 @@
 import { createAppController } from './app.js'
 import { flushPendingComponentLifecycle } from './component.js'
 import { createKernelBridge } from './kernel-bridge.js'
+import { createKeepAliveController } from './keep-alive.js'
 import { createComponentInstanceManager } from './instance.js'
 import { createErrorController } from './errors.js'
-import { createKeepAliveController } from './keep-alive.js'
 import { createLifecycleController } from './lifecycle.js'
 import {
   createElementMountInput,
@@ -16,7 +16,6 @@ import { createEmitter, createPluginController } from './plugins.js'
 import { renderContainer, unmountContainer } from './render/container.js'
 import { renderAnchor } from './render/anchor.js'
 import { dropRenderEntriesWithin } from './render/helpers.js'
-import { renderBetween } from './render/range.js'
 import { renderStatic } from './render/static.js'
 import { assertRuntimeActive, createRuntimeState } from './state.js'
 import type {
@@ -163,7 +162,6 @@ export const createRueBase = (
     flushMounted: ownedMounts.flushMounted,
     getCurrentContainer: appController.getCurrentContainer,
     globalAnchorMountCount: () => state.anchorMounts.size,
-    globalRangeMountCount: () => state.rangeMounts.size,
     mount(app, container) {
       return appController.mount(app, container, root => {
         const value =
@@ -223,12 +221,6 @@ export const createRueBase = (
         runRenderEntry(() => renderAnchor(state, mountController, input, parent, anchor))
       })
     },
-    renderBetween(value, parent, start, end) {
-      return appController.withCurrentContainer(parent, () => {
-        const input = recordInput('renderBetween', value, [parent, start, end])
-        runRenderEntry(() => renderBetween(state, mountController, input, parent, start, end))
-      })
-    },
     renderStatic(value, parent, anchor) {
       return appController.withCurrentContainer(parent, () => {
         const input = recordInput('renderStatic', value, [parent, anchor])
@@ -275,7 +267,6 @@ export const createRueBase = (
       state.pendingInputs.length = 0
       state.pendingComponentLifecycle.length = 0
       state.containerMounts.clear()
-      state.rangeMounts.clear()
       state.adapter = undefined
     },
   }

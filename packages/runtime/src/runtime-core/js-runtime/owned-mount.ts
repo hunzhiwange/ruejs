@@ -6,7 +6,6 @@ import type {
   OwnedMountGeneration,
   OwnedMountHandle,
   OwnedMountManager,
-  OwnedMountRangeEntry,
   OwnedMountSlot,
   OwnedMountSlotId,
   OwnedMountToken,
@@ -61,38 +60,6 @@ const tokenToValue = (token: OwnedMountToken): OwnedMountHandle =>
     [SLOT_KEY]: token.slot,
     [GENERATION_KEY]: token.generation,
   }) as OwnedMountHandle
-
-const nextSibling = <HostNode>(node: HostNode): HostNode | null => {
-  if ((typeof node !== 'object' && typeof node !== 'function') || node == null) return null
-  return (Reflect.get(node, 'nextSibling') as HostNode | null | undefined) ?? null
-}
-
-const clearOwnedRange = <HostNode>(
-  state: RuntimeState<HostNode>,
-  entry: OwnedMountRangeEntry<HostNode>,
-): void => {
-  const host = hostForRender(state)
-  if (!host) {
-    entry.mounted = undefined
-    return
-  }
-  const parent = host.getParentNode(entry.end) ?? host.getParentNode(entry.start)
-  if (!parent) {
-    entry.mounted = undefined
-    return
-  }
-
-  removeMounted(host, parent, entry.mounted)
-  entry.mounted = undefined
-  let current = nextSibling(entry.start)
-  while (current && current !== entry.end) {
-    const next = nextSibling(current)
-    if (host.getParentNode(current) === parent && host.contains(parent, current)) {
-      host.removeChild(parent, current)
-    }
-    current = next
-  }
-}
 
 const clearOwnedAnchor = <HostNode>(
   state: RuntimeState<HostNode>,
@@ -203,16 +170,12 @@ export const createOwnedMountManager = <HostNode>(
     for (let index = slot.children.length - 1; index >= 0; index -= 1) {
       disposeToken(slot.children[index]!)
     }
-    for (let index = slot.ranges.length - 1; index >= 0; index -= 1) {
-      clearOwnedRange(state, slot.ranges[index]!)
-    }
     for (let index = slot.anchors.length - 1; index >= 0; index -= 1) {
       clearOwnedAnchor(state, slot.anchors[index]!)
     }
     slot.pendingLifecycle.length = 0
     slot.children.length = 0
     slot.anchors.length = 0
-    slot.ranges.length = 0
     return true
   }
 
@@ -234,7 +197,7 @@ export const createOwnedMountManager = <HostNode>(
       const slotIndex = freeSlots.pop() ?? (slots.length as OwnedMountSlotId)
       const token = createToken(slotIndex, generation)
 
-      // anchor/range 按列表行分开存储；嵌套 token 记录为 children，
+      // anchor 按列表行存储；嵌套 token 记录为 children，
       // 使 dispose/abort 无需扫描全局映射即可递归回收。
       slots[slotIndex] = {
         generation,
@@ -242,7 +205,6 @@ export const createOwnedMountManager = <HostNode>(
         anchors: [],
         children: [],
         pendingLifecycle: [],
-        ranges: [],
       }
       const parent = currentToken()
       const parentSlot = getSlot(parent)
@@ -261,13 +223,9 @@ export const createOwnedMountManager = <HostNode>(
       const parent = currentToken()
       const parentSlot = getSlot(parent)
       const hasTransitiveResources =
-        slot.anchors.length > 0 ||
-        slot.ranges.length > 0 ||
-        slot.pendingLifecycle.length > 0 ||
-        slot.children.length > 0
+        slot.anchors.length > 0 || slot.pendingLifecycle.length > 0 || slot.children.length > 0
       if (parent && parentSlot && !sameToken(parent, token) && hasTransitiveResources) {
         parentSlot.anchors.push(...slot.anchors.splice(0))
-        parentSlot.ranges.push(...slot.ranges.splice(0))
         parentSlot.pendingLifecycle.push(...slot.pendingLifecycle.splice(0))
         parentSlot.children = parentSlot.children.filter(child => !sameToken(child, token))
         parentSlot.children.push(...slot.children.splice(0))
@@ -283,14 +241,18 @@ export const createOwnedMountManager = <HostNode>(
       const token = currentToken()
       return token ? tokenToValue(token) : undefined
     },
-    currentRangeEntries(): OwnedMountRangeEntry<HostNode>[] | undefined {
-      return getSlot(currentToken())?.ranges
-    },
     currentLifecycleEntries() {
       return getSlot(currentToken())?.pendingLifecycle
     },
     currentAnchorEntries(): OwnedMountAnchorEntry<HostNode>[] | undefined {
       return getSlot(currentToken())?.anchors
+    },
+    findAnchor(anchor: HostNode): OwnedMountAnchorEntry<HostNode> | undefined {
+      for (const slot of slots) {
+        const found = slot?.anchors.find(entry => entry.anchor === anchor)
+        if (found) return found
+      }
+      return undefined
     },
     disposeOwnedMount(value: unknown): boolean {
       const token = parseLiveToken(value, false)
@@ -304,13 +266,6 @@ export const createOwnedMountManager = <HostNode>(
       if (rawToken && !sameToken(rawToken, token)) return true
       flushSlotLifecycle(token, slot)
       return true
-    },
-    findRange(start: HostNode): OwnedMountRangeEntry<HostNode> | undefined {
-      for (const slot of slots) {
-        const found = slot?.ranges.find(entry => entry.start === start)
-        if (found) return found
-      }
-      return undefined
     },
     free(): void {
       for (let index = slots.length - 1; index >= 0; index -= 1) {
@@ -331,7 +286,7 @@ export const createOwnedMountManager = <HostNode>(
     },
     ownedMountEntryCount(): number {
       let count = 0
-      for (const slot of slots) if (slot) count += slot.anchors.length + slot.ranges.length
+      for (const slot of slots) if (slot) count += slot.anchors.length
       return count
     },
     pendingLifecycleCount(): number {
@@ -339,20 +294,16 @@ export const createOwnedMountManager = <HostNode>(
       for (const slot of slots) if (slot) count += slot.pendingLifecycle.length
       return count
     },
-    /** 更新顶层 anchor 前，精确回收同一 token 中其余传递式 anchor/range。 */
+    /** 更新顶层 anchor 前，精确回收同一 token 中其余传递式 anchor。 */
     prepareAnchorUpdate(anchor: HostNode): boolean {
       const slot = getSlot(currentToken())
       if (!slot) return false
       const keepIndex = slot.anchors.findIndex(entry => entry.anchor === anchor)
       if (keepIndex < 0) return false
       const kept = slot.anchors[keepIndex]!
-      for (let index = slot.ranges.length - 1; index >= 0; index -= 1) {
-        clearOwnedRange(state, slot.ranges[index]!)
-      }
       for (let index = slot.anchors.length - 1; index >= 0; index -= 1) {
         if (index !== keepIndex) clearOwnedAnchor(state, slot.anchors[index]!)
       }
-      slot.ranges.length = 0
       slot.anchors.splice(0, slot.anchors.length, kept)
       return true
     },

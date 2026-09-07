@@ -435,7 +435,7 @@ impl VisitMut for VaporTransform {
             return;
         }
         log::info("rue-swc: ensure runtime imports");
-        // 注入导入集合包含：`vapor`, `renderBetween`, `_$createElement`, `_$appendChild`, `watchEffect` 等，
+        // 注入导入集合包含：`vapor`, `renderAnchor`, `_$createElement`, `_$appendChild`, `watchEffect` 等，
         // 以及类型导入 `FC`；若已存在从 `@rue-js/rue` 的 import，则合并缺失的 specifier，保持一次导入。
         // 细节：
         // - import 源：固定为 '@rue-js/rue'

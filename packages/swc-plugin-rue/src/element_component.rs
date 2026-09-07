@@ -9,7 +9,7 @@ const COMPONENT_NATIVE_EVENT_PREFIX: &str = "__rueNativeOn";
 
 /*
 元素级组件编译：
-- 目标：在父元素下以注释锚点占位，结合 renderBetween 将组件输出插入其间；
+- 目标：在父元素下以注释锚点占位，结合 renderAnchor 将组件输出插到锚点前；
 - children 处理：默认编译为 props.children 的 DocumentFragment；对于默认需要原始 keyed JSX children 的内建组件（如 TransitionGroup），保留原始 JSX children；
 - 内建 Fragment：若 children 已被改写为独立可挂载值，则直接渲染该值，不再额外包一层 <Fragment children={...}/>；
 - 静态优化：无动态 props/children 的组件直接一次性渲染；其它包裹 watchEffect 以支持更新。
@@ -1291,14 +1291,14 @@ fn wrap_transition_child_factory(expr: Expr) -> Expr {
 }
 
 /// 处理 JSX 组件元素：
-/// - 在父节点下插入占位注释（start/end）
+/// - 在父节点下插入单个占位注释
 /// - 若组件存在内联 children，将其改写为 children 属性传入一个原生 DocumentFragment，
 ///   并在调用处直接编译这些子节点为原生 DOM 以便递归渲染
-/// - 使用 `renderBetween` + `watchEffect` 在占位之间进行渲染
+/// - 使用 `renderAnchor` + `watchEffect` 在占位锚点前渲染
 ///   示例（参考 `tests/spec11.rs` 等）：
-/// - 插入占位：`const _list1 = _$createComment("rue:slot:start"); const _list2 = _$createComment("rue:slot:end");`
+/// - 插入占位：`const _anchor = _$createComment("rue:slot:anchor");`
 /// - 包裹 children：`children={vapor(()=>{ const _root = _$createDocumentFragment(); ... return _root })}`
-/// - 渲染：`watchEffect(()=>{ renderBetween(<Comp {...props} />, parent, start, end) })`
+/// - 渲染：`watchEffect(()=>{ renderAnchor(<Comp {...props} />, parent, anchor) })`
 ///
 /// 组件 children 默认会被改写为 `children` 属性传入；
 /// `Transition` / `TransitionGroup` 这类依赖原始 keyed JSX children 的组件在此处保留原始 children。

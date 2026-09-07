@@ -563,10 +563,6 @@ export const renderAnchor = (value: unknown, parent: ParentNode, anchor: Node | 
   })
 }
 
-/** Internal compatibility entry used by compiler output that owns explicit range markers. */
-export const renderBetween = (value: unknown, parent: ParentNode, _start: Node, end: Node): void =>
-  renderAnchor(value, parent, end)
-
 ;(
   globalThis as typeof globalThis & {
     __rue_render_compiled_text_value__?: (
