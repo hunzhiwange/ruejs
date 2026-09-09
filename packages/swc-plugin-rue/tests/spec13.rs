@@ -51,7 +51,7 @@ export default MarkdownEditor;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { ref, _$compiledWithHookId, useSetup, vapor, _$createElement, _$template, _$appendChild, onScopeDispose, watchEffect, _$setClassName, _$setInnerHTML, _$setValue } from "@rue-js/rue/internal";
+import { ref, _$compiledWithHookId, useSetup, _$compiledRoot, _$createElement, _$template, _$appendChild, onScopeDispose, watchEffect, _$setClassName, _$setInnerHTML, _$setValue } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { markdownToHtml } from 'satteri';
 const _$getTemplate1 = _$template('<div class="card bg-base-100 shadow"><div class="card-body grid gap-4"><div class="grid grid-cols-2 gap-0 h-[360px] md:h-[560px] rounded-xl overflow-hidden ring-1 ring-black/5"><!--rue:opaque-hole:0--><!--rue:opaque-hole:1--></div></div></div>');
@@ -75,7 +75,7 @@ const MarkdownEditor: FC = ()=>{
             };
         }));
     const { input: input, update: update } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[0].childNodes[0].childNodes[0];

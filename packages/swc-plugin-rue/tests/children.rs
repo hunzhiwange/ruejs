@@ -44,6 +44,6 @@ export default Children;
     assert!(output.contains("_$createComponent(Box"), "{output}");
     assert!(output.contains("RouterLink.__rueHref"), "{output}");
     assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
-    assert!(output.contains("()=>props.title"), "{output}");
-    assert!(output.contains("()=>props.children"), "{output}");
+    assert!(output.contains("()=>_$compiledPropsGet(props, \"title\")"), "{output}");
+    assert!(output.contains("()=>_$compiledPropsGet(props, \"children\")"), "{output}");
 }

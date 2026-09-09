@@ -1,11 +1,10 @@
-import { type FC, reactive, useState } from '@rue-js/rue'
+import { type FC, useState } from '@rue-js/rue'
 
-const createConditionalState = () =>
-  reactive({
-    show: true,
-    level: 1,
-    message: 'Hello',
-  })
+const createConditionalState = () => ({
+  show: true,
+  level: 1,
+  message: 'Hello',
+})
 
 const ReactStyleConditionalDemo: FC = () => {
   const [state] = useState(createConditionalState)

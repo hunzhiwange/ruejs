@@ -6,6 +6,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { onError, onErrorCaptured, render, setReactiveScheduling, type FC } from '../src'
+import { retainRootMountError } from '../src/error-capture'
+import { shouldRetainRootMountError } from '../src/root-mount-error'
 import { _$createDynamic } from './legacy-test-render'
 
 const createTestRenderable = (
@@ -21,6 +23,27 @@ afterEach(() => {
 })
 
 describe('onErrorCaptured', () => {
+  it('retains root mount failures by object identity without accepting primitive values', () => {
+    const objectError = new Error('object failure')
+    const sameMessage = new Error('object failure')
+    const functionError = () => 'function failure'
+
+    retainRootMountError(objectError)
+    retainRootMountError(functionError)
+    retainRootMountError('primitive failure')
+    retainRootMountError(1)
+    retainRootMountError(null)
+
+    expect(shouldRetainRootMountError(objectError)).toBe(true)
+    expect(shouldRetainRootMountError(objectError)).toBe(true)
+    expect(shouldRetainRootMountError(sameMessage)).toBe(false)
+    expect(shouldRetainRootMountError(functionError)).toBe(true)
+    expect(shouldRetainRootMountError(() => 'function failure')).toBe(false)
+    expect(shouldRetainRootMountError('primitive failure')).toBe(false)
+    expect(shouldRetainRootMountError(1)).toBe(false)
+    expect(shouldRetainRootMountError(null)).toBe(false)
+  })
+
   it('captures descendant component render errors and can stop global propagation', () => {
     const container = document.createElement('div')
     const captured: string[] = []

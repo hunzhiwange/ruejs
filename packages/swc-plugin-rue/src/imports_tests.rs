@@ -96,7 +96,7 @@ fn ensure_runtime_imports_moves_safe_root_values_and_marks_used_root_types() {
     let out = ensure_and_emit(
         r#"
 import RueDefault, { FC, createApp, ref as localRef, useApp, watchEffect } from '@rue-js/rue';
-import { vapor } from '@rue-js/rue/internal';
+import { _$compiledRoot } from '@rue-js/rue/internal';
 
 type View = FC;
 const state = localRef(0);
@@ -107,7 +107,7 @@ _$createElement;
     );
 
     assert!(out.contains("@rue-js/rue/internal/component"));
-    assert!(out.contains("vapor"));
+    assert!(out.contains("_$compiledRoot"));
     assert!(out.contains("refaslocalRef"));
     assert!(out.contains("useApp"));
     assert!(out.contains("watchEffect"));
@@ -348,16 +348,18 @@ state;
 
 #[test]
 fn ensure_runtime_imports_injects_vapor_owned_list_effect_and_reconcile_in_mixed_modules() {
+    assert!(!crate::compiled_capabilities::should_auto_inject_helper("vapor"));
     let out = ensure_and_emit(
-        "vapor(() => {}); effect(() => {}); _$reconcileKeyed(parent, before, rows, items, key, mount);",
+        "_$compiledRoot(() => {}); effect(() => {}); _$reconcileKeyed(parent, before, rows, items, key, mount);",
     );
 
-    assert_eq!(import_source_count(&out, "@rue-js/rue/internal/compiler"), 0, "{out}");
-    assert_eq!(import_source_count(&out, "@rue-js/rue/internal/component"), 1, "{out}");
-    let vapor_clause = import_clause_for_source(&out, "@rue-js/rue/internal/component");
-    assert!(vapor_clause.contains("vapor"), "{out}");
-    assert!(vapor_clause.contains("effect"), "{out}");
-    assert!(vapor_clause.contains("_$reconcileKeyed"), "{out}");
+    assert_eq!(import_source_count(&out, "@rue-js/rue/internal/compiler"), 1, "{out}");
+    assert_eq!(import_source_count(&out, "@rue-js/rue/internal/component"), 0, "{out}");
+    let compiled_clause = import_clause_for_source(&out, "@rue-js/rue/internal/compiler");
+    assert!(compiled_clause.contains("_$compiledRoot"), "{out}");
+    assert!(compiled_clause.contains("effect"), "{out}");
+    assert!(compiled_clause.contains("_$reconcileKeyed"), "{out}");
+    assert!(!out.contains("vapor("), "{out}");
 }
 
 #[test]
@@ -419,7 +421,7 @@ disposeOwner(owner);
 #[test]
 fn ensure_runtime_imports_injects_only_used_compiled_row_owner_helpers() {
     let out = ensure_and_emit(
-        "vapor(() => {}); _$reconcileKeyed(parent, before, rows, items, key, mount); const owner = createOwner(); runWithOwner(owner, mount); disposeOwner(owner);",
+        "useSetup(() => {}); _$reconcileKeyed(parent, before, rows, items, key, mount); const owner = createOwner(); runWithOwner(owner, mount); disposeOwner(owner);",
     );
 
     assert_eq!(import_source_count(&out, "@rue-js/rue/internal/compiler"), 0, "{out}");
@@ -447,13 +449,13 @@ fn ensure_runtime_imports_routes_compiled_setup_without_a_vapor_entry() {
 #[test]
 fn ensure_runtime_imports_keeps_compiled_setup_off_the_vapor_entry() {
     let out = ensure_and_emit(
-        "vapor(() => {}); const state = _$compiledSetup('App:setup-region:0', () => signal(0)); _$compiledRoot(() => state);",
+        "useSetup(() => {}); const state = _$compiledSetup('App:setup-region:0', () => signal(0)); _$compiledRoot(() => state);",
     );
 
     assert_eq!(import_source_count(&out, "@rue-js/rue/internal/compiler"), 0, "{out}");
     assert_eq!(import_source_count(&out, "@rue-js/rue/internal/component"), 1, "{out}");
     let vapor_clause = import_clause_for_source(&out, "@rue-js/rue/internal/component");
-    assert!(vapor_clause.contains("vapor"), "{out}");
+    assert!(vapor_clause.contains("useSetup"), "{out}");
     assert!(vapor_clause.contains("_$compiledSetup"), "{out}");
 }
 
@@ -477,7 +479,7 @@ fn routes_simple_complex_and_mixed_modules_to_distinct_runtime_entries() {
     }
 
     let mixed = ensure_and_emit(
-        "vapor(() => {}); effect(() => {}); _$reconcileKeyed(parent, before, rows, items, key, mount);",
+        "useSetup(() => {}); effect(() => {}); _$reconcileKeyed(parent, before, rows, items, key, mount);",
     );
     assert_eq!(import_source_count(&mixed, "@rue-js/rue/internal/compiler"), 0, "{mixed}");
     assert_eq!(import_source_count(&mixed, "@rue-js/rue/internal/component"), 1, "{mixed}");

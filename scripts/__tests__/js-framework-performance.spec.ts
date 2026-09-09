@@ -128,12 +128,12 @@ describe('js-framework workspace artifact validation', () => {
     lockfileText: "'@rue-js/rue':\n  version: link:packages/rue\n",
     artifacts: [
       {
-        path: '/workspace/ruejs/packages/rue/dist/rue.vapor.esm-bundler.js',
+        path: '/workspace/ruejs/packages/rue/dist/runtime.js',
         beforeSha256: 'a'.repeat(64),
         afterSha256: 'a'.repeat(64),
       },
       {
-        path: '/workspace/ruejs/packages/runtime-vapor/dist/reactive-kernel/index.js',
+        path: '/workspace/ruejs/packages/runtime/dist/runtime-core/reactive-kernel/index.js',
         beforeSha256: 'b'.repeat(64),
         afterSha256: 'b'.repeat(64),
       },
@@ -229,7 +229,7 @@ const makePerformanceReport = () => {
       packageVersion: '0.9.3',
       packagePath: '/workspace/ruejs/packages/rue/package.json',
       lockfileSha256: sha256,
-      workspaceArtifacts: [{ path: 'packages/rue/dist/rue.vapor.esm-bundler.js', sha256 }],
+      workspaceArtifacts: [{ path: 'packages/rue/dist/runtime.js', sha256 }],
       chromeExecutable: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       chromeVersion: '148.0.7778.97',
       gitCommit: sha256.slice(0, 40),
@@ -264,7 +264,7 @@ const performanceBaseline = {
     workspaceVersion: '0.9.3',
     packageVersion: '0.9.3',
     lockfileSha256: sha256,
-    workspaceArtifacts: [{ path: 'packages/rue/dist/rue.vapor.esm-bundler.js', sha256 }],
+    workspaceArtifacts: [{ path: 'packages/rue/dist/runtime.js', sha256 }],
   },
   configuration: {
     measuredRounds: 3,
@@ -637,11 +637,11 @@ describe('js-framework performance budget', () => {
     const report = makePerformanceReport()
     report.results.rue.size.javascript[0].moduleIds = [
       '/workspace/main-ref.tsx',
-      '/workspace/rue.vapor.esm-bundler.js',
+      '/workspace/packages/rue/dist/runtime.js',
     ]
     report.results['rue-signal'].size.javascript[0].moduleIds = [
       '/workspace/main-signal.tsx',
-      '/workspace/rue.internal-compiler.esm-bundler.js',
+      '/workspace/packages/rue/dist/compiler-internal.js',
     ]
     report.results.vue.size.javascript[0].moduleIds = [
       '/workspace/vue.ts',
@@ -656,7 +656,7 @@ describe('js-framework performance budget', () => {
       },
       moduleIds: {
         rue: expect.arrayContaining([expect.stringContaining('main-ref.tsx')]),
-        'rue-signal': expect.arrayContaining([expect.stringContaining('rue.internal-compiler')]),
+        'rue-signal': expect.arrayContaining([expect.stringContaining('compiler-internal')]),
         vue: expect.arrayContaining([expect.stringContaining('vue.ts')]),
       },
     })

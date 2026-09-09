@@ -14,7 +14,7 @@ import {
   untrack as untrackFromRueVapor,
   useSetup as useSetupFromRueVapor,
   useState as useStateFromRueVapor,
-  vapor as vaporFromRueVapor,
+  _$compiledRoot as vaporFromRueVapor,
   watchEffect as watchEffectFromRueVapor,
 } from './legacy-test-render'
 import {
@@ -39,7 +39,7 @@ import {
   onActivated as onActivatedFromVapor,
   onDeactivated as onDeactivatedFromVapor,
 } from './legacy-test-render'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 
 setReactiveScheduling('sync')
 
@@ -72,7 +72,7 @@ const mountKeepAliveSwitch = (
   },
 ) => {
   const App: FC = () =>
-    vapor(() => {
+    _$compiledRoot(() => {
       const root = document.createDocumentFragment()
       const anchor = document.createComment('keep-alive-anchor')
       root.appendChild(anchor)
@@ -132,7 +132,7 @@ describe('KeepAlive renderable boundary', () => {
     }
 
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('keep-alive-anchor')
         root.appendChild(anchor)
@@ -442,7 +442,7 @@ describe('KeepAlive renderable boundary', () => {
           return { text }
         }),
       )
-      return vapor(parent => {
+      return _$compiledRoot(parent => {
         const root = _$createElement('div', parent) as HTMLElement
         root.setAttribute('data-testid', 'panel-A')
         watchEffect(() => {
@@ -462,7 +462,7 @@ describe('KeepAlive renderable boundary', () => {
           return { count }
         }),
       )
-      return vapor(parent => {
+      return _$compiledRoot(parent => {
         const root = _$createElement('div', parent) as HTMLElement
         root.setAttribute('data-testid', 'panel-B')
         watchEffect(() => {
@@ -514,7 +514,7 @@ describe('KeepAlive renderable boundary', () => {
         logs.set([message, ...logs.get()])
       }
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('keep-alive-anchor')
         const log = document.createElement('output')

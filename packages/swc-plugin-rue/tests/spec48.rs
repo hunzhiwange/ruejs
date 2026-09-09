@@ -64,7 +64,7 @@ export default About
     let out = utils::emit(program, cm);
 
     let _legacy_expected_fragment = r##"
-import { useState, _$compiledWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, untrack, watchEffect, _$setAttribute } from "@rue-js/rue/internal";
+import { useState, _$compiledWithHookId, useSetup, _$compiledRoot, renderAnchor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, untrack, watchEffect, _$setAttribute } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template("<div>打开状态: <!--rue:text-hole:0--><ul><li><!--rue:opaque-hole:1--></li><li><!--rue:opaque-hole:2--></li><li><!--rue:opaque-hole:3--></li><li><!--rue:opaque-hole:4--></li><li><!--rue:opaque-hole:5--></li><li><!--rue:opaque-hole:6--></li></ul><div>© <!--rue:text-hole:7--> Rue js <!--rue:text-hole:8--> hello world 48</div></div>");
@@ -80,7 +80,7 @@ const About: FC<{
             };
         }));
     const { open: open, setOpen: setOpen } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1];

@@ -13,7 +13,7 @@ import {
 } from './compiled-component'
 import { _$compiledRoot } from './compiled-root'
 import { onOwnerCleanup } from './internal-reactive'
-import { getCurrentInstance, ref, shallowReactive } from './reactivity'
+import { getCurrentInstance, ref } from './reactivity'
 import { useSetup } from './compiler-runtime/hooks'
 import { appendChild, createComment, createElement as createDomElement } from './dom'
 import {
@@ -212,7 +212,7 @@ const createReactivePropsState = (host: HTMLElement) => {
     enumerable: true,
     value: createCustomElementEmitBridge(host),
   })
-  return shallowReactive(initialState as any) as Record<string, unknown>
+  return initialState
 }
 
 const getPropsBag = <P>(host: HTMLElement) => (propsByHost.get(host) ?? {}) as Partial<P>

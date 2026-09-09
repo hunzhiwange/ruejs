@@ -161,11 +161,11 @@ describe('createCompiledProps prototype', () => {
     const handle = effect(() => {
       snapshots.push(
         JSON.stringify({
-          title: controller.props.title,
-          count: controller.props.count,
-          removable: controller.props.removable,
-          hasRemovable: 'removable' in controller.props,
-          keys: Object.keys(controller.props),
+          title: controller.get('title'),
+          count: controller.get('count'),
+          removable: controller.get('removable'),
+          hasRemovable: controller.has('removable'),
+          keys: controller.keys(),
         }),
       )
     })

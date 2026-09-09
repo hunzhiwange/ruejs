@@ -4,7 +4,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -18,7 +18,7 @@ import {
   watchEffect,
   type FC,
 } from '../src'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 import { vaporKeyedList as _$compiledKeyedList } from './legacy-test-render'
 import type { BlockInstance } from './legacy-test-render'
 import { createTestCompiledBlock } from './legacy-test-render'
@@ -60,7 +60,7 @@ const createTextBlock = (
   })
 
 const createStrongVapor = (text: string) =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = document.createDocumentFragment()
     const strong = document.createElement('strong')
 
@@ -71,7 +71,7 @@ const createStrongVapor = (text: string) =>
   }) as any
 
 const createAnchoredTextVapor = (text: string) =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = document.createElement('div')
     const anchor = document.createComment('anchor')
 
@@ -85,7 +85,7 @@ const createAnchoredTextVapor = (text: string) =>
   }) as any
 
 const createNestedVaporArray = (labels: string[]) =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = document.createElement('div')
     const anchor = document.createComment('anchor')
 
@@ -115,7 +115,7 @@ const InlineStrong: FC<{ label: string }> = props =>
   })
 
 const ForwardRenderable: FC<{ value: any }> = props =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = document.createDocumentFragment()
     const anchor = document.createComment('rue:forward-renderable')
     root.appendChild(anchor)
@@ -124,7 +124,7 @@ const ForwardRenderable: FC<{ value: any }> = props =>
   }) as any
 
 const createAnchoredComponentVapor = (label: string) =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = document.createElement('div')
     const anchor = document.createComment('anchor')
 
@@ -138,7 +138,7 @@ const createAnchoredComponentVapor = (label: string) =>
   }) as any
 
 const createKeyedButtonsVapor = (title: string, labels: string[]) =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = document.createElement('div')
     const heading = document.createElement('h3')
     const buttons = document.createElement('div')

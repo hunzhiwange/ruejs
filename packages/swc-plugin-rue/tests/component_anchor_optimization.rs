@@ -22,9 +22,9 @@ const Page: FC<{ code: string }> = props => (
 
     assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt({ parent:")));
     assert!(out.contains(&utils::normalize("_$mountCompiledSlotFactory(target, owner")));
-    assert!(
-        out.contains(&utils::normalize("_$compiledComponent(Code, ()=>({ code: props.code }))"))
-    );
+    assert!(out.contains(&utils::normalize(
+        "_$compiledComponent(Code, ()=>({ code: _$compiledPropsGet(props, \"code\") }))"
+    )));
     assert!(!out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains("renderBetween(__slot"));
 }
@@ -44,7 +44,9 @@ const Page: FC<{ code: string }> = props => <Code code={props.code} />
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
     println!("DEBUG_OUT: {}", out);
 
-    assert!(out.contains(&utils::normalize("_$createComponent(Code, ()=>({ code: props.code }))")));
+    assert!(out.contains(&utils::normalize(
+        "_$createComponent(Code, ()=>({ code: _$compiledPropsGet(props, \"code\") }))"
+    )));
     assert!(!out.contains(&utils::normalize("rue:component:anchor")));
     assert!(!out.contains("renderBetween(__slot"));
 }
@@ -120,9 +122,9 @@ const Page: FC<{ items: string[] }> = props => (
     println!("DEBUG_OUT: {}", out);
 
     assert!(out.contains(&utils::normalize(
-        "_$createComponent(TransitionGroup, ()=>({ children: props.items.map"
+        "_$createComponent(TransitionGroup, ()=>({ children: _$compiledPropsGet(props, \"items\").map"
     )));
-    assert!(out.contains("props.items.map"));
+    assert!(out.contains("_$compiledPropsGet(props, \"items\").map"));
     assert!(out.contains("_$compiledWithKey"));
     assert!(out.contains("_$template(\"<span>"));
     assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
@@ -150,9 +152,9 @@ const Page: FC<{ items: string[] }> = props => (
     println!("DEBUG_OUT: {}", out);
 
     assert!(out.contains(&utils::normalize(
-        "_$createComponent(TransitionGroup, ()=>({ children: props.items.map"
+        "_$createComponent(TransitionGroup, ()=>({ children: _$compiledPropsGet(props, \"items\").map"
     )));
-    assert!(out.contains("props.items.map"));
+    assert!(out.contains("_$compiledPropsGet(props, \"items\").map"));
     assert!(out.contains("_$compiledWithKey"));
     assert!(out.contains("_$template(\"<span>"));
     assert!(out.contains(&utils::normalize("renderAnchor(__slot")));

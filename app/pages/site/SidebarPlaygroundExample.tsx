@@ -379,14 +379,14 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/on-activated',
         },
         {
-          id: 'to-ref',
-          title: 'toRef 响应式句柄',
-          href: '/examples/to-ref',
+          id: 'signal-path',
+          title: 'Signal 路径读写',
+          href: '/examples/signal-path',
         },
         {
-          id: 'to-refs',
-          title: 'toRefs 响应式解构',
-          href: '/examples/to-refs',
+          id: 'signal-values',
+          title: '独立 Signal 与派生值',
+          href: '/examples/signal-values',
         },
         {
           id: 'is-ref',
@@ -394,14 +394,14 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/is-ref',
         },
         {
-          id: 'is-proxy',
-          title: 'isProxy 代理判断',
-          href: '/examples/is-proxy',
+          id: 'proxy-free-state',
+          title: '无代理状态模型',
+          href: '/examples/proxy-free-state',
         },
         {
-          id: 'is-readonly',
-          title: 'isReadonly 判断',
-          href: '/examples/is-readonly',
+          id: 'computed-readonly',
+          title: '只读派生值',
+          href: '/examples/computed-readonly',
         },
         {
           id: 'next-tick',
@@ -613,9 +613,9 @@ const TEST_SECTIONS: SidebarSection[] = [
         href: '/examples/handling-input',
       },
       {
-        id: 'to-refs',
-        title: 'toRefs 响应式解构',
-        href: '/examples/to-refs',
+        id: 'signal-values',
+        title: '独立 Signal 与派生值',
+        href: '/examples/signal-values',
       },
       {
         id: 'attribute-bindings',

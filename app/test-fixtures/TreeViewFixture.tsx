@@ -29,7 +29,6 @@ const TreeItem: FC<{
       name: 'new stuff',
     })
 
-    props.model.children = nextChildren
     props.syncChildren(props.model.id, nextChildren)
     version.value += 1
     props.notifyChange()
@@ -80,14 +79,9 @@ export const TreeViewFixture: FC = () => {
   const revision = ref(0)
 
   const syncChildren = (id: string, children: Node[]) => {
-    if (id !== treeData.value.id) {
-      return
-    }
-
-    treeData.value = {
-      ...treeData.value,
-      children,
-    }
+    const update = (node: Node): Node =>
+      node.id === id ? { ...node, children } : { ...node, children: node.children?.map(update) }
+    treeData.value = update(treeData.value)
   }
 
   const notifyChange = () => {

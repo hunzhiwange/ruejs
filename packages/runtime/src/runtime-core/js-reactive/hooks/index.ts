@@ -4,13 +4,7 @@ import { createEffectHooks } from './effect.js'
 import { createStateHooks } from './state.js'
 import { createValueHooks } from './values.js'
 
-import type {
-  EffectScopeHandle,
-  ObjectLike,
-  SetupSlot,
-  StateValueHooks,
-  ValueHookBundle,
-} from '../types.js'
+import type { EffectScopeHandle, ObjectLike, SetupSlot, ValueHookBundle } from '../types.js'
 
 const HOOK_EFFECT_SCOPE_KEY = '__hook_effect_scope_id'
 
@@ -108,11 +102,7 @@ export const createHooks = (reactiveRuntime: unknown) => {
   }
 
   const values = createValueHooks({ reactiveRuntime, useSetup }) as unknown as ValueHookBundle
-  const stateValues: StateValueHooks = {
-    createReactive: values.facade.createReactive,
-    isReactive: values.hooks.isReactive,
-  }
-  const state = createStateHooks({ context, reactiveRuntime, values: stateValues })
+  const state = createStateHooks({ context, reactiveRuntime })
   const computed = createComputedHooks({
     context,
     reactiveRuntime,

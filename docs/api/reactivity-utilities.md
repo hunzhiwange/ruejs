@@ -44,38 +44,9 @@
   }
   ```
 
-## toRef() {#toref}
+## 路径派生值 {#path-values}
 
-基于一个响应式对象属性创建 ref。返回的 ref 与源属性保持双向同步：读取 `.value` 会读取源对象属性，写入 `.value` 会写回源对象属性。
-
-也可以传入 ref、getter 或普通值来做单值规范化：已有 ref 会原样返回，getter 会被包装成只读 ref，普通值会被包装为独立 ref。
-
-- **类型**
-
-  ```ts
-  function toRef<T>(value: Ref<T>): Ref<T>
-  function toRef<T>(getter: () => T): Readonly<Ref<T>>
-  function toRef<T>(value: T): Ref<T>
-  function toRef<T extends object, K extends keyof T>(object: T, key: K): { value: T[K] }
-  function toRef<T extends object, K extends keyof T, D>(
-    object: T,
-    key: K,
-    defaultValue: D,
-  ): { value: Exclude<T[K], undefined> | D }
-  ```
-
-- **示例**
-
-  ```ts
-  const state = reactive({ count: 1 })
-  const count = toRef(state, 'count')
-
-  count.value++
-  console.log(state.count) // 2
-
-  const doubled = toRef(() => count.value * 2)
-  console.log(doubled.value) // 4
-  ```
+旧 `toRef` 已删除，使用 `computed(() => state.getPath('name'))` 保持派生读取，写入通过 `state.setPath('name', next)` 完成。
 
 ## toValue() {#tovalue}
 
@@ -117,61 +88,8 @@
   useFeature(() => 1)
   ```
 
-## toRefs() {#torefs}
+## 句柄解构与迁移 {#signal-values}
 
-将响应式对象的可枚举属性转换为一组 ref。这个 API 常用于从组合式函数返回响应式对象时保持解构后的响应性。
+返回 `{ count: signal(0), label: signal('Rue') }`，解构后仍保留句柄身份。解构 `get()` 返回的对象只取得普通值，不会自动绑定路径。
 
-- **类型**
-
-  ```ts
-  function toRefs<T extends object>(
-    object: T,
-  ): {
-    [K in keyof T]: { value: T[K] }
-  }
-  ```
-
-- **示例**
-
-  ```ts
-  function useCounter() {
-    const state = reactive({ count: 0, label: 'Rue' })
-    return toRefs(state)
-  }
-
-  const { count, label } = useCounter()
-  count.value++
-  console.log(label.value)
-  ```
-
-## isProxy() {#isproxy}
-
-检查对象是否是由 [`reactive()`](/api/api/reactivity-core#reactive)、[`readonly()`](/api/api/reactivity-core#readonly)、[`shallowReactive()`](/api/api/reactivity-advanced#shallowreactive) 或 [`shallowReadonly()`](/api/api/reactivity-advanced#shallowreadonly) 创建的 Rue 响应式代理。
-
-- **类型**
-
-  ```ts
-  function isProxy(value: unknown): boolean
-  ```
-
-## isReactive() {#isreactive}
-
-检查对象是否是由 [`reactive()`](/api/api/reactivity-core#reactive) 或 [`shallowReactive()`](/api/api/reactivity-advanced#shallowreactive) 创建的代理。
-
-- **类型**
-
-  ```ts
-  function isReactive(value: unknown): boolean
-  ```
-
-## isReadonly() {#isreadonly}
-
-- **类型**
-
-  ```ts
-  function isReadonly(value: unknown): boolean
-  ```
-
-检查对象是否是由 [`readonly()`](/api/api/reactivity-core#readonly)、
-[`shallowReadonly()`](/api/api/reactivity-advanced#shallowreadonly) 或内部只读 props 包装创建的代理。
-只读 `computed(() => value)` 句柄也会返回 `true`；带 `set` 的可写 computed 返回 `false`。
+`toRefs`、`isProxy`、`isReactive` 和 `isReadonly` 已删除；无需判断对象是否为响应式代理。`isRef` 判断句柄，不能用于证明普通对象可以自动响应属性写入。

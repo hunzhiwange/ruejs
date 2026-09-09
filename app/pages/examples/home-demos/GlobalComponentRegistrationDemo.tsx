@@ -3,7 +3,7 @@ import {
   type FC,
   onMounted,
   onUnmounted,
-  reactive,
+  useState,
   ref,
   useApp,
   useRef,
@@ -41,7 +41,7 @@ const TodoItem: FC<TodoItemProps> = props => (
 )
 
 const RegisteredTodoHost: FC = () => {
-  const state = reactive({
+  const [state] = useState({
     draft: '确认 Component 能解析字符串名',
     todos: [
       { id: 1, text: '定义 TodoItem 函数组件', done: true },
@@ -51,7 +51,7 @@ const RegisteredTodoHost: FC = () => {
   })
 
   const addTodo = () => {
-    const text = state.draft.trim()
+    const text = `${state.draft}`.trim()
     if (!text) return
 
     state.todos.push({
@@ -63,9 +63,9 @@ const RegisteredTodoHost: FC = () => {
   }
 
   const toggleTodo = (id: number) => {
-    const todo = state.todos.find(item => item.id === id)
-    if (todo) {
-      todo.done = !todo.done
+    const index = state.todos.findIndex(item => item.id === id)
+    if (index !== -1) {
+      state.todos[index] = { ...state.todos[index], done: !state.todos[index].done }
     }
   }
 

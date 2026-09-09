@@ -79,10 +79,10 @@ function ThemeButton() {
 Context 很适合承载 refs、computed 值和状态修改函数。推荐把状态和修改逻辑一起放在 Provider 中，再把只读数据或受控操作暴露给消费者。
 
 ```tsx
-import { createContext, readonly, ref, useContext } from '@rue-js/rue'
+import { createContext, computed, ref, useContext } from '@rue-js/rue'
 
 const CartContext = createContext({
-  count: readonly(ref(0)),
+  count: computed(() => 0),
   addItem: () => {},
 })
 
@@ -93,8 +93,9 @@ function CartProvider(props: { children?: any }) {
     count.value += 1
   }
 
+  const visibleCount = computed(() => count.value)
   return (
-    <CartContext.Provider value={{ count: readonly(count), addItem }}>
+    <CartContext.Provider value={{ count: visibleCount, addItem }}>
       {props.children}
     </CartContext.Provider>
   )

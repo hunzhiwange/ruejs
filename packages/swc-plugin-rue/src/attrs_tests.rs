@@ -286,7 +286,7 @@ export const View = (props) => (
     assert!(out.contains(".addEventListener(\"focus\", __event"), "{output}");
     assert!(out.contains(".removeEventListener(\"focus\", __event"), "{output}");
     assert!(out.contains("capture: true"), "{output}");
-    assert!(out.contains("props.onClick"), "{output}");
+    assert!(out.contains("_$compiledPropsGet(props, \"onClick\")"), "{output}");
     assert!(out.contains("typeof __ref"), "{output}");
     assert!(out.contains(".current ="), "{output}");
     assert!(out.contains("null"), "{output}");

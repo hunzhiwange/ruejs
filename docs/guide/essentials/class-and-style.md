@@ -38,14 +38,14 @@ const hasError = ref(false)
 绑定的对象不必是内联的：
 
 ```js
-const classObject = reactive({
+const classObject = signal({
   active: true,
   'text-danger': false,
 })
 ```
 
 ```tsx
-<div className={classObject} />
+<div className={classObject.get()} />
 ```
 
 这将渲染：
@@ -195,14 +195,14 @@ const fontSize = ref(30)
 直接绑定到样式对象通常是个好主意，这样模板更简洁：
 
 ```js
-const styleObject = reactive({
+const styleObject = signal({
   color: 'red',
   fontSize: '30px',
 })
 ```
 
 ```tsx
-<div style={styleObject} />
+<div style={styleObject.get()} />
 ```
 
 同样，对象样式绑定通常与返回对象的计算属性一起使用。

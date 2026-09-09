@@ -22,7 +22,7 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
 
     assert!(
         out.contains(&utils::normalize(
-            "props.items.map((item)=>_$createComponent(Row, ()=>({ key: item.id, item: item })))"
+            "_$compiledPropsGet(props, \"items\").map((item)=>_$createComponent(Row, ()=>({ key: item.id, item: item })))"
         )),
         "{out}"
     );
@@ -56,7 +56,7 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
     let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
-    assert!(out.contains(&utils::normalize("const __child1 = vapor(()=>")), "{out}");
+    assert!(out.contains(&utils::normalize("const __child1 = _$compiledRoot(()=>")), "{out}");
     assert!(
         out.contains(&utils::normalize(
             "return _$createComponent(Row, ()=>({ key: item.id, item: item, children: __child1 }));"

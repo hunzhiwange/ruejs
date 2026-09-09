@@ -197,32 +197,18 @@ const isEven = count.value % 2 === 0
 
 ### 减少大型不可变结构的响应式开销 (Reduce Reactivity Overhead for Large Immutable Structures) {#reduce-reactivity-overhead-for-large-immutable-structures}
 
-Rue 的响应式系统默认是深度的。虽然这使得状态管理直观，但当数据大小很大时，它确实会产生一定程度的开销，因为每次属性访问都会触发执行依赖跟踪的代理陷阱。这通常在处理深层嵌套对象的大型数组时变得明显，其中单个渲染需要访问 100,000 多个属性，因此它应该只影响非常特定的用例。
+Rue 使用无代理 Signal 和路径依赖图。热点读取优先选择具体路径，避免为了读取一个标量而复制整个对象或枚举所有键。
 
-Rue 确实提供了一个逃生口，通过使用浅层状态选择退出深度响应式。浅层 API 创建仅在根级别具有响应式的状态，并暴露所有未更改的嵌套对象。这使嵌套属性访问保持快速，代价是我们现在必须将所有嵌套对象视为不可变的，并且更新只能通过替换根状态来触发：
-
-```tsx
-import { useState } from '@rue-js/rue'
-import type { FC } from '@rue-js/rue'
-
-const MyComponent: FC = () => {
-  const [shallowArray, setShallowArray] = useState(() => [
-    /* 大量深层对象 */
-  ])
-
-  // 这不会触发更新...
-  const handlePush = () => {
-    shallowArray.push(newObject)
-  }
-
-  // 这会：
-  const handleAdd = () => {
-    setShallowArray(previous => [...previous, newObject])
-  }
-
-  return <div>{/* ... */}</div>
-}
+```ts
+import { signal, computed } from '@rue-js/rue'
+const state = signal({ user: { name: 'Rue' }, visits: 0 })
+const name = computed(() => state.getPath('user.name'))
+state.updatePath('visits', n => Number(n) + 1)
 ```
+
+模块级大型不可变数据可以通过 `set(next)` 替换根值；需要细粒度更新时使用路径 API。编译 `useState` 支持可追踪的原生数组变异，不应把它当成只能替换根值的浅层容器。
+
+将状态交给第三方库时显式创建快照，处理完成后写回。不要依赖第三方库对普通对象的原地修改触发界面，也不要为了绕过 `state-escape` 诊断关闭严格编译。
 
 ### 避免不必要的组件抽象 (Avoid Unnecessary Component Abstractions) {#avoid-unnecessary-component-abstractions}
 

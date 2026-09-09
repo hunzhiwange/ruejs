@@ -76,7 +76,7 @@ fn tracks_rue_reactive_factories_through_hooks_aliases_and_destructuring() {
     }
     assert_eq!(transform.reactive_kind("hookSignal"), None);
     for name in ["proxy", "readonlyProxy"] {
-        assert_eq!(transform.reactive_kind(name), Some(ReactiveKind::ReactiveProxy), "{name}");
+        assert_eq!(transform.reactive_kind(name), Some(ReactiveKind::ObjectValue), "{name}");
     }
     assert_eq!(transform.reactive_kind("state"), Some(ReactiveKind::StateValue));
     assert_eq!(transform.reactive_kind("setState"), None);
@@ -190,7 +190,7 @@ fn marks_only_a_component_first_parameter_as_reactive_props() {
     let component_scope =
         collect_component_parameter_scope(function.params.iter().map(|parameter| &parameter.pat));
     let component_transform = transform_with_scope(component_scope);
-    assert_eq!(component_transform.reactive_kind("props"), Some(ReactiveKind::ReactiveProxy));
+    assert_eq!(component_transform.reactive_kind("props"), Some(ReactiveKind::PropsValue));
     assert_eq!(component_transform.reactive_kind("context"), None);
 
     let ordinary_scope =

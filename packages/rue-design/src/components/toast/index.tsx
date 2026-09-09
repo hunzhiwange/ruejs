@@ -1124,7 +1124,7 @@ const ToastItem: FC<ToastItemProps> = ({
             if (element) {
               toastItemCloseHandlerRegistry.set(element, requestClose)
             }
-            syncItemDom(currentOpen)
+            syncItemDom(!!currentOpen)
           }}
           onMouseEnter={(event: MouseEvent) => {
             itemCtx.hovered.value = true

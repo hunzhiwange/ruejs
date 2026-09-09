@@ -45,11 +45,11 @@ export default Chain
     let out = utils::emit(program, cm);
 
     let _legacy_expected_fragment = r##"
-import { vapor, renderAnchor, _$template, untrack, watchEffect, _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode, _$compiledRoot } from "@rue-js/rue/internal";
+import { _$compiledRoot, renderAnchor, _$template, untrack, watchEffect, _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode, _$compiledRoot } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template("<div>【<!--rue:text-hole:0-->】 【<!--rue:text-hole:1-->】 【<!--rue:text-hole:2-->】 【 <!--rue:text-hole:3-->】 【 <!--rue:text-hole:4-->】 【<!--rue:text-hole:5-->】 【<!--rue:text-hole:6-->】 【<!--rue:text-hole:7-->】 === 【<!--rue:text-hole:8-->】 【<!--rue:text-hole:9-->】 【<!--rue:text-hole:10-->】 【 <!--rue:text-hole:11-->】 【 <!--rue:text-hole:12-->】 【<!--rue:text-hole:13-->】 【<!--rue:text-hole:14-->】 【<!--rue:text-hole:15-->】</div>");
 const Chain: FC = ()=>{
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1];

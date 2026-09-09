@@ -29,13 +29,18 @@ const Demo: FC<{ ok: boolean }> = props => (
 
     assert!(out.contains("_$compiledBranchAt("), "{out}");
     assert!(
-        out.contains(&utils::normalize("if (props.ok) return { __rue_compiled_branch_key: true")),
+        out.contains(&utils::normalize(
+            "if (_$compiledPropsGet(props, \"ok\")) return { __rue_compiled_branch_key: true"
+        )),
         "{out}"
     );
     assert!(out.contains(&utils::normalize("_$createDocumentFragment()")), "{out}");
     assert!(out.contains(&utils::normalize("_$compiledCreateElement(\"span\"")), "{out}");
     assert!(out.contains(&utils::normalize("_$compiledCreateElement(\"small\"")), "{out}");
-    assert!(!out.contains(&utils::normalize("props.ok ? vapor(")), "{out}");
+    assert!(
+        !out.contains(&utils::normalize("_$compiledPropsGet(props, \"ok\") ? vapor(")),
+        "{out}"
+    );
 }
 
 #[test]
@@ -53,10 +58,12 @@ const Demo = (props) => <div>
     let out = compile(src, "expr_unsafe_vapor_slots");
 
     assert!(
-        out.contains(&utils::normalize("props.ok ? _$createComponent(Child, ()=>({})) : vapor(")),
+        out.contains(&utils::normalize(
+            "props.ok ? _$createComponent(Child, ()=>({})) : _$compiledRoot("
+        )),
         "{out}"
     );
-    assert!(out.contains(&utils::normalize("props.more ? vapor(")), "{out}");
+    assert!(out.contains(&utils::normalize("props.more ? _$compiledRoot(")), "{out}");
 }
 
 #[test]
@@ -108,7 +115,9 @@ const Demo: FC<{ ok: boolean; label: string }> = props => (
     let out = compile(src, "expr_fragment_slot_logical_and");
 
     assert!(out.contains(&utils::normalize("_$compiledBranchAt(_el2, _el1")));
-    assert!(out.contains(&utils::normalize("const __rue_branch_value = props.ok")));
+    assert!(out.contains(&utils::normalize(
+        "const __rue_branch_value = _$compiledPropsGet(props, \"ok\")"
+    )));
     assert!(!out.contains("renderAnchor"));
 }
 
@@ -186,7 +195,7 @@ const Demo: FC = () => {
     assert!(!out.contains(&utils::normalize("_$compiledKeyedList({")));
     assert!(out.contains("items.get().map"), "{out}");
     assert!(out.contains(&utils::normalize("const label = item.label.toUpperCase();")));
-    assert!(out.contains("vapor("), "{out}");
+    assert!(out.contains("_$compiledRoot("), "{out}");
     assert!(
         out.contains(&utils::normalize(": _$compiledRoot(Object.assign((__rue_parent_context)=>{"))
     );

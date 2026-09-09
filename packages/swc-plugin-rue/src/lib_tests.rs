@@ -186,7 +186,7 @@ import { type FC, signal, vapor } from '@rue-js/rue';
 
 const View: FC = (props) => {
   const count = signal(0);
-  return vapor(() => props.ready ? count.get() : 0);
+  return _$compiledRoot(() => props.ready ? count.get() : 0);
 };
 "#;
     let (program, cm) = parse_program(src);
@@ -277,13 +277,13 @@ fn apply_closes_compiled_and_vapor_capability_boundaries() {
     let (unproven_program, unproven_cm) = parse_program(unproven_src);
     let unproven_out = emit(apply(unproven_program), unproven_cm);
     assert!(unproven_out.contains("@rue-js/rue/internal"), "{unproven_out}");
-    assert!(unproven_out.contains("vapor("), "{unproven_out}");
+    assert!(unproven_out.contains("_$compiledRoot("), "{unproven_out}");
 
     let coerced_unproven_src = "export const View = () => <div>{String(state.get())}</div>;";
     let (coerced_unproven_program, coerced_unproven_cm) = parse_program(coerced_unproven_src);
     let coerced_unproven_out = emit(apply(coerced_unproven_program), coerced_unproven_cm);
     assert!(coerced_unproven_out.contains("@rue-js/rue/internal"), "{coerced_unproven_out}");
-    assert!(coerced_unproven_out.contains("vapor("), "{coerced_unproven_out}");
+    assert!(coerced_unproven_out.contains("_$compiledRoot("), "{coerced_unproven_out}");
 }
 
 #[test]
@@ -463,7 +463,7 @@ const View = (props) => {
     let out = normalize(&emit(apply(program), cm));
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains("vapor("));
+    assert!(out.contains("_$compiledRoot("));
     assert!(out.contains(&normalize("_$createComponent(Panel")));
     assert!(!out.contains(&normalize("_$compiledKeyedList")));
     assert!(out.contains(&normalize("_$createElement(\"a\"")));
@@ -516,7 +516,11 @@ const View = (props) => {
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
     assert!(out.contains(&normalize("_$createComponent(TransitionGroup")));
     assert!(out.contains("_$compiledWithKey"));
-    assert!(out.contains("props.touch(row.id)"));
+    assert!(
+        out.contains(
+            "_$compiledPropsCall(_$compiledPropsGet(props, \"touch\"), props, [ row.id ])"
+        )
+    );
     assert!(out.contains("row.hidden"));
     assert!(out.contains("Hidden"));
 }
@@ -550,7 +554,7 @@ function View(props) {
     assert!(out.contains("footer"));
     assert!(out.contains("_$reconcileKeyed"));
     assert!(out.contains("_$compiledShowStyle"));
-    assert!(out.contains("props.visible"));
+    assert!(out.contains("_$compiledPropsGet(props, \"visible\")"));
     assert!(out.contains("_$mountCompiledKeyedSingleRowOwnerless"), "{out}");
 }
 
@@ -590,7 +594,7 @@ function View({ rows, activeId, to, visible }) {
     assert!(out.contains(&normalize("_$createComponent(Shell")));
     assert!(out.contains(&normalize("_$createComponent(TransitionGroup")));
     assert!(out.contains("_$compiledWithKey"));
-    assert!(out.contains("__rue_props.rows"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
     assert!(out.contains(&normalize("_$createElement(\"a\"")));
@@ -680,15 +684,18 @@ function View(props) {
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
     assert!(out.contains(&normalize("_$compiledWithNativeEvents(_$createComponent(Shell")));
-    assert!(out.contains(&normalize("\"mouseenter\": props.enter")));
+    assert!(out.contains(&normalize("\"mouseenter\": _$compiledPropsGet(props, \"enter\")")));
     assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[props.slotName]"));
+    assert!(out.contains("[_$compiledPropsGet(props, \"slotName\")]"));
     assert!(out.contains("_$createDocumentFragment"));
     assert!(out.contains("RouterLink"));
     assert!(out.contains(&normalize("_$compiledWithNativeEvents(_$createComponent(Card")), "{out}");
     assert!(out.contains(&normalize(r#""click":"#)), "{out}");
-    assert!(out.contains("props.pick(row.id)"), "{out}");
-    assert!(out.contains("props.rows.map(renderRow)"));
+    assert!(
+        out.contains("_$compiledPropsCall(_$compiledPropsGet(props, \"pick\"), props, [ _$compiledPropsGet(row, \"id\") ])"),
+        "{out}"
+    );
+    assert!(out.contains("_$compiledPropsGet(props, \"rows\").map(renderRow)"));
 }
 
 #[test]
@@ -747,10 +754,10 @@ function View({ rows, selectedId, to, slotName, visible }) {
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
     assert!(out.contains(&normalize("const draft = ref('');")), "{out}");
-    assert!(out.contains("__rue_props.rows"), "{out}");
-    assert!(out.contains("__rue_props.selectedId"));
-    assert!(out.contains("__rue_props.slotName"));
-    assert!(out.contains("__rue_props.visible"));
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"selectedId\")"));
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"slotName\")"));
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"visible\")"));
     assert!(out.contains("__rue_slots"));
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$rueCompiledProp0.get().map"), "{out}");
@@ -822,12 +829,16 @@ function View({ rows, form, activeId, slotName, ...rest }) {
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
     assert!(out.contains(&normalize("const draft = ref('');")), "{out}");
     assert!(out.contains(&normalize(
-        "const activeLabel = computed(()=>__rue_props.activeId + ':' + __rue_props.rows.length);"
+        "const activeLabel = computed(()=>_$compiledPropsGet(__rue_props, \"activeId\") + ':' + _$compiledPropsGet(__rue_props, \"rows\").length);"
     )), "{out}");
-    assert!(out.contains("__rue_props.rows"), "{out}");
-    assert!(out.contains("__rue_props.form"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"form\")"), "{out}");
     assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[slotName]") || out.contains("[__rue_props.slotName]"), "{out}");
+    assert!(
+        out.contains("[slotName]")
+            || out.contains("[_$compiledPropsGet(__rue_props, \"slotName\")]"),
+        "{out}"
+    );
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
@@ -895,7 +906,7 @@ const View = (props) => {
     assert!(out.contains("RouterLink"));
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$createDocumentFragment"));
-    assert!(out.contains("props.header ??"));
+    assert!(out.contains("_$compiledPropsGet(props, \"header\") ??"));
     assert!(out.contains("Badge"));
 }
 
@@ -920,12 +931,16 @@ function Dashboard({ rows, slotName, visible = true, ...rest }) {
     let (program, cm) = parse_program(src);
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
-    assert!(out.contains("__rue_props.rows"), "{out}");
-    assert!(out.contains("__rue_props.slotName"), "{out}");
-    assert!(out.contains("__rue_props.visible"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"slotName\")"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"visible\")"), "{out}");
     assert!(out.contains("__rue_slots"));
     assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("__rue_props.rows.map") || out.contains("_$rueCompiledProp"), "{out}");
+    assert!(
+        out.contains("_$compiledPropsGet(__rue_props, \"rows\").map")
+            || out.contains("_$rueCompiledProp"),
+        "{out}"
+    );
     assert!(out.contains("row.id"));
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
@@ -1020,10 +1035,10 @@ const View = ({ groups, route, active, slotName, ...rest }) => {
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
     assert!(out.contains(&normalize("const draft = ref('');")), "{out}");
-    assert!(out.contains("__rue_props.groups"), "{out}");
-    assert!(out.contains("__rue_props.route"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"groups\")"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"route\")"), "{out}");
     assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[__rue_props.slotName || \"main\"]"), "{out}");
+    assert!(out.contains("[_$compiledPropsGet(__rue_props, \"slotName\") || \"main\"]"), "{out}");
     assert!(out.contains("RouterLink"));
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$createDocumentFragment"));
@@ -1057,7 +1072,7 @@ function View(props) {
 
     assert!(out.contains("_$createComponent(Layout"));
     assert!(out.contains("__rue_slots"));
-    assert!(out.contains("contentLazyTrim: props.doc.content"), "{out}");
+    assert!(out.contains("contentLazyTrim: _$compiledPropsGet(props, \"doc\").content"), "{out}");
     assert!(out.contains("onUpdateContentLazyTrim"));
     assert!(out.contains("\"save\": _$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledWithEventModifiers"));
@@ -1097,7 +1112,7 @@ function View({ count, rows }) {
     assert!(out.contains("const total of _$rueCompiledProp1.get()"), "{out}");
     assert!(out.contains("console.log(total)"), "{out}");
     assert!(out.contains("return total"), "{out}");
-    assert!(out.contains("__rue_props.rows"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
 }
 
 #[test]
@@ -1152,7 +1167,7 @@ function View(props) {
 
     assert!(out.contains("_$createComponent(Shell"));
     assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[props.primarySlot ?? \"main\"]"), "{out}");
+    assert!(out.contains("[_$compiledPropsGet(props, \"primarySlot\") ?? \"main\"]"), "{out}");
     assert!(out.contains("_$createElement(\"a\""), "{out}");
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$createDocumentFragment"));
@@ -1204,8 +1219,8 @@ function View({ rows, form, ready, slotName }) {
     let (program, cm) = parse_program(src);
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
-    assert!(out.contains("__rue_props.rows"), "{out}");
-    assert!(out.contains("__rue_props.form"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(__rue_props, \"form\")"), "{out}");
     assert!(out.contains("_$createComponent(Dialog"));
     assert!(out.contains("_$compiledShowStyle"));
     assert!(out.contains("__rue_slots"));
@@ -1344,10 +1359,13 @@ function View({ rows, fallback, count, limit }) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
-    assert!(out.contains("([id, meta] = __rue_props.fallback, index)"), "{out}");
+    assert!(
+        out.contains("([id, meta] = _$compiledPropsGet(__rue_props, \"fallback\"), index)"),
+        "{out}"
+    );
     assert!(out.contains("meta.label"), "{out}");
     assert!(
-        out.contains("for(let i = __rue_phase2_total.get(); i < __rue_props.limit; i++)"),
+        out.contains("for(let i = __rue_phase2_total.get(); i < _$compiledPropsGet(__rue_props, \"limit\"); i++)"),
         "{out}"
     );
     assert!(out.contains("report(i, __rue_phase2_total.get())"), "{out}");
@@ -1378,12 +1396,12 @@ const View: ViewType = (props) => {
     assert!(out.contains("type \"FC\" as RueFC"), "{out}");
     assert!(out.contains("ref as localRef"), "{out}");
     assert!(out.matches("rue:text-hole:").count() >= 2, "{out}");
-    assert!(out.contains("props.children"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(props, \"children\")"), "{out}");
     assert!(out.contains("ctx.children"), "{out}");
     assert!(out.contains("_$createComponent(Card"), "{out}");
     assert!(out.contains("title: 'ok'"), "{out}");
     assert!(out.contains("count: 1"), "{out}");
-    assert!(out.contains("vapor("), "{out}");
+    assert!(out.contains("_$compiledRoot("), "{out}");
 }
 
 #[test]
@@ -1433,12 +1451,72 @@ function View(props) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(out.contains("__rue_slots"), "{out}");
-    assert!(out.contains("props.slotName"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(props, \"slotName\")"), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
-    assert!(out.contains("props.rows.map((row = props.fallback, idx)"), "{out}");
+    assert!(out.contains("_$compiledPropsGet(props, \"rows\").map((row = _$compiledPropsGet(props, \"fallback\"), idx)"), "{out}");
     assert!(out.contains("onUpdateValueTrim"), "{out}");
     assert!(out.contains("_$compiledShowStyle"), "{out}");
     assert!(out.contains("RouterLink"), "{out}");
     assert!(!out.contains("v-model"), "{out}");
     assert!(!out.contains("v-show"), "{out}");
+}
+
+#[test]
+fn compiled_props_direct_and_structural_reads() {
+    let (program, cm) = parse_program(
+        r#"
+        export function View(props) {
+            const dynamic = () => props[key()];
+            const keys = () => Object.keys(props);
+            const has = () => 'added' in props;
+            const rest = () => { const { title, ...rest } = props; return rest; };
+            const spread = () => ({ ...props });
+            return <p>{props.title}</p>;
+        }
+    "#,
+    );
+    let output = emit(run_full_transform(program, true, None), cm);
+    for helper in [
+        "_$compiledPropsGet",
+        "_$compiledPropsKeys",
+        "_$compiledPropsHas",
+        "_$compiledPropsSnapshot",
+    ] {
+        assert!(output.contains(helper), "missing {helper}: {output}");
+    }
+    assert!(!output.contains("props.title"), "{output}");
+}
+
+#[test]
+fn compiled_props_preserves_shadowing_and_method_receivers() {
+    let (program, cm) = parse_program(
+        r#"
+        export function View(props) {
+            const call = () => props.action(1);
+            const shadow = props => props.title;
+            const caught = () => { try {} catch (props) { return props.title; } };
+            const loop = () => { for (const props of []) { props.title; } };
+            return <p>{props.title}</p>;
+        }
+    "#,
+    );
+    let output = emit(run_full_transform(program, true, None), cm);
+    assert!(
+        output.contains("_$compiledPropsCall(_$compiledPropsGet(props, \"action\"), props"),
+        "{output}"
+    );
+    assert!(output.contains("props.title"), "{output}");
+}
+
+#[test]
+fn compiled_props_leaves_default_exported_utilities_untouched() {
+    for source in [
+        "export default function format(value) { return value.toFixed(2) }",
+        "export default value => value.toFixed(2)",
+    ] {
+        let (program, cm) = parse_program(source);
+        let output = emit(run_full_transform(program, true, None), cm);
+        assert!(!output.contains("_$compiledProps"), "{output}");
+        assert!(output.contains("value.toFixed(2)"), "{output}");
+    }
 }

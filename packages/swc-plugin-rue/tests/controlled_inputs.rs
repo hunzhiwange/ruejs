@@ -39,7 +39,7 @@ export default ControlledInputs;
     // - 受控 input：value 走 watch；onInput 绑定更新 state
     // - 文本回显：_$createTextWrapper + _$settextContent + watch
     let _expected_fragment = r##"
-import { useState, _$compiledWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, untrack, watchEffect, _$setAttribute, _$setClassName, _$setValue } from "@rue-js/rue/internal";
+import { useState, _$compiledWithHookId, useSetup, _$compiledRoot, renderAnchor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, untrack, watchEffect, _$setAttribute, _$setClassName, _$setValue } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<div class="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm"><h3 class="text-xl font-semibold">受控输入</h3><input class="border rounded-md px-2 py-1" placeholder="输入试试"><div>当前：<!--rue:text-hole:0--></div><!--rue:opaque-hole:1--></div>');
@@ -52,7 +52,7 @@ const ControlledInputs: FC = ()=>{
             };
         }));
     const { text: text, setText: setText } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1];

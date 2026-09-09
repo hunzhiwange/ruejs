@@ -186,7 +186,7 @@ const DocSearch: FC = () => {
     }
 
     closeSearch()
-    void openResult(selected)
+    void openResult({ ...selected })
   }
 
   useEffect(() => {

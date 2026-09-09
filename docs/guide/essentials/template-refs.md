@@ -243,14 +243,14 @@ const ParentComponent: FC = () => {
 
 ## 引用与响应式对象 {#refs-and-reactive-objects}
 
-模板引用可以作为响应式对象的属性使用：
+模板引用可保存在普通对象中；DOM 引用不需要响应式代理：
 
 ```tsx
 const MyComponent: FC = () => {
-  const refs = reactive({
+  const refs = {
     input: null as HTMLInputElement | null,
     button: null as HTMLButtonElement | null,
-  })
+  }
 
   onMounted(() => {
     refs.input?.focus()

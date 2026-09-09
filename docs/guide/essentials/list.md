@@ -100,11 +100,11 @@ items.forEach((item, index) => {
 你也可以使用 `Object.entries()` 或 `Object.values()` 来遍历对象的属性。遍历顺序将基于 `Object.values()` 的结果：
 
 ```tsx
-import { reactive } from '@rue-js/rue'
+import { useState } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const ObjectList: FC = () => {
-  const myObject = reactive({
+  const [myObject] = useState({
     title: '如何在 Rue 中做列表',
     author: 'Jane Doe',
     publishedAt: '2016-04-10',
@@ -112,7 +112,7 @@ const ObjectList: FC = () => {
 
   return (
     <ul>
-      {Object.entries(myObject).map(([key, value]) => (
+      {Object.entries({ ...myObject }).map(([key, value]) => (
         <li>
           {key}: {value}
         </li>
@@ -126,7 +126,7 @@ const ObjectList: FC = () => {
 
 ```tsx
 <ul>
-  {Object.values(myObject).map(value => (
+  {Object.values({ ...myObject }).map(value => (
     <li>{value}</li>
   ))}
 </ul>
@@ -136,7 +136,7 @@ const ObjectList: FC = () => {
 
 ```tsx
 <ul>
-  {Object.entries(myObject).map(([key, value], index) => (
+  {Object.entries({ ...myObject }).map(([key, value], index) => (
     <li>
       {index}. {key}: {value}
     </li>

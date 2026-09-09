@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRue, useApp as useDefaultApp, type FC } from '../src'
 import { resolveRuntimeComponent } from '../src/component-registry'
-import { onMounted, onUnmounted, useApp, vapor } from './legacy-test-render'
+import { onMounted, onUnmounted, useApp, _$compiledRoot } from './legacy-test-render'
 
 const flushRender = async () => {
   await Promise.resolve()
@@ -21,7 +21,7 @@ const createTrackedRoot = (label: string, lifecycle: string[]) => () => {
   lifecycle.push(`${label}:render`)
   onMounted(() => lifecycle.push(`${label}:mounted`))
   onUnmounted(() => lifecycle.push(`${label}:unmounted`))
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const node = document.createElement('main')
     node.dataset.owner = label
     node.textContent = label
@@ -104,7 +104,7 @@ describe('Vapor useApp', () => {
   it('rolls back shared ownership when Vapor mount throws', async () => {
     const host = document.createElement('div')
     const failedApp = useApp(() =>
-      vapor(() => {
+      _$compiledRoot(() => {
         throw new Error('vapor root mount failed')
       }),
     )
@@ -134,7 +134,7 @@ describe('Vapor useApp', () => {
         lifecycle.push('vapor:unmounted')
         app.unmount()
       })
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const node = document.createElement('main')
         node.textContent = 'vapor'
         return node as any
@@ -168,7 +168,7 @@ describe('Vapor useApp', () => {
 
     const Registered = () => {
       renderRuntime = (globalThis as any).__rue_active
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const article = document.createElement('article')
         article.dataset.testid = 'registered'
         article.textContent = 'vapor app'
@@ -238,7 +238,7 @@ describe('Vapor useApp', () => {
 
     const createRoot = (label: string) => () => {
       renderRuntimes.push((globalThis as any).__rue_active)
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const node = document.createElement('div')
         node.textContent = label
         return node as any

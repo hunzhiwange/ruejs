@@ -26,7 +26,8 @@ type CommitResource = ReturnType<typeof createResource<Branch, CommitItem[]>>
 type BranchSignal = SignalHandle<Branch>
 
 const SOURCE_CODE = [
-  "import { createResource, renderAnchor, type SignalHandle, type FC, signal, vapor, watchEffect } from '@rue-js/rue';",
+  "import { _$compiledRoot } from '@rue-js/rue/internal';",
+  "import { createResource, renderAnchor, type SignalHandle, type FC, signal, watchEffect } from '@rue-js/rue';",
   '',
   "const API_URL = 'https://api.github.com/repos/rust-lang/rust/commits?per_page=3&sha=';",
   "const BRANCHES = ['main', 'beta', 'stable'] as const;",
@@ -92,7 +93,7 @@ const SOURCE_CODE = [
   '    return Array.isArray(data) ? data : [];',
   '  });',
   '',
-  '  return vapor(() => {',
+  '  return _$compiledRoot(() => {',
   '    const root = document.createDocumentFragment();',
   "    const anchor = document.createComment('rue:resource-demo-preview-anchor');",
   '    root.appendChild(anchor);',

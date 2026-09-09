@@ -238,18 +238,13 @@ export const instrumentCompiledRuntimeSource = input => {
   }
   return instrumentSites(source, [
     [
-      "let schedulingMode: ReactiveSchedulingMode = 'frame'",
-      "let schedulingMode: ReactiveSchedulingMode = 'frame'\nglobalThis.__RUE_PROFILE_SCHEDULING_MODE__ = schedulingMode",
-      'default scheduling mode',
-    ],
-    [
-      'export const setReactiveScheduling = (mode: ReactiveSchedulingMode): void => {\n  schedulingMode = mode',
-      'export const setReactiveScheduling = (mode: ReactiveSchedulingMode): void => {\n  schedulingMode = mode\n  globalThis.__RUE_PROFILE_SCHEDULING_MODE__ = mode',
+      'export const setReactiveScheduling = (mode: ReactiveSchedulingMode): void => {',
+      "globalThis.__RUE_PROFILE_SCHEDULING_MODE__ = peekSharedReactiveStorage()?.state.schedulingMode ?? 'frame'\nexport const setReactiveScheduling = (mode: ReactiveSchedulingMode): void => {\n  globalThis.__RUE_PROFILE_SCHEDULING_MODE__ = mode",
       'scheduling mode updates',
     ],
     [
-      'for (const cleanup of record.cleanups.splice(0)) attempt(cleanup, undefined)',
-      "for (const cleanup of record.cleanups.splice(0)) { profileCount('ownerCleanupCallbacks'); attempt(cleanup, undefined) }",
+      'for (const cleanup of record[OwnerField.Cleanups].splice(0)) attempt(cleanup, undefined)',
+      "for (const cleanup of record[OwnerField.Cleanups].splice(0)) { profileCount('ownerCleanupCallbacks'); attempt(cleanup, undefined) }",
       'owner cleanup',
     ],
   ])

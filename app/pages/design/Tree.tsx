@@ -1,5 +1,5 @@
 import type { FC } from '@rue-js/rue'
-import { computed, reactive, ref } from '@rue-js/rue'
+import { computed, ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
 import type {
   TreeCheckedKeysObject,
@@ -790,11 +790,11 @@ const loadData = async node => {
   </div>
 </div>`
 
-const legacyCode = `import { computed, reactive } from '@rue-js/rue'
+const legacyCode = `import { computed, ref } from '@rue-js/rue'
 
 type Node = { id: string; name: string; open?: boolean; children?: Node[] }
 
-const treeData = reactive<Node>({
+const treeData = ref<Node>({
   id: 'root',
   name: 'My Tree',
   open: true,
@@ -813,25 +813,23 @@ const treeData = reactive<Node>({
   ],
 })
 
-const TreeItem = ({ model }: { model: Node }) => {
+const TreeItem = ({ model, onChange }: { model: Node; onChange: (node: Node) => void }) => {
   const isOpen = computed(() => !!model.open)
   const isFolder = computed(() => !!model.children && model.children.length > 0)
 
   const toggle = () => {
-    model.open = !isOpen.get()
+    onChange({ ...model, open: !isOpen.get() })
   }
 
   const addChild = () => {
-    model.children = model.children ?? []
-    model.children.push({ id: model.id + '-new', name: 'new stuff' })
-    model.open = true
+    onChange({ ...model, open: true, children: [...(model.children ?? []), { id: model.id + '-new', name: 'new stuff' }] })
   }
 
   return (
     <li>
       <div onClick={toggle} onDblClick={addChild}>{model.name}</div>
       {isFolder.get() && isOpen.get() ? (
-        <ul>{model.children!.map(child => <TreeItem key={child.id} model={child} />)}</ul>
+        <ul>{model.children!.map(child => <TreeItem key={child.id} model={child} onChange={next => onChange({ ...model, children: model.children!.map(item => item.id === child.id ? next : item) })} />)}</ul>
       ) : null}
     </li>
   )
@@ -840,7 +838,7 @@ const TreeItem = ({ model }: { model: Node }) => {
 <div className="card border border-base-200/80 bg-base-100 shadow-sm">
   <div className="card-body grid gap-4 lg:grid-cols-[minmax(0,1fr),18rem] lg:items-start">
     <ul className="m-0 grid gap-1 p-0">
-      <TreeItem model={treeData} />
+      <TreeItem model={treeData.value} onChange={next => { treeData.value = next }} />
     </ul>
     <div className="rounded-box border border-base-300 bg-base-200/40 p-4 text-sm text-base-content/70">
       单击切换展开，双击叶子节点会把它转换成 folder，并在当前层直接追加一个新子节点。
@@ -1055,34 +1053,36 @@ const countLoadedBranches = (nodes: TreeDataNode[]): number => {
   }, 0)
 }
 
-const LegacyTreeItem: FC<{ model: LegacyNode }> = ({ model }) => {
+const LegacyTreeItem: FC<{ model: LegacyNode; onChange: (node: LegacyNode) => void }> = ({
+  model,
+  onChange,
+}) => {
   const isOpen = computed(() => !!model.open)
   const isFolder = computed(() => !!model.children && model.children.length > 0)
 
   const toggle = (event?: Event) => {
     event?.stopPropagation()
-    model.open = !isOpen.get()
+    onChange({ ...model, open: !isOpen.get() })
   }
 
   const addChild = (event?: Event) => {
     event?.stopPropagation()
-    if (!model.children) {
-      model.children = []
-    }
-    model.children.push({
-      id: `${model.id}-new-${model.children.length}`,
-      name: 'new stuff',
+    onChange({
+      ...model,
+      open: true,
+      children: [
+        ...(model.children ?? []),
+        {
+          id: `${model.id}-new-${model.children?.length ?? 0}`,
+          name: 'new stuff',
+        },
+      ],
     })
-    model.open = true
   }
 
   const changeType = (event?: Event) => {
     event?.stopPropagation()
-    if (!isFolder.get()) {
-      model.children = []
-      addChild()
-      model.open = true
-    }
+    if (!isFolder.get()) addChild()
   }
 
   return (
@@ -1107,7 +1107,16 @@ const LegacyTreeItem: FC<{ model: LegacyNode }> = ({ model }) => {
       {isFolder.get() && isOpen.get() ? (
         <ul className="mt-1 grid gap-1 pl-5">
           {model.children!.map(child => (
-            <LegacyTreeItem key={child.id} model={child} />
+            <LegacyTreeItem
+              key={child.id}
+              model={child}
+              onChange={next =>
+                onChange({
+                  ...model,
+                  children: model.children!.map(item => (item.id === child.id ? next : item)),
+                })
+              }
+            />
           ))}
           <li className="list-none">
             <button
@@ -1152,7 +1161,7 @@ const TreeDesign: FC = () => {
   const asyncTreeData = ref<TreeDataNode[]>([
     { title: '发布总线', key: 'release-bus', isLeaf: false },
   ])
-  const legacyTree = reactive<LegacyNode>({
+  const legacyTree = ref<LegacyNode>({
     id: 'root',
     name: 'My Tree',
     open: true,
@@ -1926,7 +1935,12 @@ const TreeDesign: FC = () => {
             <div className="card border border-base-200/80 bg-base-100 shadow-sm not-prose">
               <div className="card-body grid gap-4 lg:grid-cols-[minmax(0,1fr),18rem] lg:items-start">
                 <ul className="m-0 grid gap-1 p-0">
-                  <LegacyTreeItem model={legacyTree} />
+                  <LegacyTreeItem
+                    model={legacyTree.value}
+                    onChange={next => {
+                      legacyTree.value = next
+                    }}
+                  />
                 </ul>
                 <div className="rounded-box border border-base-300 bg-base-200/40 p-4 text-sm text-base-content/70">
                   单击切换展开，双击叶子节点会把它转换成 folder，并在当前层直接追加一个新子节点。

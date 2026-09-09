@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { render } from '@rue-js/rue'
 import {
   renderAnchor,
-  vapor,
+  _$compiledRoot,
   _$appendChild,
   _$createComment,
   _$createComponent,
@@ -16,7 +16,7 @@ import Hover3D from '..'
 const waitHover3DRender = () => new Promise(resolve => setTimeout(resolve, 0))
 
 const ManualOverlayFragment = () =>
-  vapor(() => {
+  _$compiledRoot(() => {
     const root = _$createDocumentFragment()
 
     for (let i = 0; i < 8; i += 1) {
@@ -30,7 +30,7 @@ const ManualOverlayFragment = () =>
   })
 
 const ManualVaporHoverRoot = ({ children }: { children?: any }) =>
-  vapor(_parent => {
+  _$compiledRoot(_parent => {
     const root = _$createElement('div')
     _$setClassName(root, 'hover-3d')
 

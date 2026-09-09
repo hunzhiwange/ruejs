@@ -102,7 +102,7 @@ const App = () => <Layout><RouterView /></Layout>;
     );
     let compact = compact(&output);
 
-    assert!(compact.contains("props.children"), "{output}");
+    assert!(compact.contains("_$compiledPropsGet(props,\"children\")"), "{output}");
     assert!(compact.contains("_$mountCompiledSlotAt("), "{output}");
     assert!(!compact.contains("_$compiledText("), "{output}");
 }
@@ -123,7 +123,7 @@ const RefView = () => <input ref={inputRef} />;
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert_eq!(compact.matches("_$createElement(").count(), 3, "{output}");
     assert!(compact.contains("_$compiledSpreadAttributes"), "{output}");
-    assert_eq!(compact.matches("_$compiledRoot(").count(), 3, "{output}");
+    assert_eq!(compact.matches("_$compiledRoot(").count(), 5, "{output}");
     assert!(compact.contains(".addEventListener(\"click\""), "{output}");
     assert!(compact.contains(".removeEventListener(\"click\""), "{output}");
     assert!(compact.contains("onOwnerCleanup("), "{output}");
@@ -442,6 +442,9 @@ const View = () => <div class="a"><span>hello</span></div>;
         r#"
 const {{ JSDOM }} = require("jsdom");
 const cleanups = [];
+const _$compiledPropsGet = (props, key) => props[key];
+const _$compiledPropsSnapshot = props => props;
+const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
 const _$compiledRoot = setup => {{
   let mounted;
   return {{
@@ -551,7 +554,7 @@ const SpreadView = props => (
     assert!(!vapor.contains("_$createElement(\"span\""), "{vapor_output}");
     let before = vapor.find("_el1.setAttribute(\"data-phase\",\"before\")").expect("before attr");
     let spread = vapor
-        .find("_$compiledSpreadAttributes(_el1,()=>props.spread,[\"title\",\"ref\",\"__rue_static_template_id__\"])")
+        .find("_$compiledSpreadAttributes(_el1,()=>_$compiledPropsGet(props,\"spread\"),[\"title\",\"ref\",\"__rue_static_template_id__\"])")
         .expect("spread attr");
     let after = vapor.find("_el1.setAttribute(\"title\",\"after\")").expect("after attr");
     assert!(before < spread && spread < after, "{vapor_output}");
@@ -569,6 +572,9 @@ const onCleanup = fn => cleanups.push(fn);
 const _$compiledWithHookId = (_id, fn) => fn();
 const useSetup = fn => fn();
 const _$compiledSetup = (_id, fn) => fn();
+const _$compiledPropsGet = (props, key) => props[key];
+const _$compiledPropsSnapshot = props => props;
+const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
@@ -650,6 +656,9 @@ const vapor = setup => ({{
   __rue_compiled_mount: setup,
   dispose() {{ while (cleanups.length) cleanups.pop()(); }}
 }});
+const _$compiledPropsGet = (props, key) => props[key];
+const _$compiledPropsSnapshot = props => props;
+const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
@@ -740,7 +749,7 @@ const View = props => (
     let compact = compact(&output);
 
     assert!(
-        compact.contains("_$compiledSpreadAttributes(_el1,()=>props.spread,[\"title\",\"data-after\",\"__rue_static_template_id__\"]);"),
+        compact.contains("_$compiledSpreadAttributes(_el1,()=>_$compiledPropsGet(props,\"spread\"),[\"title\",\"data-after\",\"__rue_static_template_id__\"]);"),
         "{output}"
     );
     assert!(compact.contains("_el1.setAttribute(\"title\",\"explicit\")"), "{output}");
@@ -831,6 +840,9 @@ const vapor = setup => ({{
   __rue_compiled_mount: setup,
   dispose() {{ while (cleanups.length) cleanups.pop()(); }}
 }});
+const _$compiledPropsGet = (props, key) => props[key];
+const _$compiledPropsSnapshot = props => props;
+const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
@@ -1096,6 +1108,9 @@ const ownedHandle = (setup, onDispose = () => {{}}) => {{
   }};
 }};
 const vapor = setup => ownedHandle(setup);
+const _$compiledPropsGet = (props, key) => props[key];
+const _$compiledPropsSnapshot = props => props;
+const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
 const _$compiledRoot = setup => ownedHandle(parent => {{
   const result = setup(parent);
   return result && result.__rue_compiled_host !== undefined ? result.__rue_compiled_host : result;
@@ -1276,7 +1291,7 @@ if (section.querySelector("strong")?.textContent !== "updated") throw new Error(
 if (section.firstElementChild !== staticBefore || section.lastElementChild !== staticAfter) throw new Error("static sibling identity changed");
 handle.dispose();
 handle.dispose();
-if (counters.panelCleanup !== counters.panelSetup || counters.memberCleanup !== 1 || counters.compiledCleanup !== 1) throw new Error(`cleanup counts: ${{JSON.stringify(counters)}}`);
+if (counters.panelCleanup !== counters.panelSetup || counters.memberCleanup !== 1 || counters.compiledCleanup !== 3) throw new Error(`cleanup counts: ${{JSON.stringify(counters)}}`);
 delete global.document;
 "#,
     );

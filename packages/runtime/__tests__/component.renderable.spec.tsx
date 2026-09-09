@@ -8,7 +8,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -32,7 +32,7 @@ import {
   _$compiledMarkComponentRenderReactive,
   _$compiledWithHookId,
 } from './legacy-test-render'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 import { waitForContent } from './page-test-utils'
 
 void watchEffect
@@ -289,7 +289,7 @@ describe('Component renderable boundary', () => {
       })
 
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:component:anchor')
 
@@ -376,7 +376,7 @@ describe('Component renderable boundary', () => {
       })
 
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:component:anchor')
 
@@ -543,7 +543,7 @@ describe('Component renderable boundary', () => {
       })
 
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:component:renderable-prop-anchor')
 
@@ -588,7 +588,7 @@ describe('Component renderable boundary', () => {
     document.body.appendChild(host)
 
     const CounterValue: FC<{ count: number }> = props =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createElement('span')
         const anchor = document.createComment('rue:counter-value')
 
@@ -696,7 +696,7 @@ describe('Component renderable boundary', () => {
     document.body.appendChild(host)
 
     const CounterValue: FC<{ count: number }> = props =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createElement('span')
         const anchor = document.createComment('rue:counter-value')
 
@@ -764,7 +764,7 @@ describe('Component renderable boundary', () => {
         ? createContent('preview', props.children)
         : createContent('code', 'code')
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:playground-content')
 
@@ -776,7 +776,7 @@ describe('Component renderable boundary', () => {
     }
 
     const PreviewSwitcher: FC = props =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:preview-switcher')
 
@@ -808,7 +808,7 @@ describe('Component renderable boundary', () => {
     const ExamplePage: FC = () => {
       const child = _$createComponent(CounterDemo, {})
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:compiled-page')
 

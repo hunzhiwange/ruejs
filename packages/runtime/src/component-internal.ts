@@ -14,7 +14,6 @@ export {
 } from './compiled-dynamic'
 export * from './compiled-render-anchor'
 export * from './compiled-legacy-dom'
-export * from './compiled-reactive-compat'
 export { getCurrentContainer } from './runtime-context'
 export { useApp } from './hooks/useApp'
 export { onError } from './rue'
@@ -24,20 +23,15 @@ export {
   getCurrentInstance,
 } from './compiled-hook-compat'
 export { _$withCompiledHookScope } from './compiled-hook-scope'
-export { toRaw, toValue, triggerRef, watch } from './reactivity/index'
+export { toValue, triggerRef, watch } from './reactivity/index'
 export {
   computed,
   customRef,
-  isProxy,
+  createResource,
+  onRenderTracked,
+  isRef,
   isReactive,
   isReadonly,
-  propsReactive,
-  reactive,
-  readonly,
-  shallowReactive,
-  shallowReadonly,
-  toRef,
-  toRefs,
   unref,
 } from './reactivity/index'
 export * from './compiled-root'
@@ -64,3 +58,13 @@ export {
   removeChild as _$compiledRemoveChild,
   template as _$template,
 } from './compiler-runtime/dom.browser'
+
+export {
+  _$compiledPath,
+  _$compiledReadPath,
+  _$compiledStateSignal,
+  _$compiledStateRoot,
+  _$compiledStateMember,
+  _$compiledStateDelete,
+  _$compiledStateMutator,
+} from './runtime-core/compiled'

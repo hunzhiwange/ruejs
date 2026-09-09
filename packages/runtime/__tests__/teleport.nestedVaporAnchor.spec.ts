@@ -4,7 +4,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -15,7 +15,7 @@ import { render, renderAnchor } from '../src'
 import type { FC } from '../src'
 import { Teleport as CompiledTeleport } from '../src/compiler-runtime/builtins'
 import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 
 void watchEffect
 
@@ -103,12 +103,12 @@ describe('Teleport nested vapor anchor', () => {
           : null,
       ])
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const componentAnchor = document.createComment('rue:component:anchor')
         root.appendChild(componentAnchor)
 
-        const child = vapor(() => {
+        const child = _$compiledRoot(() => {
           const childRoot = document.createDocumentFragment()
           const slotAnchor = document.createComment('rue:slot:anchor')
           childRoot.appendChild(slotAnchor)
@@ -185,12 +185,12 @@ describe('Teleport nested vapor anchor', () => {
           : null,
       ])
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const componentAnchor = document.createComment('rue:component:anchor')
         root.appendChild(componentAnchor)
 
-        const child = vapor(() => {
+        const child = _$compiledRoot(() => {
           const childRoot = document.createDocumentFragment()
           const slotAnchor = document.createComment('rue:slot:anchor')
           childRoot.appendChild(slotAnchor)
@@ -272,12 +272,12 @@ describe('Teleport nested vapor anchor', () => {
           : null,
       ])
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const componentAnchor = document.createComment('rue:component:anchor')
         root.appendChild(componentAnchor)
 
-        const child = vapor(() => {
+        const child = _$compiledRoot(() => {
           const childRoot = document.createDocumentFragment()
           const slotAnchor = document.createComment('rue:slot:anchor')
           childRoot.appendChild(slotAnchor)

@@ -123,20 +123,25 @@ const App: FC = () => {
 <div class="composition-api">
 
 ```tsx
-import { ref, reactive, watch } from '@rue-js/rue'
+import { ref, watch } from '@rue-js/rue'
 import gsap from 'gsap'
 import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   const number = ref(0)
-  const tweened = reactive({
-    number: 0,
-  })
+  const tweened = ref(0)
 
   // 注意：对于大于 Number.MAX_SAFE_INTEGER (9007199254740991) 的输入，
   // 由于 JavaScript 数字精度限制，结果可能不准确。
   watch(number, n => {
-    gsap.to(tweened, { duration: 0.5, number: Number(n) || 0 })
+    const frame = { number: tweened.value }
+    gsap.to(frame, {
+      duration: 0.5,
+      number: Number(n) || 0,
+      onUpdate: () => {
+        tweened.value = frame.number
+      },
+    })
   })
 
   return (
@@ -147,7 +152,7 @@ const App: FC = () => {
         value={number.value}
         onChange={e => (number.value = Number((e.target as HTMLInputElement).value))}
       />
-      <p>{tweened.number.toFixed(0)}</p>
+      <p>{tweened.value.toFixed(0)}</p>
     </div>
   )
 }

@@ -1,16 +1,15 @@
-import { type FC, reactive, useState } from '@rue-js/rue'
+import { type FC, useState } from '@rue-js/rue'
 
-const createMapListState = () =>
-  reactive({
-    items: ['苹果', '香蕉', '橘子'] as string[],
-    draft: '',
-  })
+const createMapListState = () => ({
+  items: ['苹果', '香蕉', '橘子'] as string[],
+  draft: '',
+})
 
 const MapListRenderingDemo: FC = () => {
   const [state] = useState(createMapListState)
 
   const addItem = () => {
-    const text = state.draft.trim()
+    const text = `${state.draft}`.trim()
     if (!text) {
       return
     }

@@ -7,7 +7,7 @@ Tree 组件概述
 */
 import type { FC } from '@rue-js/rue'
 import * as RueRuntime from '@rue-js/rue'
-import { onMounted, onUnmounted, ref, render as renderRue, toRaw, useRef, watch } from '@rue-js/rue'
+import { onMounted, onUnmounted, ref, render as renderRue, useRef, watch } from '@rue-js/rue'
 
 /** TreeKey 标识键类型。 */
 export type TreeKey = string | number
@@ -1564,11 +1564,9 @@ const TreeRoot: FC<InternalTreeProps> = ({
 
   function readNormalizedTreeFromProps() {
     const cachedTree = treeNormalizationCacheRef.current
-    const treeDataCacheKey = toRaw<TreeDataNode[]>(treeData)
-    const treeDataSimpleModeCacheKey = toRaw<boolean | TreeSimpleModeConfig | undefined>(
-      treeDataSimpleMode,
-    )
-    const fieldNamesCacheKey = toRaw<TreeFieldNames | undefined>(fieldNames)
+    const treeDataCacheKey = treeData
+    const treeDataSimpleModeCacheKey = treeDataSimpleMode
+    const fieldNamesCacheKey = fieldNames
 
     if (
       cachedTree &&
@@ -1718,7 +1716,7 @@ const TreeRoot: FC<InternalTreeProps> = ({
 
   function rebuildNormalizedTree(force = false) {
     if (force) {
-      const treeDataCacheKey = toRaw<TreeDataNode[]>(treeData)
+      const treeDataCacheKey = treeData
       const firstRoot = Array.isArray(treeDataCacheKey) ? treeDataCacheKey[0] : undefined
       treeNormalizationCacheRef.current = undefined
       if (isObjectCacheKey(treeDataCacheKey)) {

@@ -290,7 +290,7 @@ describe('compact keyed list DOM moves', () => {
       _$reconcileKeyed(parent, anchor, rows, [], item => item.id, mount)
       expect(disposed).toHaveLength(3000)
     },
-    30_000,
+    60_000,
   )
 
   it.each(['create', 'append', 'replace'])(

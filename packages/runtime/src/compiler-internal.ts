@@ -31,3 +31,11 @@ export {
   removeChild as _$compiledRemoveChild,
   template as _$template,
 } from './compiler-runtime/dom.browser'
+
+export {
+  _$compiledPropsCall,
+  _$compiledPropsGet,
+  _$compiledPropsHas,
+  _$compiledPropsKeys,
+  _$compiledPropsSnapshot,
+} from './compiled-props'

@@ -4,7 +4,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'

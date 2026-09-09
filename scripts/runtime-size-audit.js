@@ -29,6 +29,10 @@ const clientInput = Object.freeze({
   entry: '@rue-js/rue/internal/compiler',
   imports: Object.freeze(['_$compiledRoot']),
 })
+const templateInput = Object.freeze({
+  entry: '@rue-js/rue/internal/compiler',
+  imports: Object.freeze(['_$template']),
+})
 
 const componentInput = Object.freeze({
   entry: '@rue-js/rue/internal/component',
@@ -41,6 +45,14 @@ const listInput = Object.freeze({
 const builtinsInput = Object.freeze({
   entry: '@rue-js/rue/internal/builtins',
   imports: Object.freeze(['KeepAlive', 'Suspense', 'Teleport', 'Transition', 'TransitionGroup']),
+})
+const teleportInput = Object.freeze({
+  entry: '@rue-js/rue/internal/builtins',
+  imports: Object.freeze(['Teleport']),
+})
+const transitionInput = Object.freeze({
+  entry: '@rue-js/rue/internal/builtins',
+  imports: Object.freeze(['Transition']),
 })
 const hydrateInput = Object.freeze({
   entry: '@rue-js/rue/island',
@@ -137,6 +149,11 @@ export const RUNTIME_SIZE_PRESETS = Object.freeze([
     builtin: false,
   }),
   Object.freeze({
+    name: 'template-only',
+    input: Object.freeze([templateInput]),
+    builtin: false,
+  }),
+  Object.freeze({
     name: 'compiled-component',
     input: Object.freeze([componentInput]),
     builtin: false,
@@ -149,6 +166,16 @@ export const RUNTIME_SIZE_PRESETS = Object.freeze([
   Object.freeze({
     name: 'compiled-builtins',
     input: Object.freeze([builtinsInput]),
+    builtin: true,
+  }),
+  Object.freeze({
+    name: 'teleport-only',
+    input: Object.freeze([teleportInput]),
+    builtin: true,
+  }),
+  Object.freeze({
+    name: 'transition-only',
+    input: Object.freeze([transitionInput]),
     builtin: true,
   }),
   Object.freeze({
@@ -230,6 +257,17 @@ export class RuntimeSizeBudgetError extends Error {
  */
 export function checkRuntimeSizeBudget(report, budget) {
   const failures = []
+
+  for (const presetName of Object.keys(report.presets ?? {})) {
+    if (!budget.presets?.[presetName]) {
+      failures.push({
+        preset: presetName,
+        dimension: 'budget',
+        actual: 'missing',
+        limit: 'required',
+      })
+    }
+  }
 
   for (const [presetName, presetBudget] of Object.entries(budget.presets ?? {})) {
     const preset = report.presets?.[presetName]
@@ -395,6 +433,7 @@ export { measureCodeSizes }
  * @param {Array<{
  *   name: string,
  *   input: ReadonlyArray<{entry: string, imports: ReadonlyArray<string>}>,
+ *   resolvedEntries: Array<{entry: string, resolvedEntry: string}>,
  *   buildMode: 'production',
  *   raw: number,
  *   min: number,
@@ -439,6 +478,7 @@ export function createAuditReport(measurements) {
         {
           name: result.name,
           input: result.input,
+          resolvedEntries: result.resolvedEntries,
           buildMode: result.buildMode,
           ...metrics,
           sources: result.sources,
@@ -494,11 +534,11 @@ function normalizeModuleId(id) {
 function detectRuntimeSources(moduleIds, code, renderedModules) {
   const normalized = [...new Set(moduleIds.map(normalizeModuleId))].sort()
   const defaultPattern =
-    /(?:^|\/)packages\/(?:rue\/dist\/rue\.runtime|runtime\/(?:dist\/runtime\.esm-bundler|src\/rue))\.(?:js|ts)$/
+    /(?:^|\/)packages\/(?:rue\/dist\/(?:runtime|rue\.runtime\.esm-bundler)\.js|runtime\/(?:dist\/(?:index|runtime\.esm-bundler)\.js|src\/rue\.ts))$/
   const compiledPattern =
-    /(?:^|\/)packages\/(?:rue\/(?:dist\/(?:rue\.internal(?:-(?:compiler|component|builtins))?\.esm-bundler|compiler-internal|component-internal|builtins-internal|internal)\.js|src\/(?:compiler-internal|component-internal|builtins-internal|internal)\.ts)|runtime\/(?:dist\/(?:runtime\.internal(?:-(?:compiler|component|builtins))?\.esm-bundler|compiler-internal|component-internal|builtins-internal|internal)\.js|src\/(?:compiler-internal|component-internal|builtins-internal|internal|reactive-core\/index|runtime-core\/compiled)\.ts))$/
+    /(?:^|\/)packages\/(?:rue\/(?:dist\/(?:rue\.internal(?:-(?:compiler|component|builtins))?\.esm-bundler|compiler-internal|component-internal|builtins-internal|internal)\.js|src\/(?:compiler-internal|component-internal|builtins-internal|internal)\.ts)|runtime\/(?:dist\/(?:runtime\.internal(?:-(?:compiler|component|builtins))?\.esm-bundler|compiler-internal|component-internal|builtins-internal|internal|compiled(?:-[^/]+)?|runtime-core\/compiled)\.js|dist\/compiler-runtime\/[^/]+\.js|src\/(?:compiler-internal|component-internal|builtins-internal|internal|reactive-core\/index|runtime-core\/compiled)\.ts))$/
   const ssrRendererPattern =
-    /(?:^|\/)packages\/(?:rue\/(?:dist\/rue\.server-renderer\.esm-bundler\.js|src\/server-renderer\.ts)|runtime\/(?:dist\/runtime\.server\.esm-bundler\.js|src\/server\.ts)|server-renderer\/(?:dist\/server-renderer\.esm-bundler\.js|src\/index\.ts))$/
+    /(?:^|\/)packages\/(?:rue\/(?:dist\/(?:server-renderer|rue\.server-renderer\.esm-bundler)\.js|src\/server-renderer\.ts)|runtime\/(?:dist\/(?:server|runtime\.server\.esm-bundler)\.js|src\/server\.ts)|server-renderer\/(?:dist\/(?:index|server-renderer\.esm-bundler)\.js|src\/index\.ts))$/
   const modules = normalized.filter(id => defaultPattern.test(id) || compiledPattern.test(id))
   const defaultRuntime = modules.some(id => defaultPattern.test(id))
   const compiledModules = modules.filter(id => compiledPattern.test(id))
@@ -506,13 +546,18 @@ function detectRuntimeSources(moduleIds, code, renderedModules) {
   const reactiveKernelModules = normalized.filter(
     id =>
       /(?:^|\/)packages\/runtime\/src\/runtime-core\/reactive-kernel\/[^/]+\.ts$/.test(id) ||
+      /(?:^|\/)packages\/runtime\/dist\/runtime-core\/reactive-kernel\/[^/]+\.js$/.test(id) ||
       /(?:^|\/)packages\/runtime\/src\/reactive-core\/index\.ts$/.test(id) ||
+      /(?:^|\/)packages\/runtime\/dist\/reactive-core\/index\.js$/.test(id) ||
       /(?:^|\/)packages\/runtime\/src\/runtime-core\/compiled\.ts$/.test(id) ||
+      /(?:^|\/)packages\/runtime\/dist\/runtime-core\/compiled\.js$/.test(id) ||
       /(?:^|\/)packages\/runtime\/dist\/runtime\.internal-compiler\.esm-bundler\.js$/.test(id),
   )
   const wasmModules = normalized.filter(id => id.endsWith('.wasm'))
   const compatModules = normalized.filter(id =>
-    /(?:^|\/)packages\/runtime\/src\/runtime-core\/js-runtime\/mount-compat\.ts$/.test(id),
+    /(?:^|\/)packages\/runtime\/(?:src\/runtime-core\/js-runtime\/mount-compat\.ts|dist\/runtime-core\/js-runtime\/mount-compat\.js)$/.test(
+      id,
+    ),
   )
   const compatTokens = Object.entries(compatSignatures)
     .filter(([, signatures]) => signatures.some(signature => code.includes(signature)))
@@ -535,6 +580,7 @@ function detectRuntimeSources(moduleIds, code, renderedModules) {
     allModules: normalized,
     moduleRenderSizes: Object.fromEntries(
       Object.entries(renderedModules)
+        .filter(([, info]) => info.renderedLength > 0)
         .map(([id, info]) => [normalizeModuleId(id), info.renderedLength])
         .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
     ),
@@ -564,13 +610,15 @@ function detectRuntimeSources(moduleIds, code, renderedModules) {
 /**
  * @param {(typeof RUNTIME_SIZE_PRESETS)[number]} preset
  */
-async function buildPreset(preset) {
+export async function buildRuntimeSizePreset(preset) {
   const sizeDir = path.resolve(projectRoot, 'temp/size')
   const entryFile = path.resolve(sizeDir, `${sanitizePresetName(preset.name)}.runtime-audit.mjs`)
   await mkdir(sizeDir, { recursive: true })
   await writeFile(entryFile, preset.fixtureSource ?? createFixtureSource(preset.input), 'utf8')
 
   try {
+    /** @type {Array<{entry: string, resolvedEntry: string}>} */
+    const resolvedEntries = []
     const result = await build({
       root: projectRoot,
       configFile: false,
@@ -578,52 +626,28 @@ async function buildPreset(preset) {
       appType: 'custom',
       logLevel: 'silent',
       mode: 'production',
+      plugins: [
+        {
+          name: 'rue:capture-runtime-size-entries',
+          async buildStart() {
+            for (const input of preset.input) {
+              const resolved = await this.resolve(input.entry)
+              if (!resolved) {
+                throw new Error(`failed to resolve published runtime entry ${input.entry}`)
+              }
+              const resolvedEntry = normalizeModuleId(resolved.id)
+              if (!/^packages\/(?:rue|runtime)\/dist\/.+\.js$/.test(resolvedEntry)) {
+                throw new Error(
+                  `runtime entry did not resolve to a current modular dist artifact: ${input.entry} -> ${resolvedEntry}`,
+                )
+              }
+              resolvedEntries.push({ entry: input.entry, resolvedEntry })
+            }
+          },
+        },
+      ],
       resolve: {
-        alias: [
-          {
-            find: /^@rue-js\/rue\/internal\/compiler$/,
-            replacement: path.resolve(
-              projectRoot,
-              'packages/rue/dist/rue.internal-compiler.esm-bundler.js',
-            ),
-          },
-          {
-            find: /^@rue-js\/runtime\/internal\/compiler$/,
-            replacement: path.resolve(projectRoot, 'packages/runtime/src/compiler-internal.ts'),
-          },
-          {
-            find: /^@rue-js\/rue\/internal\/component$/,
-            replacement: path.resolve(
-              projectRoot,
-              'packages/rue/dist/rue.internal-component.esm-bundler.js',
-            ),
-          },
-          {
-            find: /^@rue-js\/runtime\/internal\/component$/,
-            replacement: path.resolve(
-              projectRoot,
-              'packages/runtime/dist/runtime.internal-component.esm-bundler.js',
-            ),
-          },
-          {
-            find: /^@rue-js\/rue\/internal\/builtins$/,
-            replacement: path.resolve(
-              projectRoot,
-              'packages/rue/dist/rue.internal-builtins.esm-bundler.js',
-            ),
-          },
-          {
-            find: /^@rue-js\/runtime\/internal\/builtins$/,
-            replacement: path.resolve(
-              projectRoot,
-              'packages/runtime/dist/runtime.internal-builtins.esm-bundler.js',
-            ),
-          },
-          {
-            find: /^@rue-js\/rue\/internal$/,
-            replacement: path.resolve(projectRoot, 'packages/rue/dist/rue.internal.esm-bundler.js'),
-          },
-        ],
+        conditions: ['module', 'browser', 'production'],
       },
       define: {
         'process.env.NODE_ENV': '"production"',
@@ -632,11 +656,6 @@ async function buildPreset(preset) {
         target: 'es2020',
         minify: false,
         write: false,
-        rollupOptions: {
-          treeshake: {
-            moduleSideEffects: false,
-          },
-        },
         lib: {
           entry: entryFile,
           formats: ['es'],
@@ -658,6 +677,7 @@ async function buildPreset(preset) {
     return {
       name: preset.name,
       input: preset.input,
+      resolvedEntries,
       buildMode: /** @type {'production'} */ ('production'),
       ...sizes,
       sources: detectRuntimeSources(bundled.moduleIds, bundled.code, bundled.modules),
@@ -695,7 +715,7 @@ function printBaselineComparison(report, baseline) {
 async function main(options) {
   const measurements = []
   for (const preset of RUNTIME_SIZE_PRESETS) {
-    measurements.push(await buildPreset(preset))
+    measurements.push(await buildRuntimeSizePreset(preset))
   }
   const report = createAuditReport(measurements)
 

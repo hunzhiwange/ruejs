@@ -1,5 +1,4 @@
 import { onOwnerCleanup } from './internal-reactive'
-import { _$compiledRoot, type CompiledRootHandle } from './compiled-root'
 import { _$compiledSpreadAttributes } from './compiled-dom-bindings'
 import { setValue as setDOMValue } from './dom'
 import {
@@ -10,9 +9,6 @@ import {
   createTextNode,
   insertBefore,
 } from './compiler-runtime/dom.browser'
-
-export const vapor = (factory: Parameters<typeof _$compiledRoot>[0]): CompiledRootHandle =>
-  _$compiledRoot(factory)
 
 export const _$createElement = (tag: string, parent?: Node | null): Element =>
   createElement(tag, parent)

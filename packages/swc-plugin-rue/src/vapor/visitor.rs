@@ -157,7 +157,7 @@ fn component_function_spans(module: &Module) -> Vec<swc_core::common::Span> {
 }
 
 /// 访问器核心：
-/// - 将表达式体或 `return` 返回的 JSX/Fragment 包裹进 `vapor(() => { ... })`
+/// - 将表达式体或 `return` 返回的 JSX/Fragment 包裹进 `_$compiledRoot(() => { ... })`
 /// - 通过 `jsx_to_block/fragment_to_block` 生成块体，避免运行时解析 JSX
 /// - 在发生转换后设置 `did_transform=true`，Module 访问阶段按需注入运行时 import
 impl VisitMut for VaporTransform {
@@ -194,7 +194,7 @@ impl VisitMut for VaporTransform {
         self.pop_renderable_local_scope();
     }
 
-    /// 将 `() => <JSX />` 的箭头函数体替换为 `() => vapor(() => { ... })`
+    /// 将 `() => <JSX />` 的箭头函数体替换为 `() => _$compiledRoot(() => { ... })`
     /// 生成块体示例（参考 `tests/spec1.rs`）：
     /// - `const _root = _$createElement("div");`
     /// - `const _el1 = _$createElement("h1"); _$appendChild(_root, _el1);`
@@ -236,7 +236,7 @@ impl VisitMut for VaporTransform {
                             self.next_el += reserved_elements;
                             **expr = handle;
                         } else {
-                            // 将 JSXElement 编译为块体，并用 vapor(() => {block}) 包裹
+                            // 将 JSXElement 编译为块体，并用 _$compiledRoot(() => {block}) 包裹
                             let block = self.jsx_to_block(el.as_ref());
                             let func = Expr::Arrow(ArrowExpr {
                                 span: DUMMY_SP,
@@ -248,7 +248,7 @@ impl VisitMut for VaporTransform {
                                 return_type: None,
                                 ctxt: SyntaxContext::empty(),
                             });
-                            **expr = call_ident("vapor", vec![func]);
+                            **expr = call_ident("_$compiledRoot", vec![func]);
                         }
                         // 标记已进行 Vapor 转换，用于模块级导入注入
                         self.did_transform = true;
@@ -262,7 +262,7 @@ impl VisitMut for VaporTransform {
                                 crate::element_children::compiled_fragment_to_block(self, frag);
                             **expr = crate::element_children::compiled_block_to_root_expr(block);
                         } else {
-                            // 将片段编译为块体，并用 vapor(() => {block}) 包裹
+                            // 将片段编译为块体，并用 _$compiledRoot(() => {block}) 包裹
                             let block = self.jsx_fragment_to_block(frag);
                             let func = Expr::Arrow(ArrowExpr {
                                 span: DUMMY_SP,
@@ -274,7 +274,7 @@ impl VisitMut for VaporTransform {
                                 return_type: None,
                                 ctxt: SyntaxContext::empty(),
                             });
-                            **expr = call_ident("vapor", vec![func]);
+                            **expr = call_ident("_$compiledRoot", vec![func]);
                         }
                         self.did_transform = true;
                     }
@@ -316,7 +316,7 @@ impl VisitMut for VaporTransform {
         self.pop_function_scope();
     }
 
-    /// 将任意函数体中的 `return <JSX/>` / `return <>...</>` 转成 `return vapor(() => { ... })`
+    /// 将任意函数体中的 `return <JSX/>` / `return <>...</>` 转成 `return _$compiledRoot(() => { ... })`
     fn visit_mut_return_stmt(&mut self, ret: &mut ReturnStmt) {
         if let Some(expr) = &mut ret.arg {
             let inner = unwrap_expr(expr.as_ref());
@@ -341,7 +341,7 @@ impl VisitMut for VaporTransform {
                         self.next_el += reserved_elements;
                         **expr = handle;
                     } else {
-                        // 将返回的 JSX 编译为块体，并用 vapor 包裹替换原返回值
+                        // 将返回的 JSX 编译为块体，并用 _$compiledRoot 包裹替换原返回值
                         let body_block = self.jsx_to_block(el.as_ref());
                         let func = Expr::Arrow(ArrowExpr {
                             span: DUMMY_SP,
@@ -353,7 +353,7 @@ impl VisitMut for VaporTransform {
                             return_type: None,
                             ctxt: SyntaxContext::empty(),
                         });
-                        **expr = call_ident("vapor", vec![func]);
+                        **expr = call_ident("_$compiledRoot", vec![func]);
                     }
                     self.did_transform = true;
                 }
@@ -365,7 +365,7 @@ impl VisitMut for VaporTransform {
                         let block = crate::element_children::compiled_fragment_to_block(self, frag);
                         **expr = crate::element_children::compiled_block_to_root_expr(block);
                     } else {
-                        // 将返回的片段编译为块体，并用 vapor 包裹替换原返回值
+                        // 将返回的片段编译为块体，并用 _$compiledRoot 包裹替换原返回值
                         let body_block = self.jsx_fragment_to_block(frag);
                         let func = Expr::Arrow(ArrowExpr {
                             span: DUMMY_SP,
@@ -377,7 +377,7 @@ impl VisitMut for VaporTransform {
                             return_type: None,
                             ctxt: SyntaxContext::empty(),
                         });
-                        **expr = call_ident("vapor", vec![func]);
+                        **expr = call_ident("_$compiledRoot", vec![func]);
                     }
                     self.did_transform = true;
                 }
@@ -435,7 +435,7 @@ impl VisitMut for VaporTransform {
             return;
         }
         log::info("rue-swc: ensure runtime imports");
-        // 注入导入集合包含：`vapor`, `renderAnchor`, `_$createElement`, `_$appendChild`, `watchEffect` 等，
+        // 注入导入集合包含：`_$compiledRoot`, `renderAnchor`, `_$createElement`, `_$appendChild`, `watchEffect` 等，
         // 以及类型导入 `FC`；若已存在从 `@rue-js/rue` 的 import，则合并缺失的 specifier，保持一次导入。
         // 细节：
         // - import 源：固定为 '@rue-js/rue'

@@ -37,7 +37,7 @@ export default Goods;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { ref, vapor, _$createComponent, renderAnchor, _$template } from "@rue-js/rue/internal";
+import { ref, _$compiledRoot, _$createComponent, renderAnchor, _$template } from "@rue-js/rue/internal";
 import { type FC, h } from '@rue-js/rue';
 const _$getTemplate1 = _$template("<div>1</div>");
 const _$getTemplate2 = _$template("<div><h1>Rue 响应式框架示例</h1><!--rue:opaque-hole:0--><!--rue:opaque-hole:1--></div>");
@@ -101,7 +101,7 @@ const World: FC = ()=>{
         };
     })();
 };
-const Goods: FC = ()=>vapor((__rue_parent_context)=>{
+const Goods: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate2().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1];

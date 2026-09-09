@@ -18,7 +18,7 @@
 
 2. **响应式状态**
    - `ref`
-   - `reactive`
+   - `signal`
    - `signal`
 
 3. **派生状态**

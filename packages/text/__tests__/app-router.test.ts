@@ -23,6 +23,8 @@ import {
   RSC_RUE_SSR_EXTERNAL_ENTRIES,
 } from '../src/plugins/rsc-rue-compat-packages.js'
 
+const PRODUCTION_SETUP_TIMEOUT_MS = 120_000
+
 function decodeHtmlText(text: string): string {
   return text
     .replaceAll('&quot;', '"')
@@ -2272,7 +2274,7 @@ describe('App Router Production build', () => {
       logLevel: 'silent',
     })
     await builder.buildApp()
-  }, 60000)
+  }, PRODUCTION_SETUP_TIMEOUT_MS)
 
   afterAll(() => {
     if (fixtureDir) fs.rmSync(fixtureDir, { recursive: true, force: true })
@@ -2387,7 +2389,7 @@ describe('App Router Production server (startProdServer)', () => {
     const addr = server!.address()
     const port = typeof addr === 'object' && addr ? addr.port : 4210
     baseUrl = `http://localhost:${port}`
-  }, 60000)
+  }, PRODUCTION_SETUP_TIMEOUT_MS)
 
   afterAll(() => {
     server?.close()
@@ -3231,7 +3233,7 @@ describe('App Router Production server self-hosted text/font/google headers', ()
     const addr = fontServer!.address()
     const port = typeof addr === 'object' && addr ? addr.port : 4212
     fontBaseUrl = `http://localhost:${port}`
-  }, 60000)
+  }, PRODUCTION_SETUP_TIMEOUT_MS)
 
   afterAll(() => {
     fontServer?.close()

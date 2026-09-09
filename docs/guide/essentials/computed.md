@@ -4,10 +4,12 @@
 
 在 JSX 中表达式非常方便，但它们只适用于简单操作。在模板中放入太多逻辑会使其臃肿且难以维护。例如，如果我们有一个带有嵌套数组的对象：
 
-```js
-import { reactive } from '@rue-js/rue'
+以下状态声明放在经过 Rue 编译的组件函数内：
 
-const author = reactive({
+```tsx
+import { useState } from '@rue-js/rue'
+
+const [author] = useState({
   name: 'John Doe',
   books: ['Rue - 高级指南', 'Rue - 基础指南', 'Rue - 进阶奥秘'],
 })
@@ -25,11 +27,11 @@ const author = reactive({
 这就是为什么对于包含响应式数据的复杂逻辑，推荐使用**计算属性**。下面是重构后的示例：
 
 ```tsx
-import { reactive, computed } from '@rue-js/rue'
+import { useState, computed } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const AuthorInfo: FC = () => {
-  const author = reactive({
+  const [author] = useState({
     name: 'John Doe',
     books: ['Rue - 高级指南', 'Rue - 基础指南', 'Rue - 进阶奥秘'],
   })
@@ -59,11 +61,11 @@ const AuthorInfo: FC = () => {
 你可能注意到我们可以通过调用方法在表达式中达到相同的结果：
 
 ```tsx
-import { reactive } from '@rue-js/rue'
+import { useState } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const AuthorInfo: FC = () => {
-  const author = reactive({
+  const [author] = useState({
     name: 'John Doe',
     books: ['Rue - 高级指南', 'Rue - 基础指南', 'Rue - 进阶奥秘'],
   })

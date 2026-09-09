@@ -6,7 +6,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -26,7 +26,7 @@ import {
   watchEffect,
   type FC,
 } from '../src'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 import { appendChild, createComment, createElement } from '../src/dom'
 
 void watchEffect
@@ -54,7 +54,7 @@ describe('renderAnchor component replacement', () => {
           const currentMode = mode.get()
           untrack(() => {
             renderAnchor(
-              vapor(() => {
+              _$compiledRoot(() => {
                 if (currentMode === 'preview') {
                   const preview = document.createElement('div')
                   preview.dataset.testid = 'preview'
@@ -66,7 +66,7 @@ describe('renderAnchor component replacement', () => {
                 fragment.append(innerAnchor)
                 queueMicrotask(() => {
                   renderAnchor(
-                    vapor(() => {
+                    _$compiledRoot(() => {
                       const code = document.createElement('div')
                       code.dataset.testid = 'code'
                       return code
@@ -84,7 +84,7 @@ describe('renderAnchor component replacement', () => {
         })
         return parent
       })
-      return vapor(() => view)
+      return _$compiledRoot(() => view)
     }
     const container = document.createElement('div')
     document.body.appendChild(container)
@@ -175,7 +175,7 @@ describe('renderAnchor component replacement', () => {
         })
         return parent
       })
-      return vapor(() => view)
+      return _$compiledRoot(() => view)
     }
     const container = document.createElement('div')
     document.body.appendChild(container)

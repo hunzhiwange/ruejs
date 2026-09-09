@@ -24,7 +24,6 @@ import {
   _$compiledCreateElement,
   _$compiledCreateTextNode,
 } from '../src/internal'
-import * as internalRuntime from '../src/internal'
 import * as compilerInternalRuntime from '../src/compiler-internal'
 
 void createCompiledSelector

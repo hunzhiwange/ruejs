@@ -1,137 +1,57 @@
 import type { ReactiveRuntimeState } from './runtime-state.js'
-
-export type EffectScopeId = number
-export type ScopeCleanup = () => void
-
-interface EffectScopeRecord {
-  readonly children: Set<EffectScopeId>
-  readonly cleanups: ScopeCleanup[]
-  readonly effectDisposers: ScopeCleanup[]
-  readonly parent: EffectScopeId | undefined
-}
-
-type ScopeWarningHandler = (message: string) => void
-
-const warnByDefault: ScopeWarningHandler = message => console.warn(message)
-
-/**
- * Parent-owned effect scopes for one reactive runtime instance.
- *
- * Attached scopes belong to the current scope; detached scopes are roots.
- * Disposal removes ownership first, then recursively stops children, effect
- * disposers, and user cleanups in registration order. Removing records before
- * callbacks makes repeated or re-entrant disposal idempotent.
- */
+import * as core from './scope-core.js'
+export type { EffectScopeId, ScopeCleanup } from './scope-core.js'
+import type { EffectScopeId, ScopeCleanup } from './scope-core.js'
 export class EffectScopeManager {
-  readonly #scopes = new Map<EffectScopeId, EffectScopeRecord>()
+  readonly storage: core.EffectScopeManagerStorage
 
   constructor(
-    private readonly state: ReactiveRuntimeState,
-    private readonly warn: ScopeWarningHandler = warnByDefault,
-  ) {}
-
+    state: ReactiveRuntimeState,
+    warn: (message: string) => void = message => console.warn(message),
+    storage?: core.EffectScopeManagerStorage,
+  ) {
+    this.storage = storage ?? core.createEffectScopeManagerStorage(state.storage, warn)
+  }
   get current(): EffectScopeId | undefined {
-    const current = this.state.currentScopeId
-    return current !== undefined && this.#scopes.has(current) ? current : undefined
+    return core.scopeCurrent(this.storage)
   }
-
   create(detached = false): EffectScopeId {
-    const id = this.state.allocateScopeId()
-    const parent = detached ? undefined : this.current
-    this.#scopes.set(id, {
-      children: new Set(),
-      cleanups: [],
-      effectDisposers: [],
-      parent,
-    })
-    if (parent !== undefined) this.#scopes.get(parent)?.children.add(id)
-    return id
+    return core.scopeCreate(this.storage, detached)
   }
-
   isActive(scopeId: EffectScopeId): boolean {
-    return this.#scopes.has(scopeId)
+    return core.scopeIsActive(this.storage, scopeId)
   }
-
   push(scopeId: EffectScopeId): boolean {
-    if (!this.#scopes.has(scopeId)) return false
-    this.state.pushScope(scopeId)
-    return true
+    return core.scopePush(this.storage, scopeId)
   }
-
   pop(): EffectScopeId | undefined {
-    return this.state.popScope()
+    return core.scopePop(this.storage)
   }
-
   run<T>(scopeId: EffectScopeId, callback: () => T): T | undefined {
-    if (!this.#scopes.has(scopeId)) return undefined
-    return this.state.runWithScope(scopeId, callback)
+    return core.scopeRun(this.storage, scopeId, callback)
   }
-
   bind<TArgs extends unknown[], TResult>(
     scopeId: EffectScopeId,
     runner: (...args: TArgs) => TResult,
   ): (...args: TArgs) => TResult | undefined {
-    return (...args) => this.run(scopeId, () => runner(...args))
+    return core.scopeBind(this.storage, scopeId, runner)
   }
-
   registerEffectDisposer(
     disposer: ScopeCleanup,
     scopeId: EffectScopeId | undefined = this.current,
   ): boolean {
-    if (scopeId === undefined) return false
-    const scope = this.#scopes.get(scopeId)
-    if (scope === undefined) return false
-    scope.effectDisposers.push(disposer)
-    return true
+    return core.scopeRegisterEffectDisposer(this.storage, disposer, scopeId)
   }
-
   unregisterEffectDisposer(
     disposer: ScopeCleanup,
     scopeId: EffectScopeId | undefined = this.current,
   ): boolean {
-    if (scopeId === undefined) return false
-    const disposers = this.#scopes.get(scopeId)?.effectDisposers
-    const index = disposers?.indexOf(disposer) ?? -1
-    if (disposers === undefined || index < 0) return false
-    disposers.splice(index, 1)
-    return true
+    return core.scopeUnregisterEffectDisposer(this.storage, disposer, scopeId)
   }
-
   onScopeDispose(cleanup: ScopeCleanup, failSilently = false): boolean {
-    const scopeId = this.current
-    if (scopeId === undefined) {
-      if (!failSilently) {
-        this.warn('onScopeDispose() is called when there is no active effect scope.')
-      }
-      return false
-    }
-
-    const scope = this.#scopes.get(scopeId)
-    if (scope === undefined) return false
-    scope.cleanups.push(cleanup)
-    return true
+    return core.scopeOnScopeDispose(this.storage, cleanup, failSilently)
   }
-
   dispose(scopeId: EffectScopeId): boolean {
-    const scope = this.#scopes.get(scopeId)
-    if (scope === undefined) return false
-
-    this.#scopes.delete(scopeId)
-    this.state.removeScope(scopeId)
-    if (scope.parent !== undefined) this.#scopes.get(scope.parent)?.children.delete(scopeId)
-
-    for (const child of scope.children) this.dispose(child)
-    for (const disposer of scope.effectDisposers) this.#callSafely(disposer)
-    for (const cleanup of scope.cleanups) this.#callSafely(cleanup)
-    return true
-  }
-
-  #callSafely(callback: ScopeCleanup): void {
-    try {
-      callback()
-    } catch {
-      // Scope disposal mirrors the existing kernel: one failing cleanup must not
-      // retain the remaining effects, children, or user cleanup callbacks.
-    }
+    return core.scopeDispose(this.storage, scopeId)
   }
 }

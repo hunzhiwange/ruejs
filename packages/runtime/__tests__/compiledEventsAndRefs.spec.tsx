@@ -7,6 +7,7 @@ import swc from '@swc/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createOwner, disposeOwner, onCleanup, onOwnerCleanup, runWithOwner } from '../src/internal'
+import { _$compiledPropsGet, _$compiledPropsSnapshot } from '../src/compiled-props'
 import { _$compiledRoot } from '../src/compiled-root'
 import {
   _$compiledAppendChild,
@@ -82,6 +83,8 @@ const evaluate = (output: string) => {
     '_$compiledDelegateEvent',
     '_$template',
     'onOwnerCleanup',
+    '_$compiledPropsGet',
+    '_$compiledPropsSnapshot',
     executable,
   ) as (
     compiledRoot: typeof _$compiledRoot,
@@ -92,6 +95,8 @@ const evaluate = (output: string) => {
     compiledDelegateEvent: typeof _$compiledDelegateEvent,
     template: typeof _$template,
     cleanup: typeof onOwnerCleanup,
+    get: typeof _$compiledPropsGet,
+    snapshot: typeof _$compiledPropsSnapshot,
   ) => {
     View(
       functionRef: (node: HTMLButtonElement | null) => void,
@@ -108,6 +113,8 @@ const evaluate = (output: string) => {
     _$compiledDelegateEvent,
     _$template,
     onOwnerCleanup,
+    _$compiledPropsGet,
+    _$compiledPropsSnapshot,
   )
 }
 

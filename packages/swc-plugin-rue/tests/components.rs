@@ -38,8 +38,8 @@ export default Components;
     assert!(output.contains("_$compiledRoot"), "{output}");
     assert_eq!(output.matches("_$compiledText(").count(), 0, "{output}");
     assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
-    assert!(output.contains("()=>props.name"), "{output}");
+    assert!(output.contains("()=>_$compiledPropsGet(props, \"name\")"), "{output}");
     assert_eq!(output.matches("_$createComponent(Hello").count(), 2, "{output}");
     assert!(output.contains("RouterLink.__rueHref"), "{output}");
-    assert!(!output.contains("const __slot = (props.name)"), "{output}");
+    assert!(!output.contains("const __slot = (_$compiledPropsGet(props, \"name\"))"), "{output}");
 }

@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as runtimeRoot from '../src'
 import * as compilerRuntime from '../src/internal'
 import * as vaporRuntime from './legacy-test-render'
-import { vapor as createTestCompiledRoot } from './legacy-test-render'
+import { _$compiledRoot as createTestCompiledRoot } from './legacy-test-render'
 
 vaporRuntime.setReactiveScheduling('sync')
 

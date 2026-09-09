@@ -1,4 +1,5 @@
-import { createEffect, type ReactiveEffectRuntime } from './effect.js'
+import type { ReactiveRuntimeServices as ReactiveEffectRuntime } from './runtime-services.js'
+import { effectCreateEffect } from './effect-core.js'
 import { createSignal, type SignalHandle } from './signal.js'
 
 export interface Resource<TData = unknown> {
@@ -24,7 +25,7 @@ export const createResource = <TSource, TData>(
   const loading = createSignal(runtime, false)
   let requestVersion = 0
 
-  createEffect(runtime, () => {
+  effectCreateEffect(runtime.storage, () => {
     const value = source.get()
     const version = ++requestVersion
     data.set(undefined)

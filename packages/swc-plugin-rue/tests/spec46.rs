@@ -43,7 +43,10 @@ useApp(RootApp).use(router).mount('#app')
 
     assert!(output.contains("useApp"), "{output}");
     assert!(output.contains("_$compiledRoot(Object.assign("), "{output}");
-    assert!(output.contains("_$compiledText(_el3, ()=>p.children)"), "{output}");
+    assert!(
+        output.contains("_$compiledText(_el3, ()=>_$compiledPropsGet(p, \"children\"))"),
+        "{output}"
+    );
     assert!(output.contains("_$createComponent(RouterView, ()=>({}))"), "{output}");
     assert!(output.contains("_$createComponent(ParentBox, ()=>({"), "{output}");
     assert!(output.contains("children: __child1"), "{output}");

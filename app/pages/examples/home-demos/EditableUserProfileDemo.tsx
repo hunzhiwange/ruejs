@@ -1,4 +1,4 @@
-import { type FC, reactive, useState } from '@rue-js/rue'
+import { type FC, useState } from '@rue-js/rue'
 
 interface User {
   name: string
@@ -7,13 +7,12 @@ interface User {
   isEditing: boolean
 }
 
-const createUser = () =>
-  reactive<User>({
-    name: '张三',
-    age: 25,
-    email: 'zhangsan@example.com',
-    isEditing: false,
-  })
+const createUser = (): User => ({
+  name: '张三',
+  age: 25,
+  email: 'zhangsan@example.com',
+  isEditing: false,
+})
 
 const EditableUserProfileDemo: FC = () => {
   const [user] = useState(createUser)

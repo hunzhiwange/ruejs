@@ -178,7 +178,7 @@ fn falls_back_for_single_children_that_cannot_lower_directly() {
     let lowered_stmts = compact(&emit_stmts(lowered.stmts));
     let lowered_expr = compact(&emit_expr(lowered.expr));
 
-    assert!(lowered_stmts.contains("vapor(()=>{"), "{lowered_stmts}");
+    assert!(lowered_stmts.contains("_$compiledRoot(()=>{"), "{lowered_stmts}");
     assert!(lowered_stmts.contains("_$createDocumentFragment()"), "{lowered_stmts}");
     assert!(lowered_expr.contains("__child"), "{lowered_expr}");
     assert!(!lowered.is_function);
@@ -207,7 +207,7 @@ fn localizes_multi_child_vapor_fallback_without_wrapping_safe_siblings() {
     let stmts = compact(&emit_stmts(lowered.stmts));
     let expr = compact(&emit_expr(lowered.expr));
 
-    assert_eq!(stmts.matches("vapor(()=>{").count(), 1, "{stmts}");
+    assert_eq!(stmts.matches("_$compiledRoot(()=>{").count(), 1, "{stmts}");
     assert_eq!(stmts.matches("_$createDocumentFragment()").count(), 1, "{stmts}");
     assert_eq!(expr.matches("_$compiledRoot(").count(), 2, "{expr}");
     assert_eq!(expr.matches("__child").count(), 1, "{expr}");
@@ -249,7 +249,7 @@ fn marks_compiled_branch_factories_but_keeps_opaque_fallback_setup_legacy() {
     let opaque = compact(&transform_component_module(
         "const View = () => <Box>{ok ? <OpaqueA /> : <OpaqueB />}</Box>;",
     ));
-    assert!(opaque.contains("vapor(()=>{"), "{opaque}");
+    assert!(opaque.contains("_$compiledRoot(()=>{"), "{opaque}");
     assert!(!opaque.contains("__rue_compiled_explicit_roots:true"), "{opaque}");
 }
 
@@ -273,7 +273,8 @@ fn lowers_safe_native_component_children_without_vapor_wrappers() {
     assert!(output.contains("_$compiledDelegateEvent("), "{output}");
     assert!(output.contains("\"click\""), "{output}");
     assert!(
-        !output.contains("const__child1=vapor(") && !output.contains("children:vapor("),
+        !output.contains("const__child1=_$compiledRoot(")
+            && !output.contains("children:_$compiledRoot("),
         "{output}"
     );
 }
@@ -312,7 +313,7 @@ fn rewrites_slot_carrier_wrapper_and_fragment_children_stably() {
     assert!(slot_host.children.is_empty());
     assert!(slot_host.opening.self_closing);
     assert!(slot_rewrite.direct_render_expr.is_none());
-    assert!(slot_stmts.contains("const__child1=vapor(()=>{"));
+    assert!(slot_stmts.contains("const__child1=_$compiledRoot(()=>{"));
     assert!(slot_stmts.contains("_$createElement(\"span\",_root)"));
     assert!(!slot_stmts.contains("Template"));
     assert!(slot_mount.contains("__rue_slots:{\"header\":__child1}"));
@@ -329,7 +330,7 @@ fn rewrites_slot_carrier_wrapper_and_fragment_children_stably() {
 
     assert!(fragment_host.children.is_empty());
     assert!(fragment_host.opening.self_closing);
-    assert!(fragment_stmts.contains("const__child1=vapor(()=>{"));
+    assert!(fragment_stmts.contains("const__child1=_$compiledRoot(()=>{"));
     assert!(fragment_stmts.contains("_$createElement(\"span\",_root)"));
     assert_eq!(fragment_direct, "__child1;");
 }
@@ -346,7 +347,7 @@ const View = () => <SidebarPlayground><Template slot="sidebar"><aside><strong>To
     assert!(compact.contains("const_$getTemplate1=_$template("), "{output}");
     assert!(compact.contains("<aside><strong>Tools</strong></aside>"), "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 1, "{output}");
-    assert!(compact.contains("const__child1=vapor(()=>{"), "{output}");
+    assert!(compact.contains("const__child1=_$compiledRoot(()=>{"), "{output}");
     assert!(compact.contains("__rue_slots:{\"sidebar\":__child1}"), "{output}");
     assert!(!compact.contains("_$createElement(\"aside\""), "{output}");
     assert!(!compact.contains("_$createComponent(Template"), "{output}");
@@ -368,7 +369,7 @@ fn builds_direct_render_and_dynamic_component_anchor_paths() {
     let fragment_out = compact(&emit_stmts(fragment_stmts));
 
     assert!(fragment_out.contains("_$createComment(\"rue:component:anchor\")"));
-    assert!(fragment_out.contains("const__child1=vapor(()=>{"));
+    assert!(fragment_out.contains("const__child1=_$compiledRoot(()=>{"));
     assert!(fragment_out.contains("renderAnchor("));
     assert!(!fragment_out.contains("_$createComponent(Fragment"));
 
@@ -484,9 +485,9 @@ fn rewrites_named_slot_expression_branches_and_default_function_slot_bag() {
     let stmts = compact(&emit_stmts(rewrite.stmts));
     let mount = compact(&emit_expr(build_component_mount_expr(&host)));
 
-    assert!(stmts.contains("const__child1=vapor(()=>{"));
-    assert!(stmts.contains("const__child2=vapor(()=>{"));
-    assert!(stmts.contains("const__child3=vapor(()=>{"));
+    assert!(stmts.contains("const__child1=_$compiledRoot(()=>{"));
+    assert!(stmts.contains("const__child2=_$compiledRoot(()=>{"));
+    assert!(stmts.contains("const__child3=_$compiledRoot(()=>{"));
     assert!(host.children.is_empty());
     assert!(host.opening.self_closing);
     assert!(mount.contains("__rue_slots:{"));
@@ -543,7 +544,7 @@ fn rewrites_named_slot_expression_branches_and_default_function_slot_bag() {
     let mixed_child = parse_jsx_element("<Box>{ready ? value : <span>Fallback</span>}</Box>");
     let mixed_lowered =
         lower_slot_value(&mut mixed_child_vt, &mixed_child.children).expect("mixed child");
-    assert!(compact(&emit_stmts(mixed_lowered.stmts)).contains("vapor(()=>{"));
+    assert!(compact(&emit_stmts(mixed_lowered.stmts)).contains("_$compiledRoot(()=>{"));
     assert!(!mixed_lowered.is_function);
 }
 
@@ -647,7 +648,7 @@ fn lowers_component_and_expression_slot_values_recursively() {
     let component_stmts = compact(&emit_stmts(lowered_component.stmts));
     let component_expr = compact(&emit_expr(lowered_component.expr));
 
-    assert!(component_stmts.contains("const__child1=vapor(()=>{"));
+    assert!(component_stmts.contains("const__child1=_$compiledRoot(()=>{"));
     assert!(component_stmts.contains("const__child2=_$createComponent(Child"));
     assert!(component_stmts.contains("children:__child1"));
     assert_eq!(component_expr, "__child2;");
@@ -656,13 +657,15 @@ fn lowers_component_and_expression_slot_values_recursively() {
     let expr_element = parse_jsx_element("<Box>{<span>{msg}</span>}</Box>");
     let lowered_expr =
         lower_slot_value(&mut expr_vt, &expr_element.children).expect("jsx expr slot");
-    assert!(compact(&emit_stmts(lowered_expr.stmts)).contains("const__child1=vapor(()=>{"));
+    assert!(
+        compact(&emit_stmts(lowered_expr.stmts)).contains("const__child1=_$compiledRoot(()=>{")
+    );
     assert_eq!(compact(&emit_expr(lowered_expr.expr)), "__child1;");
 
     let cond_cons = parse_expr("ok ? <span /> : null", true);
     let lowered_cond_cons =
         lower_expr_slot_value(&mut expr_vt, &cond_cons).expect("conditional cons slot");
-    assert!(compact(&emit_stmts(lowered_cond_cons.stmts)).contains("vapor(()=>{"));
+    assert!(compact(&emit_stmts(lowered_cond_cons.stmts)).contains("_$compiledRoot(()=>{"));
     let cond_cons_out = compact(&emit_expr(lowered_cond_cons.expr));
     assert!(cond_cons_out.contains("ok?__child"));
     assert!(cond_cons_out.contains(":undefined"));
@@ -670,12 +673,12 @@ fn lowers_component_and_expression_slot_values_recursively() {
     let cond_alt = parse_expr("ok ? null : <span />", true);
     let lowered_cond_alt =
         lower_expr_slot_value(&mut expr_vt, &cond_alt).expect("conditional alt slot");
-    assert!(compact(&emit_stmts(lowered_cond_alt.stmts)).contains("vapor(()=>{"));
+    assert!(compact(&emit_stmts(lowered_cond_alt.stmts)).contains("_$compiledRoot(()=>{"));
     assert!(compact(&emit_expr(lowered_cond_alt.expr)).contains("ok?undefined:__child"));
 
     let logical = parse_expr("ready && <span />", true);
     let lowered_logical = lower_expr_slot_value(&mut expr_vt, &logical).expect("logical slot");
-    assert!(compact(&emit_stmts(lowered_logical.stmts)).contains("vapor(()=>{"));
+    assert!(compact(&emit_stmts(lowered_logical.stmts)).contains("_$compiledRoot(()=>{"));
     assert!(compact(&emit_expr(lowered_logical.expr)).contains("ready?__child"));
 
     assert!(lower_expr_slot_value(&mut expr_vt, &parse_expr("ok ? <A /> : <B />", true)).is_none());
@@ -727,7 +730,9 @@ fn covers_additional_component_slot_and_transition_group_edges() {
     let fragment_expr_host = parse_jsx_element("<Box>{<>frag</>}</Box>");
     let fragment_lowered = lower_slot_value(&mut fragment_expr_vt, &fragment_expr_host.children)
         .expect("fragment expr");
-    assert!(compact(&emit_stmts(fragment_lowered.stmts)).contains("const__child1=vapor(()=>{"));
+    assert!(
+        compact(&emit_stmts(fragment_lowered.stmts)).contains("const__child1=_$compiledRoot(()=>{")
+    );
     assert_eq!(compact(&emit_expr(fragment_lowered.expr)), "__child1;");
 
     let mut literal_vt = new_vt();
@@ -755,7 +760,7 @@ fn covers_additional_component_slot_and_transition_group_edges() {
     assert!(rewrite.stmts.is_empty());
     assert!(mount.contains("children:[\"lead\",ok?_$compiledWithKey"));
     assert!(mount.contains(":_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
-    assert!(mount.contains("items.map((item)=>_$compiledWithKey(vapor(()=>{"));
+    assert!(mount.contains("items.map((item)=>_$compiledWithKey(_$compiledRoot(()=>{"));
     assert!(mount.contains("item.id"));
     assert!(!mount.contains("ignored"));
 }
@@ -804,7 +809,7 @@ fn covers_component_helper_false_edges_and_direct_named_slots() {
     let complex_lowered =
         lower_slot_value(&mut complex_expr_vt, &complex_expr_host.children).expect("complex slot");
     let complex_stmts = compact(&emit_stmts(complex_lowered.stmts));
-    assert!(complex_stmts.contains("vapor(()=>{"), "{complex_stmts}");
+    assert!(complex_stmts.contains("_$compiledRoot(()=>{"), "{complex_stmts}");
 
     let mut named_vt = new_vt();
     assert!(
@@ -820,7 +825,10 @@ fn covers_component_helper_false_edges_and_direct_named_slots() {
     let direct_slot_rewrite =
         rewrite_component_children_to_props(&mut direct_slot_vt, &mut direct_slot_host);
     let direct_slot_mount = compact(&emit_expr(build_component_mount_expr(&direct_slot_host)));
-    assert!(compact(&emit_stmts(direct_slot_rewrite.stmts)).contains("const__child1=vapor(()=>{"));
+    assert!(
+        compact(&emit_stmts(direct_slot_rewrite.stmts))
+            .contains("const__child1=_$compiledRoot(()=>{")
+    );
     assert!(direct_slot_mount.contains("__rue_slots:{\"label\":__child1}"));
 
     let mut text_default_vt = new_vt();
@@ -967,7 +975,7 @@ fn hardens_slot_condition_fallback_and_named_alt_edges() {
     let cond_lowered = lower_slot_value(&mut vt, &cond_host.children).expect("cond lowered");
     let cond_out = compact(&emit_stmts(cond_lowered.stmts));
 
-    assert!(cond_out.contains("vapor(()=>"));
+    assert!(cond_out.contains("_$compiledRoot(()=>"));
     assert!(cond_out.contains("_$createDocumentFragment"));
     assert!(!cond_lowered.is_function);
 
@@ -1173,7 +1181,7 @@ fn hardens_complex_slot_fallbacks_and_transition_statement_noops() {
         lower_slot_value(&mut vt, &both_branch_expr.children).expect("complex conditional slot");
     let lowered_stmts = compact(&emit_stmts(lowered.stmts));
     assert!(lowered_stmts.contains("const__child"));
-    assert!(lowered_stmts.contains("vapor(()=>{"));
+    assert!(lowered_stmts.contains("_$compiledRoot(()=>{"));
     assert!(!lowered.is_function);
 
     let mut named_vt = new_vt();
@@ -1207,7 +1215,7 @@ fn hardens_slot_empty_alt_array_fallback_and_empty_named_slots() {
     let alt_lowered = lower_slot_value(&mut alt_vt, &alt_child.children).expect("alt slot");
     let alt_stmts = compact(&emit_stmts(alt_lowered.stmts));
     let alt_out = compact(&emit_expr(alt_lowered.expr));
-    assert!(alt_stmts.contains("vapor(()=>{"));
+    assert!(alt_stmts.contains("_$compiledRoot(()=>{"));
     assert!(alt_stmts.contains("_$createElement(\"span\",_root)"));
     assert!(alt_out.contains("empty?undefined:__child"));
 
@@ -1237,7 +1245,7 @@ fn hardens_slot_empty_alt_array_fallback_and_empty_named_slots() {
     )
     .expect("named empty alt slot");
     assert_eq!(compact(&emit_expr(slot_name)), "\"footer\";");
-    assert!(compact(&emit_stmts(named_lowered.stmts)).contains("vapor(()=>{"));
+    assert!(compact(&emit_stmts(named_lowered.stmts)).contains("_$compiledRoot(()=>{"));
     assert!(compact(&emit_expr(named_lowered.expr)).contains("empty?undefined:__child"));
 
     let mut host_vt = new_vt();
@@ -1506,7 +1514,7 @@ fn hardens_component_slot_fallbacks_for_arrays_and_nullish_named_slots() {
     let array_out = compact(&emit_expr(array_lowered.expr));
     assert!(array_lowered.stmts.is_empty());
     assert!(array_out.contains("items.map("), "{array_out}");
-    assert!(array_out.contains("vapor("), "{array_out}");
+    assert!(array_out.contains("_$compiledRoot("), "{array_out}");
     assert!(!array_out.contains("_$compiledKeyedList"), "{array_out}");
     assert!(array_out.contains("item.label"), "{array_out}");
     assert!(!array_lowered.is_function);

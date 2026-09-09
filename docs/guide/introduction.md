@@ -69,19 +69,19 @@ Rue 的组件系统不需要特殊的文件格式。你可以在任何 `.tsx` �
 
 Rue 支持多种编写组件的方式，让你可以根据自己的偏好选择：
 
-### 使用 ref 和 reactive {#using-ref-and-reactive}
+### 使用 ref 和 useState {#using-ref-and-useState}
 
-Rue 提供了直观的响应式 API，包括 `ref`、`reactive`，也可以使用 getter / setter 风格的 `signal`：
+Rue 提供了直观的响应式 API，包括 `ref`、`useState`，也可以使用 getter / setter 风格的 `signal`：
 
 ```tsx
-import { type FC, ref, reactive, computed } from '@rue-js/rue'
+import { type FC, ref, useState, computed } from '@rue-js/rue'
 
 const App: FC = () => {
   // 使用 ref 创建响应式基本类型
   const count = ref(0)
 
-  // 使用 reactive 创建响应式对象
-  const state = reactive({
+  // 使用编译 useState 创建对象状态
+  const [state] = useState({
     message: 'Hello Rue!',
     items: ['苹果', '香蕉', '橘子'],
   })
@@ -645,7 +645,7 @@ const Parent: FC = () => {
 
 所有这些 API 风格都能完全覆盖常见的使用场景。Rue 的灵活性允许你：
 
-- 如果你喜欢属性访问风格的响应式系统，使用 `ref`、`reactive` 和 `computed`
+- 如果你喜欢属性访问风格的响应式系统，使用 `ref`、`useState` 和 `computed`
 - 如果你熟悉 React，使用 `useState`
 - 如果你更习惯 getter / setter 风格，使用 `signal` 和 `computed`
 - 可以根据项目需要混合使用不同的 API
@@ -654,5 +654,5 @@ const Parent: FC = () => {
 
 对于生产使用：
 
-- 如果你计划构建完整的应用程序，推荐使用 `ref` + `reactive` + JSX
+- 如果你计划构建完整的应用程序，推荐使用 `ref` + `useState` + JSX
 - 如果你从 React 迁移过来，`useState` 可以帮你更快上手

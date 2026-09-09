@@ -16,6 +16,7 @@ mod vapor;
 mod attrs;
 mod compiled_capabilities;
 mod compiled_component;
+mod compiled_props;
 mod custom_element;
 mod diagnostics;
 mod element_children;
@@ -35,6 +36,9 @@ mod pre;
 mod reactive_provenance;
 mod router_link;
 mod server;
+mod state_path;
+#[cfg(test)]
+mod state_path_tests;
 mod text;
 mod utils;
 
@@ -140,6 +144,7 @@ fn run_full_transform_with_options(
     static_component_props: bool,
     comments: Option<swc_core::plugin::proxies::PluginCommentsProxy>,
 ) -> Program {
+    let props_components = compiled_props::components(&program);
     let mut p = program;
     log::info("rue-swc: apply(pre+vapor) start");
     element_children::reset_compiled_list_safety_cache();
@@ -192,6 +197,8 @@ fn run_full_transform_with_options(
         }
     }
     if let Program::Module(module) = &mut p {
+        compiled_props::lower(module, props_components);
+        state_path::hoist(module);
         imports::ensure_runtime_imports(module);
     }
     assert_no_residual_jsx(&p);

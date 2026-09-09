@@ -74,72 +74,23 @@ watch([x, () => y.value], ([newX, newY]) => {
 })
 ```
 
-请注意，你不能像这样观察响应式对象的属性：
+## 路径侦听与深层状态 {#deep-watchers}
 
-```js
-const obj = reactive({ count: 0 })
+传给 watch 的 getter 应在执行时读取路径，而不是传入提前求值的普通数值：
 
-// 这不会生效，因为我们传递了一个数字给 watch()
-watch(obj.count, count => {
-  console.log(`计数是：${count}`)
-})
-```
-
-相反，使用 getter：
-
-```js
-// 相反，使用 getter：
+```ts
+import { signal, watch } from '@rue-js/rue'
+const state = signal({ count: 0 })
 watch(
-  () => obj.count,
-  count => {
-    console.log(`计数是：${count}`)
+  () => state.getPath('count'),
+  (count, previous) => {
+    console.log(count, previous)
   },
 )
+state.updatePath('count', value => Number(value) + 1)
 ```
 
-## 深层侦听器 {#deep-watchers}
-
-当你在响应式对象上直接调用 `watch()` 时，它会隐式创建一个深层侦听器——回调将在所有嵌套变更时触发：
-
-```js
-const obj = reactive({ count: 0 })
-
-watch(obj, (newValue, oldValue) => {
-  // 在嵌套属性变更时触发
-  // 注意：`newValue` 在这里将等于 `oldValue`
-  // 因为它们都指向同一个对象！
-})
-
-obj.count++
-```
-
-这应该与返回响应式对象的 getter 区分开来——在后一种情况下，只有当 getter 返回不同的对象时，回调才会触发：
-
-```js
-watch(
-  () => state.someObject,
-  () => {
-    // 只在 state.someObject 被替换时触发
-  },
-)
-```
-
-但是，你可以通过显式使用 `deep` 选项强制第二种情况成为深层侦听器：
-
-```js
-watch(
-  () => state.someObject,
-  (newValue, oldValue) => {
-    // 注意：除非 state.someObject 已被替换
-    // 否则 `newValue` 将等于 `oldValue`
-  },
-  { deep: true },
-)
-```
-
-:::warning 谨慎使用
-深层侦听需要遍历被侦听对象的所有嵌套属性，在大数据结构上使用可能代价高昂。只在必要时使用，并注意性能影响。
-:::
+普通对象的深度遍历不具备拦截写入的能力。`deep` 不能将对象转换为代理；所有更新仍须通过 Signal 或编译期状态写入。
 
 ## 即时回调的侦听器 {#eager-watchers}
 

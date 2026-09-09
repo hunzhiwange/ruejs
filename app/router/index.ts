@@ -191,13 +191,13 @@ const flatRoutes: RouteRecordRaw[] = [
     path: '/examples/reactive-counter',
     component: routeComponent(() => import('../pages/examples/ReactiveCounter')),
   },
-  // 响应式工具 API 示例，保持与侧边栏中 ref/reactive 相关条目顺序一致。
+  // 响应式工具 API 示例，保持与侧边栏中 ref/signal 相关条目顺序一致。
   {
-    path: '/examples/to-refs',
+    path: '/examples/signal-values',
     component: routeComponent(() => import('../pages/examples/ToRefs')),
   },
   {
-    path: '/examples/to-ref',
+    path: '/examples/signal-path',
     component: routeComponent(() => import('../pages/examples/ToRef')),
   },
   {
@@ -221,11 +221,11 @@ const flatRoutes: RouteRecordRaw[] = [
     component: routeComponent(() => import('../pages/examples/OnActivatedDemo')),
   },
   {
-    path: '/examples/is-proxy',
+    path: '/examples/proxy-free-state',
     component: routeComponent(() => import('../pages/examples/IsProxy')),
   },
   {
-    path: '/examples/is-readonly',
+    path: '/examples/computed-readonly',
     component: routeComponent(() => import('../pages/examples/IsReadonly')),
   },
   {

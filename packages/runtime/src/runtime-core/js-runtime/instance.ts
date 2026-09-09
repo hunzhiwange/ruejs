@@ -5,7 +5,6 @@ import type {
   ComponentInstanceManager,
   ComponentMountInput,
   ComponentProps,
-  ComponentReactiveFacade,
   ObjectLike,
   RuntimeState,
   StableComponentProps,
@@ -39,16 +38,6 @@ const runWithOwningRuntime = <T>(runtime: unknown, run: () => T): T => {
     if (hadActiveRuntime) runtimeGlobal.__rue_active = previousRuntime
     else delete runtimeGlobal.__rue_active
   }
-}
-
-const readProperty = (value: ObjectLike, key: PropertyKey): unknown => Reflect.get(value, key)
-
-const resolveReactiveFacade = (injected: unknown): ComponentReactiveFacade => {
-  if (!isObjectLike(injected)) return Object.create(null)
-  const defaultExport = readProperty(injected, 'default')
-  return isObjectLike(defaultExport)
-    ? (defaultExport as ComponentReactiveFacade)
-    : (injected as ComponentReactiveFacade)
 }
 
 const copyProps = <HostNode>(input: ComponentMountInput<HostNode>): ComponentProps => ({
@@ -86,7 +75,6 @@ const syncProps = (target: StableComponentProps, next: ComponentProps): void => 
 export const createComponentInstanceManager = <HostNode = unknown>(
   injectedReactive: unknown,
 ): ComponentInstanceManager<HostNode> => {
-  const reactive = resolveReactiveFacade(injectedReactive)
   const carrier = (resolveHookCarrier(injectedReactive) ??
     createHookContext()) as ComponentHookCarrier
   const instances = new Map<number, ComponentInstance<ComponentProps, HostNode>>()
@@ -101,10 +89,7 @@ export const createComponentInstanceManager = <HostNode = unknown>(
     input: ComponentMountInput<HostNode>,
   ): ComponentInstance<ComponentProps, HostNode> => {
     const propsSource = copyProps(input)
-    const propsRO =
-      typeof reactive.propsReactive === 'function'
-        ? reactive.propsReactive(propsSource, true)
-        : propsSource
+    const propsRO = propsSource
     const host: ComponentHookHost = {
       __ci_index: nextIndex,
       __hooks: { states: [], index: 0 },

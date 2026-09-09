@@ -133,7 +133,9 @@ export default ListMemoDemo
     std::fs::write("target/vapor_outputs/memo_directive_list_item.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$reconcileKeyedSingle("));
-    assert!(normalized.contains("_$compiledListMemo(()=>[ _$rowItem1.id === props.selectedId"));
+    assert!(normalized.contains(
+        "_$compiledListMemo(()=>[ _$rowItem1.id === _$compiledPropsGet(props, \"selectedId\")"
+    ));
     assert!(normalized.contains("_$mountCompiledKeyedSingleRow("));
     assert!(normalized.contains("_$mountCompiledSlotFactory("));
     assert!(normalized.contains("_$rowItem1.name"));

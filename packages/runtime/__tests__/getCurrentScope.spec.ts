@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { getCurrentScope, ref, render, setReactiveScheduling, watchEffect } from '../src'
 import type { EffectScope } from '../src'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 
 afterEach(() => {
   render(null as any, document.body as any)
@@ -32,7 +32,7 @@ describe('getCurrentScope', () => {
     document.body.appendChild(container)
 
     render(
-      vapor(() => {
+      _$compiledRoot(() => {
         setupScope = getCurrentScope()
         runResult = setupScope?.run(() => {
           seenScopes.push(getCurrentScope())

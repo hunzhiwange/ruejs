@@ -126,7 +126,7 @@ describe('compact keyed memo retention', () => {
     const reads: number[] = []
     const parent = document.createElement('tbody')
     let rows: CompactCompiledKeyedRow<Row, number>[] = []
-    const mount = (item: Row) => {
+    const mount = (_item: Row) => {
       const memo = createMemo(source, reads)
       const node = document.createElement('tr')
       parent.appendChild(node)

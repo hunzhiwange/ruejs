@@ -93,3 +93,10 @@ fn leaves_non_jsx_modules_without_runtime_imports() {
     assert!(!out.contains("vapor("));
     assert!(out.contains("count + 1"));
 }
+
+#[test]
+fn transforms_dynamic_jsx_with_compiled_root() {
+    let out = compact(&transform_module("const View = () => <div>{value}</div>;"));
+    assert!(out.contains("_$compiledRoot("), "{out}");
+    assert!(!out.contains("vapor("), "{out}");
+}

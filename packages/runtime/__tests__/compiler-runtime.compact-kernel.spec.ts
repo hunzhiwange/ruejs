@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { effectScope } from '../src/runtime-core/reactive'
 
 import {
   _$compiledRenderEffect,
@@ -29,6 +30,50 @@ afterEach(() => {
 })
 
 describe('compact compiler reactive kernel', () => {
+  it('removes a failed initial effect from the unified graph', () => {
+    const baseline = __rueGetCompiledReactiveDebugState()
+    expect(() =>
+      effect(() => {
+        throw new Error('initial')
+      }),
+    ).toThrow('initial')
+    expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
+  })
+
+  it('runs compiler disposers when a public scope stops', () => {
+    const scope = effectScope()
+    const onDispose = vi.fn()
+    scope.run(() => effect(() => {}, { onDispose }))
+    scope.stop()
+    expect(onDispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('collects finalizer failures from nested public scopes and releases every owned effect', () => {
+    const baseline = __rueGetCompiledReactiveDebugState()
+    const owner = createOwner()
+    const failure = new Error('finalizer')
+    const events: string[] = []
+    runWithOwner(owner, () => {
+      effectScope().run(() => {
+        effect(() => {}, {
+          onDispose: () => {
+            events.push('first')
+            throw failure
+          },
+        })
+        effect(() => {}, {
+          onDispose: () => {
+            events.push('second')
+          },
+        })
+      })
+    })
+    expect(__rueGetCompiledReactiveDebugState().activeEffects).toBe(baseline.activeEffects + 2)
+    expect(() => disposeOwner(owner)).toThrow(failure)
+    expect(events).toEqual(['first', 'second'])
+    expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
+  })
+
   it('coalesces compiled render effects in a microtask without changing public frame effects', async () => {
     const originalRaf = globalThis.requestAnimationFrame
     let queuedFrame: FrameRequestCallback | undefined

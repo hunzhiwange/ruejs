@@ -1311,6 +1311,7 @@ impl VisitMut for ReactStateBindingCollector<'_> {
 }
 
 struct ReactStateUsageRewriter<'a> {
+    suspend_path: bool,
     bindings: &'a HashMap<String, Ident>,
     scope_stack: Vec<HashSet<String>>,
 }
@@ -1341,7 +1342,55 @@ impl ReactStateUsageRewriter<'_> {
 }
 
 impl VisitMut for ReactStateUsageRewriter<'_> {
+    fn visit_mut_assign_expr(&mut self, assign: &mut AssignExpr) {
+        let saved = self.suspend_path;
+        self.suspend_path = true;
+        assign.left.visit_mut_with(self);
+        self.suspend_path = saved;
+        assign.right.visit_mut_with(self);
+    }
+
+    fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+        // Keep the original receiver for method calls; mutator lowering is a later pass.
+        let saved = self.suspend_path;
+        self.suspend_path = true;
+        call.callee.visit_mut_with(self);
+        self.suspend_path = saved;
+        call.args.visit_mut_with(self);
+    }
+
+    fn visit_mut_opt_call(&mut self, call: &mut OptCall) {
+        let saved = self.suspend_path;
+        self.suspend_path = true;
+        call.callee.visit_mut_with(self);
+        self.suspend_path = saved;
+        call.args.visit_mut_with(self);
+    }
+
+    fn visit_mut_unary_expr(&mut self, unary: &mut UnaryExpr) {
+        let saved = self.suspend_path;
+        if unary.op == UnaryOp::Delete {
+            self.suspend_path = true;
+        }
+        unary.arg.visit_mut_with(self);
+        self.suspend_path = saved;
+    }
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
+        if let Some(write) = crate::state_path::lower_write(expr, |name| {
+            if self.is_shadowed(name) { None } else { self.bindings.get(name).cloned() }
+        }) {
+            *expr = write;
+            expr.visit_mut_children_with(self);
+            return;
+        }
+        if !self.suspend_path
+            && let Some(read) = crate::state_path::lower_read(expr, |name| {
+                if self.is_shadowed(name) { None } else { self.bindings.get(name).cloned() }
+            })
+        {
+            *expr = read;
+            return;
+        }
         if self.rewrite_ident_expr(expr) {
             return;
         }
@@ -1450,7 +1499,10 @@ impl VisitMut for ReactStateUsageRewriter<'_> {
         ) {
             return;
         }
+        let saved = self.suspend_path;
+        self.suspend_path = true;
         update.visit_mut_children_with(self);
+        self.suspend_path = saved;
     }
 }
 
@@ -1556,6 +1608,7 @@ fn rewrite_block(block: &mut BlockStmt, candidate: &CompiledComponentCandidate) 
     if !state_collector.bindings.is_empty() {
         block.visit_mut_children_with(&mut ReactStateUsageRewriter {
             bindings: &state_collector.bindings,
+            suspend_path: false,
             scope_stack: Vec::new(),
         });
     }

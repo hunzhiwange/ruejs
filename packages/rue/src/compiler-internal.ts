@@ -1,4 +1,11 @@
 export {
+  _$compiledPath,
+  _$compiledReadPath,
+  _$compiledStateSignal,
+  _$compiledStateRoot,
+  _$compiledStateMember,
+  _$compiledStateDelete,
+  _$compiledStateMutator,
   _$compiledAppendChild,
   _$compiledBatch,
   _$compiledCreateComment,
@@ -97,7 +104,14 @@ export {
   _$settextContent,
   _$spreadAttributes,
   getCompiledKey,
-  vapor,
   watch,
 } from '@rue-js/runtime/internal'
 export type * from '@rue-js/runtime/internal/compiler'
+
+export {
+  _$compiledPropsCall,
+  _$compiledPropsGet,
+  _$compiledPropsHas,
+  _$compiledPropsKeys,
+  _$compiledPropsSnapshot,
+} from '../../runtime/src/compiled-props'

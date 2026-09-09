@@ -607,7 +607,7 @@ const Fab: FC<FabProps> = props => {
       {...rootProps}
       ref={(element: HTMLDivElement | null) => {
         rootElement = element
-        syncMenuDom(mergedOpen)
+        syncMenuDom(!!mergedOpen)
       }}
       className={mergeClassName(
         'rue-fab pointer-events-none relative inline-flex items-end justify-end',

@@ -35,7 +35,7 @@ describe('@rue-js/store app integration', () => {
       }),
       actions: {
         increment(this: any) {
-          this.count += 1
+          this.update(['count'], (count: number) => count + 1)
         },
       },
     })
@@ -45,7 +45,7 @@ describe('@rue-js/store app integration', () => {
 
       return (
         <button data-testid="counter" onClick={() => store.increment()}>
-          {store.count}
+          {store.getPath(['count'])}
         </button>
       )
     }

@@ -1,8 +1,5 @@
-import {
-  type ComputedEffectBinding,
-  type EffectHandle,
-  type ReactiveEffectRuntime,
-} from './effect.js'
+import type { ReactiveRuntimeServices as ReactiveEffectRuntime } from './runtime-services.js'
+import { type ComputedEffectBinding, type EffectHandle } from './effect.js'
 import { SignalHandle } from './signal.js'
 
 export type ComputedGetter<T> = () => T

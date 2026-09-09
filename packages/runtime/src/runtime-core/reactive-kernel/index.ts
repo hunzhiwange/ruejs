@@ -1,12 +1,11 @@
 import { ComputedHandle, createComputed, type ComputedInput } from './computed.js'
-import { EffectHandle, ReactiveEffectRuntime, type ReactiveEffectRuntimeOptions } from './effect.js'
+import { EffectHandle } from './effect-handle.js'
 import {
-  createCustomRef,
-  createReactive,
-  createRef,
-  type CustomRefFactory,
-  type ReactiveOptions,
-} from './reactive.js'
+  createReactiveEffectRuntimeStorage,
+  type ReactiveEffectRuntimeOptions,
+} from './effect-core.js'
+import { createRuntimeServices, type ReactiveRuntimeServices } from './runtime-services.js'
+import { createCustomRef, createRef, type CustomRefFactory } from './ref.js'
 import { createResource } from './resource.js'
 import { SignalHandle, createSignal, type SignalOptions, type SignalPath } from './signal.js'
 import {
@@ -30,9 +29,9 @@ export type {
   ReactiveEffectRuntimeOptions,
   ReactiveTriggerEvent,
 } from './effect.js'
-export type { CustomRefFactory, ReactiveOptions, RefValue } from './reactive.js'
+export type { CustomRefFactory, RefValue } from './ref.js'
 export type { Resource } from './resource.js'
-export type { EqualityComparator, SignalOptions, SignalPath } from './signal.js'
+export type { EqualityComparator, SignalOptions, SignalPath, SignalPathToken } from './signal.js'
 export type {
   WatchEffectOptions,
   WatchHandler,
@@ -72,21 +71,28 @@ const toValue = <T>(value: T | (() => T) | { value?: T; get?: () => T }): T => {
  * Every public operation closes over the same runtime instance, so graph ids,
  * scopes, scheduler queues, and effect ownership cannot split across entries.
  */
-export const createReactiveKernel = (options: ReactiveEffectRuntimeOptions = {}) => {
+export const createReactiveKernel = (
+  options: ReactiveEffectRuntimeOptions = {},
+  sharedRuntime?: ReactiveRuntimeServices,
+) => {
   let renderTriggeredActive = false
-  const runtime = new ReactiveEffectRuntime({
-    ...options,
-    onRenderTriggered: (effectId, event, owner) => {
-      options.onRenderTriggered?.(effectId, event, owner)
-      if (renderTriggeredActive) {
-        globalThis.__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
-          effectId,
-          event,
-          owner,
-        )
-      }
-    },
-  })
+  const runtime =
+    sharedRuntime ??
+    createRuntimeServices(
+      createReactiveEffectRuntimeStorage({
+        ...options,
+        onRenderTriggered: (effectId, event, owner) => {
+          options.onRenderTriggered?.(effectId, event, owner)
+          if (renderTriggeredActive) {
+            globalThis.__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
+              effectId,
+              event,
+              owner,
+            )
+          }
+        },
+      }),
+    )
 
   return {
     EffectHandle,
@@ -94,6 +100,14 @@ export const createReactiveKernel = (options: ReactiveEffectRuntimeOptions = {})
     __rueActivateEffectOwnerTracking: (): void => {},
     __rueActivateRenderTriggered: (): void => {
       renderTriggeredActive = true
+      if (sharedRuntime) {
+        sharedRuntime.storage.onRenderTriggered = (id, event, owner) =>
+          globalThis.__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
+            id,
+            event,
+            owner,
+          )
+      }
     },
     __rueBeginRenderDebugOwner: (owner: unknown): void => runtime.beginRenderDebugOwner(owner),
     __rueCreateDetachedEffectScope: (): number => runtime.scopes.create(true),
@@ -117,10 +131,8 @@ export const createReactiveKernel = (options: ReactiveEffectRuntimeOptions = {})
     createCustomRef: <T>(factory: CustomRefFactory<T>) => createCustomRef(runtime, factory),
     createEffect: (
       callback: () => void,
-      effectOptions?: Parameters<ReactiveEffectRuntime['createEffect']>[1] | null,
+      effectOptions?: Parameters<ReactiveRuntimeServices['createEffect']>[1] | null,
     ): EffectHandle => runtime.createEffect(callback, effectOptions ?? {}),
-    createReactive: <T>(initial: T, reactiveOptions?: ReactiveOptions<T> | null) =>
-      createReactive(runtime, initial, reactiveOptions),
     createRef: <T>(initial: T, signalOptions?: SignalOptions<T> | null) =>
       createRef(runtime, initial, signalOptions),
     createResource: <TSource, TData>(

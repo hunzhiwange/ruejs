@@ -185,7 +185,7 @@ export default DocDetail
     let program = apply(program);
     let out = utils::emit(program, cm);
 
-    let _expected_fragment = r##"import { useState, useEffect, _$compiledWithHookId, useSetup, vapor, _$createComponent, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$setAttribute, _$addEventListener, _$setClassName, _$setInnerHTML, _$compiledCreateElement, _$compiledRoot } from "@rue-js/rue/internal";
+    let _expected_fragment = r##"import { useState, useEffect, _$compiledWithHookId, useSetup, _$compiledRoot, _$createComponent, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$setAttribute, _$addEventListener, _$setClassName, _$setInnerHTML, _$compiledCreateElement, _$compiledRoot } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink, useRoute } from '@rue-js/router';
 import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlayground';
@@ -365,11 +365,11 @@ const DocDetail: FC = ()=>{
     const currentIndex = DOCS_META.findIndex((d)=>d.id === (docPath || ''));
     const prev = currentIndex > 0 ? DOCS_META[currentIndex - 1] : undefined;
     const next = currentIndex >= 0 && currentIndex < DOCS_META.length - 1 ? DOCS_META[currentIndex + 1] : undefined;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _root = _$createDocumentFragment();
         const _list6 = _$createComment("rue:component:anchor");
         _$appendChild(_root, _list6);
-        const __child1 = vapor(()=>{
+        const __child1 = _$compiledRoot(()=>{
             const _root = _$createDocumentFragment();
             const _el1 = _$createElement("div", _root);
             _$appendChild(_root, _el1);
@@ -383,7 +383,7 @@ const DocDetail: FC = ()=>{
             const _list5 = _$createComment("rue:slot:anchor");
             _$appendChild(_root, _list5);
             watchEffect(()=>{
-                const __slot = currentIndex >= 0 ? vapor(()=>{
+                const __slot = currentIndex >= 0 ? _$compiledRoot(()=>{
                     const _root = _$createDocumentFragment();
                     const _el2 = _$createElement("div", _root);
                     _$appendChild(_root, _el2);
@@ -391,7 +391,7 @@ const DocDetail: FC = ()=>{
                     const _list2 = _$createComment("rue:slot:anchor");
                     _$appendChild(_el2, _list2);
                     watchEffect(()=>{
-                        const __slot = prev ? vapor(()=>{
+                        const __slot = prev ? _$compiledRoot(()=>{
                             const _root = _$createDocumentFragment();
                             const _el3 = _$createElement("a", _root);
                             _$appendChild(_root, _el3);
@@ -421,7 +421,7 @@ const DocDetail: FC = ()=>{
                     const _list4 = _$createComment("rue:slot:anchor");
                     _$appendChild(_el2, _list4);
                     watchEffect(()=>{
-                        const __slot = next ? vapor(()=>{
+                        const __slot = next ? _$compiledRoot(()=>{
                             const _root = _$createDocumentFragment();
                             const _el4 = _$createElement("a", _root);
                             _$appendChild(_root, _el4);

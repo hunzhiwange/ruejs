@@ -34,7 +34,7 @@ fn make_vapor_expr_from_child_body(child_body: Vec<Stmt>, compiled_anchor: bool)
     if compiled_anchor {
         args.push(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })));
     }
-    call_ident("vapor", args)
+    call_ident("_$compiledRoot", args)
 }
 
 struct ReactiveKeyDetector {
@@ -1255,13 +1255,13 @@ fn contains_opaque_renderable_expr(vt: &VaporTransform, inner: &Expr) -> bool {
 }
 
 /// 将任意表达式（可能包含 JSX、条件、逻辑运算）改写为用于插槽渲染的表达式：
-/// - 若是 JSXElement / JSXFragment，则编译为 `vapor(()=>{ ... })` 返回 DocumentFragment
+/// - 若是 JSXElement / JSXFragment，则编译为 `_$compiledRoot(()=>{ ... })` 返回 DocumentFragment
 /// - 若是三元表达式，则对 cons/alt 分支中的 JSX 进行同样改写
 /// - 若是逻辑与（&&），对右侧为 JSX 的情况进行改写
 /// - 其它情况保持原表达式
 ///   生成示例（参考 `tests/conditional_rendering*.rs`）：
-/// - `cond ? <A/> : <B/>` => `cond ? vapor(()=>{...}) : vapor(()=>{...})`
-/// - `ok && <X/>` => `ok ? vapor(()=>{...}) : ""`
+/// - `cond ? <A/> : <B/>` => `cond ? _$compiledRoot(()=>{...}) : _$compiledRoot(()=>{...})`
+/// - `ok && <X/>` => `ok ? _$compiledRoot(()=>{...}) : ""`
 ///
 /// 设计动机：在表达式中内嵌 JSX 时，统一转化为可挂载块值以复用同一套插槽渲染路径，避免多种表达式形态下的分支爆炸。
 pub fn make_expr_for_slot(vt: &mut VaporTransform, inner: &Expr) -> Expr {
@@ -1276,11 +1276,11 @@ pub fn make_expr_for_slot(vt: &mut VaporTransform, inner: &Expr) -> Expr {
         }
         Expr::Cond(CondExpr { test, cons, alt, .. }) => {
             log::debug("element_expr: slot CondExpr");
-            // 条件表达式：分支中若含 JSX，分别编译为 vapor 片段
+            // 条件表达式：分支中若含 JSX，分别编译为 _$compiledRoot 片段
             let cons_inner = crate::utils::unwrap_expr(cons.as_ref());
             let alt_inner = crate::utils::unwrap_expr(alt.as_ref());
             // 每个分支独立判断：
-            // - 直接 JSX：立即编译成 vapor 片段；
+            // - 直接 JSX：立即编译成 _$compiledRoot 片段；
             // - 间接 JSX（memoized/map 等）：递归规范；
             // - 静态空值：统一转成空字符串，避免 runtime 渲染 undefined/null。
             let new_cons: Expr = if let Some(slot_expr) = jsx_expr_to_slot_expr(vt, cons_inner) {
@@ -1310,7 +1310,7 @@ pub fn make_expr_for_slot(vt: &mut VaporTransform, inner: &Expr) -> Expr {
         }
         Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, left, right, .. }) => {
             log::debug("element_expr: slot LogicalAnd");
-            // 逻辑与：右侧为 JSX 则编译为 vapor 片段；否则保持原表达式
+            // 逻辑与：右侧为 JSX 则编译为 _$compiledRoot 片段；否则保持原表达式
             let right_inner = crate::utils::unwrap_expr(right.as_ref());
             let new_cons: Expr = if let Some(slot_expr) = jsx_expr_to_slot_expr(vt, right_inner) {
                 slot_expr

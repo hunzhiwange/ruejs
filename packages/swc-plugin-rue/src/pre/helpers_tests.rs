@@ -151,13 +151,13 @@ fn detects_component_render_shapes_and_boundaries() {
 #[test]
 fn distinguishes_plain_vapor_returns_from_setup_render_control() {
     let plain = parse_fn_decl(
-        "function Plain(): JSX.Element { return vapor(() => <input value={label.get()} />); }",
+        "function Plain(): JSX.Element { return _$compiledRoot(() => <input value={label.get()} />); }",
     );
     let plain_block = plain.function.body.expect("plain body");
     assert!(!block_has_reactive_render_control(&plain_block));
     assert!(
         !arrow_has_reactive_render_control(&parse_arrow(
-            "() => { return vapor(() => <input value={label.get()} />); }"
+            "() => { return _$compiledRoot(() => <input value={label.get()} />); }"
         )),
         "a direct Vapor setup delegates reactive bindings to its local effects"
     );

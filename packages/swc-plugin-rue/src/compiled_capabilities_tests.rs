@@ -1,6 +1,6 @@
 use crate::compiled_capabilities::{
-    RuntimeTier, aggregate_runtime_tier, runtime_import_tier, runtime_tier_for_helper,
-    should_auto_inject_helper,
+    RuntimeImportEntry, RuntimeTier, aggregate_runtime_tier, runtime_import_entry,
+    runtime_import_tier, runtime_tier_for_helper, should_auto_inject_helper,
 };
 
 #[test]
@@ -50,16 +50,13 @@ fn classifies_compiled_core_and_vapor_fallback_helpers() {
         assert_eq!(runtime_tier_for_helper(helper), Some(RuntimeTier::Compiled), "{helper}");
     }
 
-    for helper in [
-        "_$createComponent",
-        "vapor",
-        "useSetup",
-        "Hydration",
-        "_$compiledMarkComponentRenderReactive",
-    ] {
+    for helper in
+        ["_$createComponent", "useSetup", "Hydration", "_$compiledMarkComponentRenderReactive"]
+    {
         assert_eq!(runtime_tier_for_helper(helper), Some(RuntimeTier::Vapor), "{helper}");
     }
 
+    assert_eq!(runtime_tier_for_helper("vapor"), None);
     assert_eq!(runtime_tier_for_helper("userHelper"), None);
 }
 
@@ -88,6 +85,14 @@ fn upgrades_shared_compiled_core_helpers_for_vapor_modules() {
             "compiled builtins must keep the closed owner graph",
         );
     }
+}
+
+#[test]
+fn routes_render_anchor_to_the_component_abi_for_compiled_modules() {
+    assert_eq!(
+        runtime_import_entry("renderAnchor", RuntimeTier::Compiled),
+        Some(RuntimeImportEntry::Component),
+    );
 }
 
 #[test]
@@ -120,19 +125,25 @@ fn routes_reactive_factories_to_their_proven_runtime_tier() {
         assert_eq!(runtime_tier_for_helper(helper), None, "{helper}");
     }
 
-    for helper in [
-        "shallowRef",
-        "customRef",
-        "triggerRef",
-        "toRef",
-        "toRefs",
-        "reactive",
-        "shallowReactive",
-        "readonly",
-        "shallowReadonly",
-        "propsReactive",
-    ] {
+    for helper in ["shallowRef", "customRef", "triggerRef", "toRef", "toRefs"] {
         assert_eq!(runtime_tier_for_helper(helper), Some(RuntimeTier::Vapor), "{helper}");
         assert_eq!(runtime_import_tier(helper, RuntimeTier::Vapor), Some(RuntimeTier::Vapor));
+    }
+}
+
+#[test]
+fn removed_proxy_apis_have_no_runtime_capability() {
+    for helper in [
+        "createReactive",
+        "reactive",
+        "readonly",
+        "shallowReactive",
+        "shallowReadonly",
+        "propsReactive",
+        "isProxy",
+        "toRaw",
+    ] {
+        assert_eq!(runtime_tier_for_helper(helper), None, "{helper}");
+        assert!(!should_auto_inject_helper(helper));
     }
 }

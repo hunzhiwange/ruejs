@@ -17,7 +17,7 @@ export const Counter: FC = () => {
   }
 
   // 视图
-  return () => <div>{count.value}</div>
+  return <button onClick={increment}>{count.value}</button>
 }
 ```
 
@@ -44,64 +44,22 @@ export const Counter: FC = () => {
 
 ## 使用响应式 API 进行简单的状态管理 {#simple-state-management-with-reactivity-api}
 
-如果你有一块应该由多个实例共享的状态，你可以使用 [`reactive()`](/api/api/reactivity-core#reactive) 创建一个响应式对象，然后将其导入多个组件：
+模块级共享对象使用 Signal，并通过路径 API 更新：
 
 ```ts [store.ts]
-import { reactive } from '@rue-js/rue'
-
-export const store = reactive({
-  count: 0,
-})
+import { signal } from '@rue-js/rue'
+export const store = signal({ count: 0 })
+export const increment = () => store.updatePath('count', n => Number(n) + 1)
 ```
 
-```tsx [ComponentA.tsx]
-import { type FC } from '@rue-js/rue'
-import { store } from './store'
-
-export const ComponentA: FC = () => {
-  return () => <div>来自 A：{store.count}</div>
+```tsx [Counter.tsx]
+import { store, increment } from './store'
+export default function Counter() {
+  return <button onClick={increment}>{store.getPath('count')}</button>
 }
 ```
 
-```tsx [ComponentB.tsx]
-import { type FC } from '@rue-js/rue'
-import { store } from './store'
-
-export const ComponentB: FC = () => {
-  return () => <div>来自 B：{store.count}</div>
-}
-```
-
-现在，每当 `store` 对象发生变化时，`<ComponentA>` 和 `<ComponentB>` 都会自动更新它们的视图——我们现在有了单一的事实来源。
-
-然而，这也意味着任何导入 `store` 的组件都可以随意改变它：
-
-```tsx
-<button onClick={() => store.count++}>来自 B：{store.count}</button>
-```
-
-虽然这在简单情况下有效，但长期而言，任何组件都可以任意改变的全局状态并不是非常可维护的。为了确保改变状态的逻辑像状态本身一样集中，建议在 store 上定义表达动作意图的方法名：
-
-```ts{5-7} [store.ts]
-import { reactive } from '@rue-js/rue'
-
-export const store = reactive({
-  count: 0,
-  increment() {
-    this.count++
-  }
-})
-```
-
-```tsx{2}
-<button onClick={() => store.increment()}>
-  来自 B：{store.count}
-</button>
-```
-
-:::tip
-注意点击处理器使用 `store.increment()` 并带括号——这是必要的，以使用正确的 `this` 上下文调用该方法，因为它不是组件方法。
-:::
+共享组件读取同一条路径，并通过集中定义的动作更新它。`get()` 返回普通对象；不要通过该对象直接赋值。SSR 中应按请求创建共享状态，避免跨用户复用模块级单例。
 
 虽然这里我们使用单个响应式对象作为 store，但你也可以使用其他 [响应式 API](/api/api/reactivity-core)（如 `ref()` 或 `computed()`）创建共享的响应式状态，甚至从 [Composable](/guide/guide/reusability/composables) 返回全局状态：
 
@@ -133,7 +91,7 @@ Rue 的响应式系统与组件模型解耦，这使其极具灵活性。
 - 应用级的 store root 与插件扩展能力
 - 订阅、批量更新、重置等统一的状态操作入口
 
-Rue 提供了官方状态管理库 `@rue-js/store`。它建立在 Rue 自身的响应式系统之上，延续 `ref()`、`reactive()` 和 `computed()` 的使用体验，同时提供更适合中大型应用的集中式状态管理模式。
+Rue 提供了官方状态管理库 `@rue-js/store`。它建立在 Rue 自身的响应式系统之上，延续 `ref()`、`signal()` 和 `computed()` 的使用体验，同时提供更适合中大型应用的集中式状态管理模式。
 
 `@rue-js/store` 的核心特性包括：
 
@@ -187,7 +145,7 @@ export const Counter: FC = () => {
 
   return () => (
     <div>
-      <p>计数：{counter.count}</p>
+      <p>计数：{counter.getPath('count')}</p>
       <p>双倍：{counter.doubleCount}</p>
       <button onClick={() => counter.increment()}>增加</button>
     </div>
@@ -215,21 +173,21 @@ export const useUserStore = defineStore('user', {
   }),
   getters: {
     isReady(state) {
-      return !state.loading && !!state.user
+      return !state.getPath('loading') && !!state.getPath('user')
     },
   },
   actions: {
     async fetchUser(this: any, id: string) {
-      this.loading = true
-      this.error = null
+      this.set('loading', true)
+      this.set('error', null)
 
       try {
         const response = await fetch(`/api/users/${id}`)
-        this.user = await response.json()
+        this.set('user', await response.json())
       } catch (error) {
-        this.error = error
+        this.set('error', error)
       } finally {
-        this.loading = false
+        this.set('loading', false)
       }
     },
     clear(this: any) {

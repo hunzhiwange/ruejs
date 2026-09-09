@@ -35,7 +35,7 @@ export default Refs;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { _$compiledWithHookId, useSetup, useRef, vapor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, watchEffect, _$compiledBindUseRef, _$setAttribute, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledWithHookId, useSetup, useRef, _$compiledRoot, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, watchEffect, _$compiledBindUseRef, _$setAttribute, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<div class="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm"><h3 class="text-xl font-semibold">Refs 基础</h3><input class="border rounded-md px-2 py-1" placeholder="点击按钮自动聚焦"><button class="px-3 py-2 rounded-md bg-blue-600 text白">聚焦</button><!--rue:opaque-hole:0--></div>');
@@ -52,7 +52,7 @@ const Refs: FC = ()=>{
             };
         }));
     const { inputRef: inputRef, focus: focus } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1];

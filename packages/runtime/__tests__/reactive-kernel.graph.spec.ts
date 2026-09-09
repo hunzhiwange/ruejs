@@ -16,6 +16,95 @@ const track = (
 }
 
 describe('runtime TypeScript reactive graph', () => {
+  it('keeps stale numeric handles isolated through large-scale reuse and deduplicates propagation', () => {
+    const graph = new ReactiveGraph()
+    const stale: ReactiveNodeId[] = []
+    for (let round = 0; round < 10_000; round++) {
+      const source = graph.createDependencyNode()
+      const left = graph.createComputedNode(1)
+      const right = graph.createComputedNode(2)
+      const first = graph.createEffectNode(3)
+      const second = graph.createEffectNode(4)
+      graph.connect(source, left)
+      graph.connect(source, right)
+      graph.connect(left, first)
+      graph.connect(right, first)
+      graph.connect(right, second)
+      graph.markNodeClean(left)
+      graph.markNodeClean(right)
+      expect(graph.triggerDependency(source)).toEqual([3, 4])
+      expect(graph.triggerDependency(source)).toEqual([])
+      expect(graph.linkCount).toBe(5)
+      for (const id of [source, left, right, first, second]) {
+        stale.push(id)
+        expect(graph.removeNode(id)).toBe(true)
+      }
+      expect(graph.linkCount).toBe(0)
+    }
+    const replacement = graph.createDependencyNode()
+    for (const id of stale) {
+      expect(graph.contains(id)).toBe(false)
+      expect(graph.removeNode(id)).toBe(false)
+    }
+    expect(typeof replacement).toBe('number')
+    expect(graph.debugStats()).toMatchObject({
+      nodeCount: 1,
+      linkCount: 0,
+      nodeCapacity: 5,
+      linkCapacity: 5,
+      handleObjectAllocations: 0,
+      slotObjectAllocations: 0,
+      nodeRecordAllocations: 50_001,
+      linkRecordAllocations: 50_000,
+    })
+    graph.removeNode(replacement)
+    expect(graph.debugStats()).toMatchObject({ nodeCount: 0, linkCount: 0 })
+  })
+
+  it('reuses ordered links without allocations and releases an entire stale tail', () => {
+    const graph = new ReactiveGraph()
+    const sources = Array.from({ length: 128 }, () => graph.createDependencyNode())
+    const effect = graph.createEffectNode(8)
+    track(graph, effect, sources)
+    const allocations = graph.debugStats().linkRecordAllocations
+    for (let round = 0; round < 100; round++) track(graph, effect, sources)
+    expect(graph.debugStats().linkRecordAllocations).toBe(allocations)
+    track(graph, effect, [sources[0], sources[1], sources[0], sources[1]])
+    expect(graph.dependenciesOf(effect)).toEqual(sources.slice(0, 2))
+    expect(graph.linkCount).toBe(2)
+    for (const source of sources.slice(2)) expect(graph.subscriberCount(source)).toBe(0)
+    expect(graph.beginTracking(effect)).toBe(0)
+    graph.endTracking(effect, 0)
+    expect(graph.linkCount).toBe(0)
+    for (const id of [...sources, effect]) graph.removeNode(id)
+    expect(graph.debugStats().nodeCount).toBe(0)
+  })
+
+  it('ignores the cached queue tail when the next propagation has a smaller scope', () => {
+    const graph = new ReactiveGraph()
+    const first = graph.createDependencyNode()
+    const second = graph.createDependencyNode()
+    const chain = Array.from({ length: 32 }, (_, i) => graph.createComputedNode(i))
+    const firstEffect = graph.createEffectNode(101)
+    const secondEffect = graph.createEffectNode(102)
+    let previous = first
+    for (const node of chain) {
+      graph.connect(previous, node)
+      graph.markNodeClean(node)
+      previous = node
+    }
+    graph.connect(previous, firstEffect)
+    graph.connect(second, secondEffect)
+    expect(graph.propagate(first)).toEqual([101])
+    for (const node of [...chain, firstEffect]) graph.markNodeClean(node)
+    expect(graph.propagate(second)).toEqual([102])
+    expect(graph.nodeNeedsUpdate(firstEffect)).toBe(false)
+    for (const node of chain) expect(graph.nodeNeedsUpdate(node)).toBe(false)
+    expect(graph.propagate(first)).toEqual([101])
+    for (const node of [first, second, ...chain, firstEffect, secondEffect]) graph.removeNode(node)
+    expect(graph.debugStats()).toMatchObject({ nodeCount: 0, linkCount: 0 })
+  })
+
   it('reuses links in read order and removes the stale dynamic tail', () => {
     const graph = new ReactiveGraph()
     const gate = graph.createDependencyNode()
@@ -75,6 +164,24 @@ describe('runtime TypeScript reactive graph', () => {
     track(graph, innerEffect, [])
     expect(graph.dependenciesOf(innerEffect)).toEqual([])
     expect(graph.subscriberCount(inner)).toBe(0)
+  })
+
+  it('deduplicates outer reads after a nested tracking pass touches the same dependency', () => {
+    const graph = new ReactiveGraph()
+    const first = graph.createDependencyNode()
+    const second = graph.createDependencyNode()
+    const outer = graph.createEffectNode(1)
+    const inner = graph.createEffectNode(2)
+    const outerState = graph.beginTracking(outer)!
+    graph.trackDependency(first)
+    graph.trackDependency(second)
+    const innerState = graph.beginTracking(inner)!
+    graph.trackDependency(first)
+    graph.endTracking(inner, innerState)
+    graph.trackDependency(first)
+    graph.endTracking(outer, outerState)
+    expect(graph.dependenciesOf(outer)).toEqual([first, second])
+    expect(graph.linkCount).toBe(3)
   })
 
   it('propagates a computed diamond once and preserves effect subscription order', () => {

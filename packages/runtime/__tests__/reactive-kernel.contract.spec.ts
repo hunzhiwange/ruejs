@@ -35,7 +35,7 @@ describe('runtime TypeScript kernel contract', () => {
 
     expect(Object.keys(oracle).sort()).toEqual(REACTIVE_KERNEL_EXPORT_NAMES)
     expect(audit).toEqual({
-      exportCount: 33,
+      exportCount: 32,
       effectMethods: ['dispose'],
       signalMethods: [
         'get',

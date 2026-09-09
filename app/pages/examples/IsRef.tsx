@@ -1,34 +1,33 @@
 /**
  * isRef 示例页。
  *
- * 对比 ref、shallowRef、computed、toRef 与普通对象的 ref 判定结果。
+ * 对比 ref、shallowRef、computed、Signal 路径派生值 与普通对象的 ref 判定结果。
  */
-import { computed, isRef, reactive, ref, shallowRef, toRef, type FC } from '@rue-js/rue'
+import { computed, isRef, signal, ref, shallowRef, type FC } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
 const demoSource = `import {
   computed,
   isRef,
-  reactive,
+  signal,
   ref,
   shallowRef,
-  toRef,
   type FC,
 } from '@rue-js/rue'
 
 const IsRefDemo: FC = () => {
   const count = ref(1)
   const shallow = shallowRef({ label: 'shallow' })
-  const state = reactive({ name: 'Rue' })
-  const nameRef = toRef(state, 'name')
+  const state = signal({ name: 'Rue' })
+  const nameRef = computed(() => state.getPath('name'))
   const doubled = computed(() => count.value * 2)
   const plain = { value: 'looks like a ref' }
 
   return (
     <div>
       <button onClick={() => count.value++}>count + 1</button>
-      <button onClick={() => (state.name = state.name === 'Rue' ? 'Vapor' : 'Rue')}>
+      <button onClick={() => (state.updatePath('name', name => name === 'Rue' ? 'Signal' : 'Rue'))}>
         toggle name
       </button>
 
@@ -36,7 +35,7 @@ const IsRefDemo: FC = () => {
         <li>ref: {String(isRef(count))}, count = {count.value}</li>
         <li>shallowRef: {String(isRef(shallow))}, label = {shallow.value.label}</li>
         <li>computed: {String(isRef(doubled))}, doubled = {doubled.get()}</li>
-        <li>toRef: {String(isRef(nameRef))}, name = {nameRef.value}</li>
+        <li>路径 computed: {String(isRef(nameRef))}, name = {nameRef.get()}</li>
         <li>plain object: {String(isRef(plain))}</li>
       </ul>
     </div>
@@ -50,8 +49,8 @@ const IsRef: FC = () => {
   const activeTab = ref<'preview' | 'code'>('preview')
   const count = ref(1)
   const shallow = shallowRef({ label: 'shallow' })
-  const state = reactive({ name: 'Rue' })
-  const nameRef = toRef(state, 'name')
+  const state = signal({ name: 'Rue' })
+  const nameRef = computed(() => state.getPath('name'))
   const doubled = computed(() => count.value * 2)
   const plain = { value: 'looks like a ref' }
   const rows = computed(() => [
@@ -74,10 +73,10 @@ const IsRef: FC = () => {
       value: doubled.get(),
     },
     {
-      name: "toRef(state, 'name')",
-      kind: '对象属性 ref',
+      name: "computed(() => state.getPath('name'))",
+      kind: '路径派生值',
       result: isRef(nameRef),
-      value: nameRef.value,
+      value: nameRef.get(),
     },
     {
       name: '{ value: ... }',
@@ -86,10 +85,10 @@ const IsRef: FC = () => {
       value: plain.value,
     },
     {
-      name: 'reactive({ name })',
-      kind: '响应式对象',
+      name: 'signal({ name })',
+      kind: 'Signal 句柄',
       result: isRef(state),
-      value: state.name,
+      value: state.getPath('name'),
     },
   ])
 
@@ -141,7 +140,7 @@ const IsRef: FC = () => {
                 <button
                   className="btn"
                   onClick={() => {
-                    state.name = state.name === 'Rue' ? 'Vapor' : 'Rue'
+                    state.updatePath('name', name => (name === 'Rue' ? 'Signal' : 'Rue'))
                   }}
                 >
                   切换 name

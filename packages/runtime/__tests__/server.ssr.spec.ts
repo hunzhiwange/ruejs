@@ -4,7 +4,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -25,7 +25,7 @@ import {
   watchEffect,
   type FC,
 } from '@rue-js/rue'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 import {
   _$appendChild,
   _$createComment,
@@ -33,6 +33,7 @@ import {
   _$createElement,
   _$createTextNode,
 } from '@rue-js/runtime'
+import { _$template as compiledTemplate } from '../src/internal'
 import { createCompiledFragmentHandle } from '../src/rue'
 import {
   RUE_COMPILED_COMPONENT_FACTORY_KEY,
@@ -41,7 +42,7 @@ import {
 import {
   _$createComponent as _$createVaporComponent,
   renderAnchor as vaporRenderAnchor,
-  vapor as vaporBlock,
+  _$compiledRoot as vaporBlock,
 } from './legacy-test-render'
 import {
   attachRouter,
@@ -57,6 +58,26 @@ import { _$serverElement, renderToString } from '@rue-js/server-renderer'
 import { renderToString as renderToStringFromRue } from '@rue-js/rue/server-renderer'
 
 describe('server renderToString', () => {
+  it('parses static template text, attributes, comments, and void elements on the server', async () => {
+    const getTemplate = compiledTemplate(
+      '<section title="Rue &amp; SSR">hello&nbsp;Rue<!--marker--><br><span data-code=&#x52;>!</span></section>',
+    )
+    // Populate the browser cache first; the server must still resolve its own host template.
+    getTemplate()
+    const view = _$compiledVapor(_$parentContext => {
+      const root = _$compiledCreateElement('main', _$parentContext)
+      const first = getTemplate().content.cloneNode(true)
+      const second = getTemplate().content.cloneNode(true)
+      _$compiledAppendChild(root, first as never)
+      _$compiledAppendChild(root, second as never)
+      return root
+    })
+
+    await expect(renderToString(view)).resolves.toBe(
+      '<main><section title="Rue &amp; SSR">hello\u00a0Rue<br><span data-code="R">!</span></section><section title="Rue &amp; SSR">hello\u00a0Rue<br><span data-code="R">!</span></section></main>',
+    )
+  })
+
   it('unwraps branded refs only at final child positions', async () => {
     const direct = ref('direct')
     const source = ref(2)
@@ -68,7 +89,7 @@ describe('server renderToString', () => {
         customValue = value
       },
     }))
-    const conditional = true ? ref('conditional') : 'fallback'
+    const conditional = source.value === 2 ? ref('conditional') : 'fallback'
     const arrayLeaf = ref('array-leaf')
     const heldArray = ref(['held-array', ref('nested-ref')])
     const attributeRef = ref('attribute-value')
@@ -90,7 +111,7 @@ describe('server renderToString', () => {
     )
 
     expect(html).toBe(
-      '<div data-ref="{&quot;value&quot;:&quot;attribute-value&quot;}">direct|4|custom|conditional|array:array-leaf|held-arraynested-ref</div>',
+      '<div data-ref="&quot;attribute-value&quot;">direct|4|custom|conditional|array:array-leaf|held-arraynested-ref</div>',
     )
     expect(html).not.toContain('data-ref="attribute-value"')
 
@@ -250,7 +271,7 @@ describe('server renderToString', () => {
 
   it('renders portable Vapor handles without a global document', async () => {
     const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document')
-    const view = vapor(parent => {
+    const view = _$compiledRoot(parent => {
       const root = _$createElement('section', parent)
       _$appendChild(root, _$createTextNode('portable server Vapor'))
       return root
@@ -880,7 +901,7 @@ describe('server renderToString', () => {
     const label = signal('before', {}, true)
     let runs = 0
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const container = _$createElement('div')
         const anchor = _$createComment('late-ssr-update')
         _$appendChild(container, anchor)
@@ -923,7 +944,7 @@ describe('server renderToString', () => {
 
     try {
       const App: FC = () =>
-        vapor(() => {
+        _$compiledRoot(() => {
           const container = _$createElement('div')
           const anchor = _$createComment('frame-ssr-update')
           const label = signal('before', {}, true)

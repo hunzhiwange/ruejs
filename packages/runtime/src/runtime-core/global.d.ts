@@ -25,7 +25,6 @@ declare global {
     __ruePopEffectScope(): void
     __ruePushEffectScope(scopeId: number): void
     getCurrentInstance?(): unknown
-    propsReactive?(initial: unknown, forceGlobal: boolean): unknown
     setCurrentInstance?(instance: unknown): void
   }
 
@@ -48,7 +47,6 @@ declare global {
     getCurrentContainer?(): unknown
     getCurrentRenderOwner?(): unknown
     popCurrentContainer?(): unknown
-    propsReactive?(initial: unknown): unknown
     pushCurrentContainer?(container: unknown): unknown
   }
 

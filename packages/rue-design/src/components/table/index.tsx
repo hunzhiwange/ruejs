@@ -793,7 +793,7 @@ const Table: FC<TableProps> = props => {
     const hasControlledSort = leafColumns.some(leaf => leaf.column.sortOrder !== undefined)
     const activeSortStates = hasControlledSort
       ? resolveInitialSort(leafColumns)
-      : normalizeSortStates(sortStateRef)
+      : normalizeSortStates([...sortStateRef])
     const activeSortStateMap = /*#__PURE__*/ new Map(
       activeSortStates.map(state => [state.key, state] as const),
     )
@@ -1233,8 +1233,9 @@ const Table: FC<TableProps> = props => {
     const getNextSortOrder = (columnKey: string, column: ColumnItem) => {
       const cycle = getSortCycle(column)
       const currentOrder =
-        new Map(normalizeSortStates(sortStateRef).map(state => [state.key, state])).get(columnKey)
-          ?.order ?? null
+        new Map(normalizeSortStates([...sortStateRef]).map(state => [state.key, state])).get(
+          columnKey,
+        )?.order ?? null
       const currentIndex = cycle.findIndex(order => order === currentOrder)
       return cycle[(currentIndex + 1 + cycle.length) % cycle.length]
     }

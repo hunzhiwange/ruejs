@@ -19,7 +19,6 @@ export const REACTIVE_KERNEL_EXPORT_NAMES = [
   'createComputed',
   'createCustomRef',
   'createEffect',
-  'createReactive',
   'createRef',
   'createResource',
   'createSignal',

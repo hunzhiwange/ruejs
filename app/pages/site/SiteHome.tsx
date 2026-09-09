@@ -1,4 +1,4 @@
-import { computed, type FC, reactive, ref, useState } from '@rue-js/rue'
+import { computed, type FC, ref, useState } from '@rue-js/rue'
 import { RouterLink as Link } from '@rue-js/router'
 import Code from './components/Code'
 import { useCodeCopy } from './components/CodeShared'
@@ -117,7 +117,7 @@ const SearchableVideoList: FC<{ videos: Video[] }> = p => {
 // ReactiveDemo 组件
 const ReactiveDemo: FC = () => {
   const count = ref(0)
-  const state = reactive({ enabled: false })
+  const [state] = useState({ enabled: false })
   return (
     <div className="rounded-xl border border-base-300/70 bg-base-100/70 backdrop-blur-sm p-4">
       <div className="flex items-center gap-3">
@@ -436,7 +436,7 @@ const SiteHome: FC = () => {
                 Framework For Native DOM
               </div>
               <p className="mt-6 text-lg md:text-xl text-base-content/70">
-                Signal 细粒度响应式 . 编译优化 . JSX 函数式组件
+                Signal 细粒度响应式 . Rust 编译器智能优化 . JSX 函数式组件
               </p>
             </figure>
             <div></div>
@@ -536,7 +536,7 @@ const SiteHome: FC = () => {
         />
         <FeatureCard
           title="React JSX + Vue 式响应式"
-          desc="适合希望保留 React 风格 JSX，同时获得 ref、reactive、computed 等 Vue 式响应式 API 的项目。"
+          desc="适合希望保留 React 风格 JSX，同时获得 Signal、ref、computed 等响应式 API 的项目。"
           icon="🤝"
         />
       </section>
@@ -890,15 +890,15 @@ export default HelloWorld;`}
         <h2 className="text-2xl font-semibold mb-2">React 风格 JSX，Vue 式响应式 API</h2>
         <p className="text-gray-600">
           Rue 适合希望保留 React 风格 JSX，同时获得 Vue 式响应式 API 的项目。你既可以用
-          useState，也可以用 ref / reactive / computed 来组织交互逻辑。
+          useState，也可以用 Signal / ref / computed 来组织交互逻辑。
         </p>
         <div className="mt-6 grid md:grid-cols-2 gap-6 items-start">
-          {/* 左栏：示例代码（useState + ref/reactive） */}
+          {/* 左栏：示例代码（useState + ref/useState） */}
           <div className="card bg-base-100 border p-0 overflow-auto h-[360px] md:h-[660px]">
             <Code
               className="h-full"
               lang="tsx"
-              code={`import { type FC, useState, ref, reactive, computed } from '@rue-js/rue';
+              code={`import { type FC, useState, ref, computed } from '@rue-js/rue';
 
 type Video = { title: string; desc: string };
 const videos: Video[] = [
@@ -960,7 +960,7 @@ const SearchableVideoList: FC<{ videos: Video[] }> = (p) => {
 
 const ReactiveDemo: FC = () => {
   const count = ref(0);
-  const state = reactive({ enabled: false });
+  const [state] = useState({ enabled: false });
   return (
     <div className="rounded-xl border border-gray-200/70 bg-white/60 backdrop-blur-sm p-4">
       <div className="flex items-center gap-3">
@@ -990,7 +990,7 @@ const Reactive: FC = () => (
       <SearchableVideoList videos={videos} />
     </div>
     <div>
-      <h3 className="text-lg font-semibold mb-2 text-base-content">ref / reactive 示例</h3>
+      <h3 className="text-lg font-semibold mb-2 text-base-content">ref / useState 示例</h3>
       <ReactiveDemo />
     </div>
   </div>
@@ -1008,7 +1008,7 @@ export default Reactive;`}
               <SearchableVideoList videos={videos} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-2 text-base-content">ref / reactive 示例</h3>
+              <h3 className="text-lg font-semibold mb-2 text-base-content">ref / useState 示例</h3>
               <ReactiveDemo />
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createResource as createCompiledResource } from '../src/compiled-reactive-compat'
+import { createResource as createCompiledResource } from '../src/runtime-core/reactive'
 import { signal as createCompiledSignal } from '../src/reactive-core'
 import { nextTick } from '../src/runtime-core/reactive'
 import { ReactiveEffectRuntime, onWatcherCleanup } from '../src/runtime-core/reactive-kernel/effect'

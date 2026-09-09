@@ -1,9 +1,22 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it } from 'vitest'
+import { types } from 'node:util'
 
-import { computed, nextTick, ref, setReactiveScheduling, watchEffect } from '@rue-js/rue'
+import {
+  batch,
+  computed,
+  nextTick,
+  ref,
+  signal,
+  setReactiveScheduling,
+  watchEffect,
+} from '@rue-js/rue'
 import { createStore, defineStore, storeToRefs } from '../src'
+import {
+  effect as compiledEffect,
+  __rueGetCompiledReactiveDebugState as graphStats,
+} from '../../runtime/src/runtime-core/compiled'
 
 const mountedRoots: ReturnType<typeof createStore>[] = []
 
@@ -21,8 +34,74 @@ afterEach(() => {
 })
 
 describe('@rue-js/store', () => {
+  it('shares the compiler graph and releases store nodes, computed values and subscriptions', () => {
+    setReactiveScheduling('sync')
+    const before = graphStats()
+    const root = createTestRoot()
+    const store = defineStore('release', {
+      state: () => ({ count: 0, other: 0 }),
+      getters: { doubled: store => store.getPath(['count']) * 2 },
+    })(root)
+    const seen: number[] = []
+    const stop = compiledEffect(() => seen.push(store.doubled))
+    const snapshots: number[] = []
+    store.subscribe((_mutation, state) => snapshots.push(state.count))
+    batch(() => {
+      store.set(['count'], 1)
+      store.set(['count'], 2)
+      store.set(['other'], 3)
+    })
+    expect(seen).toEqual([0, 4])
+    expect(snapshots).toEqual([2])
+    expect(graphStats().nodeCount).toBeGreaterThan(before.nodeCount)
+    stop.dispose()
+    root.dispose()
+    expect(graphStats()).toEqual(before)
+  })
+
+  it('routes setup Signal paths to their original sources', () => {
+    setReactiveScheduling('sync')
+    const store = defineStore('setup-paths', () => ({ profile: signal({ name: 'Rue', age: 1 }) }))(
+      createTestRoot(),
+    )
+    const names: string[] = []
+    const effect = watchEffect(() => names.push(store.getPath(['profile', 'name'])))
+    store.set(['profile', 'age'], 2)
+    store.set(['profile', 'name'], 'Signal')
+    store.mutatePath(['profile'], (profile: any) => {
+      profile.name = 'Store'
+    })
+    expect(names).toEqual(['Rue', 'Signal', 'Store'])
+    expect(store.get().profile.age).toBe(2)
+    store.update([], (state: any) => ({ ...state, extra: 1 }))
+    expect(store.get().profile.name).toBe('Store')
+    store.set([], { profile: { name: 'Reset', age: 3 } })
+    expect(store.get()).toEqual({ profile: { name: 'Reset', age: 3 } })
+    expect('extra' in store).toBe(false)
+    effect.dispose()
+  })
+
+  it('tracks explicit paths precisely and batches list mutations', () => {
+    setReactiveScheduling('sync')
+    const store = defineStore('paths', { state: () => ({ left: 1, right: 2, items: [1] }) })(
+      createTestRoot(),
+    )
+    expect(types.isProxy(store)).toBe(false)
+    expect(types.isProxy(store.get())).toBe(false)
+    expect(types.isProxy(store.getPath(['items']))).toBe(false)
+    const values: unknown[] = []
+    const effect = watchEffect(() => values.push(store.getPath(['left'])))
+    store.set(['right'], 3)
+    expect(values).toEqual([1])
+    store.update(['left'], (value: number) => value + 1)
+    expect(values).toEqual([1, 2])
+    store.mutatePath(['items'], (items: number[]) => items.push(2, 3))
+    expect(store.get().items).toEqual([1, 2, 3])
+    effect.dispose()
+  })
+
   it('supports options stores with getters, actions, patching and subscriptions', async () => {
-    const root = createStore()
+    const root = createTestRoot()
 
     const useCounterStore = defineStore('counter', {
       state: () => ({
@@ -33,18 +112,18 @@ describe('@rue-js/store', () => {
       }),
       getters: {
         double(state: any) {
-          return state.count * 2
+          return state.getPath(['count']) * 2
         },
         summary(this: any) {
-          return `${this.count}:${this.double}:${this.nested.label}`
+          return `${this.count}:${this.double}:${this.getPath(['nested', 'label'])}`
         },
       },
       actions: {
         increment(this: any, step = 1) {
-          this.count += step
+          this.update(['count'], (value: number) => value + step)
         },
         rename(this: any, label: string) {
-          this.nested.label = label
+          this.set(['nested', 'label'], label)
         },
       },
     })
@@ -56,7 +135,7 @@ describe('@rue-js/store', () => {
     })
 
     const snapshots: string[] = []
-    const unsubscribe = store.$subscribe((_mutation, state) => {
+    const unsubscribe = store.subscribe((_mutation, state) => {
       snapshots.push(`${state.count}:${state.nested.label}`)
     })
 
@@ -74,7 +153,7 @@ describe('@rue-js/store', () => {
     await nextTick()
     expect(store.summary).toBe('1:2:patched')
 
-    store.$set(['nested', 'label'], 'path')
+    store.set(['nested', 'label'], 'path')
     await nextTick()
     expect(store.summary).toBe('1:2:path')
 
@@ -118,7 +197,7 @@ describe('@rue-js/store', () => {
           enumerable: true,
           get: () => store.$state.pluginValue,
           set: value => {
-            store.$set('pluginValue', value)
+            store.set('pluginValue', value)
           },
         })
         return extension
@@ -153,7 +232,7 @@ describe('@rue-js/store', () => {
       }),
       actions: {
         toggle(this: any) {
-          this.theme = this.theme === 'light' ? 'dark' : 'light'
+          this.update(['theme'], (theme: string) => (theme === 'light' ? 'dark' : 'light'))
         },
       },
     })
@@ -201,8 +280,8 @@ describe('@rue-js/store', () => {
       extra: externalExtra,
       stamp: externalDate,
     }
-    store.$set(['items', 1, 'name'], 'two')
-    store.$set('count', (prev: unknown) => Number(prev) + 3)
+    store.set(['items', 1, 'name'], 'two')
+    store.update('count', (prev: unknown) => Number(prev) + 3)
 
     externalExtra.label = 'mutated'
     externalDate.setUTCFullYear(2030)
@@ -243,7 +322,7 @@ describe('@rue-js/store', () => {
     const store = useTodosStore(root)
     const snapshots: Array<{ storeId: string; items: string[] }> = []
 
-    const unsubscribe = store.$subscribe(
+    const unsubscribe = store.subscribe(
       (mutation, state) => {
         snapshots.push({
           storeId: mutation.storeId,
@@ -281,20 +360,20 @@ describe('@rue-js/store', () => {
   })
 
   it('supports setup stores and storeToRefs for writable state', async () => {
-    const root = createStore()
+    const root = createTestRoot()
 
     const useSessionStore = defineStore('session', () => {
       const token = ref('alpha')
       const upper = computed(() => token.value.toUpperCase())
 
-      const update = (nextToken: string) => {
+      const changeToken = (nextToken: string) => {
         token.value = nextToken
       }
 
       return {
         token,
         upper,
-        update,
+        changeToken,
       }
     })
 
@@ -308,7 +387,7 @@ describe('@rue-js/store', () => {
     await nextTick()
     expect(store.upper).toBe('BETA')
 
-    store.update('gamma')
+    store.changeToken('gamma')
     await nextTick()
     expect(refs.token.value).toBe('gamma')
     expect(refs.upper.value).toBe('GAMMA')
@@ -326,7 +405,7 @@ describe('@rue-js/store', () => {
         doubled,
         name: 'Rue',
         rename(this: any, nextName: string) {
-          this.name = nextName
+          this.set(['name'], nextName)
         },
       }
     })

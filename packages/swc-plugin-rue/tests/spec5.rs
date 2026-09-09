@@ -84,7 +84,7 @@ export default UseCart
     let program = apply(program);
     let out = utils::emit(program, cm);
 
-    let _expected_fragment = r##"import { onBeforeCreate, onCreated, onMounted, onBeforeUnmount, _$compiledWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
+    let _expected_fragment = r##"import { onBeforeCreate, onCreated, onMounted, onBeforeUnmount, _$compiledWithHookId, useSetup, _$compiledRoot, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { useCart } from '../hooks/useCart';
 const UseCart: FC = ()=>{
@@ -125,7 +125,7 @@ const UseCart: FC = ()=>{
             };
         }));
     const { cart: cart, products: products } = _$useSetup;
-    return vapor(()=>{
+    return _$compiledRoot(()=>{
         const _root = _$createElement("div");
         _$setClassName(_root, "max-w-3xl mx-auto p-6");
         const _el1 = _$createElement("h2");
@@ -152,7 +152,7 @@ const UseCart: FC = ()=>{
                 trackIndex: false,
                 start: _list1,
                 renderItem: (pr, parent, start, end, idx)=>{
-                    const __slot = vapor(()=>{
+                    const __slot = _$compiledRoot(()=>{
                         const _root = _$createDocumentFragment();
                         const _el3 = _$createElement("div");
                         _$appendChild(_root, _el3);
@@ -192,14 +192,14 @@ const UseCart: FC = ()=>{
         const _list5 = _$createComment("rue:slot:anchor");
         _$appendChild(_root, _list5);
         watchEffect(()=>{
-            const __slot = cart.items.value.length === 0 ? vapor(()=>{
+            const __slot = cart.items.value.length === 0 ? _$compiledRoot(()=>{
                 const _root = _$createDocumentFragment();
             const _el7 = _$createElement("p");
             _$appendChild(_root, _el7);
             _$setClassName(_el7, "text-gray-500 mt-2");
             _$appendChild(_el7, _$createTextNode("购物车为空"));
                 return _root;
-            }) : vapor(()=>{
+            }) : _$compiledRoot(()=>{
                 const _root = _$createDocumentFragment();
             const _el8 = _$createElement("ul");
             _$appendChild(_root, _el8);
@@ -221,7 +221,7 @@ const UseCart: FC = ()=>{
                       trackIndex: false,
                 start: _list6,
                         renderItem: (i, parent, start, end, idx)=>{
-                            const __slot = vapor(()=>{
+                            const __slot = _$compiledRoot(()=>{
                                 const _root = _$createDocumentFragment();
                     const _el9 = _$createElement("li");
                     _$appendChild(_root, _el9);

@@ -20,7 +20,7 @@
 
 - **详情**
 
-  与 `ref()` 不同，浅层 ref 的内部值按原样存储和暴露，不会被设为深层响应式。只有 `.value` 访问是响应式的。
+  浅层 ref 的内部值按原样存储和暴露，只有 `.value` 访问收集根依赖；嵌套对象保持普通对象。
 
   `shallowRef()` 与 Rue 的 `ref()` 使用同一组选项：你可以通过 `options.equals` 控制整体替换 `.value` 时的比较方式；`forceGlobal` 仍然是面向底层封装和 Hook 边界控制的高级参数。
 
@@ -129,106 +129,9 @@
   const text = useDebouncedRef('hello')
   ```
 
-## shallowReactive() {#shallowreactive}
+## 对象状态迁移
 
-[`reactive()`](/api/api/reactivity-core#reactive) 的浅层版本。
-
-- **类型**
-
-  ```ts
-  function shallowReactive<T extends object>(target: T): T
-  ```
-
-- **详情**
-
-  与 `reactive()` 不同，没有深度转换：对于浅层响应式对象，只有根级别的属性是响应式的。属性值按原样存储和暴露——这也意味着具有 ref 值的属性不会被自动解包。
-
-  :::warning 谨慎使用
-  浅层数据结构只应在组件的根级别状态中使用。避免将其嵌套在深层响应式对象中，因为它会创建一个具有不一致响应式行为的树，这可能难以理解和调试。
-  :::
-
-- **示例**
-
-  ```js
-  const state = shallowReactive({
-    foo: 1,
-    nested: {
-      bar: 2,
-    },
-  })
-
-  // 修改 state 自身的属性是响应式的
-  state.foo++
-
-  // ...但不会转换嵌套对象
-  isReactive(state.nested) // false
-
-  // 不是响应式的
-  state.nested.bar++
-  ```
-
-## shallowReadonly() {#shallowreadonly}
-
-[`readonly()`](/api/api/reactivity-core#readonly) 的浅层版本。
-
-- **类型**
-
-  ```ts
-  function shallowReadonly<T extends object>(target: T): Readonly<T>
-  ```
-
-- **详情**
-
-  与 `readonly()` 不同，没有深度转换：只有根级别的属性被设为只读。属性值按原样存储和暴露——这也意味着具有 ref 值的属性不会被自动解包。
-
-  :::warning 谨慎使用
-  浅层数据结构只应在组件的根级别状态中使用。避免将其嵌套在深层响应式对象中，因为它会创建一个具有不一致响应式行为的树，这可能难以理解和调试。
-  :::
-
-- **示例**
-
-  ```js
-  const state = shallowReadonly({
-    foo: 1,
-    nested: {
-      bar: 2,
-    },
-  })
-
-  // 修改 state 自身的属性将失败
-  state.foo++
-
-  // ...但在嵌套对象上有效
-  isReadonly(state.nested) // false
-
-  // 有效
-  state.nested.bar++
-  ```
-
-## toRaw() {#toraw}
-
-返回 Rue 创建的代理的原始对象。
-
-- **类型**
-
-  ```ts
-  function toRaw<T>(proxy: T): T
-  ```
-
-- **详情**
-
-  `toRaw()` 可以从由 [`reactive()`](/api/api/reactivity-core#reactive)、[`readonly()`](/api/api/reactivity-core#readonly)、[`shallowReactive()`](#shallowreactive) 或 [`shallowReadonly()`](#shallowreadonly) 创建的代理返回原始对象。
-
-  这是一个逃生口，可用于临时读取而不会产生代理访问/追踪开销，或写入而不触发更改。**不推荐**持有对原始对象的持久引用。谨慎使用。
-
-- **示例**
-
-  ```js
-  const foo = {}
-  const reactiveFoo = reactive(foo)
-
-  console.log(toRaw(reactiveFoo) === foo) // true
-  ```
+`shallowReactive`、`shallowReadonly` 和 `toRaw` 已删除。Signal 保存普通对象，直接使用 `get()` 读取；独立快照需要显式复制。使用根值替换或路径写入更新状态。
 
 ## effectScope() {#effectscope}
 

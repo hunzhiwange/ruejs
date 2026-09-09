@@ -1,4 +1,6 @@
-import { batch, signal, type CompiledSignalHandle } from './internal-reactive'
+import { batch, type CompiledSignalHandle } from './runtime-core/compiled'
+import { createRootSignal } from './runtime-core/reactive-kernel/signal-base'
+import { getSharedReactiveStorage } from './runtime-core/reactive-kernel/shared-runtime'
 
 interface CompiledPropState {
   present: boolean
@@ -9,6 +11,10 @@ type CompiledPropKey = string | symbol
 
 export interface CompiledPropsController<T extends object> {
   readonly props: Readonly<T>
+  get(key: PropertyKey): unknown
+  has(key: PropertyKey): boolean
+  keys(): CompiledPropKey[]
+  snapshot(): T
   update(nextProps: T): void
   dispose(): void
 }
@@ -19,8 +25,16 @@ export const _$compiledOmitProps = <T extends object>(
 ): Partial<T> => {
   const result: Partial<T> = {}
   const excludedKeys = new Set(excluded)
-  for (const key of Object.keys(props) as Array<keyof T>) {
-    if (!excludedKeys.has(String(key))) result[key] = props[key]
+  const source = _$compiledPropsSnapshot(props)
+  for (const key of enumerableOwnKeys(source) as Array<keyof T>) {
+    if (typeof key !== 'string' || !excludedKeys.has(key)) {
+      Object.defineProperty(result, key, {
+        value: source[key],
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      })
+    }
   }
   return result
 }
@@ -48,12 +62,30 @@ const samePropValue = (key: CompiledPropKey, previous: unknown, next: unknown): 
     previous.length === next.length &&
     previous.every((value, index) => Object.is(value, next[index])))
 
-/**
- * Create a shallow reactive props view for handwritten directly-compiled components.
- *
- * The proxy identity stays stable while `update()` publishes one atomic snapshot to compiled
- * effects. Nested objects remain ordinary values and must be replaced to trigger an update.
- */
+const controllersKey = /* @__PURE__ */ Symbol.for('rue.compiled.props.controllers')
+// Compiler and component entries are flattened separately when published. Keep their
+// weak controller lookup shared, without adding observable metadata to user props.
+const controllers = (): WeakMap<object, CompiledPropsController<object>> => {
+  const shared = globalThis as typeof globalThis & {
+    [key: symbol]: WeakMap<object, CompiledPropsController<object>> | undefined
+  }
+  return (shared[controllersKey] ??= new WeakMap())
+}
+
+export const _$compiledPropsGet = (props: object, key: PropertyKey): unknown => {
+  const controller = controllers().get(props)
+  return controller ? controller.get(key) : Reflect.get(props, key)
+}
+export const _$compiledPropsHas = (props: object, key: PropertyKey): boolean =>
+  controllers().get(props)?.has(key) ?? Reflect.has(props, key)
+export const _$compiledPropsKeys = (props: object): string[] =>
+  (controllers().get(props)?.keys() ?? enumerableOwnKeys(props)).filter(
+    (key): key is string => typeof key === 'string',
+  )
+export const _$compiledPropsSnapshot = <T extends object>(props: T): T =>
+  (controllers().get(props)?.snapshot() ?? props) as T
+
+/** Explicit key and structure subscriptions over shallow, enumerable own props. */
 export const createCompiledProps = <T extends object>(
   initialProps: T,
 ): CompiledPropsController<T> => {
@@ -61,39 +93,56 @@ export const createCompiledProps = <T extends object>(
   let snapshot = snapshotEnumerableProps(initialProps)
   let keys = Array.from(snapshot.keys())
   const records = new Map<CompiledPropKey, CompiledSignalHandle<CompiledPropState>>()
-  const keyVersion = signal(0)
+  // Records belong to this controller, not the owner that first reads a lazy key.
+  // A child render can be replaced while its parent props controller remains live.
+  const kernel = getSharedReactiveStorage()
+  const keyVersion = createRootSignal(kernel, 0)
 
   const stateFor = (key: CompiledPropKey): CompiledSignalHandle<CompiledPropState> => {
     let record = records.get(key)
     if (record !== undefined) return record
 
-    record = signal({ present: snapshot.has(key), value: snapshot.get(key) })
+    record = createRootSignal(kernel, { present: snapshot.has(key), value: snapshot.get(key) })
     records.set(key, record)
     return record
   }
 
-  const target = Object.create(null) as T
-  const props = new Proxy(target, {
-    get: (_target, key) => stateFor(key).get().value,
-    has: (_target, key) => stateFor(key).get().present,
-    ownKeys: () => {
-      keyVersion.get()
-      return keys.slice()
-    },
-    getOwnPropertyDescriptor: (_target, key) => {
-      const state = stateFor(key).get()
-      if (!state.present) return undefined
-      return {
-        configurable: true,
+  const props = Object.create(null) as T
+  const get = (key: PropertyKey): unknown =>
+    stateFor(typeof key === 'symbol' ? key : String(key)).get().value
+  const has = (key: PropertyKey): boolean =>
+    stateFor(typeof key === 'symbol' ? key : String(key)).get().present
+  const readKeys = (): CompiledPropKey[] => {
+    keyVersion.get()
+    return keys.slice()
+  }
+  const readSnapshot = (): T => {
+    const result = {} as T
+    for (const key of readKeys()) {
+      Object.defineProperty(result, key, {
+        value: get(key),
         enumerable: true,
-        value: state.value,
-        writable: false,
+        configurable: true,
+        writable: true,
+      })
+    }
+    return result
+  }
+  // Handwritten runtime components also receive an ordinary live props object. Compiled
+  // consumers use the explicit helpers above, bypassing these property accessors.
+  const publishKeys = () => {
+    for (const key of Reflect.ownKeys(props))
+      if (!snapshot.has(key)) Reflect.deleteProperty(props, key)
+    for (const key of keys)
+      if (!Object.prototype.hasOwnProperty.call(props, key)) {
+        Object.defineProperty(props, key, {
+          enumerable: true,
+          configurable: true,
+          get: () => get(key),
+        })
       }
-    },
-    set: () => false,
-    defineProperty: () => false,
-    deleteProperty: () => false,
-  }) as Readonly<T>
+  }
+  publishKeys()
 
   const update = (nextProps: T): void => {
     if (disposed) throw new Error('Cannot update disposed compiled props')
@@ -107,6 +156,7 @@ export const createCompiledProps = <T extends object>(
       // rerunning component can discover newly read keys from the same update.
       snapshot = nextSnapshot
       keys = nextKeys
+      publishKeys()
       for (const [key, record] of records) {
         const previous = record.peek()
         const present = nextSnapshot.has(key)
@@ -127,5 +177,13 @@ export const createCompiledProps = <T extends object>(
     keyVersion.dispose()
   }
 
-  return { props, update, dispose }
+  const controller = { props, get, has, keys: readKeys, snapshot: readSnapshot, update, dispose }
+  controllers().set(props, controller)
+  return controller
 }
+
+export const _$compiledPropsCall = (
+  fn: (...args: unknown[]) => unknown,
+  receiver: object,
+  args: unknown[],
+): unknown => Reflect.apply(fn, receiver, args)

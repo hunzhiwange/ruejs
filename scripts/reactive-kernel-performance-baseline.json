@@ -1,0 +1,1054 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-08T05:41:59.627Z",
+  "environment": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4 Pro",
+    "gcAvailable": true
+  },
+  "config": {
+    "warmupRounds": 3,
+    "measuredRounds": 7,
+    "workloadVersion": 1
+  },
+  "bundle": {
+    "entry": "packages/runtime/src/runtime-core/reactive-kernel/index.ts",
+    "gzipBytes": 8795
+  },
+  "results": {
+    "signal-shallow": {
+      "operations": 10000,
+      "sampleCount": 7,
+      "elapsedMs": 2.9734590000000196,
+      "opsPerSecond": 3363086.5601307885,
+      "heapDeltaBytes": 5984,
+      "retainedHeapBytes": 8552,
+      "graphNodesPeak": 3,
+      "graphEdgesPeak": 1,
+      "samples": [
+        {
+          "elapsedMs": 3.549166999999983,
+          "heapDeltaBytes": 4272,
+          "retainedHeapBytes": 19208,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 2.9694159999999954,
+          "heapDeltaBytes": -64160,
+          "retainedHeapBytes": -70896,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 2.9746669999999824,
+          "heapDeltaBytes": 5984,
+          "retainedHeapBytes": 8552,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 2.9142499999999814,
+          "heapDeltaBytes": 17936,
+          "retainedHeapBytes": 12120,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 2.9325419999999838,
+          "heapDeltaBytes": 37592,
+          "retainedHeapBytes": 47808,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 3.0030419999999935,
+          "heapDeltaBytes": 2456,
+          "retainedHeapBytes": -3336,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 2.9734590000000196,
+          "heapDeltaBytes": 6792,
+          "retainedHeapBytes": 352,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        }
+      ]
+    },
+    "signal-depth4": {
+      "operations": 10000,
+      "sampleCount": 7,
+      "elapsedMs": 4.112500000000011,
+      "opsPerSecond": 2431610.9422492334,
+      "heapDeltaBytes": 7960,
+      "retainedHeapBytes": 128,
+      "graphNodesPeak": 3,
+      "graphEdgesPeak": 1,
+      "samples": [
+        {
+          "elapsedMs": 4.005499999999984,
+          "heapDeltaBytes": 7680,
+          "retainedHeapBytes": -280,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.333082999999988,
+          "heapDeltaBytes": 7960,
+          "retainedHeapBytes": 4480,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.138707999999951,
+          "heapDeltaBytes": 8088,
+          "retainedHeapBytes": 128,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.245834000000002,
+          "heapDeltaBytes": 7960,
+          "retainedHeapBytes": 26656,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.112500000000011,
+          "heapDeltaBytes": 8120,
+          "retainedHeapBytes": 160,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.053665999999964,
+          "heapDeltaBytes": 7960,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.04058299999997,
+          "heapDeltaBytes": 7960,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        }
+      ]
+    },
+    "graph-10000": {
+      "operations": 20,
+      "sampleCount": 7,
+      "elapsedMs": 50.124624999999924,
+      "opsPerSecond": 399.00547884398196,
+      "heapDeltaBytes": 8155016,
+      "retainedHeapBytes": 144,
+      "graphNodesPeak": 10001,
+      "graphEdgesPeak": 10000,
+      "samples": [
+        {
+          "elapsedMs": 50.49933299999998,
+          "heapDeltaBytes": 8119768,
+          "retainedHeapBytes": -35824,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        },
+        {
+          "elapsedMs": 43.072625000000016,
+          "heapDeltaBytes": 8155016,
+          "retainedHeapBytes": 144,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        },
+        {
+          "elapsedMs": 50.124624999999924,
+          "heapDeltaBytes": 8155016,
+          "retainedHeapBytes": 144,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        },
+        {
+          "elapsedMs": 42.245250000000055,
+          "heapDeltaBytes": 8155088,
+          "retainedHeapBytes": 216,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        },
+        {
+          "elapsedMs": 42.76141700000005,
+          "heapDeltaBytes": 8155064,
+          "retainedHeapBytes": 192,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        },
+        {
+          "elapsedMs": 54.597125000000005,
+          "heapDeltaBytes": 8155016,
+          "retainedHeapBytes": 1768272,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        },
+        {
+          "elapsedMs": 62.31795800000009,
+          "heapDeltaBytes": 8154872,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 10001,
+          "graphEdgesPeak": 10000
+        }
+      ]
+    },
+    "signal-array-10000": {
+      "operations": 1000,
+      "sampleCount": 7,
+      "elapsedMs": 0.5853749999999991,
+      "opsPerSecond": 1708306.6410420698,
+      "heapDeltaBytes": 407496,
+      "retainedHeapBytes": 216,
+      "graphNodesPeak": 3,
+      "graphEdgesPeak": 1,
+      "samples": [
+        {
+          "elapsedMs": 0.5853749999999991,
+          "heapDeltaBytes": 405240,
+          "retainedHeapBytes": -2088,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 0.6330830000001697,
+          "heapDeltaBytes": 408776,
+          "retainedHeapBytes": 1472,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 0.6087499999998727,
+          "heapDeltaBytes": 407496,
+          "retainedHeapBytes": 192,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 0.5971670000001268,
+          "heapDeltaBytes": 407448,
+          "retainedHeapBytes": 10696,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 0.5240830000000187,
+          "heapDeltaBytes": 416648,
+          "retainedHeapBytes": 9408,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 0.5320420000000468,
+          "heapDeltaBytes": 407520,
+          "retainedHeapBytes": 216,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 0.5072090000001026,
+          "heapDeltaBytes": 404104,
+          "retainedHeapBytes": -3200,
+          "graphNodesPeak": 3,
+          "graphEdgesPeak": 1
+        }
+      ]
+    },
+    "batch-100": {
+      "operations": 1000,
+      "sampleCount": 7,
+      "elapsedMs": 4.3730410000000575,
+      "opsPerSecond": 228673.82217545796,
+      "heapDeltaBytes": 5432,
+      "retainedHeapBytes": 0,
+      "graphNodesPeak": 2,
+      "graphEdgesPeak": 1,
+      "samples": [
+        {
+          "elapsedMs": 6.352167000000009,
+          "heapDeltaBytes": -57792,
+          "retainedHeapBytes": -63080,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.3730410000000575,
+          "heapDeltaBytes": 5432,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.444625000000087,
+          "heapDeltaBytes": 5432,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.398374999999987,
+          "heapDeltaBytes": 5432,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.315000000000055,
+          "heapDeltaBytes": 5432,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.1853329999999005,
+          "heapDeltaBytes": 5432,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        },
+        {
+          "elapsedMs": 4.24245800000017,
+          "heapDeltaBytes": 5432,
+          "retainedHeapBytes": 0,
+          "graphNodesPeak": 2,
+          "graphEdgesPeak": 1
+        }
+      ]
+    },
+    "handles-100000": {
+      "operations": 100000,
+      "sampleCount": 7,
+      "elapsedMs": 9.202875000000176,
+      "opsPerSecond": 10866169.53941003,
+      "heapDeltaBytes": 1840208,
+      "retainedHeapBytes": -2016,
+      "graphNodesPeak": 100000,
+      "graphEdgesPeak": 0,
+      "samples": [
+        {
+          "elapsedMs": 10.151166000000103,
+          "heapDeltaBytes": 1781720,
+          "retainedHeapBytes": -61224,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        },
+        {
+          "elapsedMs": 9.345624999999927,
+          "heapDeltaBytes": 1840176,
+          "retainedHeapBytes": -2048,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        },
+        {
+          "elapsedMs": 9.472916999999825,
+          "heapDeltaBytes": 1847600,
+          "retainedHeapBytes": 2592,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        },
+        {
+          "elapsedMs": 8.913291999999956,
+          "heapDeltaBytes": 1840208,
+          "retainedHeapBytes": -2016,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        },
+        {
+          "elapsedMs": 9.042999999999893,
+          "heapDeltaBytes": 1848976,
+          "retainedHeapBytes": 3968,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        },
+        {
+          "elapsedMs": 8.513584000000037,
+          "heapDeltaBytes": 1840208,
+          "retainedHeapBytes": -2016,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        },
+        {
+          "elapsedMs": 9.202875000000176,
+          "heapDeltaBytes": 1846736,
+          "retainedHeapBytes": 1728,
+          "graphNodesPeak": 100000,
+          "graphEdgesPeak": 0
+        }
+      ]
+    }
+  },
+  "calibration": {
+    "method": "Median of 3 same-machine runs, each 3 warmups and 7 samples. Each workload retains the complete real report from its median-time run. Proxy workloads were removed, not renamed or measured as signals.",
+    "createdAt": [
+      "2026-09-08T05:41:59.627Z",
+      "2026-09-08T05:42:00.999Z",
+      "2026-09-08T05:42:02.341Z"
+    ],
+    "elapsedMsByRun": [
+      {
+        "signal-shallow": 2.9734590000000196,
+        "signal-depth4": 4.112500000000011,
+        "graph-10000": 50.124624999999924,
+        "signal-array-10000": 0.5978749999999309,
+        "batch-100": 4.20291700000007,
+        "handles-100000": 9.202875000000176
+      },
+      {
+        "signal-shallow": 3.0498330000000067,
+        "signal-depth4": 4.0087500000000205,
+        "graph-10000": 48.959833,
+        "signal-array-10000": 0.5502500000000055,
+        "batch-100": 4.3730410000000575,
+        "handles-100000": 9.238333000000011
+      },
+      {
+        "signal-shallow": 2.945333000000005,
+        "signal-depth4": 4.118167000000028,
+        "graph-10000": 52.81008299999996,
+        "signal-array-10000": 0.5853749999999991,
+        "batch-100": 4.513500000000022,
+        "handles-100000": 9.077541999999994
+      }
+    ]
+  },
+  "previousBaseline": {
+    "schemaVersion": 1,
+    "createdAt": "2026-09-07T22:27:26.572Z",
+    "environment": {
+      "node": "v26.0.0",
+      "platform": "darwin",
+      "arch": "arm64",
+      "cpu": "Apple M4 Pro",
+      "gcAvailable": true
+    },
+    "config": {
+      "warmupRounds": 3,
+      "measuredRounds": 7,
+      "workloadVersion": 1
+    },
+    "bundle": {
+      "entry": "packages/runtime/src/runtime-core/reactive-kernel/index.ts",
+      "gzipBytes": 9455
+    },
+    "results": {
+      "proxy-shallow": {
+        "operations": 10000,
+        "sampleCount": 7,
+        "elapsedMs": 13.692417000000006,
+        "opsPerSecond": 730331.2483106522,
+        "heapDeltaBytes": 13992,
+        "retainedHeapBytes": 6760,
+        "graphNodesPeak": 3,
+        "graphEdgesPeak": 1,
+        "samples": [
+          {
+            "elapsedMs": 12.571915999999987,
+            "heapDeltaBytes": 38384,
+            "retainedHeapBytes": 30480,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 14.529916999999983,
+            "heapDeltaBytes": -49264,
+            "retainedHeapBytes": -55600,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 13.692417000000006,
+            "heapDeltaBytes": 19304,
+            "retainedHeapBytes": 24344,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 14.15500000000003,
+            "heapDeltaBytes": 2480,
+            "retainedHeapBytes": -2640,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 11.653624999999977,
+            "heapDeltaBytes": 53920,
+            "retainedHeapBytes": 58488,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 14.325208999999973,
+            "heapDeltaBytes": 13992,
+            "retainedHeapBytes": 6760,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 12.14937500000002,
+            "heapDeltaBytes": 12248,
+            "retainedHeapBytes": 6184,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          }
+        ]
+      },
+      "signal-shallow": {
+        "operations": 10000,
+        "sampleCount": 7,
+        "elapsedMs": 9.255125000000021,
+        "opsPerSecond": 1080482.4354074069,
+        "heapDeltaBytes": 5352,
+        "retainedHeapBytes": 128,
+        "graphNodesPeak": 3,
+        "graphEdgesPeak": 1,
+        "samples": [
+          {
+            "elapsedMs": 9.27129100000002,
+            "heapDeltaBytes": 5520,
+            "retainedHeapBytes": -280,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 9.262124999999969,
+            "heapDeltaBytes": 9568,
+            "retainedHeapBytes": 4768,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 9.121375,
+            "heapDeltaBytes": 5384,
+            "retainedHeapBytes": 128,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 9.255125000000021,
+            "heapDeltaBytes": 5256,
+            "retainedHeapBytes": 128,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 9.088583999999969,
+            "heapDeltaBytes": 5352,
+            "retainedHeapBytes": 176,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 9.262749999999983,
+            "heapDeltaBytes": 4944,
+            "retainedHeapBytes": -280,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 9.09216699999996,
+            "heapDeltaBytes": 5256,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          }
+        ]
+      },
+      "proxy-depth4": {
+        "operations": 10000,
+        "sampleCount": 7,
+        "elapsedMs": 53.289375000000064,
+        "opsPerSecond": 187654.66849629945,
+        "heapDeltaBytes": 7792,
+        "retainedHeapBytes": 0,
+        "graphNodesPeak": 6,
+        "graphEdgesPeak": 4,
+        "samples": [
+          {
+            "elapsedMs": 53.02766699999995,
+            "heapDeltaBytes": 5936,
+            "retainedHeapBytes": -1856,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          },
+          {
+            "elapsedMs": 54.08066700000006,
+            "heapDeltaBytes": 7792,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          },
+          {
+            "elapsedMs": 52.90412500000002,
+            "heapDeltaBytes": 7792,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          },
+          {
+            "elapsedMs": 54.76374999999996,
+            "heapDeltaBytes": 7792,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          },
+          {
+            "elapsedMs": 55.00754100000006,
+            "heapDeltaBytes": 7792,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          },
+          {
+            "elapsedMs": 53.289375000000064,
+            "heapDeltaBytes": 7792,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          },
+          {
+            "elapsedMs": 52.696459000000004,
+            "heapDeltaBytes": 7792,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 6,
+            "graphEdgesPeak": 4
+          }
+        ]
+      },
+      "signal-depth4": {
+        "operations": 10000,
+        "sampleCount": 7,
+        "elapsedMs": 26.266583000000082,
+        "opsPerSecond": 380711.87257208023,
+        "heapDeltaBytes": 5464,
+        "retainedHeapBytes": 0,
+        "graphNodesPeak": 3,
+        "graphEdgesPeak": 1,
+        "samples": [
+          {
+            "elapsedMs": 25.621708000000126,
+            "heapDeltaBytes": 3560,
+            "retainedHeapBytes": -1904,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 26.30641700000001,
+            "heapDeltaBytes": 5464,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 26.69812499999989,
+            "heapDeltaBytes": 5464,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 25.945166999999856,
+            "heapDeltaBytes": 5464,
+            "retainedHeapBytes": 192,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 26.000790999999936,
+            "heapDeltaBytes": 19360,
+            "retainedHeapBytes": 13992,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 26.266583000000082,
+            "heapDeltaBytes": 5464,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 26.42537500000003,
+            "heapDeltaBytes": 5464,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          }
+        ]
+      },
+      "graph-10000": {
+        "operations": 20,
+        "sampleCount": 7,
+        "elapsedMs": 61.93741599999976,
+        "opsPerSecond": 322.9065933264003,
+        "heapDeltaBytes": 9347752,
+        "retainedHeapBytes": 192,
+        "graphNodesPeak": 10001,
+        "graphEdgesPeak": 10000,
+        "samples": [
+          {
+            "elapsedMs": 60.37545900000009,
+            "heapDeltaBytes": 9351064,
+            "retainedHeapBytes": 3472,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          },
+          {
+            "elapsedMs": 61.69358300000022,
+            "heapDeltaBytes": 9350600,
+            "retainedHeapBytes": 3040,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          },
+          {
+            "elapsedMs": 62.26483299999995,
+            "heapDeltaBytes": 9349000,
+            "retainedHeapBytes": 1440,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          },
+          {
+            "elapsedMs": 63.74000000000001,
+            "heapDeltaBytes": 9347704,
+            "retainedHeapBytes": 144,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          },
+          {
+            "elapsedMs": 61.9965830000001,
+            "heapDeltaBytes": 9347752,
+            "retainedHeapBytes": 192,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          },
+          {
+            "elapsedMs": 61.850790999999845,
+            "heapDeltaBytes": 9347704,
+            "retainedHeapBytes": -1400,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          },
+          {
+            "elapsedMs": 61.93741599999976,
+            "heapDeltaBytes": 9347704,
+            "retainedHeapBytes": 144,
+            "graphNodesPeak": 10001,
+            "graphEdgesPeak": 10000
+          }
+        ]
+      },
+      "proxy-array-10000": {
+        "operations": 1000,
+        "sampleCount": 7,
+        "elapsedMs": 5.733249999999771,
+        "opsPerSecond": 174421.13984215586,
+        "heapDeltaBytes": 407176,
+        "retainedHeapBytes": 0,
+        "graphNodesPeak": 5,
+        "graphEdgesPeak": 3,
+        "samples": [
+          {
+            "elapsedMs": 6.0090000000000146,
+            "heapDeltaBytes": 405408,
+            "retainedHeapBytes": 422080,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          },
+          {
+            "elapsedMs": 5.614790999999968,
+            "heapDeltaBytes": 407176,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          },
+          {
+            "elapsedMs": 5.898167000000285,
+            "heapDeltaBytes": 402728,
+            "retainedHeapBytes": -4448,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          },
+          {
+            "elapsedMs": 5.477709000000232,
+            "heapDeltaBytes": 408656,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          },
+          {
+            "elapsedMs": 5.996375000000171,
+            "heapDeltaBytes": 407968,
+            "retainedHeapBytes": 792,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          },
+          {
+            "elapsedMs": 5.43466699999999,
+            "heapDeltaBytes": 407064,
+            "retainedHeapBytes": -112,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          },
+          {
+            "elapsedMs": 5.733249999999771,
+            "heapDeltaBytes": 407176,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 5,
+            "graphEdgesPeak": 3
+          }
+        ]
+      },
+      "signal-array-10000": {
+        "operations": 1000,
+        "sampleCount": 7,
+        "elapsedMs": 3.9220000000000255,
+        "opsPerSecond": 254971.95308515898,
+        "heapDeltaBytes": 405360,
+        "retainedHeapBytes": 0,
+        "graphNodesPeak": 3,
+        "graphEdgesPeak": 1,
+        "samples": [
+          {
+            "elapsedMs": 3.543833000000177,
+            "heapDeltaBytes": 404192,
+            "retainedHeapBytes": -2048,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.891208000000006,
+            "heapDeltaBytes": 412488,
+            "retainedHeapBytes": 20104,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.9220000000000255,
+            "heapDeltaBytes": 405360,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.9970830000002024,
+            "heapDeltaBytes": 405360,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 4.097999999999956,
+            "heapDeltaBytes": 411040,
+            "retainedHeapBytes": 5680,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.9435419999999795,
+            "heapDeltaBytes": 405360,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.6859159999999065,
+            "heapDeltaBytes": 405360,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 3,
+            "graphEdgesPeak": 1
+          }
+        ]
+      },
+      "batch-100": {
+        "operations": 1000,
+        "sampleCount": 7,
+        "elapsedMs": 3.713333999999577,
+        "opsPerSecond": 269299.77211856353,
+        "heapDeltaBytes": 4680,
+        "retainedHeapBytes": 0,
+        "graphNodesPeak": 2,
+        "graphEdgesPeak": 1,
+        "samples": [
+          {
+            "elapsedMs": 3.7426249999998618,
+            "heapDeltaBytes": 2984,
+            "retainedHeapBytes": -1552,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.668250000000171,
+            "heapDeltaBytes": 4640,
+            "retainedHeapBytes": -40,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.864125000000058,
+            "heapDeltaBytes": 4680,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.8071249999998145,
+            "heapDeltaBytes": 4680,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.696792000000187,
+            "heapDeltaBytes": 4680,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.713333999999577,
+            "heapDeltaBytes": 4680,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          },
+          {
+            "elapsedMs": 3.538833000000068,
+            "heapDeltaBytes": 4680,
+            "retainedHeapBytes": 0,
+            "graphNodesPeak": 2,
+            "graphEdgesPeak": 1
+          }
+        ]
+      },
+      "handles-100000": {
+        "operations": 100000,
+        "sampleCount": 7,
+        "elapsedMs": 15.938790999999583,
+        "opsPerSecond": 6274001.585189405,
+        "heapDeltaBytes": 5836008,
+        "retainedHeapBytes": -720,
+        "graphNodesPeak": 100000,
+        "graphEdgesPeak": 0,
+        "samples": [
+          {
+            "elapsedMs": 22.474292000000332,
+            "heapDeltaBytes": 5721832,
+            "retainedHeapBytes": -115616,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 15.660541000000194,
+            "heapDeltaBytes": 5838896,
+            "retainedHeapBytes": 2168,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 15.938790999999583,
+            "heapDeltaBytes": 5834760,
+            "retainedHeapBytes": -1968,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 15.960625000000164,
+            "heapDeltaBytes": 5838360,
+            "retainedHeapBytes": 1632,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 15.645833000000039,
+            "heapDeltaBytes": 5834864,
+            "retainedHeapBytes": -1864,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 15.97741700000006,
+            "heapDeltaBytes": 5838528,
+            "retainedHeapBytes": 1800,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 15.491750000000138,
+            "heapDeltaBytes": 5836008,
+            "retainedHeapBytes": -720,
+            "graphNodesPeak": 100000,
+            "graphEdgesPeak": 0
+          }
+        ]
+      },
+      "nested-proxy-allocation": {
+        "operations": 10000,
+        "sampleCount": 7,
+        "elapsedMs": 7.046624999999949,
+        "opsPerSecond": 1419119.0818299644,
+        "heapDeltaBytes": 9684640,
+        "retainedHeapBytes": 144,
+        "graphNodesPeak": 1,
+        "graphEdgesPeak": 0,
+        "samples": [
+          {
+            "elapsedMs": 7.3030839999996715,
+            "heapDeltaBytes": 9682976,
+            "retainedHeapBytes": -1520,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 6.9621250000000146,
+            "heapDeltaBytes": 9684640,
+            "retainedHeapBytes": 144,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 7.251875000000382,
+            "heapDeltaBytes": 9684640,
+            "retainedHeapBytes": 144,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 6.853958000000148,
+            "heapDeltaBytes": 9684640,
+            "retainedHeapBytes": 144,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 7.046624999999949,
+            "heapDeltaBytes": 9684888,
+            "retainedHeapBytes": 472,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 6.879500000000007,
+            "heapDeltaBytes": 9690320,
+            "retainedHeapBytes": 5856,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          },
+          {
+            "elapsedMs": 7.190749999999753,
+            "heapDeltaBytes": 9684720,
+            "retainedHeapBytes": 224,
+            "graphNodesPeak": 1,
+            "graphEdgesPeak": 0
+          }
+        ]
+      }
+    }
+  }
+}

@@ -6,7 +6,6 @@ import {
   mount,
   onError,
   render,
-  toRaw,
   useContext,
   useEffect,
   useRef,
@@ -188,19 +187,6 @@ let bootstrapInitialNavigationSnapshot: ClientNavigationRenderSnapshot | null = 
 type BrowserClientReferenceGlobal = typeof globalThis & {
   __rue_rsc_client_require__?: (referenceKey: string) => unknown
   __vite_rsc_client_require__?: (referenceKey: string) => unknown
-}
-
-function readRueRawValue<T>(value: T): T {
-  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return value
-  try {
-    const raw = toRaw(value as never) as T | undefined
-    if (raw !== undefined && raw !== value) return raw
-  } catch {
-    // The browser root can be rendered during recovery; keep the proxy value if
-    // the reactive runtime refuses to unwrap a detached object.
-  }
-  const raw = (value as { __rue_raw__?: T }).__rue_raw__
-  return raw === undefined ? value : raw
 }
 
 // Maps NavigationKind to the AppRouterAction type used by the reducer.
@@ -1058,12 +1044,10 @@ function BrowserRoot({
     isRouterStatePromise(treeStateValue) && browserRouterStateHasEverCommitted
       ? readRueThenable(treeStateValue)
       : treeStateValue
-  const treeState = isUsableRouterState(resolvedTreeState)
-    ? readRueRawValue(resolvedTreeState)
-    : initialRouterState
+  const treeState = isUsableRouterState(resolvedTreeState) ? resolvedTreeState : initialRouterState
   const currentRenderEntryId = resolvePrimaryRenderEntryId(treeState)
   // Slot rendering reads outside BrowserRoot's state scope; clone the Rue state map first.
-  const renderElementsSource = readRueRawValue(treeState.elements)
+  const renderElementsSource = treeState.elements
   const renderElements = Object.fromEntries(Object.entries(renderElementsSource)) as AppElements
   beginCurrentSsrAppElements()
   setCurrentSsrAppElements(renderElements)

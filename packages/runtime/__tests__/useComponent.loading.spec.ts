@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { onError, render, setReactiveScheduling, useComponent, type FC } from '../src'
-import { _$appendChild, _$createElement, vapor } from '../src/internal'
+import { _$appendChild, _$createElement, _$compiledRoot } from '../src/internal'
 
 type LoadedModule = { default: FC<any> }
 setReactiveScheduling('sync')
@@ -8,7 +8,7 @@ setReactiveScheduling('sync')
 const compiledView =
   (tag: string, text: string, attributes: Record<string, string> = {}): FC<any> =>
   props =>
-    vapor(parent => {
+    _$compiledRoot(parent => {
       const element = _$createElement(tag, parent)
       for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value)
       element.textContent = text.replace(/\{(\w+)\}/g, (_match, key) => String(props[key] ?? ''))

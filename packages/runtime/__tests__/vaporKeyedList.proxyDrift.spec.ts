@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { computed, reactive, renderAnchor, setReactiveScheduling, watchEffect } from '../src'
-import { vapor } from './legacy-test-render'
+import { computed, signal, renderAnchor, setReactiveScheduling, watchEffect } from '../src'
+import { _$compiledRoot } from './legacy-test-render'
 import { vaporKeyedList as _$compiledKeyedList } from './legacy-test-render'
 
 setReactiveScheduling('sync')
@@ -20,7 +20,7 @@ describe('vaporKeyedList', () => {
     setReactiveScheduling('async')
 
     try {
-      const items = reactive([{ id: 'root', label: 'Root' }]) as any
+      const items = signal([{ id: 'root', label: 'Root' }]) as any
       const parent = document.createElement('div')
       const start = document.createComment('rue:list:start')
       const end = document.createComment('rue:list:end')
@@ -31,7 +31,7 @@ describe('vaporKeyedList', () => {
       let elements = new Map<any, any>()
       watchEffect(() => {
         elements = _$compiledKeyedList({
-          items: items.map((item: any) => item),
+          items: items.get().map((item: any) => item),
           getKey: (item: any) => item.id,
           elements,
           parent: start.parentNode as any,
@@ -39,7 +39,7 @@ describe('vaporKeyedList', () => {
           start: start as any,
           renderItem: (item: any, listParent: any, _itemStart: any, itemEnd: any) => {
             renderAnchor(
-              vapor(() => {
+              _$compiledRoot(() => {
                 const row = document.createElement('div')
                 row.className = 'row'
                 row.textContent = item.label
@@ -57,7 +57,7 @@ describe('vaporKeyedList', () => {
       expect(parent.querySelector('.row')?.textContent).toBe('Root')
 
       parent.replaceChildren()
-      items.push({ id: 'child', label: 'Child' })
+      items.mutatePath([], (list: any[]) => list.push({ id: 'child', label: 'Child' }))
 
       await flushEffects()
 
@@ -68,7 +68,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('keeps keyed single-root rows aligned after removing the first reactive object item', async () => {
-    const items = reactive([
+    const items = signal([
       { label: 'A', value: 100 },
       { label: 'B', value: 100 },
       { label: 'C', value: 100 },
@@ -82,7 +82,7 @@ describe('vaporKeyedList', () => {
     let elements = new Map<any, any>()
     watchEffect(() => {
       elements = _$compiledKeyedList({
-        items: items || [],
+        items: items.get() || [],
         getKey: (item: any) => item.label,
         elements,
         parent,
@@ -90,7 +90,7 @@ describe('vaporKeyedList', () => {
         singleRoot: true,
         renderItem: (item: any, listParent: any, anchor: any) => {
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const row = document.createElement('div')
               row.className = 'row'
               row.textContent = item.label
@@ -110,8 +110,8 @@ describe('vaporKeyedList', () => {
       'C',
     ])
 
-    const first = items[0]
-    items.splice(items.indexOf(first), 1)
+    const first = items.get()[0]
+    items.mutatePath([], (list: any[]) => list.splice(list.indexOf(first), 1))
 
     await flushEffects()
     expect(Array.from(parent.querySelectorAll('.row')).map(el => el.textContent)).toEqual([
@@ -121,7 +121,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('preserves keyed single-root row DOM when only the item index changes', async () => {
-    const items = reactive([
+    const items = signal([
       { label: 'A', value: 100 },
       { label: 'B', value: 100 },
       { label: 'C', value: 100 },
@@ -138,7 +138,7 @@ describe('vaporKeyedList', () => {
     watchEffect(() => {
       listRuns += 1
       elements = _$compiledKeyedList({
-        items: items || [],
+        items: items.get() || [],
         getKey: (item: any) => item.label,
         elements,
         parent,
@@ -149,7 +149,7 @@ describe('vaporKeyedList', () => {
           const label = item.label
           counts.set(label, (counts.get(label) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const row = document.createElement('div')
               row.className = 'row'
               row.textContent = item.label
@@ -171,8 +171,8 @@ describe('vaporKeyedList', () => {
     expect(counts.get('B')).toBe(1)
     expect(listRuns).toBe(1)
 
-    const first = items[0]
-    items.splice(items.indexOf(first), 1)
+    const first = items.get()[0]
+    items.mutatePath([], (list: any[]) => list.splice(list.indexOf(first), 1))
 
     await flushEffects()
 
@@ -190,7 +190,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('preserves sibling row DOM when another keyed item changes', async () => {
-    const state = reactive({
+    const state = signal({
       todos: [
         { id: 1, label: 'A', completed: false },
         { id: 2, label: 'B', completed: true },
@@ -199,8 +199,8 @@ describe('vaporKeyedList', () => {
     }) as any
     const todoViews = computed(() => {
       const items: any[] = []
-      for (let index = 0; index < state.todos.length; index += 1) {
-        items.push(state.todos[index])
+      for (let index = 0; index < state.getPath(['todos']).length; index += 1) {
+        items.push(state.getPath(['todos'])[index])
       }
       return items
     })
@@ -225,7 +225,7 @@ describe('vaporKeyedList', () => {
           const label = item.label
           counts.set(label, (counts.get(label) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const root = document.createDocumentFragment()
               const row = document.createElement('div')
               const span = document.createElement('span')
@@ -241,7 +241,13 @@ describe('vaporKeyedList', () => {
                 row.setAttribute('key', String(item.id))
               })
               watchEffect(() => {
-                row.dataset.completed = item.completed ? 'yes' : 'no'
+                row.dataset.completed = state.getPath([
+                  'todos',
+                  state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                  'completed',
+                ])
+                  ? 'yes'
+                  : 'no'
               })
               watchEffect(() => {
                 renderAnchor(item.label, span, textAnchor)
@@ -266,7 +272,7 @@ describe('vaporKeyedList', () => {
     expect(preservedSpan).toBeTruthy()
     expect(counts.get('B')).toBe(1)
 
-    state.todos[0].completed = true
+    state.setPath(['todos', 0, 'completed'], true)
 
     await flushEffects()
 
@@ -282,7 +288,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('preserves existing todo row DOM when LocalTodoList-style computed views append a new item', async () => {
-    const state = reactive({
+    const state = signal({
       todos: [
         { id: 1, text: '学习响应式框架', completed: false },
         { id: 2, text: '编写示例代码', completed: true },
@@ -291,8 +297,8 @@ describe('vaporKeyedList', () => {
     }) as any
     const todoViews = computed(() => {
       const items: any[] = []
-      for (let index = 0; index < state.todos.length; index += 1) {
-        items.push(state.todos[index])
+      for (let index = 0; index < state.getPath(['todos']).length; index += 1) {
+        items.push(state.getPath(['todos'])[index])
       }
       return items
     })
@@ -316,7 +322,7 @@ describe('vaporKeyedList', () => {
         renderItem: (item: any, listParent: any, anchor: any) => {
           counts.set(item.id, (counts.get(item.id) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const root = document.createDocumentFragment()
               const row = document.createElement('div')
               const span = document.createElement('span')
@@ -330,10 +336,24 @@ describe('vaporKeyedList', () => {
               button.textContent = '删除'
               row.appendChild(button)
               watchEffect(() => {
-                row.dataset.completed = item.completed ? 'yes' : 'no'
+                row.dataset.completed = state.getPath([
+                  'todos',
+                  state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                  'completed',
+                ])
+                  ? 'yes'
+                  : 'no'
               })
               watchEffect(() => {
-                renderAnchor(item.text, span, textAnchor)
+                renderAnchor(
+                  state.getPath([
+                    'todos',
+                    state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                    'text',
+                  ]),
+                  span,
+                  textAnchor,
+                )
               })
               return root as any
             }) as any,
@@ -362,7 +382,9 @@ describe('vaporKeyedList', () => {
     expect(counts.get(2)).toBe(1)
     expect(counts.get(3)).toBe(1)
 
-    state.todos.push({ id: 4, text: '本地新增任务', completed: false })
+    state.mutatePath(['todos'], (todos: any[]) =>
+      todos.push({ id: 4, text: '本地新增任务', completed: false }),
+    )
 
     await flushEffects()
 
@@ -393,7 +415,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('preserves remaining todo row DOM when LocalTodoList-style computed views delete the first item', async () => {
-    const state = reactive({
+    const state = signal({
       todos: [
         { id: 1, text: '学习响应式框架', completed: false },
         { id: 2, text: '编写示例代码', completed: true },
@@ -402,8 +424,8 @@ describe('vaporKeyedList', () => {
     }) as any
     const todoViews = computed(() => {
       const items: any[] = []
-      for (let index = 0; index < state.todos.length; index += 1) {
-        items.push(state.todos[index])
+      for (let index = 0; index < state.getPath(['todos']).length; index += 1) {
+        items.push(state.getPath(['todos'])[index])
       }
       return items
     })
@@ -427,7 +449,7 @@ describe('vaporKeyedList', () => {
         renderItem: (item: any, listParent: any, anchor: any) => {
           counts.set(item.id, (counts.get(item.id) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const root = document.createDocumentFragment()
               const row = document.createElement('div')
               const span = document.createElement('span')
@@ -441,10 +463,24 @@ describe('vaporKeyedList', () => {
               button.textContent = '删除'
               row.appendChild(button)
               watchEffect(() => {
-                row.dataset.completed = item.completed ? 'yes' : 'no'
+                row.dataset.completed = state.getPath([
+                  'todos',
+                  state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                  'completed',
+                ])
+                  ? 'yes'
+                  : 'no'
               })
               watchEffect(() => {
-                renderAnchor(item.text, span, textAnchor)
+                renderAnchor(
+                  state.getPath([
+                    'todos',
+                    state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                    'text',
+                  ]),
+                  span,
+                  textAnchor,
+                )
               })
               return root as any
             }) as any,
@@ -472,7 +508,7 @@ describe('vaporKeyedList', () => {
     expect(counts.get(2)).toBe(1)
     expect(counts.get(3)).toBe(1)
 
-    state.todos.splice(0, 1)
+    state.mutatePath(['todos'], (todos: any[]) => todos.splice(0, 1))
 
     await flushEffects()
 
@@ -499,7 +535,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('preserves sibling row DOM when LocalTodoList-style computed views delete the middle item', async () => {
-    const state = reactive({
+    const state = signal({
       todos: [
         { id: 1, text: '学习响应式框架', completed: false },
         { id: 2, text: '编写示例代码', completed: true },
@@ -508,8 +544,8 @@ describe('vaporKeyedList', () => {
     }) as any
     const todoViews = computed(() => {
       const items: any[] = []
-      for (let index = 0; index < state.todos.length; index += 1) {
-        items.push(state.todos[index])
+      for (let index = 0; index < state.getPath(['todos']).length; index += 1) {
+        items.push(state.getPath(['todos'])[index])
       }
       return items
     })
@@ -533,7 +569,7 @@ describe('vaporKeyedList', () => {
         renderItem: (item: any, listParent: any, anchor: any) => {
           counts.set(item.id, (counts.get(item.id) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const root = document.createDocumentFragment()
               const row = document.createElement('div')
               const span = document.createElement('span')
@@ -547,10 +583,24 @@ describe('vaporKeyedList', () => {
               button.textContent = '删除'
               row.appendChild(button)
               watchEffect(() => {
-                row.dataset.completed = item.completed ? 'yes' : 'no'
+                row.dataset.completed = state.getPath([
+                  'todos',
+                  state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                  'completed',
+                ])
+                  ? 'yes'
+                  : 'no'
               })
               watchEffect(() => {
-                renderAnchor(item.text, span, textAnchor)
+                renderAnchor(
+                  state.getPath([
+                    'todos',
+                    state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                    'text',
+                  ]),
+                  span,
+                  textAnchor,
+                )
               })
               return root as any
             }) as any,
@@ -581,7 +631,7 @@ describe('vaporKeyedList', () => {
     expect(counts.get(2)).toBe(1)
     expect(counts.get(3)).toBe(1)
 
-    state.todos.splice(1, 1)
+    state.mutatePath(['todos'], (todos: any[]) => todos.splice(1, 1))
 
     await flushEffects()
 
@@ -609,7 +659,7 @@ describe('vaporKeyedList', () => {
   })
 
   it('updates the toggled todo row reactively without remounting it', async () => {
-    const state = reactive({
+    const state = signal({
       todos: [
         { id: 1, text: '学习响应式框架', completed: false },
         { id: 2, text: '编写示例代码', completed: true },
@@ -618,8 +668,8 @@ describe('vaporKeyedList', () => {
     }) as any
     const todoViews = computed(() => {
       const items: any[] = []
-      for (let index = 0; index < state.todos.length; index += 1) {
-        items.push(state.todos[index])
+      for (let index = 0; index < state.getPath(['todos']).length; index += 1) {
+        items.push(state.getPath(['todos'])[index])
       }
       return items
     })
@@ -643,7 +693,7 @@ describe('vaporKeyedList', () => {
         renderItem: (item: any, listParent: any, anchor: any) => {
           counts.set(item.id, (counts.get(item.id) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const root = document.createDocumentFragment()
               const row = document.createElement('div')
               const span = document.createElement('span')
@@ -657,10 +707,24 @@ describe('vaporKeyedList', () => {
               button.textContent = '删除'
               row.appendChild(button)
               watchEffect(() => {
-                row.dataset.completed = item.completed ? 'yes' : 'no'
+                row.dataset.completed = state.getPath([
+                  'todos',
+                  state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                  'completed',
+                ])
+                  ? 'yes'
+                  : 'no'
               })
               watchEffect(() => {
-                renderAnchor(item.text, span, textAnchor)
+                renderAnchor(
+                  state.getPath([
+                    'todos',
+                    state.getPath(['todos']).findIndex((todo: any) => todo.id === item.id),
+                    'text',
+                  ]),
+                  span,
+                  textAnchor,
+                )
               })
               return root as any
             }) as any,
@@ -684,7 +748,7 @@ describe('vaporKeyedList', () => {
     expect(toggledRow?.dataset.completed).toBe('no')
     expect(counts.get(1)).toBe(1)
 
-    state.todos[0].completed = true
+    state.setPath(['todos', 0, 'completed'], true)
 
     await flushEffects()
 
@@ -701,25 +765,25 @@ describe('vaporKeyedList', () => {
   })
 
   it('tracks JSON.stringify for reactive arrays inside watchEffect', async () => {
-    const items = reactive([{ label: 'A' }]) as any
+    const items = signal([{ label: 'A' }]) as any
     const pre = document.createElement('pre')
     document.body.appendChild(pre)
 
     watchEffect(() => {
-      pre.textContent = JSON.stringify(items)
+      pre.textContent = JSON.stringify(items.get())
     })
 
     await flushEffects()
     expect(pre.textContent).toContain('"A"')
 
-    items.push({ label: 'B' })
+    items.mutatePath([], (list: any[]) => list.push({ label: 'B' }))
 
     await flushEffects()
     expect(pre.textContent).toContain('"B"')
   })
 
   it('preserves sibling row DOM after removing an items proxy', async () => {
-    const items = reactive([
+    const items = signal([
       { label: 'A', value: 100 },
       { label: 'B', value: 100 },
       { label: 'C', value: 100 },
@@ -734,7 +798,7 @@ describe('vaporKeyedList', () => {
     let elements = new Map<any, any>()
     watchEffect(() => {
       elements = _$compiledKeyedList({
-        items: items || [],
+        items: items.get() || [],
         getKey: (item: any) => item.label,
         elements,
         parent,
@@ -745,7 +809,7 @@ describe('vaporKeyedList', () => {
           const label = item.label
           counts.set(label, (counts.get(label) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const row = document.createElement('div')
               row.className = 'row'
               row.textContent = item.label
@@ -767,7 +831,7 @@ describe('vaporKeyedList', () => {
     expect(counts.get('B')).toBe(1)
 
     // remove first item A
-    items.shift()
+    items.mutatePath([], (list: any[]) => list.shift())
 
     await flushEffects()
 

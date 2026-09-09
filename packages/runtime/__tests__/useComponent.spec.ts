@@ -7,7 +7,7 @@ import {
   _$compiledWithHookId,
   renderAnchor,
   useSetup,
-  vapor,
+  _$compiledRoot,
   watchEffect,
 } from './legacy-test-render'
 
@@ -156,13 +156,13 @@ describe('useComponent', () => {
         activeTab: { value: 'preview' | 'code' }
       }
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createElement('div')
         const anchor = document.createComment('async-compiled-anchor')
 
         root.append(anchor)
 
-        const child = vapor(() => {
+        const child = _$compiledRoot(() => {
           const article = document.createElement('article')
           article.dataset.testid = 'compiled-like-value'
 
@@ -214,7 +214,7 @@ describe('useComponent', () => {
         ready: { value: boolean }
       }
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createElement('section')
         const article = document.createElement('article')
         const anchor = document.createComment('async-shell-children')
@@ -244,13 +244,13 @@ describe('useComponent', () => {
         activeTab: { value: 'preview' | 'code' }
       }
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createElement('div')
         const anchor = document.createComment('async-hookful-anchor')
 
         root.append(anchor)
 
-        const child = vapor(() => {
+        const child = _$compiledRoot(() => {
           const article = document.createElement('article')
           article.dataset.testid = 'compiled-like-hookful-value'
 
@@ -302,7 +302,7 @@ describe('useComponent', () => {
         count: { value: number }
       }
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const button = document.createElement('button')
         button.dataset.testid = 'async-counter'
         button.addEventListener('click', () => {

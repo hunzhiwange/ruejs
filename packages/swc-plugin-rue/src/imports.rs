@@ -522,7 +522,6 @@ pub fn ensure_runtime_imports(m: &mut Module) {
     // 为了稳定输出顺序，按预定义序列排序值导入
     // 说明：稳定的导入顺序有助于避免测试快照抖动，并提升读者的熟悉成本
     let order: Vec<&str> = vec![
-        "vapor",
         "onBeforeCreate",
         "onCreated",
         "onBeforeMount",
@@ -558,6 +557,11 @@ pub fn ensure_runtime_imports(m: &mut Module) {
         "_$compiledCreateDocumentFragment",
         "_$compiledSpreadAttributes",
         "_$compiledOmitProps",
+        "_$compiledPropsGet",
+        "_$compiledPropsCall",
+        "_$compiledPropsHas",
+        "_$compiledPropsKeys",
+        "_$compiledPropsSnapshot",
         "_$compiledSlotValue",
         "_$compiledRootFactory",
         "_$compiledText",

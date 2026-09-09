@@ -261,28 +261,8 @@ export {
   computed,
   /** 判断值是否为 Rue ref 或 computed ref。 */
   isRef,
-  /** 判断对象是否为 Rue 响应式代理。 */
-  isProxy,
-  /** 判断对象是否为 Rue 响应式代理或信号。 */
   isReactive,
-  /** 判断对象是否为 Rue 只读代理或只读计算值。 */
   isReadonly,
-  /** 创建深层响应式对象。 */
-  reactive,
-  /** 创建浅层响应式对象。 */
-  shallowReactive,
-  /** 创建只读响应式对象。 */
-  readonly,
-  /** 创建浅层只读响应式对象。 */
-  shallowReadonly,
-  /** 将对象属性包装成与源属性同步的 ref。 */
-  toRef,
-  /** 将对象所有可枚举属性批量转换为 ref。 */
-  toRefs,
-  /** 获取响应式代理背后的原始对象。 */
-  toRaw,
-  /** 将组件 props 包装成响应式读取对象。 */
-  propsReactive,
   /** 在组件 setup 阶段初始化并缓存值。 */
   useSetup,
   /** 创建稳定引用对象，适合保存 DOM 或可变实例。 */

@@ -56,7 +56,7 @@ fn strip_create_element_parent_arg(s: &str) -> String {
 
 pub fn normalize(s: &str) -> String {
     let replaced = strip_create_element_parent_arg(s)
-        .replace("vapor((__rue_parent_context)=>{", "vapor(()=>{")
+        .replace("_$compiledRoot((__rue_parent_context)=>{", "_$compiledRoot(()=>{")
         .replace("\r\n", "\n")
         .replace(" />", "/>")
         .replace("[ ", "[")

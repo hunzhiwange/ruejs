@@ -16,7 +16,7 @@ interface PackResult {
   files: Array<{ path: string }>
 }
 
-const esmPackages = ['vite-plugin-rue', 'rue-rsc', 'text', 'rue-ssr-binary-demo'] as const
+const esmPackages = ['vite-plugin-rue', 'rue-rsc', 'text'] as const
 
 const readManifest = (directory: string) =>
   JSON.parse(

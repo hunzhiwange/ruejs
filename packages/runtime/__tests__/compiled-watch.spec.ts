@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { watch } from '../src/compiled-reactive-compat'
+import { watch } from '../src/reactivity/index'
 import { setReactiveScheduling, signal } from '../src/reactive-core'
 
 describe('compiled watch dependency isolation', () => {

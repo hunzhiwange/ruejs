@@ -17,7 +17,10 @@ const Layout: FC = props => <article>{props.children}</article>
     assert!(out.contains(&utils::normalize("rue:text-hole:0")));
     assert!(!out.contains(&utils::normalize("_$compiledText(")));
     assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt(")), "{out}");
-    assert!(out.contains(&utils::normalize("()=>props.children")), "{out}");
+    assert!(
+        out.contains(&utils::normalize("()=>_$compiledPropsGet(props, \"children\")")),
+        "{out}"
+    );
     assert!(!out.contains("renderAnchor"), "{out}");
     assert!(!out.contains(&utils::normalize("rue:children:start")));
 }
@@ -36,7 +39,7 @@ const Page: FC<{ ok: boolean }> = props => <section><div>{props.ok ? <span>yes</
 
     assert!(out.contains(&utils::normalize("rue:text-hole:0")));
     assert!(out.contains(&utils::normalize("_$compiledBranchAt(")));
-    assert!(out.contains(&utils::normalize("if (props.ok) return")));
+    assert!(out.contains(&utils::normalize("if (_$compiledPropsGet(props, \"ok\")) return")));
     assert!(!out.contains("renderAnchor"));
     assert!(!out.contains(&utils::normalize("renderBetween(__slot")));
 }

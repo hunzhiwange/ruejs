@@ -22,10 +22,10 @@ export default Hello;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { ref, vapor, _$template, _$setStyle } from "@rue-js/rue/internal";
+import { ref, _$compiledRoot, _$template, _$setStyle } from "@rue-js/rue/internal";
 import { type FC, h } from '@rue-js/rue';
 const _$getTemplate1 = _$template("<div><h1>Rue 响应式框架示例</h1></div>");
-const Hello: FC = ()=>vapor((__rue_parent_context)=>{
+const Hello: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[0];

@@ -279,7 +279,7 @@ function useFeature(maybeRefOrGetter: any) {
 
 ### 返回值 {#return-values}
 
-你可能已经注意到，我们一直在 composables 中专门使用 `ref()` 而不是 `reactive()`。推荐的约定是 composables 始终返回一个包含多个 refs 的普通非响应式对象。这允许在组件中解构时保持响应式：
+你可能已经注意到，composables 使用 Signal 或 ref 句柄。推荐的约定是 composables 始终返回一个包含多个 refs 的普通非响应式对象。这允许在组件中解构时保持响应式：
 
 ```ts
 // x 和 y 是 refs
@@ -288,10 +288,10 @@ const { x, y } = useMouse()
 
 从 composable 返回响应式对象会导致此类解构失去与 composable 内部状态的响应式连接，而 refs 会保留该连接。
 
-如果你更喜欢将 composables 返回的状态作为对象属性使用，你也可以用 `reactive()` 包装返回的对象。不过需要注意，Rue 当前不会在属性层自动解包 refs，因此访问时仍应显式读取 `.value`：
+也可以保留包含句柄的普通对象，并显式读取 `.value`：
 
 ```ts
-const mouse = reactive(useMouse())
+const mouse = useMouse()
 console.log(mouse.x.value)
 ```
 

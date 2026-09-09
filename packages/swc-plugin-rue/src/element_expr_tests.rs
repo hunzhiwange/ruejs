@@ -450,7 +450,7 @@ fn rewrites_fragments_logicals_maps_and_fallback_calls_for_slot_values() {
         &mut logical_vt,
         &parse_expr("items.map(item => <span>{item.name}</span>)", true),
     )));
-    assert!(map_out.contains("vapor(()=>{"));
+    assert!(map_out.contains("_$compiledRoot(()=>{"));
     assert!(map_out.contains("items.map((item)=>"), "{map_out}");
     assert!(!map_out.contains("_$compiledKeyedList"), "{map_out}");
 

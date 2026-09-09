@@ -120,16 +120,16 @@ const GetCurrentScope: FC = () => {
   getCurrentScope,
   onScopeDispose,
   ref,
-  vapor,
   watchEffect,
 } from '@rue-js/rue';
+import { _$compiledRoot } from '@rue-js/rue/internal';
 
 const ScopeProbe: FC<{
   count: { value: number };
   scopeRef: { value: EffectScope | undefined };
   report: (message: string) => void;
 }> = props => {
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const scope = getCurrentScope();
     props.scopeRef.value = scope;
 

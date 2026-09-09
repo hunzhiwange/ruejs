@@ -123,7 +123,7 @@ export default ListTransitionExample
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { ref, _$compiledWithHookId, useSetup, TransitionGroup, vapor, _$createComponent, renderAnchor, _$createElement, _$template, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, onScopeDispose, untrack, watchEffect, _$createTextWrapper, _$compiledWithKey, _$setClassName } from "@rue-js/rue/internal";
+import { ref, _$compiledWithHookId, useSetup, TransitionGroup, _$compiledRoot, _$createComponent, renderAnchor, _$createElement, _$template, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, onScopeDispose, untrack, watchEffect, _$createTextWrapper, _$compiledWithKey, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<h3 class="text-xl font-semibold mb-3">带过渡动效的列表（移植自 Vue）</h3>');
 const _$getTemplate2 = _$template('<div class="mt-4 grid md:grid-cols-1 gap-6 items-start"><div class="flex gap-3"><button class="btn btn-primary">Insert at random index</button><button class="btn">Reset</button><button class="btn">Shuffle</button></div><ul class="container space-y-3 rounded-xl border border-base-200 bg-base-100 p-3"><!--rue:opaque-hole:0--></ul></div>');
@@ -177,7 +177,7 @@ const ListTransitionExample: FC = ()=>{
             };
         }));
     const { items: items, nextId: nextId, insert: insert, reset: reset, shuffle: shuffle, remove: remove } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _root = _$createDocumentFragment();
         _root.appendChild(_$getTemplate1().content.cloneNode(true));
         const _el2 = _$createElement("style", _root);
@@ -243,7 +243,7 @@ const ListTransitionExample: FC = ()=>{
         watchEffect(()=>{
             const __slot1 = _$createComponent(TransitionGroup, {
                 name: "fade",
-                children: items.value.map((item)=>_$compiledWithKey(vapor(()=>{
+                children: items.value.map((item)=>_$compiledWithKey(_$compiledRoot(()=>{
                         const _root = _$createDocumentFragment();
                         const _el9 = _$createElement("li", _root);
                         _$appendChild(_root, _el9);
@@ -281,7 +281,7 @@ export default ListTransitionExample;
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
     assert!(normalized.contains("@rue-js/rue/internal/component"), "{normalized}");
     assert!(normalized.contains("_$createComponent(TransitionGroup, ()=>({"), "{normalized}");
-    assert!(normalized.contains("_$compiledWithKey(vapor("), "{normalized}");
+    assert!(normalized.contains("_$compiledWithKey(_$compiledRoot("), "{normalized}");
     assert!(normalized.contains("items.value.map((item)"), "{normalized}");
     assert_eq!(
         normalized.matches(".addEventListener(").count(),

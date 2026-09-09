@@ -154,7 +154,9 @@ export const checkAnchorTieringBudget = (report, baseline, budget) => {
     ]
     for (const [dimension, actual, limit] of configuredLimits) {
       if (!isFiniteMeasurement(limit)) {
-        throw new Error(`Anchor tiering budget is missing a numeric limit for ${scenario}.${dimension}`)
+        throw new Error(
+          `Anchor tiering budget is missing a numeric limit for ${scenario}.${dimension}`,
+        )
       }
       if (actual > limit) failures.push({ scenario, dimension, actual, limit })
     }
@@ -176,9 +178,7 @@ export const checkAnchorTieringBudget = (report, baseline, budget) => {
     }
     const effectRuns = medianValue(current.effectRuns)
     if (!isFiniteMeasurement(limits.expectedEffectRuns)) {
-      throw new Error(
-        `Anchor tiering budget is missing a numeric limit for ${scenario}.effectRuns`,
-      )
+      throw new Error(`Anchor tiering budget is missing a numeric limit for ${scenario}.effectRuns`)
     }
     if (effectRuns !== limits.expectedEffectRuns) {
       failures.push({
@@ -200,17 +200,18 @@ export const checkAnchorTieringBudget = (report, baseline, budget) => {
     }
   }
 
-  const brotliRatio = ratio(
-    totalBrotliBytes(report),
-    totalBrotliBytes(baseline),
-    'size.brotli',
-  )
+  const brotliRatio = ratio(totalBrotliBytes(report), totalBrotliBytes(baseline), 'size.brotli')
   const maxBrotliRatio = budget?.size?.maxBrotliRatio
   if (!isFiniteMeasurement(maxBrotliRatio)) {
     throw new Error('Anchor tiering budget is missing a numeric limit for size.brotliRatio')
   }
   if (brotliRatio > maxBrotliRatio) {
-    failures.push({ scenario: 'size', dimension: 'brotliRatio', actual: brotliRatio, limit: maxBrotliRatio })
+    failures.push({
+      scenario: 'size',
+      dimension: 'brotliRatio',
+      actual: brotliRatio,
+      limit: maxBrotliRatio,
+    })
   }
   if (failures.length > 0) throw new AnchorTieringBudgetError(failures)
   return { passed: true, scenarios, size: { brotliRatio } }

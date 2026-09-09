@@ -12,7 +12,7 @@ it('preserves Ref props until a child component displays them during SSR', async
   const Page = () => _$serverComponent(Child, { value: state }, [])
 
   await expect(renderToString(Page)).resolves.toBe(
-    `<span data-value="${String(state)}">prop-value</span>`,
+    `<span data-value="${String(state).replaceAll('"', '&quot;')}">prop-value</span>`,
   )
   expect(received).toBe(state)
 })

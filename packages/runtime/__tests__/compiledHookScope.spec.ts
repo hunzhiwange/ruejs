@@ -38,12 +38,9 @@ describe('compiled hook owner', () => {
     const state = compiledRuntime.ref('ready')
 
     expect(state.__rue_ref__).toBe(true)
-    expect(Object.getOwnPropertyDescriptor(state, '__rue_ref__')).toMatchObject({
-      value: true,
-      writable: false,
-      enumerable: false,
-      configurable: false,
-    })
+    expect(Reflect.set(state, '__rue_ref__', false)).toBe(false)
+    expect(state.__rue_ref__).toBe(true)
+    expect(Object.keys(state)).not.toContain('__rue_ref__')
   })
 
   it('honors automatic, empty, and explicit compiled effect dependencies', () => {

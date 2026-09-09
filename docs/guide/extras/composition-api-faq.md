@@ -4,7 +4,7 @@
 
 Composition API 是一组 API，允许我们使用导入的函数而不是声明选项来编写 Rue 组件。它是一个涵盖以下 API 的统称：
 
-- [Reactivity API](/api/api/reactivity-core)，例如 `ref()` 和 `reactive()`，允许我们直接创建响应式状态、计算状态和 watchers。
+- [Reactivity API](/api/api/reactivity-core)，例如 `ref()` 和 `signal()`，允许我们直接创建响应式状态、计算状态和 watchers。
 
 - [生命周期钩子](/api/api/composition-api-lifecycle)，例如 `onMounted()` 和 `onUnmounted()`，允许我们以编程方式钩入组件生命周期。
 

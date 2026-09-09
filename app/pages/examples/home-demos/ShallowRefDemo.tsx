@@ -1,4 +1,4 @@
-import { type FC, isReactive, shallowRef } from '@rue-js/rue'
+import { type FC, shallowRef } from '@rue-js/rue'
 
 const ShallowRefDemo: FC = () => {
   const state = shallowRef({ count: 0, note: '等待操作' })
@@ -15,7 +15,7 @@ const ShallowRefDemo: FC = () => {
         <div className="mt-4 rounded-box border border-base-300 bg-base-200/40 p-4 space-y-2">
           <div className="text-lg font-medium">当前渲染值：{state.value.count}</div>
           <div>最近操作：{state.value.note}</div>
-          <div>内部对象 reactive：{String(isReactive(state.value))}</div>
+          <div>内部对象保持普通对象；替换根值触发更新。</div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

@@ -1,7 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as runtime from '../src/index'
+import * as compilerInternal from '../../rue/src/compiler-internal'
+import * as runtimeInternal from '../src/internal'
+import * as legacyDOM from '../src/compiled-legacy-dom'
 import {
   _$compiledBindUseRef,
   _$compiledRoot,
@@ -14,7 +17,6 @@ import {
   watchEffect,
   renderAnchor,
   untrack,
-  vapor,
 } from '../src/internal'
 
 const runtimeSource = `${resolve(process.cwd(), 'packages/runtime/src')}/`
@@ -31,6 +33,69 @@ const removedClientModules = [
 ]
 
 describe('client runtime architecture', () => {
+  it('removes object Proxy APIs from runtime and Rue public types', () => {
+    const removed = [
+      'createReactive',
+      'reactive',
+      'readonly',
+      'shallowReactive',
+      'shallowReadonly',
+      'propsReactive',
+      'isProxy',
+      'toRaw',
+    ]
+    for (const name of removed) {
+      expect(runtime).not.toHaveProperty(name)
+      expect(runtimeInternal).not.toHaveProperty(name)
+      expect(compilerInternal).not.toHaveProperty(name)
+      for (const file of ['index.ts', 'index.d.ts', 'internal.ts']) {
+        expect(readFileSync(resolve('packages/rue/src', file), 'utf8')).not.toMatch(
+          new RegExp(`\\b${name}\\b`),
+        )
+      }
+    }
+  })
+
+  it('has no reactive Proxy production paths or compatibility modules', () => {
+    for (const file of [
+      'compiled-reactive-compat.ts',
+      'runtime-core/reactive-kernel/reactive.ts',
+    ]) {
+      expect(existsSync(`${runtimeSource}${file}`)).toBe(false)
+    }
+    for (const directory of [
+      'runtime-core/reactive-kernel',
+      'runtime-core/js-reactive',
+      'compiler-runtime',
+      'reactivity',
+    ]) {
+      const base = `${runtimeSource}${directory}`
+      for (const file of readdirSync(base, { recursive: true }) as string[]) {
+        if (file.endsWith('.ts'))
+          expect(readFileSync(`${base}/${file}`, 'utf8')).not.toMatch(/new\s+Proxy\s*\(/)
+      }
+    }
+  })
+
+  it.each([
+    ['runtime internal', runtimeInternal],
+    ['Rue compiler internal', compilerInternal],
+  ])('exports only the canonical compiled root from %s', (_name, entry) => {
+    expect(entry).toHaveProperty('_$compiledRoot', _$compiledRoot)
+    expect(entry).not.toHaveProperty('vapor')
+  })
+
+  it('removes the legacy DOM compiled root alias', () => {
+    expect(legacyDOM).not.toHaveProperty('vapor')
+  })
+
+  it('removes the compiler dependency graph and pending effect queue', () => {
+    const compiled = readFileSync(`${runtimeSource}runtime-core/compiled.ts`, 'utf8')
+    expect(compiled).not.toMatch(
+      /DependencyRecord|DirectSelectorSubscriber|pendingEffects|nextSignalId|nextEffectId/,
+    )
+  })
+
   it('removes the compatibility runtime after migrating its behavior tests', () => {
     expect(removedClientModules.filter(file => existsSync(`${runtimeSource}${file}`))).toEqual([])
   })
@@ -191,16 +256,16 @@ describe('client runtime architecture', () => {
 
   it('tracks stable nested reactive arrays', () => {
     runtime.setReactiveScheduling('sync')
-    const state = runtime.reactive({ items: [{ done: false }] })
+    const state = runtime.signal({ items: [{ done: false }] })
     let count = -1
     const observer = runtime.effect(() => {
-      count = state.items.filter(item => item.done).length
+      count = state.getPath(['items', 0, 'done']) ? 1 : 0
     })
     expect(count).toBe(0)
-    state.items[0]!.done = true
+    state.setPath(['items', 0, 'done'], true)
     expect(count).toBe(1)
-    state.items.push({ done: false })
-    expect(state.items.length).toBe(2)
+    state.setPath(['items', 1], { done: false })
+    expect((state.peekPath(['items']) as unknown[]).length).toBe(2)
     observer.dispose()
   })
 
@@ -208,10 +273,10 @@ describe('client runtime architecture', () => {
     runtime.setReactiveScheduling('sync')
     let append = () => {}
     const View = () => {
-      const [state] = runtime.useState(() => runtime.reactive({ items: ['one'] }))
-      const [items] = runtime.useState(() => runtime.computed(() => [...state.items]))
-      append = () => state.items.push('two')
-      return vapor(parent => {
+      const [state] = runtime.useState(() => runtime.signal({ items: ['one'] }))
+      const [items] = runtime.useState(() => runtime.computed(() => [...state.get().items]))
+      append = () => state.update(value => ({ items: [...value.items, 'two'] }))
+      return _$compiledRoot(parent => {
         const text = document.createTextNode('')
         parent?.appendChild(text)
         effect(() => {

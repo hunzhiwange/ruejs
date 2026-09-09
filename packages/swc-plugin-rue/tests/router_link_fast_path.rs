@@ -54,7 +54,7 @@ const Page: FC<{ handleClick: () => void }> = props => (
     assert!(out.contains("rue:opaque-hole:0"));
     assert!(out.contains("_$compiledComponent(RouterLink"), "{out}");
     assert!(out.contains("_$mountCompiledSlotAt"), "{out}");
-    assert!(out.contains("onClick: props.handleClick"), "{out}");
+    assert!(out.contains("onClick: _$compiledPropsGet(props, \"handleClick\")"), "{out}");
     assert!(out.contains("_$mountCompiledSlotFactory"), "{out}");
     assert!(!out.contains("renderAnchor("), "{out}");
 }

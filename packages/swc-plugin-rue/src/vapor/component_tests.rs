@@ -63,7 +63,7 @@ fn component_root_emits_static_mount_with_children_props() {
 
     assert!(out.contains("const_root=_$createDocumentFragment();"), "{out}");
     assert!(out.contains("_$createComment(\"rue:component:anchor\")"), "{out}");
-    assert!(out.contains("const__child1=vapor(()=>{"), "{out}");
+    assert!(out.contains("const__child1=_$compiledRoot(()=>{"), "{out}");
     assert!(out.contains("_$createElement(\"span\",_root)"), "{out}");
     assert!(out.contains("_$createComponent(Box,()=>({children:__child1}))"), "{out}");
     assert!(out.contains("renderAnchor("), "{out}");

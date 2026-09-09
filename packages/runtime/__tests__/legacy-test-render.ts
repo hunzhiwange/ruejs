@@ -13,7 +13,6 @@ import {
   _$createElement as createCompiledElement,
   _$createTextNode as createCompiledTextNode,
   _$compiledWithKey as compiledWithKey,
-  vapor,
 } from '../src/compiled-legacy-dom'
 import {
   _$compiledWithEventModifiers,
@@ -74,7 +73,7 @@ import {
   _$compiledWithHookId,
 } from '../src/compiled-hook-compat'
 
-export { vapor, useRef, useSetup }
+export { _$compiledRoot, useRef, useSetup }
 export const _$createComponent = (type: ComponentInstance<any>, props?: ComponentProps | null) =>
   createCompiledComponent(type, props ?? {})
 export const renderAnchor: any = renderCompiledAnchor
@@ -113,17 +112,7 @@ export {
   _$compiledWithNativeEvents,
 } from '../src/compiled-legacy-dom'
 export { watchEffect } from '../src/internal-reactive'
-export {
-  computed,
-  reactive,
-  readonly,
-  ref,
-  shallowReactive,
-  shallowReadonly,
-  signal,
-  setReactiveScheduling,
-  untrack,
-} from '../src/reactivity'
+export { computed, ref, signal, setReactiveScheduling, untrack } from '../src/reactivity'
 export {
   getCurrentContainer,
   onActivated,

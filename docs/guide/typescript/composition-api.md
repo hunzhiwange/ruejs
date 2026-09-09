@@ -189,33 +189,20 @@ const branchState = ref<'healthy' | 'warning' | 'critical'>('healthy')
 
 这类写法很适合把 UI 状态限制在明确的有限集合内。
 
-## 为 `reactive()` 添加类型 {#typing-reactive}
-
-`reactive()` 同样会从参数推断类型：
+## 为 Signal 对象添加类型 {#typing-signal}
 
 ```ts
-import { reactive } from '@rue-js/rue'
-
-// 推断类型: { title: string }
-const book = reactive({ title: 'Rue 3 Guide' })
-```
-
-如果你想显式约束对象结构，可以使用接口：
-
-```ts
-import { reactive } from '@rue-js/rue'
-
+import { signal } from '@rue-js/rue'
 interface Book {
   title: string
   year?: number
 }
-
-const book: Book = reactive({ title: 'Rue 3 Guide' })
+const book = signal<Book>({ title: 'Rue Guide' })
+book.setPath('year', 2026)
+const title = book.getPath('title') as string
 ```
 
-:::tip
-不建议给 `reactive()` 直接传泛型参数。Rue 的 `reactive()` 会保留对象结构本身，并叠加代理行为；直接写泛型往往会让类型看起来比真实运行时更“理想化”，尤其是在对象里混合 `ref()`、普通值和嵌套对象时。
-:::
+根值类型由参数推断，也可显式提供泛型。路径读写使用动态键，调用者应按业务模型校验值类型。
 
 ## 为 `computed()` 添加类型 {#typing-computed}
 

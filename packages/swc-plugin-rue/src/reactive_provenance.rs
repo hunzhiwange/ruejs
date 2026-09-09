@@ -9,8 +9,9 @@ const MARKER_PREFIX: &str = "\0rue:reactive-provenance:";
 pub(crate) enum ReactiveKind {
     RefLike,
     Signal,
-    ReactiveProxy,
+    ObjectValue,
     StateValue,
+    PropsValue,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -18,7 +19,7 @@ enum FactoryKind {
     RefLike,
     ToRefs,
     Signal,
-    ReactiveProxy,
+    ObjectValue,
     UseState,
 }
 
@@ -39,12 +40,13 @@ impl Binding {
             Self::Factory(FactoryKind::RefLike) => "factory-ref",
             Self::Factory(FactoryKind::ToRefs) => "factory-to-refs",
             Self::Factory(FactoryKind::Signal) => "factory-signal",
-            Self::Factory(FactoryKind::ReactiveProxy) => "factory-proxy",
+            Self::Factory(FactoryKind::ObjectValue) => "factory-object",
             Self::Factory(FactoryKind::UseState) => "factory-use-state",
             Self::Value(ReactiveKind::RefLike) => "value-ref",
             Self::Value(ReactiveKind::Signal) => "value-signal",
-            Self::Value(ReactiveKind::ReactiveProxy) => "value-proxy",
+            Self::Value(ReactiveKind::ObjectValue) => "value-object",
             Self::Value(ReactiveKind::StateValue) => "value-state",
+            Self::Value(ReactiveKind::PropsValue) => "value-props",
             Self::RefCollection => "ref-collection",
             Self::SignalTuple => "signal-tuple",
             Self::StateTuple => "state-tuple",
@@ -57,12 +59,13 @@ impl Binding {
             "factory-ref" => Self::Factory(FactoryKind::RefLike),
             "factory-to-refs" => Self::Factory(FactoryKind::ToRefs),
             "factory-signal" => Self::Factory(FactoryKind::Signal),
-            "factory-proxy" => Self::Factory(FactoryKind::ReactiveProxy),
+            "factory-object" => Self::Factory(FactoryKind::ObjectValue),
             "factory-use-state" => Self::Factory(FactoryKind::UseState),
             "value-ref" => Self::Value(ReactiveKind::RefLike),
             "value-signal" => Self::Value(ReactiveKind::Signal),
-            "value-proxy" => Self::Value(ReactiveKind::ReactiveProxy),
+            "value-object" => Self::Value(ReactiveKind::ObjectValue),
             "value-state" => Self::Value(ReactiveKind::StateValue),
+            "value-props" => Self::Value(ReactiveKind::PropsValue),
             "ref-collection" => Self::RefCollection,
             "signal-tuple" => Self::SignalTuple,
             "state-tuple" => Self::StateTuple,
@@ -91,6 +94,10 @@ fn resolve_binding(scopes: &[HashSet<String>], name: &str) -> Option<Binding> {
     scopes.iter().rev().find_map(|scope| binding_in_scope(scope, name))
 }
 
+pub(crate) fn has_binding(scopes: &[HashSet<String>], name: &str) -> bool {
+    resolve_binding(scopes, name).is_some()
+}
+
 pub(crate) fn reactive_kind(scopes: &[HashSet<String>], name: &str) -> Option<ReactiveKind> {
     match resolve_binding(scopes, name) {
         Some(Binding::Value(kind)) => Some(kind),
@@ -104,7 +111,7 @@ fn factory_kind(imported: &str) -> Option<FactoryKind> {
         "toRefs" => FactoryKind::ToRefs,
         "computed" | "signal" => FactoryKind::Signal,
         "reactive" | "shallowReactive" | "readonly" | "shallowReadonly" | "propsReactive" => {
-            FactoryKind::ReactiveProxy
+            FactoryKind::ObjectValue
         }
         "useState" | "_$compiledUseState" => FactoryKind::UseState,
         _ => return None,
@@ -116,7 +123,7 @@ fn factory_result(factory: FactoryKind) -> Binding {
         FactoryKind::RefLike => Binding::Value(ReactiveKind::RefLike),
         FactoryKind::ToRefs => Binding::RefCollection,
         FactoryKind::Signal => Binding::Value(ReactiveKind::Signal),
-        FactoryKind::ReactiveProxy => Binding::Value(ReactiveKind::ReactiveProxy),
+        FactoryKind::ObjectValue => Binding::Value(ReactiveKind::ObjectValue),
         FactoryKind::UseState => Binding::StateTuple,
     }
 }
@@ -494,7 +501,7 @@ pub(crate) fn collect_component_parameter_scope<'a>(
     for (index, param) in params.into_iter().enumerate() {
         builder.bind_pat(
             param,
-            if index == 0 { Binding::Value(ReactiveKind::ReactiveProxy) } else { Binding::Unknown },
+            if index == 0 { Binding::Value(ReactiveKind::PropsValue) } else { Binding::Unknown },
         );
     }
     builder.finish(HashSet::new())

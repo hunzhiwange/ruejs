@@ -4,7 +4,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -19,7 +19,7 @@ import {
   watchEffect,
   type FC,
 } from '../src'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 import { waitForContent } from './page-test-utils'
 
 void watchEffect
@@ -116,7 +116,7 @@ describe('Template renderable boundary', () => {
       })
 
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createDocumentFragment()
         const anchor = document.createComment('rue:component:anchor')
         root.appendChild(anchor)

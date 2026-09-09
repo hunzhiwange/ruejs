@@ -252,7 +252,29 @@ pub fn expr_has_impure_ops(expr: &Expr, locals: &HashSet<String>) -> bool {
                 || expr_has_impure_ops(&c.cons, locals)
                 || expr_has_impure_ops(&c.alt, locals)
         }
+        Expr::Unary(unary) if unary.op == UnaryOp::Delete => true,
         Expr::Call(c) => {
+            if let Callee::Expr(callee) = &c.callee
+                && let Expr::Member(member) = callee.as_ref()
+                && let MemberProp::Ident(method) = &member.prop
+                && matches!(
+                    method.sym.as_ref(),
+                    "push"
+                        | "pop"
+                        | "shift"
+                        | "unshift"
+                        | "splice"
+                        | "sort"
+                        | "reverse"
+                        | "fill"
+                        | "copyWithin"
+                        | "defineProperty"
+                        | "defineProperties"
+                        | "setPrototypeOf"
+                )
+            {
+                return true;
+            }
             // 调用表达式：先检查 callee 与参数是否含副作用
             if let Callee::Expr(e) = &c.callee
                 && expr_has_impure_ops(e, locals)

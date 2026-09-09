@@ -3,7 +3,6 @@ import {
   effectScope,
   getCurrentScope,
   getCurrentInstance,
-  isProxy as compiledIsProxy,
   isReactive as compiledIsReactive,
   isReadonly as compiledIsReadonly,
   isRef as compiledIsRef,
@@ -11,16 +10,8 @@ import {
   onRenderTracked as compiledOnRenderTracked,
   onScopeDispose,
   onWatcherCleanup,
-  propsReactive as compiledPropsReactive,
-  reactive as compiledReactive,
-  readonly as compiledReadonly,
   setCurrentInstance,
-  shallowReactive as compiledShallowReactive,
-  shallowReadonly as compiledShallowReadonly,
   shallowRef as compiledShallowRef,
-  toRaw as compiledToRaw,
-  toRef as compiledToRef,
-  toRefs as compiledToRefs,
   toValue as compiledToValue,
   triggerRef as compiledTriggerRef,
   unref,
@@ -53,23 +44,14 @@ const batch = compiledBatch as VaporReactiveModule['batch']
 const computed = reactiveKernel.createComputed as unknown as VaporReactiveModule['computed']
 const customRef = compiledCustomRef as VaporReactiveModule['customRef']
 const effect = compiledEffect as VaporReactiveModule['createEffect']
-const isProxy = compiledIsProxy as VaporReactiveModule['isProxy']
 const isReactive = compiledIsReactive as VaporReactiveModule['isReactive']
 const isReadonly = compiledIsReadonly as VaporReactiveModule['isReadonly']
 const isRef = compiledIsRef as VaporReactiveModule['isRef']
 const onCleanup = compiledOnCleanup as VaporReactiveModule['onCleanup']
 const onRenderTracked = compiledOnRenderTracked as VaporReactiveModule['onRenderTracked']
-const propsReactive = compiledPropsReactive as VaporReactiveModule['propsReactive']
-const reactive = compiledReactive as VaporReactiveModule['reactive']
-const readonly = compiledReadonly as VaporReactiveModule['readonly']
 const ref = reactiveKernel.createRef as unknown as VaporReactiveModule['ref']
-const shallowReactive = compiledShallowReactive as VaporReactiveModule['shallowReactive']
-const shallowReadonly = compiledShallowReadonly as VaporReactiveModule['shallowReadonly']
 const shallowRef = compiledShallowRef as unknown as VaporReactiveModule['shallowRef']
 const signal = reactiveKernel.createSignal as unknown as VaporReactiveModule['signal']
-const toRaw = compiledToRaw as VaporReactiveModule['toRaw']
-const toRef = compiledToRef as unknown as VaporReactiveModule['toRef']
-const toRefs = compiledToRefs as VaporReactiveModule['toRefs']
 const toValue = compiledToValue as VaporReactiveModule['toValue']
 const triggerRef = compiledTriggerRef as VaporReactiveModule['triggerRef']
 const untrack = compiledUntrack as VaporReactiveModule['untrack']
@@ -236,31 +218,14 @@ const createSuspenseAwareHandle = <T>(
   handle: SignalHandle<T>,
   state: SuspenseResourceState,
 ): SignalHandle<T> => {
-  return new Proxy(handle as object, {
-    get(target, prop) {
-      if (prop === 'get') {
-        return () => {
-          if (registerPendingForCurrentBoundary(state)) {
-            return undefined
-          }
-          return handle.get()
-        }
-      }
-
-      if (prop === 'value') {
-        if (registerPendingForCurrentBoundary(state)) {
-          return undefined
-        }
-        return Reflect.get(target, prop, target)
-      }
-
-      const value = Reflect.get(target, prop, target)
-      return typeof value === 'function' ? value.bind(target) : value
-    },
-    set(target, prop, value) {
-      return Reflect.set(target, prop, value, target)
-    },
-  }) as SignalHandle<T>
+  const read = handle.get.bind(handle)
+  handle.get = () => (registerPendingForCurrentBoundary(state) ? (undefined as T) : read())
+  Object.defineProperty(handle, 'value', {
+    configurable: true,
+    get: () => handle.get(),
+    set: (value: T) => handle.set(value),
+  })
+  return handle
 }
 
 /** Rue 响应式信号句柄、effect scope 与调试事件类型。 */
@@ -316,17 +281,8 @@ export {
   triggerRef,
   computed,
   isRef,
-  isProxy,
   isReactive,
   isReadonly,
-  reactive,
-  shallowReactive,
-  readonly,
-  shallowReadonly,
-  toRef,
-  toRefs,
-  toRaw,
-  propsReactive,
   unref,
   setReactiveScheduling,
 }

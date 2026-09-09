@@ -17,7 +17,8 @@ import {
   untrack,
 } from '../reactive-core'
 import type { CompiledRootHandle } from '../compiled-root'
-import { isReactive, isRef, reactive, watch } from '../compiled-reactive-compat'
+import { isRef } from '../runtime-core/reactive-kernel/ref'
+import { watch } from '../reactivity/index'
 import { getCurrentCompiledHookId } from '../compiled-hook-compat'
 import { hasCompiledHookRun } from '../runtime-context'
 
@@ -34,101 +35,12 @@ const isServerRendering = () => {
 type OwnedCompiledRootHandle = CompiledRootHandle & { [COMPILED_OWNER]?: CompiledOwner }
 type StateOptions<T> = {
   equals?: (previous: T, next: T) => boolean
-  kind?: 'reactive' | 'ref' | 'signal'
 }
 type SetStateAction<T> = T | ((previous: T) => T)
 type Dispatch<T> = (value: T) => void
-type CompiledRefState<T> = CompiledSignalHandle<T> & { readonly __rue_ref__: true }
 
 const initialValue = <T>(initial: T | (() => T)): T =>
   typeof initial === 'function' ? (initial as () => T)() : initial
-
-const setSignalState = <T>(
-  state: CompiledSignalHandle<T>,
-  next: T | ((state: CompiledSignalHandle<T>) => T | void),
-): void => {
-  if (typeof next !== 'function') return state.set(next)
-  const result = (next as (state: CompiledSignalHandle<T>) => T | void)(state)
-  if (result !== undefined) state.set(result)
-}
-
-const createRefState = <T>(
-  state: CompiledSignalHandle<T>,
-  normalize: (value: T) => T = value => value,
-): CompiledRefState<T> => {
-  const refState: CompiledSignalHandle<T> = {
-    get __rue_signal_id__() {
-      return state.__rue_signal_id__
-    },
-    get value() {
-      return state.get()
-    },
-    set value(next: T) {
-      state.set(normalize(next))
-    },
-    get: () => state.get(),
-    peek: () => state.peek(),
-    set: next => state.set(normalize(next)),
-    update: updater => state.update(current => normalize(updater(current))),
-    trigger: () => state.trigger(),
-    dispose: () => state.dispose(),
-    free: () => state.free(),
-    [Symbol.dispose]: () => state[Symbol.dispose](),
-  }
-  Object.defineProperty(refState, '__rue_ref__', {
-    value: true,
-    enumerable: false,
-    configurable: false,
-  })
-  return refState as CompiledRefState<T>
-}
-
-const createObjectState = <T extends object>(state: CompiledSignalHandle<T>): T =>
-  new Proxy({} as T, {
-    deleteProperty(_target, key) {
-      const current = state.peek()
-      const next = Array.isArray(current) ? [...current] : { ...current }
-      const deleted = Reflect.deleteProperty(next, key)
-      state.set(next as T)
-      return deleted
-    },
-    get(_target, key) {
-      return Reflect.get(state.get(), key)
-    },
-    has(_target, key) {
-      return Reflect.has(state.get(), key)
-    },
-    ownKeys() {
-      return Reflect.ownKeys(state.get())
-    },
-    getOwnPropertyDescriptor(_target, key) {
-      const descriptor = Reflect.getOwnPropertyDescriptor(state.get(), key)
-      return descriptor == null ? undefined : { ...descriptor, configurable: true }
-    },
-    set(_target, key, value) {
-      const current = state.peek()
-      const next = Array.isArray(current) ? [...current] : { ...current }
-      Reflect.set(next, key, value)
-      state.set(next as T)
-      return true
-    },
-  })
-
-void createObjectState
-
-const cloneStateValue = <T extends object>(value: T): T =>
-  (Array.isArray(value) ? [...value] : { ...value }) as T
-
-const replaceReactiveState = (target: any, next: any): void => {
-  if (Array.isArray(target) && Array.isArray(next)) {
-    target.splice(0, target.length, ...next)
-    return
-  }
-  for (const key of Reflect.ownKeys(target)) {
-    if (!Reflect.has(next, key)) Reflect.deleteProperty(target, key)
-  }
-  Object.assign(target, next)
-}
 
 export const _$compiledUseSetup = <T>(slot: string, factory: () => T): T =>
   _$compiledSetup(slot, factory)
@@ -165,53 +77,6 @@ export const _$compiledMemo = <T>(
     record.initialized = true
   }
   return record.value as T
-}
-
-const createState = <T>(initial: T | (() => T), options?: StateOptions<T>) => {
-  const value = initialValue(initial)
-  if (isRef(value)) {
-    const refState = value as CompiledSignalHandle<T>
-    return [
-      refState,
-      (next: T | ((state: CompiledSignalHandle<T>) => T | void)) => setSignalState(refState, next),
-    ] as const
-  }
-  const state = signal(value, options)
-  if (options?.kind === 'signal') {
-    return [
-      state,
-      (next: T | ((state: CompiledSignalHandle<T>) => T | void)) => setSignalState(state, next),
-    ] as const
-  }
-  if (
-    options?.kind === 'reactive' ||
-    (options?.kind == null && typeof value === 'object' && value)
-  ) {
-    const reactiveState = isReactive(value)
-      ? (value as object)
-      : reactive(cloneStateValue(value as object))
-    return [
-      reactiveState,
-      (next: T | ((state: unknown) => T | void)) => {
-        if (typeof next === 'function') {
-          const result = (next as (state: unknown) => T | void)(reactiveState)
-          if (result !== undefined && result && typeof result === 'object') {
-            replaceReactiveState(reactiveState, result)
-          }
-        } else if (next && typeof next === 'object') replaceReactiveState(reactiveState, next)
-      },
-    ] as const
-  }
-  const refState = createRefState(state)
-  return [
-    refState,
-    (next: T | ((state: unknown) => T | void)) => {
-      if (typeof next === 'function') {
-        const result = (next as (state: unknown) => T | void)(refState)
-        if (result !== undefined) state.set(result)
-      } else state.set(next)
-    },
-  ] as const
 }
 
 export const _$compiledUseState = <T>(
@@ -275,10 +140,7 @@ export const _$compiledUseEffect = (
       }
       onOwnerCleanup(disposeCleanup)
       watch(
-        () =>
-          (dependencies() ?? []).map(value =>
-            isRef(value) ? (value as { get(): unknown }).get() : value,
-          ),
+        () => (dependencies() ?? []).map(value => (isRef(value) ? value.value : value)),
         value => {
           const next = value as readonly unknown[]
           if (
@@ -402,11 +264,4 @@ export const useState = <T>(initial: T | (() => T), options?: StateOptions<T>) =
 export const useEffect = (callback: () => void | (() => void)): void =>
   startCompiledEffect(callback)
 
-const normalizeRefValue = <T>(value: T): T =>
-  value != null && typeof value === 'object' && !isReactive(value) ? (reactive(value) as T) : value
-
-export const ref = <T>(value: T) => {
-  const state = signal(normalizeRefValue(value))
-  return createRefState(state, normalizeRefValue)
-}
-export const shallowRef = <T>(value: T) => createRefState(signal(value))
+export { ref, shallowRef } from '../reactivity/index'

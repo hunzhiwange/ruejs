@@ -799,7 +799,7 @@ const NotificationItem: FC<NotificationItemProps> = ({
         style={mergedRootStyle}
         ref={(element: HTMLElement | null) => {
           rootElement.value = element
-          syncItemDom(currentOpen)
+          syncItemDom(!!currentOpen)
         }}
         onClick={(event: MouseEvent) => {
           if (typeof userOnClick === 'function') userOnClick(event)

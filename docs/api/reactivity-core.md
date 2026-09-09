@@ -48,9 +48,9 @@
 
   Rue 中的 `ref()` 与运行时 Hook API 保持一致：除了初始值外，还支持传入 `options.equals` 自定义比较函数，以及可选的 `forceGlobal` 参数。`forceGlobal` 通常只用于底层封装、测试或需要跳过当前组件 Hook 槽位的场景。
 
-  如果一个对象被赋值给 ref，该对象将通过 [reactive()](#reactive) 按 Rue 的规则被设为深层响应式。
+  ref 基于 Signal；对象保持普通对象。使用路径 API、替换根值或经过编译的状态写入触发更新。
 
-  要避免深层转换，请改用 [`shallowRef()`](/api/api/reactivity-advanced#shallowref)。
+  [`shallowRef()`](/api/api/reactivity-advanced#shallowref) 只追踪根值，嵌套对象仍为普通对象。
 
 - **示例**
 
@@ -141,121 +141,28 @@
   - [指南 - 为 computed() 标注类型](/guide/guide/typescript/composition-api#typing-computed) <sup class="vt-badge ts" />
   - [指南 - 性能 - 计算属性稳定性](/guide/guide/best-practices/performance#computed-stability)
 
-## reactive() {#reactive}
+## signal() {#signal}
 
-创建响应式代理。对象/数组会返回代理对象；原始值会被包装成带 `.value` 字段的响应式对象。
+创建状态句柄，支持根值读写和显式路径读写。对象不会转换为代理。
 
-- **类型**
+```ts
+import { signal, computed } from '@rue-js/rue'
 
-  ```ts
-  function reactive<T extends object | Function>(
-    initial: T,
-    options?: {
-      equals?: (prev: T, next: T) => boolean
-      readonly?: boolean
-      shallow?: boolean
-    },
-    forceGlobal?: boolean,
-  ): T
+const state = signal({ user: { name: 'Rue' }, count: 0 })
+const name = computed(() => state.getPath('user.name'))
+state.setPath('user.name', 'Signal')
+state.updatePath('count', value => Number(value) + 1)
+const snapshot = structuredClone(state.get())
+state.set(snapshot)
+```
 
-  function reactive<T>(
-    initial: T,
-    options?: {
-      equals?: (prev: T, next: T) => boolean
-      readonly?: boolean
-      shallow?: boolean
-    },
-    forceGlobal?: boolean,
-  ): { value: T }
-  ```
+`get()` 追踪根读取，`peek()` 不收集依赖，两者都返回当前值而不克隆。`getPath(path)` 追踪路径，`setPath(path, value)` 写入，`updatePath(path, updater)` 基于当前路径值更新。路径可使用点分字符串或键数组；键中包含点时使用数组。路径读取返回 `unknown`，在 TypeScript 中按数据结构缩窄类型。
 
-- **详情**
+原地路径更新可保持对象引用不变；通过普通对象引用写入不会通知依赖。组件成员语法需要 Rue SWC 的 `useState` 编译支持。
 
-  响应式转换默认是深层的：访问嵌套对象时，它们也会继续被包装为 Rue 的响应式代理。
+### 旧对象 API 迁移
 
-  Rue 当前**不会**在 `reactive()` 属性层自动解包 [ref](#ref)。如果某个属性本身就是 ref，读取时拿到的仍然是 ref 对象，访问内部值时需要显式使用 `.value`。
-
-  要避免深层转换并仅在根级别保留响应性，请改用 [shallowReactive()](/api/api/reactivity-advanced#shallowreactive)。
-
-  返回的对象及其嵌套对象由 [ES Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) 包装，**不等同于**原始对象。建议只使用响应式代理，避免依赖原始对象。
-
-- **示例**
-
-  创建一个响应式对象：
-
-  ```js
-  const obj = reactive({ count: 0 })
-  obj.count++
-  ```
-
-  原始值包装：
-
-  ```js
-  const count = reactive(0)
-  count.value++
-  ```
-
-  在响应式对象中保留 ref：
-
-  ```js
-  const count = ref(1)
-  const obj = reactive({ count })
-
-  console.log(obj.count === count) // true
-  console.log(obj.count.value) // 1
-
-  count.value++
-  console.log(obj.count.value) // 2
-  ```
-
-  自定义比较：
-
-  ```js
-  const state = reactive({ count: 1 }, { equals: (prev, next) => prev.count === next.count })
-
-  state.count = 1 // 相等，不触发更新
-  ```
-
-- **另请参阅**
-  - [指南 - 响应式基础](/guide/guide/essentials/reactivity-fundamentals)
-  - [指南 - 为 reactive() 标注类型](/guide/guide/typescript/composition-api#typing-reactive) <sup class="vt-badge ts" />
-
-## readonly() {#readonly}
-
-接受一个对象，返回其只读代理。
-
-- **类型**
-
-  ```ts
-  function readonly<T extends object>(initial: T, forceGlobal?: boolean): T
-  ```
-
-- **详情**
-
-  只读代理是深层的：访问到的嵌套对象也会继续保持只读。
-
-  Rue 当前不会在 `readonly()` 属性层自动解包 ref。若属性本身是 ref，读取结果仍然是 ref 对象。
-
-  要避免深层转换，请改用 [shallowReadonly()](/api/api/reactivity-advanced#shallowreadonly)。
-
-- **示例**
-
-  ```js
-  const original = reactive({ count: 0 })
-
-  const copy = readonly(original)
-
-  watchEffect(() => {
-    // 适用于响应式追踪
-    console.log(copy.count)
-  })
-
-  // 修改原始值会触发依赖副本的侦听器
-  original.count++
-
-  // 修改副本将失败并导致警告
-  copy.count++ // 警告！
-  ```
+`reactive()` 与 `readonly()` 已删除。对象状态使用 Signal 或编译 `useState`，只读派生值使用不带 setter 的 `computed`。详见[迁移说明](/guide/guide/extras/reactivity-in-depth#migration)。
 
 ## watchEffect() {#watcheffect}
 
@@ -449,7 +356,6 @@
   type WatchSource<T> =
     | Ref<T> // ref
     | (() => T) // getter
-    | (T extends object ? T : never) // reactive object
 
   interface WatchOptions extends WatchEffectOptions {
     immediate?: boolean // 默认：false
@@ -477,7 +383,7 @@
   第一个参数是侦听器的**源**。源可以是以下之一：
   - 返回值的 getter 函数
   - ref
-  - 响应式对象
+  - Signal 句柄
   - ...或上述内容的数组。
 
   第二个参数是源更改时调用的回调。回调接收三个参数：新值、旧值和用于注册副作用清理回调的函数。清理回调将在 effect 下次重新运行之前被调用，可用于清理失效的副作用，例如待处理的异步请求。
@@ -501,9 +407,9 @@
   侦听 getter：
 
   ```js
-  const state = reactive({ count: 0 })
+  const state = signal({ count: 0 })
   watch(
-    () => state.count,
+    () => state.getPath('count'),
     (count, prevCount) => {
       /* ... */
     },
@@ -527,27 +433,7 @@
   })
   ```
 
-  当使用 getter 源时，只有当 getter 的返回值更改时，侦听器才会触发。如果希望即使深度变更也触发回调，需要使用 `{ deep: true }` 强制侦听器进入深度模式。注意在深度模式下，如果回调是由深度变更触发的，新值和旧值将是同一个对象：
-
-  ```js
-  const state = reactive({ count: 0 })
-  watch(
-    () => state,
-    (newValue, oldValue) => {
-      // newValue === oldValue
-    },
-    { deep: true },
-  )
-  ```
-
-  当直接侦听响应式对象时，侦听器自动进入深度模式：
-
-  ```js
-  const state = reactive({ count: 0 })
-  watch(state, () => {
-    /* 在状态深度变更时触发 */
-  })
-  ```
+  路径侦听应在 getter 中调用 `getPath`。普通对象的属性赋值不会触发通知，`deep` 也不能恢复已删除的代理行为。需要旧值比较时优先侦听标量路径；需要独立的历史对象时显式复制。
 
   `watch()` 与 [`watchEffect()`](#watcheffect) 共享相同的刷新时机和调试选项：
 

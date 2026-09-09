@@ -1,3 +1,4 @@
+import type { ReactiveRuntimeServices as ReactiveEffectRuntime } from './runtime-services.js'
 /**
  * Watchers compose source normalization and an untracked handler over the
  * shared signal/effect runtime; they do not introduce a second graph. Single,
@@ -7,7 +8,7 @@
  * watcher even though handler reads are not collected as dependencies.
  */
 
-import { type EffectScheduler, EffectHandle, type ReactiveEffectRuntime } from './effect.js'
+import { type EffectScheduler, EffectHandle } from './effect.js'
 import { type EqualityComparator, SignalHandle, type SignalPath } from './signal.js'
 
 export interface WatchEffectOptions {

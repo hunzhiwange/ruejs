@@ -4,7 +4,7 @@ import {
   _$createElement as _$compiledCreateElement,
   _$spreadAttributes as _$compiledSpreadAttributes,
   renderAnchor as _$compiledRenderAnchor,
-  vapor as _$compiledVapor,
+  _$compiledRoot as _$compiledVapor,
   watchEffect as _$compiledWatchEffect,
 } from './legacy-test-render'
 import { _$createDynamic, _$createFragment } from './legacy-test-render'
@@ -24,12 +24,14 @@ import {
   _$compiledKeyedList,
   computed,
   getCurrentContainer as getVaporCurrentContainer,
-  reactive,
+  signal,
   renderAnchor,
   useApp as useVaporApp,
-  vapor,
+  _$compiledRoot,
   watchEffect,
 } from './legacy-test-render'
+
+type Todo = { id: number; text?: string; completed?: boolean }
 
 setReactiveScheduling('sync')
 
@@ -43,7 +45,7 @@ const flush = async () => {
 }
 
 const VaporEntryChild = (props: { label: string }) => {
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const text = document.createElement('span')
     text.dataset.testid = 'vapor-entry-value'
@@ -60,7 +62,7 @@ const VaporEntryChild = (props: { label: string }) => {
 const VaporEntryApp = () => {
   const label = ref('alpha')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const button = document.createElement('button')
     const anchor = document.createComment('vapor-entry-anchor')
@@ -123,7 +125,7 @@ describe('vapor entry interop', () => {
     })
     const vaporApp = useVaporApp(() => {
       vaporRuntime = (globalThis as any).__rue_active
-      return vapor(() => document.createElement('main') as any)
+      return _$compiledRoot(() => document.createElement('main') as any)
     })
     document.body.append(defaultContainer, vaporContainer)
 
@@ -144,7 +146,7 @@ describe('vapor entry interop', () => {
       []
     const innerApp = useVaporApp(() => {
       observations.push(['inner', getDefaultCurrentContainer(), getVaporCurrentContainer()])
-      return vapor(() => document.createElement('aside') as any)
+      return _$compiledRoot(() => document.createElement('aside') as any)
     })
     const outerApp = useDefaultApp(() => {
       observations.push(['outer', getDefaultCurrentContainer(), getVaporCurrentContainer()])
@@ -230,7 +232,7 @@ describe('vapor entry interop', () => {
       })
 
     const App = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createElement('div')
         const anchor = document.createComment('anchor-with-children')
 
@@ -295,7 +297,7 @@ describe('vapor entry interop', () => {
     const CounterChild = () => {
       const count = ref(0)
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createElement('div')
         const button = document.createElement('button')
 
@@ -349,7 +351,7 @@ describe('vapor entry interop', () => {
   })
 
   it('preserves sibling row DOM when a LocalTodoList-style keyed list deletes the middle item', async () => {
-    const state = reactive({
+    const state = signal({
       todos: [
         { id: 1, text: '学习响应式框架', completed: false },
         { id: 2, text: '编写示例代码', completed: true },
@@ -358,8 +360,8 @@ describe('vapor entry interop', () => {
     }) as any
     const todoViews = computed(() => {
       const items: any[] = []
-      for (let index = 0; index < state.todos.length; index += 1) {
-        items.push(state.todos[index])
+      for (let index = 0; index < (state.getPath(['todos']) as Todo[]).length; index += 1) {
+        items.push((state.getPath(['todos']) as Todo[])[index])
       }
       return items
     })
@@ -383,7 +385,7 @@ describe('vapor entry interop', () => {
         renderItem: (item: any, listParent: any, anchor: any) => {
           counts.set(item.id, (counts.get(item.id) || 0) + 1)
           renderAnchor(
-            vapor(() => {
+            _$compiledRoot(() => {
               const root = document.createDocumentFragment()
               const row = document.createElement('div')
               const span = document.createElement('span')
@@ -397,10 +399,28 @@ describe('vapor entry interop', () => {
               button.textContent = '删除'
               row.appendChild(button)
               _$compiledWatchEffect(() => {
-                row.dataset.completed = item.completed ? 'yes' : 'no'
+                row.dataset.completed = state.getPath([
+                  'todos',
+                  (state.getPath(['todos']) as Todo[]).findIndex(
+                    (todo: any) => todo.id === item.id,
+                  ),
+                  'completed',
+                ])
+                  ? 'yes'
+                  : 'no'
               })
               _$compiledWatchEffect(() => {
-                renderAnchor(item.text, span, textAnchor)
+                renderAnchor(
+                  state.getPath([
+                    'todos',
+                    (state.getPath(['todos']) as Todo[]).findIndex(
+                      (todo: any) => todo.id === item.id,
+                    ),
+                    'text',
+                  ]),
+                  span,
+                  textAnchor,
+                )
               })
               return root as any
             }) as any,
@@ -427,7 +447,7 @@ describe('vapor entry interop', () => {
     expect(counts.get(2)).toBe(1)
     expect(counts.get(3)).toBe(1)
 
-    state.todos.splice(1, 1)
+    state.mutatePath(['todos'], (todos: unknown) => (todos as Todo[]).splice(1, 1))
 
     await flush()
 
@@ -456,18 +476,16 @@ describe('vapor entry interop', () => {
 
     const App: FC = () => {
       const [state] = useState(() =>
-        reactive({
+        signal({
           todos: [{ id: 1 }, { id: 2 }, { id: 3 }],
         }),
       )
 
       const removeMiddle = () => {
-        const index = state.todos.findIndex(item => item.id === 2)
-        state.todos.splice(index, 1)
-        snapshots.push(state.todos.map(item => item.id))
-        rawSnapshots.push(
-          ((state as any).__rue_raw__.todos as Array<{ id: number }>).map(item => item.id),
-        )
+        const index = (state.getPath(['todos']) as Todo[]).findIndex(item => item.id === 2)
+        state.mutatePath(['todos'], (todos: unknown) => (todos as Todo[]).splice(index, 1))
+        snapshots.push((state.getPath(['todos']) as Todo[]).map(item => item.id))
+        rawSnapshots.push((state.peekPath(['todos']) as Array<{ id: number }>).map(item => item.id))
       }
 
       return _$compiledVapor(_$parentContext => {
@@ -506,7 +524,7 @@ describe('vapor entry interop', () => {
 
     const TodoListApp: FC = () => {
       const [state] = useState(() =>
-        reactive({
+        signal({
           todos: [
             { id: 1, text: '学习响应式框架', completed: false },
             { id: 2, text: '编写示例代码', completed: true },
@@ -516,14 +534,14 @@ describe('vapor entry interop', () => {
       )
 
       const deleteTodo = (id: number) => {
-        const index = state.todos.findIndex(item => item.id === id)
+        const index = (state.getPath(['todos']) as Todo[]).findIndex(item => item.id === id)
         if (index !== -1) {
-          state.todos.splice(index, 1)
+          state.mutatePath(['todos'], (todos: unknown) => (todos as Todo[]).splice(index, 1))
         }
-        todoSnapshots.push(state.todos.map(item => item.id))
+        todoSnapshots.push((state.getPath(['todos']) as Todo[]).map(item => item.id))
       }
 
-      return vapor(() => {
+      return _$compiledRoot(() => {
         const root = document.createElement('div')
         const end = document.createComment('rue:list:end')
         let elements = new Map()
@@ -531,21 +549,21 @@ describe('vapor entry interop', () => {
         root.appendChild(end)
         watchEffect(() => {
           elements = _$compiledKeyedList({
-            items: state.todos,
-            getKey: todo => todo.id,
+            items: state.getPath(['todos']) as Todo[],
+            getKey: (todo: Todo) => todo.id,
             elements,
             parent: root,
             before: end,
             singleRoot: true,
             trackIndex: false,
-            renderItem: (todo, parent, anchor) => {
+            renderItem: (todo: Todo, parent, anchor) => {
               const row = document.createElement('div')
               const label = document.createElement('span')
               const button = document.createElement('button')
 
               row.className = 'row'
               row.dataset.todoId = String(todo.id)
-              label.textContent = todo.text
+              label.textContent = todo.text ?? null
               button.textContent = '删除'
               button.addEventListener('click', () => deleteTodo(todo.id))
               row.append(label, button)

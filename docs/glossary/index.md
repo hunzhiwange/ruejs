@@ -239,7 +239,7 @@ Rue 只能在响应式副作用内跟踪响应式依赖项。如果在响应式�
 
 响应式系统可以有各种不同的实现方式。例如，可以通过代码的静态分析来确定其依赖项来完成。然而，Rue 不使用那种形式的响应式系统。
 
-相反，Rue 的响应式系统在运行时跟踪属性访问。它使用 Proxy 包装器和属性的[getter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/get#description)/[setter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/set#description)函数来实现这一点。
+Rue 通过 Signal 路径读取建立依赖。SWC 将组件 useState 成员读写转换为路径操作，运行时不使用响应式对象代理。
 
 更多详情请参见：
 
@@ -248,7 +248,7 @@ Rue 只能在响应式副作用内跟踪响应式依赖项。如果在响应式�
 
 ## 响应式 API {#reactivity-api}
 
-*响应式 API*是一组与[响应性](#reactivity)相关的核心 Rue 函数。这些可以独立于组件使用。它包括 `ref()`、`reactive()`、`computed()`、`watch()` 和 `watchEffect()` 等函数。
+*响应式 API*是一组与[响应性](#reactivity)相关的核心 Rue 函数。这些可以独立于组件使用。它包括 `ref()`、`signal()`、`computed()`、`watch()` 和 `watchEffect()` 等函数。
 
 响应式 API 是组合式 API 的子集。
 

@@ -66,11 +66,6 @@ export interface ComponentHookCarrier extends HookCarrier {
   __rueDisposeHookScopeForInstance?(instance: unknown): void
 }
 
-export interface ComponentReactiveFacade extends ObjectLike {
-  default?: ComponentReactiveFacade
-  propsReactive?<Props extends ComponentProps>(source: Props, forceGlobal?: boolean): Props
-}
-
 export interface ComponentInstance<
   Props extends ComponentProps = ComponentProps,
   HostNode = unknown,

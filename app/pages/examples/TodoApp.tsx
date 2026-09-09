@@ -827,7 +827,7 @@ const PreviewPanel: FC = () => {
   })
 
   const visibleTodos = computed(() => {
-    const keyword = search.trim().toLowerCase()
+    const keyword = `${search}`.trim().toLowerCase()
 
     return todos
       .filter(item => {

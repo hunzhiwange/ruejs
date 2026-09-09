@@ -350,7 +350,7 @@ export const _$reconcileKeyed = <T, K>(
       if (!clearContiguousRows(parent, before, previous)) clearRowsIndividually(parent, previous)
       return
     }
-    const keys = new Array<K>(items.length)
+    const keys = Array.from({ length: items.length }) as K[]
     let keysReady = false
     let keysValidated = false
     if (previous.length > 0 && previous.length < items.length) {
@@ -456,31 +456,24 @@ export const _$reconcileKeyed = <T, K>(
       let firstMismatch = -1
       let secondMismatch = -1
       let tooManyMismatches = false
-      let domOrderIsStable = true
-      let cursor = before
       for (let index = previous.length - 1; index >= 0; index -= 1) {
         const row = previous[index]
-        if (
-          row.node.parentNode !== parent ||
-          lastNode(row).parentNode !== parent ||
-          lastNode(row).nextSibling !== cursor
-        ) {
-          domOrderIsStable = false
-        }
-        cursor = row.node
         if (row.key === result[index].key) continue
         if (firstMismatch < 0) firstMismatch = index
         else if (secondMismatch < 0) secondMismatch = index
-        else tooManyMismatches = true
+        else {
+          tooManyMismatches = true
+          break
+        }
       }
 
       if (
-        domOrderIsStable &&
         !tooManyMismatches &&
         firstMismatch >= 0 &&
         secondMismatch >= 0 &&
         previous[firstMismatch].key === result[secondMismatch].key &&
-        previous[secondMismatch].key === result[firstMismatch].key
+        previous[secondMismatch].key === result[firstMismatch].key &&
+        hasContiguousRowsBefore(parent, before, previous)
       ) {
         const lowerMismatch = Math.min(firstMismatch, secondMismatch)
         const upperMismatch = Math.max(firstMismatch, secondMismatch)
@@ -638,7 +631,7 @@ export const _$reconcileKeyedSingle = <T, K>(
       return
     }
 
-    const keys = new Array<K>(items.length)
+    const keys = Array.from({ length: items.length }) as K[]
     let keysReady = false
     let keysValidated = false
     if (previous.length > 0 && previous.length < items.length) {

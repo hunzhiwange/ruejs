@@ -11,7 +11,7 @@ import {
   _$setClassName,
 } from '@rue-js/runtime'
 import * as runtimeServer from '@rue-js/runtime/server'
-import { renderAnchor as renderVaporAnchor, vapor } from '@rue-js/runtime/internal'
+import { renderAnchor as renderVaporAnchor, _$compiledRoot } from '@rue-js/runtime/internal'
 
 import {
   _$serverComponent,
@@ -227,7 +227,7 @@ describe('rue server-renderer', () => {
 
   it('renders a server descriptor produced inside a compiled-shape Vapor subtree', async () => {
     const App: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = _$createElement('section')
         const anchor = _$createComment('compiled-server-island')
         _$appendChild(root, anchor)

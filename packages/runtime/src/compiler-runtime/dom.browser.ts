@@ -1,6 +1,7 @@
 import {
   attachDOMHostResult,
   captureDOMHostOperations as captureAdapterHostOperations,
+  cloneDOMHostTemplate,
   getDOMHostAdapter,
   getRememberedDOMHostAdapter,
   isFreshBrowserDOMHost,
@@ -22,33 +23,13 @@ let activeHydrationInsertBefore:
 
 export type StaticTemplateGetter = () => HTMLTemplateElement
 
-const browserDOMHostAdapter = {
-  createComment: (data: string) => document.createComment(data),
-  createTextNode: (data: string) => document.createTextNode(data),
-  createDocumentFragment: () => document.createDocumentFragment(),
-  createElement: (tag: string, parent?: BrowserDOMNode | null) => {
-    const useSVGNamespace =
-      tag === 'svg' ||
-      (parent?.namespaceURI === SVG_NAMESPACE && parent.localName !== 'foreignObject')
-    return useSVGNamespace
-      ? document.createElementNS(SVG_NAMESPACE, tag)
-      : document.createElement(tag)
-  },
-  appendChild: (parent: Node, child: Node) => parent.appendChild(child),
-  removeChild: (parent: Node, child: Node) => parent.removeChild(child),
-  insertBefore: (parent: Node, child: Node, reference: Node | null) =>
-    parent.insertBefore(child, reference),
-  getParentNode: (node: Node) => node.parentNode,
-}
-
-const hostAdapter = () => getDOMHostAdapter(browserDOMHostAdapter)
 const hostAdapterFor = (parent?: object | null) => {
-  if (isFreshBrowserDOMHost()) return browserDOMHostAdapter
-  if (typeof Node !== 'undefined' && parent instanceof Node) return browserDOMHostAdapter
-  const activeAdapter = hostAdapter()
+  if (isFreshBrowserDOMHost()) return undefined
+  if (typeof Node !== 'undefined' && parent instanceof Node) return undefined
+  const activeAdapter = getDOMHostAdapter()
   const serverRenderingCount = (globalThis as Record<string, unknown>).__rue_is_server_rendering__
   if (
-    activeAdapter !== browserDOMHostAdapter &&
+    activeAdapter !== undefined &&
     typeof serverRenderingCount === 'number' &&
     serverRenderingCount > 0
   ) {
@@ -57,81 +38,15 @@ const hostAdapterFor = (parent?: object | null) => {
   return parent == null ? activeAdapter : (getRememberedDOMHostAdapter(parent) ?? activeAdapter)
 }
 
-const SERVER_TEMPLATE_VOID_TAGS = new Set([
-  'area',
-  'base',
-  'br',
-  'col',
-  'embed',
-  'hr',
-  'img',
-  'input',
-  'link',
-  'meta',
-  'param',
-  'source',
-  'track',
-  'wbr',
-])
-
-const decodeTemplateText = (value: string): string =>
-  value.replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (_match, entity: string) => {
-    const normalized = entity.toLowerCase()
-    if (normalized === 'amp') return '&'
-    if (normalized === 'lt') return '<'
-    if (normalized === 'gt') return '>'
-    if (normalized === 'quot') return '"'
-    if (normalized === 'apos') return "'"
-    if (normalized === 'nbsp') return '\u00a0'
-    const radix = normalized.startsWith('#x') ? 16 : 10
-    const digits = normalized.slice(radix === 16 ? 2 : 1)
-    return String.fromCodePoint(Number.parseInt(digits, radix))
-  })
-
-const cloneServerTemplate = (html: string, adapter: typeof browserDOMHostAdapter): unknown => {
-  const fragment = adapter.createDocumentFragment() as any
-  const stack: any[] = [fragment]
-  const tokens = html.match(/<!--[\s\S]*?-->|<![^>]*>|<\/?[^>]+>|[^<]+/g) ?? []
-  for (const token of tokens) {
-    if (token.startsWith('<!--')) {
-      adapter.appendChild(stack.at(-1), adapter.createComment(token.slice(4, -3)))
-      continue
-    }
-    if (token.startsWith('</')) {
-      if (stack.length > 1) stack.pop()
-      continue
-    }
-    if (token.startsWith('<!')) continue
-    if (token.startsWith('<')) {
-      const match = /^<\s*([^\s/>]+)([\s\S]*?)\/?\s*>$/.exec(token)
-      if (!match) continue
-      const tag = match[1]
-      const element = adapter.createElement(tag, stack.at(-1)) as any
-      const attributes = match[2]
-      const attributePattern = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
-      let attribute: RegExpExecArray | null
-      while ((attribute = attributePattern.exec(attributes))) {
-        element.setAttribute(
-          attribute[1],
-          decodeTemplateText(attribute[2] ?? attribute[3] ?? attribute[4] ?? ''),
-        )
-      }
-      adapter.appendChild(stack.at(-1), element)
-      if (!token.endsWith('/>') && !SERVER_TEMPLATE_VOID_TAGS.has(tag.toLowerCase())) {
-        stack.push(element)
-      }
-      continue
-    }
-    if (token) adapter.appendChild(stack.at(-1), adapter.createTextNode(decodeTemplateText(token)))
-  }
-  return fragment
+export const createComment = (data: string): Comment => {
+  const adapter = hostAdapterFor(resolveParentContext(activeParent))
+  return adapter ? adapter.createComment(data) : document.createComment(data)
 }
 
-export const createComment = (data: string): Comment =>
-  hostAdapterFor(resolveParentContext(activeParent)).createComment(data) as Comment
-
-export const createTextNode = (data: string): Text =>
-  hostAdapterFor(resolveParentContext(activeParent)).createTextNode(data) as Text
+export const createTextNode = (data: string): Text => {
+  const adapter = hostAdapterFor(resolveParentContext(activeParent))
+  return adapter ? adapter.createTextNode(data) : document.createTextNode(data)
+}
 
 const resolveParentContext = (parent: Node | null | undefined): Node | null | undefined => {
   let current = parent
@@ -150,7 +65,10 @@ export const resolveDOMHostParentContext = (
 
 export const createDocumentFragment = (parent?: Node | null): DocumentFragment => {
   const context = resolveParentContext(parent ?? activeParent)
-  const fragment = hostAdapterFor(context).createDocumentFragment() as DocumentFragment
+  const adapter = hostAdapterFor(context)
+  const fragment = (
+    adapter ? adapter.createDocumentFragment() : document.createDocumentFragment()
+  ) as DocumentFragment
   if (context != null) parentContexts.set(fragment, context)
   return fragment
 }
@@ -160,23 +78,34 @@ export const createElement = (tag: string, parent?: Node | null): Element => {
     | BrowserDOMNode
     | null
     | undefined
-  return hostAdapterFor(compiledParent).createElement(tag, compiledParent) as Element
+  const adapter = hostAdapterFor(compiledParent)
+  if (adapter) return adapter.createElement(tag, compiledParent) as Element
+  const svg =
+    tag === 'svg' ||
+    (compiledParent?.namespaceURI === SVG_NAMESPACE && compiledParent.localName !== 'foreignObject')
+  return svg ? document.createElementNS(SVG_NAMESPACE, tag) : document.createElement(tag)
 }
 
 export const appendChild = (parent: Node, child: Node): void => {
   if (activeHydrationAppendChild) return activeHydrationAppendChild(parent, child)
-  hostAdapterFor(parent).appendChild(parent, child)
+  const adapter = hostAdapterFor(parent)
+  if (adapter) adapter.appendChild(parent, child)
+  else parent.appendChild(child)
 }
 
 export const removeChild = (parent: Node, child: Node): void => {
-  hostAdapterFor(parent).removeChild(parent, child)
+  const adapter = hostAdapterFor(parent)
+  if (adapter) adapter.removeChild(parent, child)
+  else parent.removeChild(child)
 }
 
 export const insertBefore = (parent: Node, child: Node, reference: Node | null): void => {
   if (activeHydrationInsertBefore) {
     return activeHydrationInsertBefore(parent, child, reference)
   }
-  hostAdapterFor(parent).insertBefore(parent, child, reference)
+  const adapter = hostAdapterFor(parent)
+  if (adapter) adapter.insertBefore(parent, child, reference)
+  else parent.insertBefore(child, reference)
 }
 
 export const withHydrationDOMMutations = <T>(
@@ -199,17 +128,17 @@ export const withHydrationDOMMutations = <T>(
 export const template = (html: string): StaticTemplateGetter => {
   let cachedHTML: HTMLTemplateElement | undefined
   let cachedSVG: HTMLTemplateElement | undefined
-  let cachedServerTemplate: HTMLTemplateElement | undefined
+  const cachedHostTemplates = new WeakMap<object, HTMLTemplateElement>()
   return () => {
     const adapter = hostAdapterFor(resolveParentContext(activeParent))
-    if (adapter !== browserDOMHostAdapter && !isFreshBrowserDOMHost()) {
+    if (adapter !== undefined && !isFreshBrowserDOMHost()) {
+      let cachedServerTemplate = cachedHostTemplates.get(adapter)
       if (!cachedServerTemplate) {
         const content = {
-          cloneNode: () => {
-            return cloneServerTemplate(html, adapter as typeof browserDOMHostAdapter)
-          },
+          cloneNode: () => cloneDOMHostTemplate(html, adapter),
         }
         cachedServerTemplate = { content } as unknown as HTMLTemplateElement
+        cachedHostTemplates.set(adapter, cachedServerTemplate)
       }
       return cachedServerTemplate
     }

@@ -360,7 +360,7 @@ describe('store query sync plugin', () => {
 
     expect(store.tags).toEqual([])
 
-    store.tags.push('local-only')
+    store.mutatePath(['tags'], (tags: string[]) => tags.push('local-only'))
     await flush()
 
     expect(defaultTags).toEqual([])

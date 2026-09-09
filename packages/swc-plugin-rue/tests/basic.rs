@@ -31,13 +31,13 @@ export default BasicElements;
     let out = utils::emit(program, cm);
 
     // 期望输出要点对照：
-    // - 导入：vapor/_$createElement/_$appendChild/_$createTextNode
+    // - 导入：_$compiledRoot/_$createElement/_$appendChild/_$createTextNode
     // - 元素：根 div 与一系列自闭合/嵌套元素的创建与插入
     // - 属性：className → setAttribute("class", ...)
     // - 文本：使用 _$createTextNode 一次性插入静态文本
     // - 组件：RouterLink 被优化为原生 <a> 元素
     let _expected_fragment = r##"
-import { vapor, _$createElement, _$template, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledRoot, _$createElement, _$template, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<h3 class="text-xl font-semibold">基础元素与自闭合标签</h3>');
@@ -47,7 +47,7 @@ const _$getTemplate4 = _$template("<br>");
 const _$getTemplate5 = _$template('<img src="https://via.placeholder.com/80" alt="占位图">');
 const _$getTemplate6 = _$template('<input placeholder="自闭合 input">');
 const _$getTemplate7 = _$template("<p>支持文本、嵌套与自闭合形式</p>");
-const BasicElements: FC = ()=>vapor((__rue_parent_context)=>{
+const BasicElements: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _root = _$createElement("div", __rue_parent_context);
         _$setClassName(_root, "max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm");
         _root.appendChild(_$getTemplate1().content.cloneNode(true));
@@ -115,7 +115,7 @@ export default Expressions;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { vapor, _$createElement, _$template, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledRoot, _$createElement, _$template, _$createTextNode, _$settextContent, _$appendChild, watchEffect, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<h3 class="text-xl font-semibold">表达式与插值</h3>');
@@ -124,7 +124,7 @@ const user = {
     name: 'Alice',
     age: 20
 };
-const Expressions: FC = ()=>vapor((__rue_parent_context)=>{
+const Expressions: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _root = _$createElement("div", __rue_parent_context);
         _$setClassName(_root, "max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm");
         _root.appendChild(_$getTemplate1().content.cloneNode(true));
@@ -316,7 +316,9 @@ export default Page;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/basic_nullish_jsx_slot.out.js", stripped).ok();
 
-    assert!(out.contains(&utils::normalize("const __slot = iconConfig.icon ?? vapor(()=>{")));
+    assert!(
+        out.contains(&utils::normalize("const __slot = iconConfig.icon ?? _$compiledRoot(()=>{"))
+    );
     assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el2, _el1)")));
     assert!(!out.contains("_$settextContent("));
 }
@@ -374,10 +376,10 @@ export default InlineRouterLinkExpr;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { vapor, _$createComponent, renderAnchor, _$createElement, _$createComment, _$appendChild, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledRoot, _$createComponent, renderAnchor, _$createElement, _$createComment, _$appendChild, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
-const InlineRouterLinkExpr: FC = ()=>vapor((__rue_parent_context)=>{
+const InlineRouterLinkExpr: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _root = _$createElement("div", __rue_parent_context);
         _$setClassName(_root, "wrap");
         const _list1 = _$createComment("rue:slot:anchor");

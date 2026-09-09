@@ -35,7 +35,7 @@ export default ListsAndKeys;
     // - renderItem：通过兼容 anchor 渲染，同时保留 index watcher
     // - 更新：watch 中对 elements 引用进行复用更新
     let _expected_fragment = r##"
-import { vapor, renderAnchor, _$createElement, _$template, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, onScopeDispose, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledRoot, renderAnchor, _$createElement, _$template, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, onScopeDispose, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<div class="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm"><h3 class="text-xl font-semibold">列表渲染与 key</h3><ul class="list-disc pl-6"><!--rue:text-hole:0--></ul><!--rue:opaque-hole:1--></div>');
@@ -44,7 +44,7 @@ const list = [
     'Banana',
     'Cherry'
 ];
-const ListsAndKeys: FC = ()=>vapor((__rue_parent_context)=>{
+const ListsAndKeys: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1].childNodes[0];
@@ -69,7 +69,7 @@ const ListsAndKeys: FC = ()=>vapor((__rue_parent_context)=>{
                 singleRoot: true,
                 start: _list1,
                 renderItem: (item, parent, start, end, idx)=>{
-                    const __slot = vapor(()=>{
+                    const __slot = _$compiledRoot(()=>{
                         const _root = _$createDocumentFragment();
                         const _el5 = _$createElement("li", _root);
                         _$appendChild(_root, _el5);

@@ -23,10 +23,9 @@
 
 ### 响应式：核心 {#reactivity-core}
 
+- [signal()](/api/api/reactivity-core#signal)
 - [ref()](/api/api/reactivity-core#ref)
 - [computed()](/api/api/reactivity-core#computed)
-- [reactive()](/api/api/reactivity-core#reactive)
-- [readonly()](/api/api/reactivity-core#readonly)
 - [watchEffect()](/api/api/reactivity-core#watcheffect)
 - [watchPostEffect()](/api/api/reactivity-core#watchposteffect)
 - [watchSyncEffect()](/api/api/reactivity-core#watchsynceffect)
@@ -36,21 +35,13 @@
 
 - [isRef()](/api/api/reactivity-utilities#isref)
 - [unref()](/api/api/reactivity-utilities#unref)
-- [toRef()](/api/api/reactivity-utilities#toref)
 - [toValue()](/api/api/reactivity-utilities#tovalue)
-- [toRefs()](/api/api/reactivity-utilities#torefs)
-- [isProxy()](/api/api/reactivity-utilities#isproxy)
-- [isReactive()](/api/api/reactivity-utilities#isreactive)
-- [isReadonly()](/api/api/reactivity-utilities#isreadonly)
 
 ### 响应式：进阶 {#reactivity-advanced}
 
 - [shallowRef()](/api/api/reactivity-advanced#shallowref)
 - [triggerRef()](/api/api/reactivity-advanced#triggerref)
 - [customRef()](/api/api/reactivity-advanced#customref)
-- [shallowReactive()](/api/api/reactivity-advanced#shallowreactive)
-- [shallowReadonly()](/api/api/reactivity-advanced#shallowreadonly)
-- [toRaw()](/api/api/reactivity-advanced#toraw)
 - [effectScope()](/api/api/reactivity-advanced#effectscope)
 - [getCurrentScope()](/api/api/reactivity-advanced#getcurrentscope)
 - [onScopeDispose()](/api/api/reactivity-advanced#onscopedispose)

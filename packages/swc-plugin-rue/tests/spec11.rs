@@ -153,7 +153,7 @@ export default FormBindings;
     // - keyedList renderItem：label/input/span 构造每项片段并渲染
     // - 多选 select：watch 中使用 Set 同步 options.selected
     let _expected_fragment = r##"
-import { ref, _$compiledWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$template, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, onScopeDispose, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$setClassName, _$setValue, _$setChecked } from "@rue-js/rue/internal";
+import { ref, _$compiledWithHookId, useSetup, _$compiledRoot, renderAnchor, _$createElement, _$template, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, onScopeDispose, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$setClassName, _$setValue, _$setChecked } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<div class="grid gap-6"><div><h2 class="text-lg font-semibold mb-2">Text Input</h2><input class="border rounded-md px-3 py-2 w-full" placeholder="Edit me"><p class="mt-2 text-gray-700 dark:text-gray-300"><!--rue:text-hole:0--></p></div><div><h2 class="text-lg font-semibold mb-2">Checkbox</h2><div class="flex items-center gap-2"><input id="checkbox" type="checkbox"><label for="checkbox" class="select-none">Checked: <!--rue:text-hole:1--></label></div></div><div><h2 class="text-lg font-semibold mb-2">Multi Checkbox</h2><div class="flex items-center gap-4 flex-wrap"><!--rue:text-hole:2--></div><p class="mt-2 text-gray-700 dark:text-gray-300">Checked names: [<!--rue:text-hole:3-->]</p></div><div><h2 class="text-lg font-semibold mb-2">Radio</h2><div class="flex items-center gap-4 flex-wrap"><label for="one" class="inline-flex items-center gap-2"><input id="one" type="radio" value="One"><span>One</span></label><label for="two" class="inline-flex items-center gap-2"><input id="two" type="radio" value="Two"><span>Two</span></label></div><p class="mt-2 text-gray-700 dark:text-gray-300">Picked: <!--rue:text-hole:4--></p></div><div><h2 class="text-lg font-semibold mb-2">Select</h2><!--rue:opaque-hole:5--><p class="mt-2 text-gray-700 dark:text-gray-300">Selected: <!--rue:text-hole:6--></p></div><div><h2 class="text-lg font-semibold mb-2">Multi Select</h2><!--rue:opaque-hole:7--><p class="mt-2 text-gray-700 dark:text-gray-300">Selected: [<!--rue:text-hole:8-->]</p></div></div>');
 const FormBindings: FC = ()=>{
@@ -190,7 +190,7 @@ const FormBindings: FC = ()=>{
             };
         }));
     const { text: text, checked: checked, checkedNames: checkedNames, picked: picked, selected: selected, multiSelected: multiSelected, toggleCheckedName: toggleCheckedName, onMultiSelectChange: onMultiSelectChange } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[0].childNodes[1];
@@ -289,7 +289,7 @@ const FormBindings: FC = ()=>{
                 ownedMount: true,
                 start: _list1,
                 renderItem: (name, parent, start, end, idx)=>{
-                    const __slot = vapor(()=>{
+                    const __slot = _$compiledRoot(()=>{
                         const _root = _$createDocumentFragment();
                         const _el23 = _$createElement("label", _root);
                         _$appendChild(_root, _el23);

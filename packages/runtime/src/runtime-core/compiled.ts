@@ -1,3 +1,21 @@
+import {
+  createSignal as createPathSignal,
+  type SignalHandle,
+  type SignalPathToken,
+} from './reactive-kernel/signal.js'
+import { getSharedReactiveRuntime } from './reactive-kernel/shared-runtime.js'
+import { createSelectorSubscriptions } from './reactive-kernel/selector.js'
+import * as effects from './reactive-kernel/effect-core.js'
+import { graphDebugStats } from './reactive-kernel/graph-core.js'
+import {
+  getSharedReactiveStorage,
+  peekSharedReactiveStorage,
+} from './reactive-kernel/shared-runtime.js'
+import {
+  createRootSignal as createSignal,
+  type RootSignalHandle,
+} from './reactive-kernel/signal-base.js'
+
 export type CompiledOwner = number
 export type ReactiveSchedulingMode = 'sync' | 'microtask' | 'frame'
 export type EffectCleanup = () => void
@@ -14,18 +32,7 @@ export interface SignalOptions<T> {
   readonly equals?: (previous: T, next: T) => boolean
 }
 
-export interface CompiledSignalHandle<T> {
-  readonly __rue_signal_id__: number
-  value: T
-  get(): T
-  peek(): T
-  set(next: T): void
-  update(updater: (current: T) => T): void
-  trigger(): void
-  dispose(): void
-  free(): void
-  [Symbol.dispose](): void
-}
+export type CompiledSignalHandle<T> = RootSignalHandle<T>
 
 export interface EffectHandle {
   readonly id: number
@@ -44,266 +51,284 @@ export type CompiledLifecyclePhase =
   | 'beforeUnmount'
   | 'unmounted'
 
-interface DependencyRecord {
-  subscribers: Set<EffectRecord>
-  disposed: boolean
-  onEmpty?: () => void
+type DisposeAttempt = <T>(cleanup: (value: T) => unknown, value: T) => void
+type OwnerLifecycle = Partial<Record<CompiledLifecyclePhase, EffectCleanup[]>> & {
+  dispose?: (
+    owner: CompiledOwner,
+    phase: 'beforeUnmount' | 'unmounted',
+    attempt: DisposeAttempt,
+  ) => void
 }
 
-interface SelectorDependencyRecord extends DependencyRecord {
-  directSubscribers: Set<DirectSelectorSubscriber>
+const enum OwnerField {
+  Parent,
+  Children,
+  Scope,
+  Cleanups,
+  Disposed,
+  Lifecycle,
+  Effects,
+  SetupValues,
 }
+type OwnerRecord = [
+  CompiledOwner | undefined,
+  Set<CompiledOwner>,
+  number | undefined,
+  EffectCleanup[],
+  boolean,
+  OwnerLifecycle?,
+  Set<EffectHandle>?,
+  Map<string, unknown>?,
+]
 
-interface DirectSelectorSubscriber {
-  callback: EffectCallback
-  dependencies: Set<SelectorDependencyRecord>
-  active: boolean
-  running: boolean
-}
-
-interface EffectRecord {
-  id: number
-  callback: EffectCallback
-  scheduler: EffectScheduler | undefined
-  owner: CompiledOwner | undefined
-  dependencies: Set<DependencyRecord>
-  cleanups: EffectCleanup[]
-  onDispose: EffectCleanup | undefined
-  active: boolean
-  running: boolean
-}
-
-interface OwnerRecord {
-  parent: CompiledOwner | undefined
-  children: Set<CompiledOwner>
-  effects: Set<EffectRecord>
-  cleanups: EffectCleanup[]
-  setupValues: Map<string, unknown>
-  lifecycle: Record<CompiledLifecyclePhase, EffectCleanup[]>
-  disposed: boolean
-}
-
-let schedulingMode: ReactiveSchedulingMode = 'frame'
-let currentEffect: EffectRecord | undefined
-let currentDirectSelectorSubscriber: DirectSelectorSubscriber | undefined
 let currentOwner: CompiledOwner | undefined
 let currentOwnerCleanupCollector: EffectCleanup[] | undefined
 let ownerDisposalDepth = 0
-let nextEffectId = 1
 let nextOwnerId = 1
-let nextSignalId = 1
-let batchDepth = 0
-let flushPending = false
-const pendingEffects = new Set<EffectRecord>()
-const owners = new Map<CompiledOwner, OwnerRecord>()
-const pendingRootLifecycle: Record<CompiledLifecyclePhase, EffectCleanup[]> = {
-  beforeMount: [],
-  mounted: [],
-  beforeUpdate: [],
-  updated: [],
-  activated: [],
-  deactivated: [],
-  beforeUnmount: [],
-  unmounted: [],
+const ownerFrames: { record: OwnerRecord; entered: boolean }[] = []
+const enterOwnerScopes = (runtime: ReturnType<typeof getSharedReactiveStorage>) => {
+  const scopeOps = runtime.scopeOps
+  if (!scopeOps) return
+  for (const frame of ownerFrames) {
+    if (frame.entered) continue
+    frame.record[OwnerField.Scope] ??= scopeOps.create()
+    frame.entered = scopeOps.push(frame.record[OwnerField.Scope])
+  }
 }
+const reactiveRuntime = () => {
+  const runtime = getSharedReactiveStorage()
+  enterOwnerScopes(runtime)
+  return runtime
+}
+const owners = new Map<CompiledOwner, OwnerRecord>()
+let pendingRootLifecycle: OwnerLifecycle | undefined
 
 export interface CompiledReactiveDebugState {
+  nodeCount: number
+  linkCount: number
   activeOwners: number
   activeEffects: number
 }
 
 /** Test/development-only visibility into compact reactive resource retention. */
 export const __rueGetCompiledReactiveDebugState = (): CompiledReactiveDebugState => ({
+  nodeCount: peekSharedReactiveStorage()
+    ? graphDebugStats(peekSharedReactiveStorage()!.graph).nodeCount
+    : 0,
+  linkCount: peekSharedReactiveStorage()
+    ? graphDebugStats(peekSharedReactiveStorage()!.graph).linkCount
+    : 0,
   activeOwners: owners.size,
   activeEffects: Array.from(owners.values()).reduce(
-    (count, owner) => count + owner.effects.size,
+    (count, owner) => count + (owner[OwnerField.Effects]?.size ?? 0),
     0,
   ),
 })
 
-const lifecycleRecord = (): Record<CompiledLifecyclePhase, EffectCleanup[]> =>
-  Object.fromEntries(
-    Object.entries(pendingRootLifecycle).map(([phase, callbacks]) => {
-      const claimed = [...callbacks]
-      callbacks.length = 0
-      return [phase, claimed]
-    }),
-  ) as Record<CompiledLifecyclePhase, EffectCleanup[]>
-
-const runCleanups = (cleanups: EffectCleanup[]): void => {
-  if (cleanups.length === 0) return
-  for (const cleanup of cleanups.splice(0)) cleanup()
-}
-
-const detachDependencies = (effect: EffectRecord): void => {
-  for (const dependency of effect.dependencies) {
-    dependency.subscribers.delete(effect)
-    if (dependency.subscribers.size === 0) dependency.onEmpty?.()
-  }
-  effect.dependencies.clear()
-}
-
-const runEffect = (effect: EffectRecord): void => {
-  if (!effect.active || effect.running) return
-  effect.running = true
-  if (pendingEffects.size > 0) pendingEffects.delete(effect)
-  detachDependencies(effect)
-  runCleanups(effect.cleanups)
-  const previousEffect = currentEffect
-  const previousOwner = currentOwner
-  currentEffect = effect
-  currentOwner = effect.owner
-  try {
-    const cleanup = effect.callback()
-    if (typeof cleanup === 'function') effect.cleanups.push(cleanup as EffectCleanup)
-  } finally {
-    currentEffect = previousEffect
-    currentOwner = previousOwner
-    effect.running = false
-  }
-}
-
-const flushEffects = (): void => {
-  flushPending = false
-  while (pendingEffects.size > 0) {
-    const effects = [...pendingEffects]
-    pendingEffects.clear()
-    for (const effect of effects) runEffect(effect)
-  }
-}
-
-const requestFlush = (): void => {
-  if (flushPending || batchDepth > 0 || pendingEffects.size === 0) return
-  if (schedulingMode === 'sync') {
-    flushEffects()
-    return
-  }
-  flushPending = true
-  if (schedulingMode === 'microtask' || typeof requestAnimationFrame !== 'function') {
-    queueMicrotask(flushEffects)
-  } else {
-    requestAnimationFrame(flushEffects)
-  }
-}
-
-const scheduleEffect = (effect: EffectRecord): void => {
-  if (!effect.active) return
-  if (effect.scheduler !== undefined) {
-    effect.scheduler(() => runEffect(effect))
-    return
-  }
-  pendingEffects.add(effect)
-  requestFlush()
-}
-
-const notifyDependency = (dependency: DependencyRecord | undefined): void => {
-  if (dependency === undefined || dependency.disposed) return
-  const subscribers = Array.from(dependency.subscribers)
-  for (const subscriber of subscribers) scheduleEffect(subscriber)
-}
-
-const disposeEffect = (effect: EffectRecord): void => {
-  if (!effect.active) return
-  effect.active = false
-  if (pendingEffects.size > 0) pendingEffects.delete(effect)
-  detachDependencies(effect)
-  try {
-    runCleanups(effect.cleanups)
-  } finally {
-    try {
-      effect.onDispose?.()
-    } finally {
-      effect.onDispose = undefined
-      if (effect.owner !== undefined) owners.get(effect.owner)?.effects.delete(effect)
-    }
-  }
-}
-
 export const setReactiveScheduling = (mode: ReactiveSchedulingMode): void => {
-  schedulingMode = mode
-  requestFlush()
+  effects.effectSetScheduling(reactiveRuntime(), mode)
 }
 
 export const signal = <T>(
   initial: T,
   options?: SignalOptions<T> | null,
 ): CompiledSignalHandle<T> => {
-  let value = initial
-  const equals = options?.equals ?? Object.is
-  const record: DependencyRecord = { subscribers: new Set(), disposed: false }
-  const id = nextSignalId++
-  const notify = (): void => {
-    notifyDependency(record)
-  }
-  const handle: CompiledSignalHandle<T> = {
-    __rue_signal_id__: id,
-    get value() {
-      return value
-    },
-    set value(next: T) {
-      handle.set(next)
-    },
-    get() {
-      if (!record.disposed && currentEffect !== undefined) {
-        record.subscribers.add(currentEffect)
-        currentEffect.dependencies.add(record)
-      }
-      return value
-    },
-    peek: () => value,
-    set(next) {
-      const previous = value
-      value = next
-      let equal = false
-      try {
-        equal = equals(previous, next)
-      } catch {}
-      if (!equal) notify()
-    },
-    update(updater) {
-      handle.set(updater(value))
-    },
-    trigger: notify,
-    dispose() {
-      if (record.disposed) return
-      record.disposed = true
-      for (const subscriber of record.subscribers) subscriber.dependencies.delete(record)
-      record.subscribers.clear()
-    },
-    free() {
-      handle.dispose()
-    },
-    [Symbol.dispose]() {
-      handle.dispose()
-    },
-  }
+  const runtime = reactiveRuntime()
+  const handle = createSignal(runtime, initial, options)
+  const dispose = () => handle.dispose()
+  if (!runtime.scopeOps?.cleanup(dispose) && currentOwner !== undefined)
+    owners.get(currentOwner)?.[OwnerField.Cleanups].push(dispose)
   return handle
 }
 
-export const effect = (callback: EffectCallback, options?: EffectOptions | null): EffectHandle => {
-  const record: EffectRecord = {
-    id: nextEffectId++,
-    callback,
-    scheduler: options?.scheduler,
-    owner: currentOwner,
-    dependencies: new Set(),
-    cleanups: [],
-    onDispose: options?.onDispose,
-    active: true,
-    running: false,
-  }
-  if (record.owner !== undefined) owners.get(record.owner)?.effects.add(record)
-  const handle: EffectHandle = {
-    id: record.id,
-    dispose: () => disposeEffect(record),
-    free: () => disposeEffect(record),
-    [Symbol.dispose]: () => disposeEffect(record),
-  }
-  if (!options?.lazy) {
-    if (record.scheduler !== undefined) record.scheduler(() => runEffect(record))
-    else runEffect(record)
-  }
+/** Path-aware state shares the public signal trie and the compiler's owner lifetime. */
+export const _$compiledStateSignal = <T>(
+  initial: T,
+  options?: SignalOptions<T>,
+): SignalHandle<T> => {
+  const handle = createPathSignal(getSharedReactiveRuntime(), initial, options)
+  const runtime = reactiveRuntime()
+  const dispose = () => handle.dispose()
+  if (!runtime.scopeOps?.cleanup(dispose) && currentOwner !== undefined)
+    owners.get(currentOwner)?.[OwnerField.Cleanups].push(dispose)
   return handle
+}
+
+export interface CompiledPath {
+  readonly keys: readonly PropertyKey[]
+  readonly optional: readonly boolean[]
+  readonly tokens: WeakMap<object, SignalPathToken>
+}
+
+export const _$compiledPath = (
+  keys: readonly PropertyKey[],
+  optional: readonly boolean[],
+): CompiledPath => ({ keys, optional, tokens: new WeakMap() })
+
+export const _$compiledReadPath = (state: SignalHandle<unknown>, path: CompiledPath): any => {
+  let token = path.tokens.get(state)
+  if (token === undefined) {
+    token = state.resolvePath(path.keys)
+    path.tokens.set(state, token)
+  }
+  state.trackPath(token)
+  let value: any = state.peek()
+  for (let index = 0; index < path.keys.length; index++) {
+    if (value == null && path.optional[index]) return undefined
+    value = value[path.keys[index]!]
+  }
+  return value
+}
+
+/** A captured JS reference: parent and key are evaluated once, before the RHS. */
+interface CompiledStateReference {
+  state: SignalHandle<unknown>
+  path: readonly PropertyKey[]
+  value: any
+  parent?: any
+  key?: PropertyKey
+}
+export const _$compiledStateRoot = (state: SignalHandle<unknown>): CompiledStateReference => ({
+  state,
+  path: [],
+  value: state.peek(),
+})
+
+const statePropertyKey = (key: PropertyKey): PropertyKey =>
+  typeof key === 'symbol' || typeof key === 'string'
+    ? key
+    : typeof key === 'number'
+      ? String(key)
+      : Reflect.ownKeys({ [key]: 0 })[0]!
+export const _$compiledStateMember = (reference: CompiledStateReference) => {
+  // Resolve the parent before the next computed-key expression runs.
+  const parent = reference.value
+  return (inputKey: PropertyKey): CompiledStateReference => {
+    let key: PropertyKey
+    return {
+      state: reference.state,
+      parent,
+      get key() {
+        return inputKey
+      },
+      get path() {
+        return [...reference.path, key]
+      },
+      get value() {
+        if (parent == null) return parent[inputKey]
+        key = statePropertyKey(inputKey)
+        return parent[key]
+      },
+      set value(next: any) {
+        if (parent == null) {
+          parent[inputKey] = next
+          return
+        }
+        key = statePropertyKey(inputKey)
+        const path = [...reference.path, key]
+        const descriptor = Object.getOwnPropertyDescriptor(parent, key)
+        const length = Array.isArray(parent) ? parent.length : undefined
+        if (length !== undefined && key === 'length') {
+          reference.state.mutateObservedPath(
+            reference.path,
+            () => {
+              parent[key] = next
+            },
+            parent,
+          )
+          return
+        }
+        parent[key] = next
+        if (descriptor && 'value' in descriptor && Object.is(descriptor.value, next)) return
+        batch(() => {
+          reference.state.notifyPathMutation(path, descriptor?.value, next)
+          if (length !== undefined && parent.length !== length)
+            reference.state.notifyPathMutation([...reference.path, 'length'], length, parent.length)
+        })
+      },
+    }
+  }
+}
+export const _$compiledStateDelete = (reference: CompiledStateReference): boolean => {
+  const parent = reference.parent
+  if (parent == null) return delete parent[reference.key!]
+  const key = statePropertyKey(reference.key!)
+  const existed = Object.prototype.hasOwnProperty.call(parent, key)
+  const result = delete parent[key]
+  if (existed && result) {
+    const path = reference.path.slice(0, -1)
+    reference.state.notifyPathMutation([...path, key], undefined, undefined)
+  }
+  return result
+}
+export const _$compiledStateMutator = (reference: CompiledStateReference, method: string) => {
+  const target = reference.value
+  const fn = target[method]
+  if (!Array.isArray(target) || fn !== (Array.prototype as any)[method])
+    throw new TypeError('State mutation requires a native Array method')
+  return (...args: any[]) =>
+    reference.state.mutateObservedPath(
+      reference.path,
+      () => Reflect.apply(fn, target, args),
+      target,
+    )
+}
+
+export const effect = (callback: EffectCallback, options?: EffectOptions | null): EffectHandle => {
+  const runtime = reactiveRuntime()
+  const owner = currentOwner
+  const record = owner === undefined ? undefined : owners.get(owner)
+  const ownedEffects = record === undefined ? undefined : (record[OwnerField.Effects] ??= new Set())
+  const scopedAtCreation = runtime.scopeOps !== undefined
+  const run = () => {
+    const cleanup = callback()
+    if (typeof cleanup === 'function') effects.effectOnCleanup(runtime, cleanup as EffectCleanup)
+  }
+  const id = effects.effectCreateEffectId(
+    runtime,
+    () => {
+      const previous = currentOwner
+      currentOwner = owner
+      try {
+        if (owner !== undefined && !scopedAtCreation && runtime.scopeOps)
+          withOwnerContext(owner, run)
+        else run()
+      } finally {
+        currentOwner = previous
+      }
+    },
+    options ?? {},
+  )
+  let disposed = false
+  const dispose = () => {
+    if (disposed) return
+    disposed = true
+    try {
+      effects.effectDisposeEffect(runtime, id)
+    } finally {
+      ownedEffects?.delete(result)
+      options?.onDispose?.()
+    }
+  }
+  const result: EffectHandle = {
+    id,
+    dispose,
+    free: dispose,
+    [Symbol.dispose]: dispose,
+  }
+  ownedEffects?.add(result)
+  runtime.scopeOps?.cleanup(dispose)
+  if (!options?.lazy) {
+    try {
+      const runner = () => effects.effectRunEffect(runtime, id)
+      if (options?.scheduler !== undefined) options.scheduler(runner)
+      else runner()
+    } catch (error) {
+      dispose()
+      throw error
+    }
+  }
+  return result
 }
 
 /**
@@ -354,34 +379,26 @@ export const _$compiledText = (node: CompiledTextTarget, read: () => unknown): E
   })
 }
 
-export const batch = <T>(callback: () => T): T => {
-  batchDepth += 1
-  try {
-    return callback()
-  } finally {
-    batchDepth -= 1
-    requestFlush()
-  }
-}
-
+export const batch = <T>(callback: () => T): T => effects.effectBatch(reactiveRuntime(), callback)
 export const untrack = <T>(callback: () => T): T => {
-  const previous = currentEffect
-  currentEffect = undefined
-  try {
-    return callback()
-  } finally {
-    currentEffect = previous
-  }
+  const runtime = peekSharedReactiveStorage()
+  return runtime === undefined ? callback() : runtime.untrack(callback)
 }
 
 export const onCleanup = (cleanup: EffectCleanup): void => {
-  if (currentEffect !== undefined) currentEffect.cleanups.push(cleanup)
-  else if (currentOwner !== undefined) owners.get(currentOwner)?.cleanups.push(cleanup)
+  if (
+    !(
+      peekSharedReactiveStorage() && effects.effectOnCleanup(peekSharedReactiveStorage()!, cleanup)
+    ) &&
+    currentOwner !== undefined
+  ) {
+    owners.get(currentOwner)?.[OwnerField.Cleanups].push(cleanup)
+  }
 }
 
 export const onOwnerCleanup = (cleanup: EffectCleanup): void => {
   if (currentOwnerCleanupCollector !== undefined) currentOwnerCleanupCollector.push(cleanup)
-  else if (currentOwner !== undefined) owners.get(currentOwner)?.cleanups.push(cleanup)
+  else if (currentOwner !== undefined) owners.get(currentOwner)?.[OwnerField.Cleanups].push(cleanup)
 }
 
 /** Collect compiler-proven row disposers without allocating a general reactive owner. */
@@ -400,66 +417,96 @@ export const _$collectCompiledOwnerCleanups = <T>(
 
 export const createOwner = (): CompiledOwner => {
   const owner = nextOwnerId++
-  owners.set(owner, {
-    parent: currentOwner,
-    children: new Set(),
-    effects: new Set(),
-    cleanups: [],
-    setupValues: new Map(),
-    lifecycle: lifecycleRecord(),
-    disposed: false,
-  })
-  if (currentOwner !== undefined) owners.get(currentOwner)?.children.add(owner)
+  owners.set(owner, [currentOwner, new Set(), undefined, [], false, pendingRootLifecycle])
+  pendingRootLifecycle = undefined
+  if (currentOwner !== undefined) owners.get(currentOwner)?.[OwnerField.Children].add(owner)
   return owner
 }
 
 export const getCurrentOwner = (): CompiledOwner | undefined => currentOwner
 
 export const getOwnerParent = (owner: CompiledOwner): CompiledOwner | undefined =>
-  owners.get(owner)?.parent
+  owners.get(owner)?.[OwnerField.Parent]
 
 export const isDisposingOwnerTree = (): boolean => ownerDisposalDepth > 0
 
 export const adoptOwner = (owner: CompiledOwner, parent: CompiledOwner | undefined): void => {
   if (owner === parent) return
   const record = owners.get(owner)
-  if (record === undefined || record.disposed || record.parent === parent) return
-  if (record.parent !== undefined) owners.get(record.parent)?.children.delete(owner)
-  record.parent = parent
-  if (parent !== undefined) owners.get(parent)?.children.add(owner)
+  if (record === undefined || record[OwnerField.Disposed] || record[OwnerField.Parent] === parent)
+    return
+  if (record[OwnerField.Parent] !== undefined)
+    owners.get(record[OwnerField.Parent])?.[OwnerField.Children].delete(owner)
+  record[OwnerField.Parent] = parent
+  if (parent !== undefined) owners.get(parent)?.[OwnerField.Children].add(owner)
 }
 
-export const runWithOwner = <T>(owner: CompiledOwner, callback: () => T): T | undefined => {
+const withOwnerContext = <T>(owner: CompiledOwner, callback: () => T): T | undefined => {
   const record = owners.get(owner)
-  if (record === undefined || record.disposed) return undefined
+  if (record === undefined || record[OwnerField.Disposed]) return undefined
   const previous = currentOwner
   currentOwner = owner
+  const frame = { record, entered: false }
+  ownerFrames.push(frame)
   try {
-    return untrack(callback)
+    const runtime = peekSharedReactiveStorage()
+    if (runtime !== undefined) enterOwnerScopes(runtime)
+    return callback()
   } finally {
+    if (frame.entered) peekSharedReactiveStorage()!.scopeOps!.pop()
+    ownerFrames.pop()
     currentOwner = previous
   }
 }
+
+export const runWithOwner = <T>(owner: CompiledOwner, callback: () => T): T | undefined =>
+  withOwnerContext(owner, () => untrack(callback))
 
 export const registerOwnerLifecycle = (
   phase: CompiledLifecyclePhase,
   callback: EffectCleanup,
 ): boolean => {
   if (currentOwner === undefined) {
-    pendingRootLifecycle[phase].push(callback)
+    const lifecycle = (pendingRootLifecycle ??= {})
+    lifecycle.dispose = disposeLifecycle
+    ;(lifecycle[phase] ??= []).push(callback)
     return true
   }
   const record = owners.get(currentOwner)
-  if (record === undefined || record.disposed) return false
-  record.lifecycle[phase].push(callback)
+  if (record === undefined || record[OwnerField.Disposed]) return false
+  const lifecycle = (record[OwnerField.Lifecycle] ??= {})
+  lifecycle.dispose = disposeLifecycle
+  ;(lifecycle[phase] ??= []).push(callback)
   return true
+}
+
+const disposeLifecycle = (
+  owner: CompiledOwner,
+  phase: 'beforeUnmount' | 'unmounted',
+  attempt: DisposeAttempt,
+): void => {
+  const callbacks = owners.get(owner)?.[OwnerField.Lifecycle]?.[phase]
+  if (!callbacks?.length) return
+  const run = () => {
+    for (const callback of callbacks.slice()) attempt(callback, undefined)
+  }
+  if (phase === 'beforeUnmount') runWithOwner(owner, run)
+  else {
+    const previous = currentOwner
+    currentOwner = owner
+    try {
+      run()
+    } finally {
+      currentOwner = previous
+    }
+  }
 }
 
 export const runOwnerLifecycle = (
   owner: CompiledOwner,
   phase: Exclude<CompiledLifecyclePhase, 'beforeUnmount' | 'unmounted'>,
 ): void => {
-  const callbacks = owners.get(owner)?.lifecycle[phase]
+  const callbacks = owners.get(owner)?.[OwnerField.Lifecycle]?.[phase]
   if (callbacks === undefined) return
   runWithOwner(owner, () => callbacks.slice().forEach(callback => callback()))
 }
@@ -475,17 +522,18 @@ export const runOwnerLifecycleTree = (
     if (visited.has(current)) continue
     visited.add(current)
     const record = owners.get(current)
-    if (record === undefined || record.disposed) continue
+    if (record === undefined || record[OwnerField.Disposed]) continue
     runOwnerLifecycle(current, phase)
-    pending.push(...record.children)
+    pending.push(...record[OwnerField.Children])
   }
 }
 
 /** Cache compiler-proven setup work once per compiled owner and stable region id. */
 export const _$compiledSetup = <T>(id: string, factory: () => T): T => {
   if (currentOwner === undefined) return factory()
-  const setupValues = owners.get(currentOwner)?.setupValues
-  if (setupValues === undefined) return factory()
+  const record = owners.get(currentOwner)
+  if (record === undefined) return factory()
+  const setupValues = (record[OwnerField.SetupValues] ??= new Map())
   if (setupValues.has(id)) return setupValues.get(id) as T
   const value = untrack(factory)
   setupValues.set(id, value)
@@ -494,7 +542,7 @@ export const _$compiledSetup = <T>(id: string, factory: () => T): T => {
 
 export const disposeOwner = (owner: CompiledOwner): boolean => {
   const record = owners.get(owner)
-  if (record === undefined || record.disposed) return false
+  if (record === undefined || record[OwnerField.Disposed]) return false
   let errors: unknown[] | undefined
   const attempt = <T>(cleanup: (value: T) => unknown, value: T) => {
     try {
@@ -505,25 +553,19 @@ export const disposeOwner = (owner: CompiledOwner): boolean => {
   }
   ownerDisposalDepth += 1
   try {
-    if (record.lifecycle.beforeUnmount.length)
-      runWithOwner(owner, () => {
-        for (const callback of record.lifecycle.beforeUnmount.slice()) attempt(callback, undefined)
-      })
-    record.disposed = true
+    record[OwnerField.Lifecycle]?.dispose?.(owner, 'beforeUnmount', attempt)
+    record[OwnerField.Disposed] = true
     // eslint-disable-next-line unicorn/no-useless-spread -- disposal mutates the iterated owner set
-    for (const child of [...record.children]) attempt(disposeOwner, child)
+    for (const child of [...record[OwnerField.Children]]) attempt(disposeOwner, child)
     // eslint-disable-next-line unicorn/no-useless-spread -- disposal mutates the iterated owner set
-    for (const ownedEffect of [...record.effects]) attempt(disposeEffect, ownedEffect)
-    for (const cleanup of record.cleanups.splice(0)) attempt(cleanup, undefined)
-    const previous = currentOwner
-    currentOwner = owner
-    try {
-      if (record.lifecycle.unmounted.length)
-        for (const callback of record.lifecycle.unmounted.slice()) attempt(callback, undefined)
-    } finally {
-      currentOwner = previous
-    }
-    if (record.parent !== undefined) owners.get(record.parent)?.children.delete(owner)
+    for (const ownedEffect of [...(record[OwnerField.Effects] ?? [])])
+      attempt(effect => effect.dispose(), ownedEffect)
+    if (record[OwnerField.Scope] !== undefined)
+      peekSharedReactiveStorage()!.scopeOps!.dispose(record[OwnerField.Scope])
+    for (const cleanup of record[OwnerField.Cleanups].splice(0)) attempt(cleanup, undefined)
+    record[OwnerField.Lifecycle]?.dispose?.(owner, 'unmounted', attempt)
+    if (record[OwnerField.Parent] !== undefined)
+      owners.get(record[OwnerField.Parent])?.[OwnerField.Children].delete(owner)
     owners.delete(owner)
     if (errors?.length === 1) throw errors[0]
     if (errors !== undefined && errors.length > 1)
@@ -539,112 +581,36 @@ export type Selector<T> = ((key: T) => boolean) & {
   subscribe(callback: EffectCallback): EffectCleanup
 }
 
-const detachDirectSelectorSubscriber = (subscriber: DirectSelectorSubscriber): void => {
-  for (const dependency of subscriber.dependencies) {
-    dependency.directSubscribers.delete(subscriber)
-    if (dependency.directSubscribers.size === 0 && dependency.subscribers.size === 0) {
-      dependency.onEmpty?.()
-    }
-  }
-  subscriber.dependencies.clear()
-}
-
-const runDirectSelectorSubscriber = (subscriber: DirectSelectorSubscriber): void => {
-  if (!subscriber.active || subscriber.running) return
-  subscriber.running = true
-  detachDirectSelectorSubscriber(subscriber)
-  const previousEffect = currentEffect
-  const previousSubscriber = currentDirectSelectorSubscriber
-  currentEffect = undefined
-  currentDirectSelectorSubscriber = subscriber
-  try {
-    subscriber.callback()
-  } finally {
-    currentDirectSelectorSubscriber = previousSubscriber
-    currentEffect = previousEffect
-    subscriber.running = false
-  }
-}
-
 export const createSelector = <T>(source: () => T): Selector<T> => {
-  const dependencies = new Map<T, SelectorDependencyRecord>()
-  let initialized = false
+  const flags = new Map<T, CompiledSignalHandle<boolean>>()
+  const subscriptions = createSelectorSubscriptions<T>(untrack)
   let selected: T
   effect(() => {
     const next = source()
-    if (!initialized) {
-      initialized = true
-      selected = next
-      return
-    }
-    if (Object.is(selected, next)) return
     const previous = selected
     selected = next
+    if (Object.is(previous, next)) return
     batch(() => {
-      for (const dependency of [dependencies.get(previous), dependencies.get(next)]) {
-        notifyDependency(dependency)
-        if (dependency !== undefined && !dependency.disposed) {
-          for (const subscriber of Array.from(dependency.directSubscribers)) {
-            runDirectSelectorSubscriber(subscriber)
-          }
-        }
-      }
+      flags.get(previous)?.set(false)
+      flags.get(next)?.set(true)
+      subscriptions.notify(previous, next)
     })
   })
-  onCleanup(() => {
-    for (const dependency of dependencies.values()) {
-      dependency.disposed = true
-      for (const subscriber of dependency.directSubscribers) {
-        subscriber.dependencies.delete(dependency)
-      }
-      dependency.directSubscribers.clear()
-      dependency.subscribers.clear()
-    }
-    dependencies.clear()
+  onOwnerCleanup(() => {
+    for (const flag of flags.values()) flag.dispose()
+    flags.clear()
+    subscriptions.dispose()
   })
   const read = (key: T): boolean => {
-    let dependency = dependencies.get(key)
-    if (dependency === undefined) {
-      dependency = {
-        subscribers: new Set(),
-        directSubscribers: new Set(),
-        disposed: false,
-        onEmpty: () => {
-          if (dependency?.directSubscribers.size === 0) dependencies.delete(key)
-        },
-      }
-      dependencies.set(key, dependency)
+    if (subscriptions.track(key)) return Object.is(key, selected)
+    let flag = flags.get(key)
+    if (flag === undefined) {
+      flag = signal(Object.is(key, selected))
+      flags.set(key, flag)
     }
-    if (currentEffect !== undefined) {
-      dependency.subscribers.add(currentEffect)
-      currentEffect.dependencies.add(dependency)
-    }
-    if (currentDirectSelectorSubscriber !== undefined) {
-      dependency.directSubscribers.add(currentDirectSelectorSubscriber)
-      currentDirectSelectorSubscriber.dependencies.add(dependency)
-    }
-    return Object.is(key, selected)
+    return flag.get()
   }
   return Object.assign(read, {
-    subscribe(callback: EffectCallback): EffectCleanup {
-      const subscriber: DirectSelectorSubscriber = {
-        callback,
-        dependencies: new Set(),
-        active: true,
-        running: false,
-      }
-      try {
-        runDirectSelectorSubscriber(subscriber)
-      } catch (error) {
-        subscriber.active = false
-        detachDirectSelectorSubscriber(subscriber)
-        throw error
-      }
-      return () => {
-        if (!subscriber.active) return
-        subscriber.active = false
-        detachDirectSelectorSubscriber(subscriber)
-      }
-    },
+    subscribe: subscriptions.subscribe,
   })
 }

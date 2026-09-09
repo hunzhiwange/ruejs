@@ -1,4 +1,4 @@
-import { type FC, reactive, useState } from '@rue-js/rue'
+import { type FC, useState } from '@rue-js/rue'
 
 const NotifierChild: FC<{
   value: string
@@ -25,11 +25,10 @@ const NotifierChild: FC<{
   )
 }
 
-const createNotifyState = () =>
-  reactive({
-    childInput: '',
-    lastMessage: '',
-  })
+const createNotifyState = () => ({
+  childInput: '',
+  lastMessage: '',
+})
 
 const ChildToParentNotifyDemo: FC = () => {
   const [state] = useState(createNotifyState)

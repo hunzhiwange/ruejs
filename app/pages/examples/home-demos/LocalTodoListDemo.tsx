@@ -1,4 +1,4 @@
-import { type FC, computed, reactive, useState } from '@rue-js/rue'
+import { type FC, computed, useState } from '@rue-js/rue'
 
 interface Todo {
   id: number
@@ -6,38 +6,21 @@ interface Todo {
   completed: boolean
 }
 
-const createTodoState = () =>
-  reactive({
-    todos: [
-      { id: 1, text: '学习响应式框架', completed: false },
-      { id: 2, text: '编写示例代码', completed: true },
-      { id: 3, text: '测试功能', completed: false },
-    ] as Todo[],
-    newTodo: '',
-  })
+const createTodoState = () => ({
+  todos: [
+    { id: 1, text: '学习响应式框架', completed: false },
+    { id: 2, text: '编写示例代码', completed: true },
+    { id: 3, text: '测试功能', completed: false },
+  ] as Todo[],
+  newTodo: '',
+})
 
 const LocalTodoListDemo: FC = () => {
   const [state] = useState(createTodoState)
-  const [todoViews] = useState(() =>
-    computed(() => {
-      const items: Todo[] = []
-
-      for (let index = 0; index < state.todos.length; index += 1) {
-        const todo = state.todos[index]
-        if (todo !== undefined && todo !== null) {
-          items.push(todo)
-        }
-      }
-
-      return items
-    }),
-  )
-  const [completedCount] = useState(() =>
-    computed(() => todoViews.get().filter(todo => todo.completed).length),
-  )
+  const completedCount = computed(() => state.todos.filter(todo => todo.completed).length)
 
   const addTodo = () => {
-    if (!state.newTodo.trim()) {
+    if (!`${state.newTodo}`.trim()) {
       return
     }
 
@@ -52,7 +35,7 @@ const LocalTodoListDemo: FC = () => {
   const toggleTodo = (id: number) => {
     const index = state.todos.findIndex(item => item.id === id)
     if (index !== -1) {
-      state.todos[index].completed = !state.todos[index].completed
+      state.todos[index] = { ...state.todos[index], completed: !state.todos[index].completed }
     }
   }
 
@@ -88,7 +71,7 @@ const LocalTodoListDemo: FC = () => {
           </button>
         </div>
         <div>
-          {todoViews.get().map(todo => (
+          {state.todos.map(todo => (
             <div
               key={todo.id}
               className={`flex items-center justify-between rounded-lg border p-3 mb-2 ${todo.completed ? 'bg-gray-50' : 'bg-white'}`}

@@ -24,7 +24,7 @@ import type { CompiledSlotFactory } from './compiler-runtime/mount'
 import { _$compiledValue } from './compiled-render-anchor'
 import { createCompiledProps, type CompiledPropsController } from './compiled-props'
 import { withCompiledHookRun } from './runtime-context'
-import { retainRootMountError } from './error-capture'
+import { retainRootMountError } from './root-mount-error'
 
 export const RUE_COMPILED_UPDATE_PROPS_KEY = '__rue_compiled_update_props__' as const
 export const RUE_COMPILED_COMPONENT_FACTORY_KEY = '__rue_compiled_component_factory__' as const
@@ -654,7 +654,7 @@ export const _$mountCompiledComponent = <Props>(
         }
 
         // A non-reactive compiled function component wires prop reads into its mounted DOM
-        // effects. Updating the props proxy is sufficient; rebuilding the returned handle
+        // effects. Publishing the props controller update is sufficient; rebuilding the returned handle
         // would replace otherwise-stable form controls on every parent prop update.
         if (!classInstance && propsController) return
 

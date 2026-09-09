@@ -12,7 +12,7 @@ import { _$createComponent as createClosedComponent } from '../compiled-componen
 import type { CompiledRootHandle } from '../compiled-root'
 import type { DomElementLike } from '../dom'
 import { appendChild, getParentNode, querySelector, settextContent, setAttribute } from '../dom'
-import { shouldRetainRootMountError } from '../error-capture'
+import { shouldRetainRootMountError } from '../root-mount-error'
 import {
   ensureRuntimeDOMBridge,
   getClientRuntime,

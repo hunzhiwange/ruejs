@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "maxTimeRatio": 1.3,
+  "maxHeapRatio": 1.3,
+  "heapNoiseBytes": 1048576,
+  "maxGraphRatio": 1.05,
+  "maxGzipRatio": 1.05,
+  "description": "Same Node version, CPU, platform, architecture and GC mode required. Median of 7 samples after 3 warmups; allow 30% CPU/heap noise plus 1 MiB heap floor, 5% graph/production kernel gzip growth. Rebuild explicitly with --write-baseline; enforce with --check. Operation is a workload loop iteration, not an individual subscriber visit. Final calibration: three same-machine runs; absolute time ceilings are at most the original baseline ceilings. Historical report is retained as previousBaseline; batch is slower but remains within its unchanged original ceiling.",
+  "workloads": {
+    "signal-shallow": {
+      "maxElapsedMs": 3.8654967000000258
+    },
+    "signal-depth4": {
+      "maxElapsedMs": 5.346250000000015
+    },
+    "graph-10000": {
+      "maxElapsedMs": 65.1620124999999
+    },
+    "signal-array-10000": {
+      "maxElapsedMs": 0.7609874999999988
+    },
+    "batch-100": {
+      "maxElapsedMs": 4.82733419999945
+    },
+    "handles-100000": {
+      "maxElapsedMs": 11.96373750000023
+    }
+  }
+}

@@ -45,7 +45,7 @@ export default HelloWorld
     let out = utils::emit(program, cm);
 
     let _legacy_expected_fragment = r##"
-import { ref, _$compiledWithHookId, useSetup, vapor, _$createComponent, renderAnchor, _$template, untrack, watchEffect } from "@rue-js/rue/internal";
+import { ref, _$compiledWithHookId, useSetup, _$compiledRoot, _$createComponent, renderAnchor, _$template, untrack, watchEffect } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template("<div><div>我是World <!--rue:text-hole:0--></div></div>");
 const _$getTemplate2 = _$template("<div><div>我是goods <!--rue:text-hole:0--></div></div>");
@@ -60,7 +60,7 @@ const HelloWorld: FC = ()=>{
                         };
                     }));
                 const { x: x } = _$useSetup;
-                return vapor((__rue_parent_context)=>{
+                return _$compiledRoot((__rue_parent_context)=>{
                     const _fragment = _$getTemplate1().content.cloneNode(true);
                     const _root = _fragment.firstChild;
                     const _el1 = _root.childNodes[0].childNodes[1];
@@ -80,7 +80,7 @@ const HelloWorld: FC = ()=>{
                         };
                     }));
                 const { y: y } = _$useSetup;
-                return vapor((__rue_parent_context)=>{
+                return _$compiledRoot((__rue_parent_context)=>{
                     const _fragment = _$getTemplate2().content.cloneNode(true);
                     const _root = _fragment.firstChild;
                     const _el3 = _root.childNodes[0].childNodes[1];
@@ -98,7 +98,7 @@ const HelloWorld: FC = ()=>{
             };
         }));
     const { World: World, Goods: Goods } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate3().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el5 = _root.childNodes[0];

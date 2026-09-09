@@ -121,7 +121,7 @@ export default Events;
     // - disabled：基于 list.length 的 watch 控制
     // - 函数状态：调用 valueOf() 的格式化函数再 watch 更新
     let _expected_fragment = r##"
-import { useState, _$compiledWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, untrack, watchEffect, _$setAttribute, _$setClassName, _$setValue, _$setDisabled } from "@rue-js/rue/internal";
+import { useState, _$compiledWithHookId, useSetup, _$compiledRoot, renderAnchor, _$createElement, _$template, _$createTextNode, _$appendChild, onScopeDispose, untrack, watchEffect, _$setAttribute, _$setClassName, _$setValue, _$setDisabled } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<div class="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm"><h3 class="text-xl font-semibold">事件处理</h3><div>count: <!--rue:text-hole:0--></div><button class="px-3 py-2 rounded-md bg-blue-600 text-white">+1</button><h3 class="text-xl font-semibold">数据状态（数组）</h3><div>list: <!--rue:text-hole:1--></div><div class="space-x-2"><button class="px-3 py-2 rounded-md bg-gray-100 border">添加项</button><button class="px-3 py-2 rounded-md bg-gray-100 border">移除最后一个</button><button class="px-3 py-2 rounded-md bg-gray-100 border">重置</button></div><h3 class="text-xl font-semibold">对象状态</h3><div>name: <!--rue:text-hole:2-->, age: <!--rue:text-hole:3--></div><div class="space-x-2"><button class="px-3 py-2 rounded-md bg-gray-100 border">年龄 +1</button><input class="px-3 py-2 rounded-md border" placeholder="修改 name"></div><h3 class="text-xl font-semibold">函数状态</h3><div>formatted count: <!--rue:text-hole:4--></div><div class="space-x-2"><button class="px-3 py-2 rounded-md bg-gray-100 border">切换十进制/十六进制</button><button class="px-3 py-2 rounded-md bg-gray-100 border">使用十进制</button><button class="px-3 py-2 rounded-md bg-gray-100 border">使用十六进制</button></div><!--rue:opaque-hole:5--></div>');
@@ -153,7 +153,7 @@ const Events: FC = ()=>{
             };
         }));
     const { count: count, setCount: setCount, list: list, setList: setList, user: user, setUser: setUser, format: format, setFormat: setFormat } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[2];

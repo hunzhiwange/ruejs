@@ -47,7 +47,7 @@ const LocaleReader: FC = () => {
     assert!(compact.contains("constcurrentLocale=computed(()=>locale.value)"), "{output}");
     assert!(compact.contains("currentLocale.get()"), "{output}");
     assert!(compact.contains("useI18n()"), "{output}");
-    assert!(compact.contains("_$withCompiledPropsUpdater(vapor("), "{output}");
+    assert!(compact.contains("_$withCompiledPropsUpdater(_$compiledRoot("), "{output}");
     assert!(compact.contains("_$compiledMarkComponentRenderReactive(LocaleReader)"), "{output}");
 }
 
@@ -709,4 +709,20 @@ export const Viewport = props => (
         compact.contains("cacheName:_$rueCompiledProp1.get()[_$rueCompiledProp0.get()].name"),
         "{output}"
     );
+}
+
+#[test]
+fn props_reads_survive_render_reactive_component_wrappers() {
+    let output = transform_module(
+        r#"
+import { type FC, computed, useSetup, ref } from '@rue-js/rue';
+const Panel: FC<{mode?: string}> = ({mode, ...rest}) => {
+  const state = useSetup(() => ({mode: ref('month')}));
+  const currentMode = computed(() => mode ?? state.mode.value);
+  return <section {...rest}><button onClick={() => { state.mode.value = 'year' }}>{currentMode.get()}</button></section>;
+};
+"#,
+    );
+    assert!(output.contains("_$compiledPropsGet(__rue_props, \"mode\")"), "{output}");
+    assert!(!output.contains("__rue_props.mode"), "{output}");
 }

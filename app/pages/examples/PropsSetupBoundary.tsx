@@ -343,8 +343,8 @@ const PropsSetupBoundary: FC = () => {
               <div className="rounded-2xl border border-info/25 bg-info/10 px-4 py-4 text-sm leading-7 text-base-content/80">
                 观察重点： 1. 第 1 块会随父 props 一直变化。 2. 第 2 块模拟“把 props
                 相关初始化错误放进 useSetup”的结果，会停在初始值。 3. 第 3 块说明 props
-                不是绝对不能进 setup，关键是要保留 reactive props 对象，并在 computed 或 watch
-                里读取。 4. 第 4 块说明现在顶层解构 props 也不是天然不安全，只要读取发生在 computed
+                不是绝对不能进 setup，关键是要保留 编译 props 对象，并在 computed 或 watch 里读取。
+                4. 第 4 块说明现在顶层解构 props 也不是天然不安全，只要读取发生在 computed
                 里，编译器会把它改写回隐藏 props 访问。 5. setup 内创建的
                 watch、watchEffect、createEffect 会跟着组件实例一起存活；如果它们像 render-scope
                 一样在每次父组件更新后被销毁，后续 props
@@ -523,7 +523,7 @@ const PropsSetupBoundary: FC = () => {
                 Nested 观察重点： 1. 第 5
                 块现在覆盖更复杂的解构：嵌套对象、数组项、默认值、别名、整个参数默认值。 2. 关闭
                 options、meta 或 counts 传入后，第 5 块会退回对应默认值，但仍然保持响应式。 3. 第 6
-                块说明编译器只保证“读取时”还能回到 reactive props；如果你在 useSetup
+                块说明编译器只保证“读取时”还能回到 编译 props；如果你在 useSetup
                 首次执行里先算出普通快照，动态性还是会丢。
               </div>
             </>

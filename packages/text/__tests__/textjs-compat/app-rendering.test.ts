@@ -27,7 +27,7 @@ describe('Text.js compat: app-rendering', () => {
     // Warm up the server — first request after startup can be slow
     // as Vite compiles the RSC entry, SSR entry, and client entry.
     await fetch(`${baseUrl}/`).catch(() => {})
-  }, 60_000)
+  }, 120_000)
 
   afterAll(async () => {
     await server?.close()

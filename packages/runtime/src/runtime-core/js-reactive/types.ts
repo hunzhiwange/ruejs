@@ -15,7 +15,7 @@ interface KernelWritableSignal<T> extends KernelReadonlySignal<T> {
   update?(updater: (current: T) => T): void
 }
 
-type KernelSignalPath = string | readonly PropertyKey[]
+type KernelSignalPath = import('../reactive-kernel/signal.js').SignalPath
 
 interface KernelSignalHandle<T> extends KernelWritableSignal<T> {
   readonly __isReadonly__: boolean
@@ -25,6 +25,8 @@ interface KernelSignalHandle<T> extends KernelWritableSignal<T> {
   [Symbol.dispose](): void
   dispose(): void
   free(): void
+  resolvePath(path: KernelSignalPath): import('../reactive-kernel/signal.js').SignalPathToken
+  mutatePath(path: KernelSignalPath, mutator: (currentAtPath: unknown) => void): void
   getPath(path: KernelSignalPath): unknown
   peekPath(path: KernelSignalPath): unknown
   setPath(path: KernelSignalPath, value: unknown): void
@@ -111,11 +113,6 @@ export interface EqualityOptions<T> {
   equals?: EqualityComparator<T>
 }
 
-export interface ReactiveOptions<T> extends EqualityOptions<T> {
-  readonly?: boolean
-  shallow?: boolean
-}
-
 export interface RefLike<T> extends ObjectLike {
   value: T
   __rue_ref__?: true
@@ -124,17 +121,6 @@ export interface RefLike<T> extends ObjectLike {
 export interface ReadonlyRefLike<T> extends ObjectLike {
   readonly value: T
   __rue_ref__?: true
-}
-
-export interface ReactiveProxyMarkers extends ObjectLike {
-  __isReactive__?: unknown
-  __isReadonly__?: true
-  __rue_raw__?: unknown
-  __signal__?: unknown
-}
-
-export interface TriggerableSignalHandle extends ObjectLike {
-  triggerPath(path: readonly PropertyKey[]): void
 }
 
 export type PortableMountHandle = ProtocolPortableMountHandle & ObjectLike
@@ -167,8 +153,6 @@ export interface SignalHandle<T> extends KernelSignalHandle<T>, ObjectLike {}
 
 export interface RefState<T> extends RefLike<T> {}
 
-export type ReactiveState<T> = T extends object ? T : RefState<T>
-
 export type StateInitializer<T> = T | (() => T)
 
 export type SetStateAction<T> = T | ((previous: T) => T)
@@ -188,15 +172,9 @@ export interface RefSlot<T> {
   current: T
 }
 
-export interface StateValueHooks {
-  createReactive(initial: unknown, options?: EqualityOptions<unknown>): unknown
-  isReactive(value: unknown): boolean
-}
-
 export interface CreateStateHooksOptions {
   context: HookContext
   reactiveRuntime: unknown
-  values: StateValueHooks
 }
 
 export type EffectCleanup = () => void
@@ -260,39 +238,18 @@ export interface ValueFacade extends ObjectLike {
   computed<T>(arg: ComputedInput<T>): ComputedHandle<T>
   customRef<T>(factory: CustomRefFactory<T>, forceGlobal?: boolean): RefLike<T>
   createComputed<T>(arg: ComputedInput<T>): ComputedHandle<T>
-  createReactive<T>(initial: T, options?: ReactiveOptions<T>): ReactiveState<T>
   isReadonly(value: unknown): boolean
   isRef(value: unknown): value is RefLike<unknown>
-  propsReactive<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  reactive<T>(initial: T, options?: ReactiveOptions<T>, forceGlobal?: boolean): ReactiveState<T>
-  readonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
   shallowRef<T>(initial: T, options?: EqualityOptions<T>, forceGlobal?: boolean): RefLike<T>
-  shallowReadonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  toRef<T>(source: RefLike<T>): RefLike<T>
-  toRef<T>(source: () => T): ReadonlyRefLike<T>
-  toRef<T, K extends keyof T>(source: T, key: K, defaultValue?: T[K]): RefLike<T[K]>
-  toRef<T>(source: T): RefLike<T>
-  toRefs<T extends object>(object: T): { [K in keyof T]: RefLike<T[K]> }
   triggerRef(refValue: unknown): void
 }
 
 export interface ValueHooks extends ObjectLike {
   customRef<T>(factory: CustomRefFactory<T>, forceGlobal?: boolean): RefLike<T>
-  isProxy(value: unknown): boolean
-  isReactive(value: unknown): value is ReactiveProxyMarkers
+  isReactive(value: unknown): boolean
   isReadonly(value: unknown): boolean
   isRef(value: unknown): value is RefLike<unknown>
-  propsReactive<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  reactive<T>(initial: T, options?: ReactiveOptions<T>, forceGlobal?: boolean): ReactiveState<T>
-  readonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
   ref<T>(initial: T, options?: unknown, forceGlobal?: boolean): RefLike<T>
-  shallowReactive<T>(
-    initial: T,
-    options?: ReactiveOptions<T>,
-    forceGlobal?: boolean,
-  ): ReactiveState<T>
-  shallowReadonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  toRaw<T>(value: unknown): T
   unref<T>(value: T | RefLike<T>): T
 }
 
@@ -468,7 +425,6 @@ export interface ReactiveKernelSignalCapabilities {
 
 export interface ReactiveKernelValueCapabilities {
   createCustomRef<T>(factory: CustomRefFactory<T>): RefLike<T>
-  createReactive<T>(initial: T, options?: ReactiveOptions<T> | null): ReactiveState<T>
   createRef<T>(initial: T, options?: EqualityOptions<T> | null): RefLike<T>
 }
 
@@ -530,7 +486,6 @@ export interface ReactiveFacadeRuntime {
   customRef: CustomRefFunction
   createSignal: CreateSignalFunction
   createComputed: CreateComputedFunction
-  createReactive<T>(initial: T, options?: ReactiveOptions<T>): ReactiveState<T>
   effectScope(detached?: boolean): EffectScope
   getCurrentScope(): EffectScope | undefined
   __rueDisposeEffectScope(scopeId: EffectScopeHandle): void
@@ -540,14 +495,8 @@ export interface ReactiveFacadeRuntime {
   onWatcherCleanup(cleanup: EffectCleanup, failSilently?: boolean): void
   onRenderTracked(callback: DebuggerHook): (() => void) | undefined
   onScopeDispose(cleanup: EffectCleanup, failSilently?: boolean): void
-  propsReactive<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  reactive<T>(initial: T, options?: ReactiveOptions<T>, forceGlobal?: boolean): ReactiveState<T>
-  readonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
   shallowRef<T>(initial: T, options?: EqualityOptions<T> | null, forceGlobal?: boolean): RefLike<T>
-  shallowReadonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
   signal: SignalFunction
-  toRef: ValueFacade['toRef']
-  toRefs: ValueFacade['toRefs']
   triggerRef: ValueFacade['triggerRef']
   watch: WatchFunction
   watchEffect: WatchEffectFunction
@@ -561,21 +510,10 @@ export interface ReactiveHookRuntime {
   customRef: CustomRefFunction
   getCurrentInstance(): unknown
   setCurrentInstance(instance: unknown): void
-  isProxy(value: unknown): boolean
-  isReactive(value: unknown): value is ReactiveProxyMarkers
+  isReactive(value: unknown): boolean
   isReadonly(value: unknown): boolean
   isRef(value: unknown): value is RefLike<unknown>
-  propsReactive<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  reactive<T>(initial: T, options?: ReactiveOptions<T>, forceGlobal?: boolean): ReactiveState<T>
-  readonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
   ref<T>(initial: T, options?: unknown, forceGlobal?: boolean): RefLike<T>
-  shallowReactive<T>(
-    initial: T,
-    options?: ReactiveOptions<T>,
-    forceGlobal?: boolean,
-  ): ReactiveState<T>
-  shallowReadonly<T>(initial: T, forceGlobal?: boolean): ReactiveState<T>
-  toRaw<T>(value: unknown): T
   unref<T>(value: T | RefLike<T>): T
   useEffect: UseEffectFunction
   useRef: UseRefFunction

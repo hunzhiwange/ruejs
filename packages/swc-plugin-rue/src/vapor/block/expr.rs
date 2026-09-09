@@ -13,7 +13,7 @@ use crate::utils::{is_static_empty_like, unwrap_expr};
 use super::super::VaporTransform;
 
 /// 插槽表达式构建（细节）：
-/// - JSXElement / JSXFragment → 编译为 `vapor(()=>{...})`，统一直接返回 `DocumentFragment`
+/// - JSXElement / JSXFragment → 编译为 `_$compiledRoot(()=>{...})`，统一直接返回 `DocumentFragment`
 /// - Cond/逻辑表达式 → 递归规范分支中的 JSX；空值统一回退为 ""
 /// - 保持非 JSX 表达式原样，以减少不必要的包装与提升性能
 fn make_vapor_slot_expr(child_body: Vec<Stmt>, compiled_anchor: bool) -> Expr {
@@ -35,7 +35,7 @@ fn make_vapor_slot_expr(child_body: Vec<Stmt>, compiled_anchor: bool) -> Expr {
     if compiled_anchor {
         args.push(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })));
     }
-    call_ident("vapor", args)
+    call_ident("_$compiledRoot", args)
 }
 
 fn jsx_element_to_slot_value_expr(this: &mut VaporTransform, jsx_el: &JSXElement) -> Expr {
@@ -58,7 +58,7 @@ fn jsx_element_to_slot_value_expr(this: &mut VaporTransform, jsx_el: &JSXElement
             None => compiled_expr,
         };
     }
-    // 将 JSXElement 编译为 `vapor(()=>{...})`，返回可挂载片段根：
+    // 将 JSXElement 编译为 `_$compiledRoot(()=>{...})`，返回可挂载片段根：
     // - child_root：DocumentFragment 承载内部构造
     // - build_element：将 JSX 构建到 child_root 下
     // - return_root：统一直接返回块根
@@ -72,7 +72,7 @@ fn jsx_element_to_slot_value_expr(this: &mut VaporTransform, jsx_el: &JSXElement
     }
     // 返回统一的可挂载槽值
     child_body.push(return_root(child_root.clone()));
-    // vapor 包裹以形成可执行块体
+    // _$compiledRoot 包裹以形成可执行块体
     let vapor_expr =
         make_vapor_slot_expr(child_body, !crate::utils::is_component(&jsx_el.opening.name));
     match crate::element_expr::extract_reactive_jsx_key_expr(jsx_el) {

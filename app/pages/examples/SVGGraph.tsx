@@ -1,4 +1,4 @@
-import { type FC, computed, reactive, ref } from '@rue-js/rue'
+import { type FC, computed, useState, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -47,7 +47,7 @@ const PolyGraph: FC<{ stats: Stat[] }> = props => {
 
 const SVGGraph: FC = () => {
   const newLabel = ref('')
-  const stats = reactive<Stat[]>([
+  const [stats, setStats] = useState<Stat[]>([
     { label: 'A', value: 100 },
     { label: 'B', value: 100 },
     { label: 'C', value: 100 },
@@ -73,7 +73,8 @@ const SVGGraph: FC = () => {
   }
 
   const updateValue = (s: Stat, e: any) => {
-    s.value = Number((e.target as HTMLInputElement).value)
+    const value = Number((e.target as HTMLInputElement).value)
+    setStats(previous => previous.map(item => (item.label === s.label ? { ...item, value } : item)))
   }
 
   return (
@@ -115,7 +116,7 @@ const SVGGraph: FC = () => {
             <Code
               className="h-full"
               lang="tsx"
-              code={`import { type FC, ref, reactive, computed } from '@rue-js/rue';
+              code={`import { type FC, ref, useState, computed } from '@rue-js/rue';
 
 type Stat = { label: string; value: number };
 
@@ -158,7 +159,7 @@ const PolyGraph: FC<{ stats: Stat[] }> = (props) => {
 
 const SVGGraph: FC = () => {
   const newLabel = ref('');
-  const stats = reactive<Stat[]>([
+  const [stats, setStats] = useState<Stat[]>([
     { label: 'A', value: 100 },
     { label: 'B', value: 100 },
     { label: 'C', value: 100 },
@@ -168,7 +169,8 @@ const SVGGraph: FC = () => {
   ]);
   const add = (e: any) => { e.preventDefault(); if (!newLabel.value.trim()) return; stats.push({ label: newLabel.value, value: 100 }); newLabel.value = ''; };
   const remove = (stat: Stat) => { if (stats.length > 3) { stats.splice(stats.indexOf(stat), 1); } else { alert("Can't delete more!"); } };
-  const updateValue = (s: Stat, e: any) => { s.value = Number((e.target as HTMLInputElement).value); };
+  const updateValue = (s: Stat, e: any) => { const value = Number((e.target as HTMLInputElement).value)
+    setStats(previous => previous.map(item => item.label === s.label ? { ...item, value } : item)); };
   return (
       <>
       <style>{\`
@@ -216,7 +218,7 @@ const SVGGraph: FC = () => {
               Add a Stat
             </button>
           </form>
-          <pre className="raw">{JSON.stringify(stats, null, 2)}</pre>
+          <pre className="raw">{JSON.stringify([...stats], null, 2)}</pre>
         </div>
       </div>
     </>
@@ -266,7 +268,7 @@ export default SVGGraph;`}
                   Add a Stat
                 </button>
               </form>
-              <pre className="raw">{JSON.stringify(stats, null, 2)}</pre>
+              <pre className="raw">{JSON.stringify([...stats], null, 2)}</pre>
             </div>
           </div>
         )}

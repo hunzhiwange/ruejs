@@ -14,6 +14,7 @@ import {
   type DomNodeLike,
   type DomTextLike,
 } from './dom'
+import { cloneServerTemplate } from './compiler-runtime/server-template'
 import {
   createCompiledComponent,
   type ComponentInstance,
@@ -382,6 +383,10 @@ export class ServerDOMAdapter implements DOMAdapter {
 
   createDocumentFragment() {
     return new ServerFragmentNode()
+  }
+
+  cloneTemplate(html: string) {
+    return cloneServerTemplate(html, this)
   }
 
   appendChild(parent: DomNodeLike, child: DomNodeLike) {

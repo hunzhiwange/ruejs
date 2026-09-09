@@ -12,7 +12,7 @@ import {
   watchEffect,
 } from '../src'
 import { _$compiledWithHookId } from '../src/internal'
-import { vapor } from './legacy-test-render'
+import { _$compiledRoot } from './legacy-test-render'
 import { SortFilterPreview, TogglePanel } from '../../../app/test-fixtures/VaporReactivityFixture'
 
 setReactiveScheduling('sync')
@@ -33,7 +33,7 @@ const ManualSetupToggle = () => {
     })),
   ) as { open: { value: boolean } }
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const button = document.createElement('button')
     button.dataset.testid = 'manual-toggle'
@@ -58,7 +58,7 @@ const ManualSetupToggle = () => {
 }
 
 const ManualPropChild = (props: { query: string }) => {
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const text = document.createElement('span')
     text.dataset.testid = 'manual-prop-value'
@@ -75,7 +75,7 @@ const ManualPropChild = (props: { query: string }) => {
 const ManualPropParent = () => {
   const query = ref('')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const input = document.createElement('input')
     input.dataset.testid = 'manual-prop-input'
@@ -101,7 +101,7 @@ const ManualComputedChild = (props: { query: string }) => {
     })),
   ) as { derived: { get: () => string } }
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const text = document.createElement('span')
     text.dataset.testid = 'manual-computed-value'
@@ -132,7 +132,7 @@ const ManualSetupWatchPropChild = (props: { query: string }) => {
     }),
   ) as { latest: { value: string }; runs: { value: string } }
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const latestText = document.createElement('span')
     const runsText = document.createElement('span')
@@ -152,7 +152,7 @@ const ManualSetupWatchPropChild = (props: { query: string }) => {
 const ManualSetupWatchPropParent = () => {
   const query = ref('a')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const input = document.createElement('input')
     input.dataset.testid = 'manual-watch-prop-input'
@@ -207,7 +207,7 @@ const ManualSetupWatchAndEffectChild = (props: { query: string; label: string })
     effectRuns: { value: string }
   }
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const watchedText = document.createElement('span')
     const watchRunsText = document.createElement('span')
@@ -235,7 +235,7 @@ const ManualSetupWatchAndEffectParent = () => {
   const query = ref('a')
   const label = ref('left')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const queryInput = document.createElement('input')
     const labelInput = document.createElement('input')
@@ -269,7 +269,7 @@ const ManualSetupWatchAndEffectParent = () => {
 const ManualComputedParent = () => {
   const query = ref('')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const input = document.createElement('input')
     input.dataset.testid = 'manual-computed-input'
@@ -291,7 +291,7 @@ const ManualComputedParent = () => {
 const ManualDirectComputedChild = (props: { query: string }) => {
   const derived = computed(() => props.query)
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const text = document.createElement('span')
     text.dataset.testid = 'manual-direct-computed-value'
@@ -308,7 +308,7 @@ const ManualDirectComputedChild = (props: { query: string }) => {
 const ManualDirectComputedParent = () => {
   const query = ref('')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const input = document.createElement('input')
     input.dataset.testid = 'manual-direct-computed-input'
@@ -345,7 +345,7 @@ const ManualIntervalCounter = () => {
     }),
   ) as { tick: { value: number } }
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const text = document.createElement('span')
     text.dataset.testid = 'manual-interval-value'
@@ -360,7 +360,7 @@ const ManualIntervalCounter = () => {
 }
 
 const NestedVaporValue = (props: { value: number }) => {
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('div')
     const anchor = document.createComment('nested-vapor-value-anchor')
     root.appendChild(anchor)
@@ -376,7 +376,7 @@ const NestedVaporValue = (props: { value: number }) => {
 const NestedVaporParent = () => {
   const tick = ref(0)
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const button = document.createElement('button')
     const anchor = document.createComment('nested-vapor-parent-anchor')
@@ -427,7 +427,7 @@ const StableMixedChild = (props: { slot: any; children?: any[] }) => {
     }),
   ) as { root: HTMLDivElement }
 
-  return vapor(() => setupState.root)
+  return _$compiledRoot(() => setupState.root)
 }
 
 const StableMixedParent = () => {
@@ -439,7 +439,7 @@ const StableMixedParent = () => {
 
   const makeStableNode = () => stableNode
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const button = document.createElement('button')
     const anchor = document.createComment('stable-mixed-anchor')
@@ -500,7 +500,7 @@ const CompiledReactiveDestructureWatchChild = (__rue_props: {
     runs: { value: string }
   }
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const summaryText = document.createElement('span')
     const latestText = document.createElement('span')
@@ -526,7 +526,7 @@ const CompiledReactiveDestructureWatchParent = () => {
   const count = ref(2)
   const label = ref('runtime-label')
 
-  return vapor(() => {
+  return _$compiledRoot(() => {
     const root = document.createElement('section')
     const queryInput = document.createElement('input')
     const labelInput = document.createElement('input')
@@ -571,7 +571,7 @@ const CompiledReactiveDestructureWatchParent = () => {
 
 const createHookedVaporToggle = (onHookRun: () => void) => {
   const createHookedVaporPanel = (source: { value: string }) => {
-    return vapor(() => {
+    return _$compiledRoot(() => {
       // 这个 panel 刻意走“raw vapor + useSetup + watchEffect”的组合，
       // 用来覆盖最容易泄漏的那条链：
       // - renderAnchor 负责在 preview / code 两个分支之间反复替换整棵 raw vapor 子树；
@@ -605,7 +605,7 @@ const createHookedVaporToggle = (onHookRun: () => void) => {
     const activeTab = ref<'preview' | 'code'>('preview')
     const query = ref('a')
 
-    return vapor(() => {
+    return _$compiledRoot(() => {
       const root = document.createElement('section')
       const previewButton = document.createElement('button')
       const codeButton = document.createElement('button')

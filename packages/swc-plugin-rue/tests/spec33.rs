@@ -124,7 +124,7 @@ export default HelloWorld
     let program = apply(program);
     let out = utils::emit(program, cm);
 
-    let _expected_fragment = r##"import { ref, _$compiledWithHookId, useSetup, vapor, _$createComponent, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/internal";
+    let _expected_fragment = r##"import { ref, _$compiledWithHookId, useSetup, _$compiledRoot, _$createComponent, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 const ThemePicker: FC<{
     value: string;
@@ -205,7 +205,7 @@ const ThemePicker: FC<{
             };
         }));
     const { themes: themes, labels: labels } = _$useSetup;
-    return vapor(()=>{
+    return _$compiledRoot(()=>{
         const _root = _$createElement("select");
         _$setAttribute(_root, "aria-label", "切换主题");
         _$setClassName(_root, "select select-bordered select-sm bg-transparent");
@@ -230,7 +230,7 @@ const ThemePicker: FC<{
                 trackIndex: false,
                 start: _list1,
                 renderItem: (name, parent, start, end, idx)=>{
-                    const __slot = vapor(()=>{
+                    const __slot = _$compiledRoot(()=>{
                         const _root = _$createDocumentFragment();
                         const _el1 = _$createElement("option");
                         _$appendChild(_root, _el1);
@@ -260,7 +260,7 @@ const HelloWorld: FC = ()=>{
             };
         }));
     const { theme: theme } = _$useSetup;
-    return vapor(()=>{
+    return _$compiledRoot(()=>{
         const _root = _$createElement("div");
         _$setClassName(_root, "card bg-base-100 border shadow");
         const _el3 = _$createElement("div");
@@ -308,7 +308,7 @@ export default HelloWorld;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec33.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("themes.map((name)=>vapor("));
+    assert!(normalized.contains("themes.map((name)=>_$compiledRoot("));
     assert!(normalized.contains("_$createDocumentFragment()"));
     assert!(!normalized.contains(concat!("direct", "Root:")));
     assert!(normalized.contains("_$setValue(_el2, name)"));

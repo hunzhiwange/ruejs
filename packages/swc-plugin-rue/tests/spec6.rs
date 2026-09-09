@@ -30,11 +30,11 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let _legacy_expected_fragment = r##"
-import { ref, _$compiledWithHookId, vapor, renderAnchor, _$template, untrack, watchEffect, _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode, _$compiledRoot } from "@rue-js/rue/internal";
+import { ref, _$compiledWithHookId, _$compiledRoot, renderAnchor, _$template, untrack, watchEffect, _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode, _$compiledRoot } from "@rue-js/rue/internal";
 import { type FC, h } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<div><!--rue:text-hole:0--><span id="n"><!--rue:text-hole:1--></span></div>');
 const count = _$compiledWithHookId("ref:1:0", ()=>ref(22));
-const Comp: FC = ()=>vapor((__rue_parent_context)=>{
+const Comp: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[0];

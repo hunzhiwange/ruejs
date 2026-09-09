@@ -4,7 +4,7 @@ import {
   type FC,
   ref,
   triggerRef,
-  useState,
+  useSetup,
   watch,
   watchEffect,
 } from '@rue-js/rue'
@@ -193,10 +193,10 @@ const createCustomRefDemoState = () => {
   }
 }
 
-const renderLog = (items: string[]) => (
+const LogList: FC<{ items: string[] }> = props => (
   <ul className="menu rounded-box bg-base-200/40">
-    {items.length ? (
-      items.map(item => (
+    {props.items.length ? (
+      props.items.map(item => (
         <li key={item}>
           <span>{item}</span>
         </li>
@@ -210,9 +210,9 @@ const renderLog = (items: string[]) => (
 )
 
 const CustomRefDemo: FC = () => {
-  const [state] = useState(createCustomRefDemoState)
+  const state = useSetup(createCustomRefDemoState)
   const matches = computed<string[]>(() => {
-    const normalizedQuery = state.query.value.trim().toLowerCase()
+    const normalizedQuery = `${state.query.value}`.trim().toLowerCase()
     return normalizedQuery
       ? searchItems.filter(item => item.toLowerCase().includes(normalizedQuery))
       : searchItems
@@ -322,7 +322,7 @@ const CustomRefDemo: FC = () => {
             <div className="text-sm text-base-content/60">暂存值</div>
             <div className="mt-1 text-xl font-semibold">{state.manualInput.value}</div>
           </div>
-          {renderLog(state.manualLog.value)}
+          <LogList items={state.manualLog.value} />
         </section>
 
         <section className="rounded-box border border-base-300 p-4">
@@ -343,7 +343,7 @@ const CustomRefDemo: FC = () => {
               </button>
             </div>
           </div>
-          {renderLog(state.conditionalLog.value)}
+          <LogList items={state.conditionalLog.value} />
         </section>
 
         <section className="rounded-box border border-base-300 p-4">
@@ -375,7 +375,7 @@ const CustomRefDemo: FC = () => {
               <div className="mt-1 text-xl font-semibold">{state.partner.value}</div>
             </div>
           </div>
-          {renderLog(state.watchLog.value)}
+          <LogList items={state.watchLog.value} />
         </section>
       </div>
     </div>

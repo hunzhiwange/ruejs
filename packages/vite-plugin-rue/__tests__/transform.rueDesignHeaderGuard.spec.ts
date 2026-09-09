@@ -119,7 +119,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const source = await readFile(id, 'utf8')
 
     try {
-      const result = await invokeTransform(source, id)
+      const result = await invokeTransform(source, id, { transformTimeoutMs: 15_000 })
       const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
       if (!code.includes(HEADER)) {
@@ -152,7 +152,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
   })
 
   it('deep-compiles the headerless button component source through the compiler path', async () => {
@@ -161,7 +161,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
   })
 
   it('deep-compiles the real headerless button source and preserves native spread props', async () => {
@@ -192,7 +192,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('data-rue-link-actions')
     expect(code).toContain('data-rue-link-copy')
     expect(code).toContain('data-rue-link-editor')
@@ -215,7 +215,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).not.toContain('pageRows.flatMap')
     expect(code).not.toMatch(/_\$settextContent\([^)]*,\s*pageRows/)
   })
@@ -235,7 +235,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
   })
@@ -254,7 +254,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('_$compiledCreateElement("img"')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
@@ -274,7 +274,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
   })
@@ -308,7 +308,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('renderAnchor(__slot')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
@@ -328,7 +328,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('_$createElement("svg"')
     expect(code).toContain('_$setStyle')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
@@ -368,7 +368,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('<fieldset')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
   })
@@ -406,7 +406,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('data-rating-mode')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
   })
@@ -464,7 +464,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('<fieldset')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
@@ -482,7 +482,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('_$compiledBranch')
   })
 
@@ -500,9 +500,9 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('data-rue-carousel-track')
-    expect(code).toContain('assignForwardedRef(__rue_props.apiRef')
+    expect(code).toContain('assignForwardedRef(_$compiledPropsGet(__rue_props, "apiRef")')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
   })
@@ -541,7 +541,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('data-rue-masonry')
     expect(code).toContain('data-rue-masonry-item')
     expect(code).toContain('rootElement = element ?? undefined')
@@ -577,7 +577,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('mergeItemStyle')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
@@ -598,7 +598,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('rue-watermark-overlay')
     expect(code).toContain('rootStyleText.get()')
     expect(code).toContain('overlayStyleText.get()')
@@ -617,7 +617,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('uncontrolledChecked.value = nextChecked')
   })
 
@@ -636,7 +636,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).toContain('renderRue')
     expect(code).toContain('renderDynamicRegion')
@@ -750,7 +750,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('const __slot = title;')
+    expect(code).toContain('const __slot = _$compiledPropsSnapshot(title);')
     expect(code).toContain('const __slot = extra;')
     expect(code).not.toMatch(/_\$settextContent\([^;]+title\)/)
     expect(code).not.toMatch(/_\$settextContent\([^;]+extra\)/)
@@ -823,7 +823,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
   })
@@ -971,7 +971,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('data-hover3d-overlay')
     expect(code).not.toContain('_$createComponent(OverlayDivs')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
@@ -995,7 +995,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('hover-gallery')
     expect(code).toContain('guideGridTemplateColumns.get()')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
@@ -1138,7 +1138,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('<pre')
     expect(code).toContain('<div')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
@@ -1224,7 +1224,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('/* RUE_REACTIVE_PROPS_DESTRUCTURED */')
+    expect(code).not.toContain('new Proxy(')
     expect(code).toContain('data-rue-input-number-controls')
     expect(code).toContain('<input')
     expect(code).not.toContain('_$setAttribute(_root, "readOnly"')

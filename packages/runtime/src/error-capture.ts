@@ -6,6 +6,9 @@
  */
 import { getCurrentInstance, withHookSlot } from './runtime-core/reactive'
 import { getOwnerParent } from './reactive-core'
+import { isWeakKey, retainRootMountError, shouldRetainRootMountError } from './root-mount-error'
+
+export { retainRootMountError, shouldRetainRootMountError }
 
 /** 组件实例上保存 errorCaptured handlers 的非枚举内部字段。 */
 const RUE_ERROR_CAPTURE_HANDLERS_KEY = '__rue_error_capture_handlers__'
@@ -42,23 +45,10 @@ type ErrorCaptureRuntimeBridge = {
 
 /** 已经走过 errorCaptured 冒泡的 Error 对象，用于避免全局桥接重复派发。 */
 const dispatchedErrors = new WeakSet<object>()
-const retainedRootMountErrors = new WeakSet<object>()
-
-/** 标记根 render 已失败；其容器保留原错误，避免在未知组件状态上接管。 */
-export const retainRootMountError = (error: unknown): void => {
-  if (isObjectLike(error)) retainedRootMountErrors.add(error)
-}
-
-export const shouldRetainRootMountError = (error: unknown): boolean =>
-  isObjectLike(error) && retainedRootMountErrors.has(error)
-
-/** 判断值是否能承载内部 owner 字段。 */
-const isObjectLike = (value: unknown): value is Record<string, unknown> =>
-  (typeof value === 'object' || typeof value === 'function') && value != null
 
 /** 将未知值安全收窄为错误捕获 owner。 */
 const asErrorCaptureOwner = (value: unknown): ErrorCaptureOwner | null =>
-  isObjectLike(value) ? (value as ErrorCaptureOwner) : null
+  isWeakKey(value) ? (value as ErrorCaptureOwner) : null
 
 /** 获取 Context owner 关联的真实组件实例。 */
 const getLinkedInstance = (instance: unknown) => {
@@ -89,7 +79,7 @@ const getParentErrorCaptureInstance = (instance: unknown) => {
   }
 
   const props = owner.propsRO
-  if (isObjectLike(props)) {
+  if (isWeakKey(props)) {
     return props[RUE_CONTEXT_OWNER_PARENT_PROP] ?? props[RUE_CONTEXT_PARENT_INSTANCE_PROP] ?? null
   }
 
@@ -120,14 +110,13 @@ const ensureHandlers = (instance: unknown) => {
 
 /** 标记错误已被 errorCaptured 链处理过。 */
 const rememberDispatchedError = (error: unknown) => {
-  if (isObjectLike(error)) {
+  if (isWeakKey(error)) {
     dispatchedErrors.add(error)
   }
 }
 
 /** 判断某个错误对象是否已走过 errorCaptured 派发流程。 */
-export const wasErrorCapturedDispatched = (error: unknown) =>
-  isObjectLike(error) && dispatchedErrors.has(error)
+export const wasErrorCapturedDispatched = (error: unknown) => dispatchedErrors.has(error as object)
 
 /** 注册组件树错误捕获回调，返回取消注册函数。 */
 export const onErrorCaptured = (fn: ErrorCapturedHook) => {

@@ -11,7 +11,7 @@ import {
 import {
   _$createComponent as createVaporComponent,
   renderAnchor as renderVaporAnchor,
-  vapor as createVaporHandle,
+  _$compiledRoot as createVaporHandle,
 } from './legacy-test-render'
 import {
   RUE_ISLAND_DESCRIPTOR,
@@ -27,7 +27,7 @@ import {
 
 import { flush, waitForContent } from './page-test-utils'
 
-import { createTestRenderable, vapor } from './legacy-test-render'
+import { createTestRenderable, _$compiledRoot } from './legacy-test-render'
 
 describe('Rue island runtime', () => {
   it('creates a shared island descriptor without executing its component', () => {
@@ -76,7 +76,7 @@ describe('Rue island runtime', () => {
 
     const mountDescriptor = (
       id: string,
-      createHandle: typeof vapor,
+      createHandle: typeof _$compiledRoot,
       renderHandle: typeof renderAnchor,
     ) => {
       const host = document.createElement('section')
@@ -97,7 +97,7 @@ describe('Rue island runtime', () => {
     }
 
     for (const mounted of [
-      mountDescriptor('default-descriptor', vapor, renderAnchor),
+      mountDescriptor('default-descriptor', _$compiledRoot, renderAnchor),
       mountDescriptor('vapor-descriptor', createVaporHandle, renderVaporAnchor),
     ]) {
       const { host } = mounted
@@ -597,7 +597,7 @@ describe('Rue island runtime', () => {
     const count = signal(1)
     let updateDom = () => {}
     const CounterValue: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createElement('span')
         const anchor = document.createComment('counter-value')
         root.appendChild(anchor)
@@ -668,7 +668,7 @@ describe('Rue island runtime', () => {
     let updateDom = () => {}
 
     const ButtonLabel: FC = () =>
-      vapor(() => {
+      _$compiledRoot(() => {
         const root = document.createElement('span')
         const anchor = document.createComment('button-label')
         root.appendChild(anchor)

@@ -93,8 +93,11 @@ vi.mock('@rue-js/rue/internal/component', async importOriginal => {
     _$compiledBindUseRef(element: object, readRef: () => unknown) {
       propsFor(element).ref = readRef()
     },
-    _$createComponent(_type: unknown, props: Record<string, unknown>) {
-      return props.children
+    _$createComponent(
+      _type: unknown,
+      props: Record<string, unknown> | (() => Record<string, unknown>),
+    ) {
+      return runRenderable((typeof props === 'function' ? props() : props).children)
     },
     _$compiledRenderable: runRenderable,
     _$compiledRenderableValue: (value: unknown) => value,

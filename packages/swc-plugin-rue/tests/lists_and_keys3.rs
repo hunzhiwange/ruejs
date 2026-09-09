@@ -101,7 +101,7 @@ export default TodoApp
     let program = apply(program);
     let out = utils::emit(program, cm);
 
-    let _expected_fragment = r##"import { computed, reactive, _$compiledWithHookId, useSetup, vapor, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/internal";
+    let _expected_fragment = r##"import { computed, reactive, _$compiledWithHookId, useSetup, _$compiledRoot, renderAnchor, _$createElement, _$createComment, _$createTextNode, _$settextContent, _$createDocumentFragment, _$appendChild, untrack, watchEffect, _$compiledKeyedList, _$createTextWrapper, _$setAttribute, _$addEventListener, _$setClassName, _$setValue } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 interface Todo {
     id: number;
@@ -158,7 +158,7 @@ const TodoApp: FC = ()=>{
             };
         }));
     const { state: state, addTodo: addTodo, toggleTodo: toggleTodo, deleteTodo: deleteTodo, completedCount: completedCount } = _$useSetup;
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
       const _root = _$createElement("div", __rue_parent_context);
         _$setClassName(_root, "max-w-2xl mx-auto p-6 rounded-lg border bg-white shadow-sm");
       const _el1 = _$createElement("h2", _root);
@@ -204,7 +204,7 @@ const TodoApp: FC = ()=>{
                 singleRoot: true,
                 start: _list1,
                 renderItem: (todo, parent, start, end, _idx)=>{
-                    const __slot = vapor(()=>{
+                    const __slot = _$compiledRoot(()=>{
                         const _root = _$createDocumentFragment();
                         const _el6 = _$createElement("div", _root);
                         _$appendChild(_root, _el6);

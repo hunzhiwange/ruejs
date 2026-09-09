@@ -6,7 +6,6 @@ import {
   isRef,
   ref,
   setReactiveScheduling,
-  toRaw,
   triggerRef,
   watch,
   watchEffect,
@@ -367,7 +366,7 @@ describe('customRef api', () => {
     effect.dispose()
   })
 
-  it('keeps custom refs marked as refs without making them reactive proxies', () => {
+  it('identifies custom refs by their marker', () => {
     const state = customRef<number>((track, trigger) => ({
       get() {
         track()
@@ -381,8 +380,8 @@ describe('customRef api', () => {
     const triggerDescriptor = Object.getOwnPropertyDescriptor(state, '__rue_trigger_ref__')
 
     expect(isRef(state)).toBe(true)
-    expect(isReactive(state)).toBe(false)
-    expect(toRaw(state)).toBe(1)
+    expect(isReactive(state)).toBe(true)
+    expect(state.value).toBe(1)
     expect(Object.keys(state)).toEqual(['value'])
     expect(refDescriptor).toMatchObject({
       configurable: false,

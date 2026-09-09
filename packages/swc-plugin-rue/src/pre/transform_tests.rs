@@ -166,7 +166,7 @@ _$compiledWithHookId("same", () => ref(2));
 fn injects_component_render_marker_only_for_setup_render_control() {
     let src = r#"
 const Plain: FC = () => {
-  return vapor(() => <input value={label.get()} />)
+  return _$compiledRoot(() => <input value={label.get()} />)
 }
 const DynamicComponentRoot: FC = () => {
   const active = ref('a')

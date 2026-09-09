@@ -126,15 +126,15 @@ const Demo: FC = () => (
 
     assert!(out.contains("const base = row.value * 10;"), "{out}");
     assert!(out.contains("const label = base.toFixed(0);"), "{out}");
-    assert!(out.contains("const __child1 = vapor("), "{out}");
-    assert!(out.contains("const __child2 = vapor("), "{out}");
+    assert!(out.contains("const __child1 = _$compiledRoot("), "{out}");
+    assert!(out.contains("const __child2 = _$compiledRoot("), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
 }
 
 #[test]
 /// 覆盖“条件 return”的复杂 block 场景。
 ///
-/// 这个用例不是要求 direct vapor 快路径继续吃下所有控制流，
+/// 这个用例不是要求 direct _$compiledRoot 快路径继续吃下所有控制流，
 /// 而是要求编译器在复杂 block 下切到更保守的 raw-slot fallback：
 /// 保留原 if/else 结构，先算出 `__slot`，再直接交给 `renderAnchor(__slot, ...)`。
 ///
@@ -162,7 +162,7 @@ const Demo: FC = () => (
 
     assert!(out.contains("const label = row.value.toFixed(0);"), "{out}");
     assert!(out.contains("if (row.hot)"), "{out}");
-    assert_eq!(out.matches("return vapor(").count(), 2, "{out}");
+    assert_eq!(out.matches("return _$compiledRoot(").count(), 2, "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
     let removed_factory = ["_$compiledCreate", "V", "Node", "(__slot)"];
     assert!(!out.contains(&removed_factory.concat()));
@@ -175,7 +175,7 @@ const Demo: FC = () => (
 /// 否则后续 slot/watchEffect 只会拿到初始快照。
 ///
 /// 当前期望是：把表达式直接内联回 slot watcher，
-/// 让 keyed-list 继续走 direct vapor 路径，但条件分支本身仍然读取外部 reactive 值。
+/// 让 keyed-list 继续走 direct _$compiledRoot 路径，但条件分支本身仍然读取外部 reactive 值。
 fn inlines_outer_ref_value_into_slot_watchers() {
     let src = r##"
 import { type FC, ref } from '@rue-js/rue'

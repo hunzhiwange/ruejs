@@ -11,6 +11,11 @@ use crate::utils::unwrap_expr;
 use super::super::VaporTransform;
 
 fn is_scalar_accessor_call(call: &CallExpr, shadowed_names: &HashSet<String>) -> bool {
+    if let Callee::Expr(callee) = &call.callee
+        && matches!(callee.as_ref(), Expr::Ident(id) if id.sym == "_$compiledReadPath")
+    {
+        return true;
+    }
     if call.args.is_empty()
         && let Callee::Expr(callee) = &call.callee
         && let Expr::Member(member) = unwrap_expr(callee.as_ref())
@@ -54,7 +59,7 @@ fn reactive_member_is_scalar(vt: &VaporTransform, member: &MemberExpr) -> bool {
     };
     match object {
         Expr::Ident(ident) => match vt.reactive_kind(ident.sym.as_ref()) {
-            Some(ReactiveKind::ReactiveProxy) => true,
+            Some(ReactiveKind::ObjectValue | ReactiveKind::PropsValue) => true,
             Some(ReactiveKind::RefLike | ReactiveKind::StateValue) => {
                 matches!(&member.prop, MemberProp::Ident(property) if property.sym.as_ref() == "value")
             }
@@ -67,6 +72,11 @@ fn reactive_member_is_scalar(vt: &VaporTransform, member: &MemberExpr) -> bool {
 }
 
 fn reactive_signal_get_is_scalar(vt: &VaporTransform, call: &CallExpr) -> bool {
+    if let Callee::Expr(callee) = &call.callee
+        && matches!(callee.as_ref(), Expr::Ident(id) if id.sym == "_$compiledReadPath")
+    {
+        return true;
+    }
     if crate::compiled_component::is_static_prop_get_call(call) {
         return true;
     }

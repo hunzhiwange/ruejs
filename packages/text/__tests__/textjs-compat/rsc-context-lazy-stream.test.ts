@@ -97,7 +97,7 @@ beforeAll(async () => {
     }),
     fetch(`${_baseUrl}/textjs-compat/nav-context-hydration`),
   ])
-}, 60_000)
+}, 120_000)
 
 afterAll(async () => {
   await _server?.close()

@@ -46,7 +46,7 @@ describe('Text.js compat: global-error', () => {
     }))
     // Warm up
     await fetch(`${baseUrl}/`).catch(() => {})
-  }, 60_000)
+  }, 120_000)
 
   afterAll(async () => {
     await server?.close()

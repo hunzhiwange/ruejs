@@ -37,13 +37,13 @@ export default ConditionalRendering;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { vapor, renderAnchor, _$createElement, _$template, _$createTextNode, _$settextContent, _$appendChild, onScopeDispose, untrack, watchEffect, _$createTextWrapper, _$setAttribute, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledRoot, renderAnchor, _$createElement, _$template, _$createTextNode, _$settextContent, _$appendChild, onScopeDispose, untrack, watchEffect, _$createTextWrapper, _$setAttribute, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<div class="max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm"><h3 class="text-xl font-semibold">条件渲染</h3><div><!--rue:text-hole:0--></div><div>--[<!--rue:text-hole:1-->]--</div><div></div><div></div><!--rue:opaque-hole:2--><!--rue:opaque-hole:3--><!--rue:opaque-hole:4--><!--rue:opaque-hole:5--><div>--[1]--</div><div>--[0]--</div><!--rue:opaque-hole:6--></div>');
 const showA = true;
 const showB = false;
-const ConditionalRendering: FC = ()=>vapor((__rue_parent_context)=>{
+const ConditionalRendering: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1].childNodes[0];

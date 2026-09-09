@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import swc from '@swc/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { createCompiledProps } from '../src/compiled-props'
 import * as compiledRuntime from '../src/internal'
 import * as runtimeRoot from '../src'
 import * as vaporRuntime from './legacy-test-render'
@@ -76,48 +77,6 @@ const cases: ReactiveCase[] = [
     update: 'state.value = value',
   },
   {
-    name: 'toRef',
-    setup: "const source = reactive({ value: 'one' }); const state = toRef(source, 'value')",
-    read: 'state.value',
-    update: 'state.value = value',
-  },
-  {
-    name: 'toRefs',
-    setup: "const source = reactive({ value: 'one' }); const { value: state } = toRefs(source)",
-    read: 'state.value',
-    update: 'state.value = value',
-  },
-  {
-    name: 'reactive',
-    setup: "const state = reactive({ value: 'one' })",
-    read: 'state.value',
-    update: 'state.value = value',
-  },
-  {
-    name: 'shallowReactive',
-    setup: "const state = shallowReactive({ value: 'one' })",
-    read: 'state.value',
-    update: 'state.value = value',
-  },
-  {
-    name: 'readonly',
-    setup: "const source = reactive({ value: 'one' }); const state = readonly(source)",
-    read: 'state.value',
-    update: 'source.value = value',
-  },
-  {
-    name: 'shallowReadonly',
-    setup: "const source = reactive({ value: 'one' }); const state = shallowReadonly(source)",
-    read: 'state.value',
-    update: 'source.value = value',
-  },
-  {
-    name: 'propsReactive',
-    setup: "const source = reactive({ value: 'one' }); const state = propsReactive(source)",
-    read: 'state.value',
-    update: 'source.value = value',
-  },
-  {
     name: 'computed',
     setup: "const source = ref('one'); const state = computed(() => source.value)",
     read: 'state.get()',
@@ -139,8 +98,7 @@ const cases: ReactiveCase[] = [
 
 const sourceFor = ({ read, setup, update }: ReactiveCase): string => `
 import {
-  computed, customRef, onScopeDispose, propsReactive, reactive, readonly, ref,
-  shallowReactive, shallowReadonly, shallowRef, signal, toRef, toRefs, useState,
+  computed, customRef, onScopeDispose, ref, shallowRef, signal, useState,
 } from '@rue-js/rue'
 
 export const trace = { cleanupRuns: 0, set: value => {}, setupRuns: 0 }
@@ -303,7 +261,7 @@ describe('compiled reactive branches', () => {
     expect(host.childNodes).toHaveLength(0)
   })
 
-  it('tracks a nested reactive ref value through a compiled prop signal', () => {
+  it('tracks explicit root replacement through a compiled prop signal', () => {
     compiledRuntime.setReactiveScheduling('sync')
     const source = runtimeRoot.ref({ open: false })
     const prop = compiledRuntime.signal(source.value)
@@ -311,7 +269,8 @@ describe('compiled reactive branches', () => {
     const seen: boolean[] = []
     const watcher = compiledRuntime.effect(() => seen.push(open.get()))
 
-    source.value.open = true
+    source.value = { open: true }
+    prop.set(source.value)
 
     expect(seen).toEqual([false, true])
     watcher.dispose()
@@ -442,7 +401,6 @@ export function Example() {
 
   it('compiles and updates a props conditional index-key list as one compiled region', async () => {
     const source = `
-      import { reactive } from '@rue-js/rue'
 
       type Video = { title: string; desc: string }
       type Props = { videos: Video[]; emptyHeading?: string }
@@ -465,7 +423,7 @@ export function Example() {
         </div>
       )
 
-      export const state = reactive<Props>({ videos: [], emptyHeading: 'none' })
+      export const state: Props = { videos: [], emptyHeading: 'none' }
     `
     const esm = compileSource(source, 'es6', 'compiled-props-video-list.tsx')
     expect(esm).toContain('_$compiledBranchAt(')
@@ -477,39 +435,47 @@ export function Example() {
     compiledRuntime.setReactiveScheduling('sync')
     vaporRuntime.setReactiveScheduling('sync')
     const compiled = evaluateSource<VideoListModule>(source)
+    const props = createCompiledProps(compiled.state)
     const owner = compiledRuntime.createOwner()
     const host = document.createElement('main')
     let root: HTMLElement | undefined
     compiledRuntime.runWithOwner(owner, () => {
-      const handle = compiled.VideoList(compiled.state)
+      const handle = compiled.VideoList(props.props)
       root = handle.__rue_compiled_mount(host) as HTMLElement
       host.appendChild(root)
     })
     if (!root) throw new Error('Expected compiled VideoList root')
 
     expect(root.textContent).toBe('0 videosnone')
-    compiled.state.videos = [
-      { title: 'one', desc: 'first' },
-      { title: 'two', desc: 'second' },
-    ]
+    props.update({
+      ...props.snapshot(),
+      videos: [
+        { title: 'one', desc: 'first' },
+        { title: 'two', desc: 'second' },
+      ],
+    })
     await Promise.resolve()
     expect(root.textContent).toBe('2 videosonefirsttwosecond')
     const initialRows = Array.from(root.querySelectorAll('li'))
 
-    compiled.state.videos = [
-      { title: 'TWO', desc: 'SECOND' },
-      { title: 'ONE', desc: 'FIRST' },
-    ]
+    props.update({
+      ...props.snapshot(),
+      videos: [
+        { title: 'TWO', desc: 'SECOND' },
+        { title: 'ONE', desc: 'FIRST' },
+      ],
+    })
     await Promise.resolve()
     const patchedRows = Array.from(root.querySelectorAll('li'))
     expect(patchedRows[0]).toBe(initialRows[0])
     expect(patchedRows[1]).toBe(initialRows[1])
     expect(root.textContent).toBe('2 videosTWOSECONDONEFIRST')
 
-    compiled.state.videos = []
+    props.update({ ...props.snapshot(), videos: [] })
     await Promise.resolve()
     expect(root.textContent).toBe('0 videosnone')
     expect(initialRows.every(row => !row.isConnected)).toBe(true)
+    props.dispose()
     compiledRuntime.disposeOwner(owner)
   })
 

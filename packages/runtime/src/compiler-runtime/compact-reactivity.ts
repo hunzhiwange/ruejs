@@ -1,5 +1,6 @@
 import {
   _$compiledSetup,
+  _$compiledStateSignal,
   effect,
   getCurrentOwner,
   registerOwnerLifecycle,
@@ -12,7 +13,7 @@ export type CompactRef<T> = CompiledSignalHandle<T>
 
 type SetStateAction<T> = T | ((previous: T) => T)
 type Dispatch<T> = (value: T) => void
-type StateOptions<T> = SignalOptions<T> & { kind?: 'reactive' | 'ref' | 'signal' }
+type StateOptions<T> = SignalOptions<T>
 
 export const _$compiledUseState = <T>(
   slot: string,
@@ -21,7 +22,7 @@ export const _$compiledUseState = <T>(
 ): [CompiledSignalHandle<T>, Dispatch<SetStateAction<T>>] =>
   _$compiledSetup(slot, () => {
     const value = typeof initial === 'function' ? (initial as () => T)() : initial
-    const state = signal(value, options)
+    const state = _$compiledStateSignal(value, options)
     const setState: Dispatch<SetStateAction<T>> = next => {
       state.set(typeof next === 'function' ? (next as (previous: T) => T)(state.peek()) : next)
     }

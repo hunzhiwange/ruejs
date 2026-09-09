@@ -10,7 +10,6 @@ import {
   onUpdated,
   ref,
   render as renderRue,
-  toRaw,
   useRef,
   useSetup,
   watch,
@@ -535,11 +534,9 @@ const escapePreviewHtml = (value: string) => {
   })
 }
 
-/** 读取原生 Blob，避免响应式代理传入 FileReader。 */
+/** 只将原生 Blob 传给 FileReader。 */
 const toNativeBlob = (value: unknown): File | Blob | null => {
   if (value == null || typeof Blob === 'undefined') return null
-  const rawValue = toRaw<File | Blob | unknown>(value)
-  if (rawValue instanceof Blob) return rawValue
   if (value instanceof Blob) return value
   return null
 }

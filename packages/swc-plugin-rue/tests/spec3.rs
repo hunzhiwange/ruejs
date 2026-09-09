@@ -23,12 +23,12 @@ export default Comp;
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { ref, _$compiledWithHookId, vapor, renderAnchor, _$template, _$createDocumentFragment, untrack, watchEffect } from "@rue-js/rue/internal";
+import { ref, _$compiledWithHookId, _$compiledRoot, renderAnchor, _$template, _$createDocumentFragment, untrack, watchEffect } from "@rue-js/rue/internal";
 import { type FC, h, Fragment } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<span id="n"><!--rue:text-hole:0--></span>');
 const count = _$compiledWithHookId("ref:1:0", ()=>ref(0));
 const Comp: FC = ()=>(()=>{
-        const __child1 = vapor(()=>{
+        const __child1 = _$compiledRoot(()=>{
             const _root = _$createDocumentFragment();
             const _el1_fragment = _$getTemplate1().content.cloneNode(true);
             const _el1 = _el1_fragment.firstChild;

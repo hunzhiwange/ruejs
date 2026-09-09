@@ -12,7 +12,7 @@ const random = (max: number) => Math.round(Math.random() * 1000) % max
 let nextId = 1
 
 export const buildData = (count = 1000): Row[] => {
-  const data = new Array<Row>(count)
+  const data = Array.from({ length: count }) as Row[]
 
   for (let i = 0; i < count; i += 1) {
     data[i] = {

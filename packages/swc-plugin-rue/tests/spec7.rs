@@ -29,8 +29,8 @@ export default Parent;
 
     assert!(output.contains("_$compiledRoot"), "{output}");
     assert!(output.contains("_$compiledText"), "{output}");
-    assert!(output.contains("()=>p.label"), "{output}");
+    assert!(output.contains("()=>_$compiledPropsGet(p, \"label\")"), "{output}");
     assert!(output.contains("_$createComponent(Child"), "{output}");
     assert!(output.contains("label: count.value"), "{output}");
-    assert!(!output.contains("const __slot = (p.label)"), "{output}");
+    assert!(!output.contains("const __slot = (_$compiledPropsGet(p, \"label\"))"), "{output}");
 }

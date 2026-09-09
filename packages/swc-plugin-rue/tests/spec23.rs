@@ -29,14 +29,14 @@ export default OrCases
     let out = utils::emit(program, cm);
 
     let _expected_fragment = r##"
-import { vapor, renderAnchor, _$template, untrack, watchEffect, _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode, _$compiledRoot } from "@rue-js/rue/internal";
+import { _$compiledRoot, renderAnchor, _$template, untrack, watchEffect, _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode, _$compiledRoot } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template("<div><!--rue:text-hole:0--><!--rue:text-hole:1--></div>");
 const show = false;
 const a = false;
 const b = false;
 const OrCases: FC = ()=>{
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[0];

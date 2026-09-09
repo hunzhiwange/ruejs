@@ -32,11 +32,11 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { vapor, _$createElement, _$template, _$settextContent, _$createDocumentFragment, _$appendChild, effect } from "@rue-js/rue/internal/component";
+import { _$createElement, _$template, _$settextContent, _$createDocumentFragment, _$appendChild, effect, _$compiledRoot } from "@rue-js/rue/internal/component";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<div class="rue-parent"><h3 class="text-xl font-semibold mb-3">hello</h3><span>world</span></div>');
 const Hello: FC = ()=>{
-    return vapor((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _root = _$createDocumentFragment();
         const _el1 = _$createElement("style", _root);
         _$appendChild(_root, _el1);

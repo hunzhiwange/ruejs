@@ -15,7 +15,7 @@ defineSplitHomeExampleActualSpec({
     'isRef 判定示例',
     'ref(count)',
     'computed(() => count * 2)',
-    "toRef(state, 'name')",
+    "computed(() => state.getPath('name'))",
     '{ value: ... }',
   ],
   interaction: async container => {
@@ -41,7 +41,9 @@ describe('IsRef actual page interactions', () => {
 
     await waitForContent(() => {
       expect(cellTextForExpression(container, 'ref(count)', 3)).toBe('1')
-      expect(cellTextForExpression(container, "toRef(state, 'name')", 3)).toBe('Rue')
+      expect(cellTextForExpression(container, "computed(() => state.getPath('name'))", 3)).toBe(
+        'Rue',
+      )
       expect(cellTextForExpression(container, 'shallowRef({ label })', 3)).toBe('shallow')
     })
 
@@ -53,8 +55,10 @@ describe('IsRef actual page interactions', () => {
 
     await clickByText(container, '切换 name')
     await waitForContent(() => {
-      expect(cellTextForExpression(container, "toRef(state, 'name')", 3)).toBe('Vapor')
-      expect(cellTextForExpression(container, 'reactive({ name })', 3)).toBe('Vapor')
+      expect(cellTextForExpression(container, "computed(() => state.getPath('name'))", 3)).toBe(
+        'Signal',
+      )
+      expect(cellTextForExpression(container, 'signal({ name })', 3)).toBe('Signal')
     })
 
     await clickByText(container, '替换 shallowRef.value')

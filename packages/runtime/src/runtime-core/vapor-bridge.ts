@@ -261,12 +261,6 @@ export const installSharedBridge = (
     activateRenderTriggered() {
       getSharedRuntime().__rueActivateRenderTriggered?.()
     },
-    propsReactive(initial: unknown) {
-      const runtime = getSharedRuntime()
-      return typeof runtime.propsReactive === 'function'
-        ? runtime.propsReactive(initial, true)
-        : initial
-    },
     dispatchErrorCaptured(error: unknown, instance: unknown, info: string) {
       const dispatch = globalThis.__rue_dispatch_error_captured
       return typeof dispatch === 'function' && dispatch(error, instance, info) === true

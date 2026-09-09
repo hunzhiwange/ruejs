@@ -126,6 +126,24 @@ describe('runtime TypeScript scheduler', () => {
     expect(events).toEqual(['first', 'second'])
   })
 
+  it('checks queued activity before entering job context and skips deactivated jobs', async () => {
+    const state = new ReactiveRuntimeState()
+    const scheduler = new ReactiveScheduler(state)
+    state.schedulingMode = 'microtask'
+    let active = true
+    const run = vi.fn()
+    const isActive = vi.fn(() => {
+      expect(state.isScheduledJobActive(1)).toBe(false)
+      return active
+    })
+    scheduler.schedule(1, run, isActive)
+    active = false
+    await scheduler.nextTick()
+    expect(run).not.toHaveBeenCalled()
+    expect(isActive).toHaveBeenCalledTimes(2)
+    expect(state.isScheduledJobActive(1)).toBe(false)
+  })
+
   it('keeps an empty nextTick asynchronous without creating a flush', async () => {
     const state = new ReactiveRuntimeState()
     const scheduler = new ReactiveScheduler(state)

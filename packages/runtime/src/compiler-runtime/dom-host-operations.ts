@@ -11,6 +11,7 @@ export type DOMHostAdapter = {
   removeChild(parent: any, child: any): void
   insertBefore(parent: any, child: any, reference: any): void
   getParentNode(node: any): any
+  cloneTemplate?(html: string): unknown
 }
 
 type DOMHostOperationContext = {
@@ -26,21 +27,31 @@ type DOMHostOperationConfiguration = {
 }
 
 let configuration: DOMHostOperationConfiguration | undefined
+let runConfiguredHost: typeof withDOMHostOperations | undefined
 let activeContext: DOMHostOperationContext | undefined
 const contexts = new WeakMap<object, DOMHostOperationContext>()
 
 export const configureDOMHostOperations = (next: DOMHostOperationConfiguration): void => {
   configuration = next
+  runConfiguredHost = withConfiguredDOMHostOperations
 }
 
 export const resetDOMHostOperations = (): void => {
   activeContext = undefined
 }
 
-export const getDOMHostAdapter = <T extends DOMHostAdapter>(fallback: T): T =>
-  (activeContext?.adapter as T | undefined) ?? fallback
+export function getDOMHostAdapter<T extends DOMHostAdapter>(fallback: T): T
+export function getDOMHostAdapter(): DOMHostAdapter | undefined
+export function getDOMHostAdapter(fallback?: DOMHostAdapter): DOMHostAdapter | undefined {
+  return activeContext?.adapter ?? fallback
+}
 
 export const isFreshBrowserDOMHost = (): boolean => activeContext?.freshBrowser === true
+
+export const cloneDOMHostTemplate = (html: string, adapter: DOMHostAdapter): unknown => {
+  if (adapter.cloneTemplate) return adapter.cloneTemplate(html)
+  throw new Error('Rue template cloning requires the active DOM adapter to implement cloneTemplate')
+}
 
 /** Whether compiled DOM work is currently running through an installed host context. */
 export const hasActiveDOMHostOperations = (): boolean => activeContext !== undefined
@@ -64,8 +75,13 @@ const inheritedContextFor = (parent: any): DOMHostOperationContext | undefined =
   return inherited
 }
 
-export const withDOMHostOperations = <T>(parent: any, run: () => T): T => {
-  if (activeContext || !configuration) return run()
+export const withDOMHostOperations = <T>(parent: any, run: () => T): T =>
+  activeContext || !runConfiguredHost ? run() : runConfiguredHost(parent, run)
+
+// Host configuration installs this path; native compiler-only consumers retain
+// only the synchronous fallback above.
+const withConfiguredDOMHostOperations = <T>(parent: any, run: () => T): T => {
+  if (!configuration) return run()
 
   const serverRenderingCount = (globalThis as Record<string, unknown>).__rue_is_server_rendering__
   const isServerRendering = typeof serverRenderingCount === 'number' && serverRenderingCount > 0

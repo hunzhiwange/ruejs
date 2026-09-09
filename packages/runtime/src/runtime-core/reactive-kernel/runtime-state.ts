@@ -1,161 +1,82 @@
-/**
- * Instance-owned execution state shared by the TypeScript reactive kernel.
- *
- * Runtime context is stack-shaped: nested effects, untracked handlers, scopes,
- * and scheduler jobs must always restore their caller, including when user code
- * throws. Queues and ownership records live in their respective instance
- * modules; this object only coordinates context that crosses those modules.
- */
-
-export type ReactiveSchedulingMode = 'sync' | 'microtask' | 'frame'
-
+import * as core from './runtime-state-core.js'
+export type { ReactiveSchedulingMode } from './runtime-state-core.js'
+import type { ReactiveSchedulingMode } from './runtime-state-core.js'
 export class ReactiveRuntimeState {
-  #schedulingMode: ReactiveSchedulingMode = 'frame'
-  #batchDepth = 0
-  #nextEffectId = 1
-  #nextSignalId = 1
-  #nextScopeId = 1
-  #currentEffectId: number | undefined
-  #activeEffectIds: number[] = []
-  #activeJobIds: number[] = []
-  #errorCaptureEffectIds: number[] = []
-  #renderDebugOwnerStack: unknown[] = []
-  #scopeStack: number[] = []
+  readonly storage: core.ReactiveRuntimeStateStorage
 
+  constructor(storage?: core.ReactiveRuntimeStateStorage) {
+    this.storage = storage ?? core.createReactiveRuntimeStateStorage()
+  }
   get schedulingMode(): ReactiveSchedulingMode {
-    return this.#schedulingMode
+    return core.stateSchedulingMode(this.storage)
   }
-
   set schedulingMode(mode: ReactiveSchedulingMode) {
-    this.#schedulingMode = mode
+    core.stateSetSchedulingMode(this.storage, mode)
   }
-
   get batchDepth(): number {
-    return this.#batchDepth
+    return core.stateBatchDepth(this.storage)
   }
-
   get currentEffectId(): number | undefined {
-    return this.#currentEffectId
+    return core.stateCurrentEffectId(this.storage)
   }
-
   get currentScopeId(): number | undefined {
-    return this.#scopeStack[this.#scopeStack.length - 1]
+    return core.stateCurrentScopeId(this.storage)
   }
-
   get currentRenderDebugOwner(): unknown {
-    return this.#renderDebugOwnerStack[this.#renderDebugOwnerStack.length - 1]
+    return core.stateCurrentRenderDebugOwner(this.storage)
   }
-
   beginBatch(): void {
-    this.#batchDepth += 1
+    return core.stateBeginBatch(this.storage)
   }
-
   endBatch(): boolean {
-    if (this.#batchDepth === 0) throw new Error('reactive batch stack underflow')
-    this.#batchDepth -= 1
-    return this.#batchDepth === 0
+    return core.stateEndBatch(this.storage)
   }
-
   allocateScopeId(): number {
-    const id = this.#nextScopeId
-    this.#nextScopeId += 1
-    return id
+    return core.stateAllocateScopeId(this.storage)
   }
-
   allocateEffectId(): number {
-    const id = this.#nextEffectId
-    this.#nextEffectId += 1
-    return id
+    return core.stateAllocateEffectId(this.storage)
   }
-
   allocateSignalId(): number {
-    const id = this.#nextSignalId
-    this.#nextSignalId += 1
-    return id
+    return core.stateAllocateSignalId(this.storage)
   }
-
   isEffectActive(effectId: number): boolean {
-    return this.#activeEffectIds.includes(effectId)
+    return core.stateIsEffectActive(this.storage, effectId)
   }
-
   isScheduledJobActive(jobId: number): boolean {
-    return this.#activeJobIds.includes(jobId)
+    return core.stateIsScheduledJobActive(this.storage, jobId)
   }
-
   isErrorCaptureEffect(effectId: number): boolean {
-    return this.#errorCaptureEffectIds.includes(effectId)
+    return core.stateIsErrorCaptureEffect(this.storage, effectId)
   }
-
   runWithEffect<T>(effectId: number, callback: () => T): T {
-    const previous = this.#currentEffectId
-    const stackIndex = this.#activeEffectIds.length
-    this.#currentEffectId = effectId
-    this.#activeEffectIds.push(effectId)
-    try {
-      return callback()
-    } finally {
-      this.#activeEffectIds.splice(stackIndex, 1)
-      this.#currentEffectId = previous
-    }
+    return core.stateRunWithEffect(this.storage, effectId, callback)
   }
-
   runUntracked<T>(callback: () => T): T {
-    const previous = this.#currentEffectId
-    this.#currentEffectId = undefined
-    try {
-      return callback()
-    } finally {
-      this.#currentEffectId = previous
-    }
+    return core.stateRunUntracked(this.storage, callback)
   }
-
   runWithErrorCaptureEffect<T>(effectId: number, callback: () => T): T {
-    const stackIndex = this.#errorCaptureEffectIds.length
-    this.#errorCaptureEffectIds.push(effectId)
-    try {
-      return callback()
-    } finally {
-      this.#errorCaptureEffectIds.splice(stackIndex, 1)
-    }
+    return core.stateRunWithErrorCaptureEffect(this.storage, effectId, callback)
   }
-
   runScheduledJob<T>(jobId: number, callback: () => T): T {
-    const stackIndex = this.#activeJobIds.length
-    this.#activeJobIds.push(jobId)
-    try {
-      return callback()
-    } finally {
-      this.#activeJobIds.splice(stackIndex, 1)
-    }
+    return core.stateRunScheduledJob(this.storage, jobId, callback)
   }
-
   pushScope(scopeId: number): void {
-    this.#scopeStack.push(scopeId)
+    return core.statePushScope(this.storage, scopeId)
   }
-
   popScope(): number | undefined {
-    return this.#scopeStack.pop()
+    return core.statePopScope(this.storage)
   }
-
   removeScope(scopeId: number): void {
-    this.#scopeStack = this.#scopeStack.filter(activeId => activeId !== scopeId)
+    return core.stateRemoveScope(this.storage, scopeId)
   }
-
   pushRenderDebugOwner(owner: unknown): void {
-    this.#renderDebugOwnerStack.push(owner)
+    return core.statePushRenderDebugOwner(this.storage, owner)
   }
-
   popRenderDebugOwner(): unknown {
-    return this.#renderDebugOwnerStack.pop()
+    return core.statePopRenderDebugOwner(this.storage)
   }
-
   runWithScope<T>(scopeId: number, callback: () => T): T {
-    const stackIndex = this.#scopeStack.length
-    this.#scopeStack.push(scopeId)
-    try {
-      return callback()
-    } finally {
-      if (this.#scopeStack[stackIndex] === scopeId) this.#scopeStack.splice(stackIndex, 1)
-    }
+    return core.stateRunWithScope(this.storage, scopeId, callback)
   }
 }

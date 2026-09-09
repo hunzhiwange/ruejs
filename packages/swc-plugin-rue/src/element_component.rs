@@ -370,7 +370,7 @@ pub(crate) fn lower_slot_value(
                 });
             }
             JSXElementChild::JSXText(text) => {
-                // 单个文本 child 直接降为字符串 prop，组件无需再执行 vapor setup。
+                // 单个文本 child 直接降为字符串 prop，组件无需再执行 _$compiledRoot setup。
                 let normalized = crate::text::normalize_text(&text.value);
                 if let Some(content) =
                     crate::text::compute_jsx_text_content(children, 0, &normalized)
@@ -465,7 +465,7 @@ pub(crate) fn lower_slot_value(
 
     let child_ident = vt.next_child_ident();
     let child_root = ident("_root");
-    // 多 child 或复杂 child 需要包装成独立 vapor 片段，作为可挂载 children 值传入组件。
+    // 多 child 或复杂 child 需要包装成独立 _$compiledRoot 片段，作为可挂载 children 值传入组件。
     let mut child_body: Vec<Stmt> =
         vec![const_decl(child_root.clone(), call_ident("_$createDocumentFragment", vec![]))];
     crate::element_children::emit_element_children(vt, &child_root, children, &mut child_body);
@@ -484,7 +484,7 @@ pub(crate) fn lower_slot_value(
         return_type: None,
         ctxt: SyntaxContext::empty(),
     });
-    let child_vapor = call_ident("vapor", vec![arrow]);
+    let child_vapor = call_ident("_$compiledRoot", vec![arrow]);
 
     Some(LoweredSlotValue {
         stmts: vec![const_decl(child_ident.clone(), child_vapor)],
@@ -1288,7 +1288,7 @@ fn wrap_transition_child_factory(expr: Expr) -> Expr {
 /// - 使用 `renderAnchor` + `watchEffect` 在占位锚点前渲染
 ///   示例（参考 `tests/spec11.rs` 等）：
 /// - 插入占位：`const _anchor = _$createComment("rue:slot:anchor");`
-/// - 包裹 children：`children={vapor(()=>{ const _root = _$createDocumentFragment(); ... return _root })}`
+/// - 包裹 children：`children={_$compiledRoot(()=>{ const _root = _$createDocumentFragment(); ... return _root })}`
 /// - 渲染：`watchEffect(()=>{ renderAnchor(<Comp {...props} />, parent, anchor) })`
 ///
 /// 组件 children 默认会被改写为 `children` 属性传入；

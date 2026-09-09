@@ -1059,7 +1059,7 @@ fn extract_render_root_key_expr(expr: &Expr) -> Option<Expr> {
             Some("_$compiledWithKey") if call.args.len() >= 2 => {
                 Some(crate::utils::unwrap_expr(call.args[1].expr.as_ref()).clone())
             }
-            Some("vapor") | Some("_$compiledMemo") => {
+            Some("_$compiledRoot") | Some("_$compiledMemo") => {
                 let first = if call_callee_ident_name(call) == Some("_$compiledMemo") {
                     call.args.get(1)?
                 } else {
@@ -1267,7 +1267,7 @@ fn try_build_list_from_map_with_anchor(
             let mut item_key_expr: Expr = Expr::Ident(idx_ident.clone());
             let simple_block_render = match &**body {
                 // 只有“纯声明前缀 + 最后 return”的简单 block，
-                // 才允许走 direct vapor 快路径。
+                // 才允许走 direct _$compiledRoot 快路径。
                 // 一旦不是这种形态，就交给后面的 fallback 路径保留原控制流。
                 BlockStmtOrExpr::BlockStmt(block) => collect_decl_prefix_and_final_return(block),
                 BlockStmtOrExpr::Expr(_) => None,

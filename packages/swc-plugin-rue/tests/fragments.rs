@@ -58,7 +58,7 @@ fn static_component_fragments_compile_while_unsafe_roots_keep_vapor_fallbacks() 
 
     for out in [spread, renderable, async_root] {
         assert!(out.contains("@rue-js/rue/internal"), "{out}");
-        assert!(utils::normalize(&out).contains(&utils::normalize("vapor(")), "{out}");
+        assert!(utils::normalize(&out).contains(&utils::normalize("_$compiledRoot(")), "{out}");
     }
 }
 
@@ -93,13 +93,13 @@ export default Fragments;
     // - 片段：<>...</> 被展开为两个 span 节点顺序插入
     // - 组件：RouterLink 被快速路径重写为原生 <a> 元素
     let _expected = r##"
-import { vapor, _$createElement, _$template, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
+import { _$compiledRoot, _$createElement, _$template, _$createTextNode, _$appendChild, watchEffect, _$setAttribute, _$addEventListener, _$setClassName } from "@rue-js/rue/internal";
 import { type FC } from '@rue-js/rue';
 import { RouterLink } from '@rue-js/router';
 const _$getTemplate1 = _$template('<h3 class="text-xl font-semibold mb-2">Fragments</h3>');
 const _$getTemplate2 = _$template("<span>片段 1</span>");
 const _$getTemplate3 = _$template("<span>片段 2</span>");
-const Fragments: FC = ()=>vapor((__rue_parent_context)=>{
+const Fragments: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _root = _$createElement("div", __rue_parent_context);
         _$setClassName(_root, "max-w-4xl mx-auto p-6 space-y-4 rounded-lg border bg-white shadow-sm");
         _root.appendChild(_$getTemplate1().content.cloneNode(true));
