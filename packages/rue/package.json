@@ -1,6 +1,6 @@
 {
   "name": "@rue-js/rue",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "description": "后悔药 Rue.js - The Compiler Framework For Native DOM.",
   "keywords": [
     "rue"

@@ -222,12 +222,7 @@ const tabs = {
 const App: FC = () => {
   const currentTab = ref<keyof typeof tabs>('HomeTab')
 
-  return (
-    <Component
-      is={currentTab.value}
-      registry={{ HomeTab, PostsTab, ArchiveTab }}
-    />
-  )
+  return <Component is={currentTab.value} registry={{ HomeTab, PostsTab, ArchiveTab }} />
 }
 ```
 

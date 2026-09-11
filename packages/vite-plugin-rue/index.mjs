@@ -3300,7 +3300,11 @@ export async function compileRueStatic(code, options = {}) {
   let loweredModel
   try {
     const serverDirectiveResult = transformServerDirectiveAttributes(code, id, target === 'server')
-    const clientDirectiveResult = transformClientDirectiveAttributes(serverDirectiveResult.code, id, target === 'server')
+    const clientDirectiveResult = transformClientDirectiveAttributes(
+      serverDirectiveResult.code,
+      id,
+      target === 'server',
+    )
     loweredModel = preprocessRueSource(clientDirectiveResult.code, id)
   } catch (error) {
     throw createStageError({

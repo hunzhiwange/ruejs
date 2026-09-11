@@ -30,7 +30,6 @@
   import { Component } from '@rue-js/rue'
   import Foo from './Foo'
   import Bar from './Bar'
-
   ;<Component is={kind.value} registry={{ foo: Foo, bar: Bar }} />
   ```
 

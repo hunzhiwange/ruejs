@@ -11,7 +11,6 @@
 ```tsx
 import { Component } from '@rue-js/rue'
 import { Card, Notice } from './surfaces'
-
 ;<Component is={kind.value} registry={{ card: Card, notice: Notice }} />
 ```
 
