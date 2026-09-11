@@ -7,6 +7,80 @@ use crate::log;
 use crate::utils;
 use crate::vapor::VaporTransform;
 
+struct OwnerlessRowRootRewriter;
+impl VisitMut for OwnerlessRowRootRewriter {
+    fn visit_mut_expr(&mut self, expr: &mut Expr) {
+        expr.visit_mut_children_with(self);
+        let Expr::Call(outer) = expr else {
+            return;
+        };
+        let Callee::Expr(outer_callee) = &outer.callee else {
+            return;
+        };
+        let Expr::Ident(outer_helper) = crate::utils::unwrap_expr(outer_callee) else {
+            return;
+        };
+        if outer_helper.sym.as_ref() != "onOwnerCleanup" || outer.args.len() != 1 {
+            return;
+        }
+        let Expr::Call(delegate) = crate::utils::unwrap_expr(outer.args[0].expr.as_ref()) else {
+            return;
+        };
+        let Callee::Expr(delegate_callee) = &delegate.callee else {
+            return;
+        };
+        let Expr::Ident(delegate_helper) = crate::utils::unwrap_expr(delegate_callee) else {
+            return;
+        };
+        if delegate_helper.sym.as_ref() != "_$compiledDelegateEvent" {
+            return;
+        }
+        let mut delegate = delegate.clone();
+        delegate.callee =
+            Callee::Expr(Box::new(Expr::Ident(ident("_$compiledDelegateEventOwnerless"))));
+        *expr = Expr::Call(delegate);
+    }
+
+    fn visit_mut_ident(&mut self, ident: &mut Ident) {
+        if ident.sym.as_ref() == "_$compiledRoot" {
+            ident.sym = "_$compiledStaticRoot".into();
+        }
+    }
+}
+
+fn ownerless_row_setup_expr(factory: &Expr) -> Option<Expr> {
+    let Expr::Arrow(factory) = crate::utils::unwrap_expr(factory) else {
+        return None;
+    };
+    let BlockStmtOrExpr::BlockStmt(body) = factory.body.as_ref() else {
+        return None;
+    };
+    body.stmts.iter().find_map(|stmt| {
+        let Stmt::Decl(Decl::Var(decl)) = stmt else {
+            return None;
+        };
+        decl.decls.iter().find_map(|declarator| {
+            let Expr::Arrow(create) = crate::utils::unwrap_expr(declarator.init.as_deref()?) else {
+                return None;
+            };
+            let BlockStmtOrExpr::Expr(created) = create.body.as_ref() else {
+                return None;
+            };
+            let Expr::Call(call) = crate::utils::unwrap_expr(created) else {
+                return None;
+            };
+            let Callee::Expr(callee) = &call.callee else {
+                return None;
+            };
+            let Expr::Ident(helper) = crate::utils::unwrap_expr(callee) else {
+                return None;
+            };
+            (helper.sym.as_ref() == "_$compiledStaticRoot" && call.args.len() == 1)
+                .then(|| (*call.args[0].expr).clone())
+        })
+    })
+}
+
 fn reactive_call_slot_factory(vt: &mut VaporTransform, call: &Expr) -> Expr {
     let root = ident("_root");
     let anchor = vt.next_list_ident();
@@ -1432,6 +1506,13 @@ fn try_build_list_from_map_with_anchor(
                 && render_item_direct_expr.as_ref().is_some_and(|expr| {
                     crate::element_list_patch::accepts_simple_native_row(expr, &item_ident)
                 });
+            let ownerless_simple_native_row = memo_dependencies.is_none()
+                && render_item_direct_expr.as_ref().is_some_and(|expr| {
+                    crate::element_list_patch::accepts_ownerless_simple_native_row(
+                        expr,
+                        &item_ident,
+                    )
+                });
             // A compiled row factory owns a closed DOM range. The keyed reconciler only
             // reuses, patches, moves, and disposes that explicit block.
             let mut render_item_stmts: Vec<Stmt> = Vec::new();
@@ -1529,6 +1610,12 @@ fn try_build_list_from_map_with_anchor(
                                 )
                             })
                             .unwrap_or(false);
+                        if direct_patch
+                            && ownerless_simple_native_row
+                            && !row_uses_index
+                        {
+                            factory.visit_mut_with(&mut OwnerlessRowRootRewriter);
+                        }
                         if direct_item_slot {
                             crate::element_list_patch::rewrite_direct_row_item_reads_in_expr(
                                 &mut factory,
@@ -1744,7 +1831,16 @@ fn try_build_list_from_map_with_anchor(
                 } else {
                     patch
                 };
-                let mut mount_args = vec![factory, patch_arg];
+                let direct_ownerless_setup = if compiled_single_root
+                    && ownerless_simple_native_row
+                    && !compiled_row_uses_index
+                {
+                    ownerless_row_setup_expr(&factory)
+                } else {
+                    None
+                };
+                let uses_direct_ownerless_setup = direct_ownerless_setup.is_some();
+                let mut mount_args = vec![direct_ownerless_setup.unwrap_or(factory), patch_arg];
                 if let Some(setup) = memo_setup {
                     render_item_stmts.push(setup);
                     mount_args.push(Expr::Ident(memo_ident));
@@ -1754,7 +1850,14 @@ fn try_build_list_from_map_with_anchor(
                 if let Some(target) = &row_mount_target {
                     mount_args.push(Expr::Ident(target.clone()));
                 }
-                let mount_helper = if compiled_single_root {
+                let mount_helper = if uses_direct_ownerless_setup {
+                    "_$mountCompiledKeyedSingleRowDirect"
+                } else if compiled_single_root
+                    && ownerless_simple_native_row
+                    && !compiled_row_uses_index
+                {
+                    "_$mountCompiledKeyedSingleRowOwnerless"
+                } else if compiled_single_root {
                     "_$mountCompiledKeyedSingleRow"
                 } else {
                     "_$mountCompiledKeyedRow"
@@ -1869,6 +1972,12 @@ fn try_build_list_from_map_with_anchor(
                     get_key_arrow,
                     render_item_arrow,
                     Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: compiled_row_uses_index })),
+                    Expr::Lit(Lit::Bool(Bool {
+                        span: DUMMY_SP,
+                        value: compiled_single_root
+                            && ownerless_simple_native_row
+                            && !compiled_row_uses_index,
+                    })),
                 ],
             );
             body_stmts.push(Stmt::Expr(ExprStmt {

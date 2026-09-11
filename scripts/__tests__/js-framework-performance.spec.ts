@@ -461,14 +461,14 @@ describe('js-framework performance budget', () => {
       readFileSync('scripts/js-framework-performance-budget.json', 'utf8'),
     )
     const report = makePerformanceReport()
-    report.results['rue-signal'].cpu.clear1k.medianMs = 125.005
+    report.results['rue-signal'].cpu.clear1k.medianMs = 55.005
 
     expect(() =>
       checkPerformanceBudget(report, performanceBaseline, {
         ...mergeConfiguredBudget(configuredBudget),
         minimumValidSamples: 3,
       }),
-    ).toThrow(/rue-signal.*vue.*clear1k.*2\.5000.*2\.5/i)
+    ).toThrow(/rue-signal.*vue.*clear1k.*1\.1001.*1\.1/i)
   })
 
   it('拒绝同轮总体 CPU 超过配置的 Vue 比率', () => {
@@ -478,7 +478,7 @@ describe('js-framework performance budget', () => {
     const report = makePerformanceReport()
     for (const operation of operationNames) {
       report.results.vue.cpu[operation].medianMs =
-        report.results['rue-signal'].cpu[operation].medianMs / 1.2001
+        report.results['rue-signal'].cpu[operation].medianMs / 1.0001
     }
 
     expect(() =>
@@ -486,7 +486,7 @@ describe('js-framework performance budget', () => {
         ...mergeConfiguredBudget(configuredBudget),
         minimumValidSamples: 3,
       }),
-    ).toThrow(/rue-signal.*vue.*cpu.*weighted.*1\.2001.*1\.2/i)
+    ).toThrow(/rue-signal.*vue.*cpu.*weighted.*1\.0001.*1/i)
   })
 
   it('拒绝单独超限的 create1k，不能被其他快速场景掩盖', () => {
@@ -559,7 +559,7 @@ describe('js-framework performance budget', () => {
       minimumValidSamples: 3,
     })
     const clearBoundaryReport = makePerformanceReport()
-    clearBoundaryReport.results['rue-signal'].cpu.clear1k.medianMs = 125
+    clearBoundaryReport.results['rue-signal'].cpu.clear1k.medianMs = 55
     clearBoundaryReport.results['rue-signal'].cpu.create1k.medianMs = 45
     const clearBoundary = checkPerformanceBudget(clearBoundaryReport, performanceBaseline, {
       ...mergeConfiguredBudget(configuredBudget),
@@ -587,7 +587,7 @@ describe('js-framework performance budget', () => {
     })
 
     expect(cpuBoundary.comparison.vue.rueSignal.cpuWeightedGeometricMeanRatio).toBe(1)
-    expect(clearBoundary.comparison.vue.rueSignal.clear1kRatio).toBe(2.5)
+    expect(clearBoundary.comparison.vue.rueSignal.clear1kRatio).toBe(1.1)
     expect(firstPaintBoundary.comparison.vue.rueSignal.firstPaintRatio).toBe(1.1)
     expect(baselineBoundary.entries.rue.create1kRatio).toBe(1.1)
     expect(baselineBoundary.entries.rue.cpuWeightedMedianRatio).toBe(1.25)
@@ -609,16 +609,16 @@ describe('js-framework performance budget', () => {
       },
       firstPaint: { maxRatio: 1.25 },
       sameRunVue: {
-        cpu: { maxWeightedGeometricMeanRatio: 1.2 },
+        cpu: { maxWeightedGeometricMeanRatio: 1 },
         operations: {
           update10th: { maxRatio: 1.05 },
           swap1k: { maxRatio: 1.05 },
-          clear1k: { maxRatio: 2.5 },
+          clear1k: { maxRatio: 1.1 },
         },
         heap: {
-          ready: { maxRatio: 1.2 },
+          ready: { maxRatio: 1.1 },
           create1k: { maxRatio: 1.6 },
-          createClear: { maxRatio: 1.2 },
+          createClear: { maxRatio: 1.1 },
         },
         firstPaint: { maxRatio: 1.1 },
       },

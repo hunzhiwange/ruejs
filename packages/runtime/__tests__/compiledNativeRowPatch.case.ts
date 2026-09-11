@@ -152,7 +152,7 @@ describe('compiled simple native row patch', () => {
     const output = compile(`export const View = () => <ul>{rows.get().map(row =>
       <li key={row.id} onClick={() => capture(row)}>{row.label}</li>
     )}</ul>`)
-    expect(output).toContain('_$mountCompiledKeyedSingleRow(')
+    expect(output).toContain('_$mountCompiledKeyedSingleRowOwnerless(')
     const names = [...output.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)].flatMap(
       match => match[1].split(',').map(name => name.trim()),
     )
@@ -161,10 +161,10 @@ describe('compiled simple native row patch', () => {
     const actual = capabilityBindings(output)
     const bindings = {
       ...actual,
-      _$mountCompiledKeyedSingleRow: (
-        ...args: Parameters<typeof compilerInternalRuntime._$mountCompiledKeyedSingleRow>
+      _$mountCompiledKeyedSingleRowOwnerless: (
+        ...args: Parameters<typeof compilerInternalRuntime._$mountCompiledKeyedSingleRowOwnerless>
       ) => {
-        const result = actual._$mountCompiledKeyedSingleRow(...args)
+        const result = actual._$mountCompiledKeyedSingleRowOwnerless(...args)
         mounted.push(result)
         return result
       },
@@ -221,7 +221,7 @@ describe('compiled simple native row patch', () => {
           className={row.id === capture.get() ? 'selected' : ''}>{row.label}</li>
       )}</ul>
     `)
-    expect(output).toContain('_$mountCompiledKeyedSingleRow(')
+    expect(output).toContain('_$mountCompiledKeyedSingleRowOwnerless(')
     expect(output).not.toContain('_$mountCompiledKeyedSingleRowSetup')
     expect(output).toContain('.subscribe(')
     const names = [...output.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)].flatMap(
@@ -246,7 +246,7 @@ describe('compiled simple native row patch', () => {
     rows.set(Array.from({ length: 1000 }, (_, id) => ({ id, label: String(id), className: '' })))
     await flush()
     const mounted = compilerInternalRuntime.__rueGetCompiledReactiveDebugState()
-    expect(mounted.activeOwners - empty.activeOwners, 'row owners').toBe(2000)
+    expect(mounted.activeOwners - empty.activeOwners, 'row owners').toBe(0)
     expect(mounted.activeEffects - empty.activeEffects, 'row effects').toBe(0)
     const first = host.querySelector('li')!
     const replacement = { id: 0, label: 'latest', className: '' }
@@ -324,13 +324,14 @@ describe('compiled simple native row patch', () => {
     handle.dispose()
   })
 
-  it('emits closed factories for native resource and resource-free rows', () => {
+  it('emits ownerless factories only for proven native rows', () => {
     const resourceFree = compile(`
       export const View = () => <ul>{rows.get().map(row =>
         <li key={row.id} className={row.className}>{row.label}</li>
       )}</ul>
     `)
-    expect(resourceFree).toContain('_$mountCompiledKeyedSingleRow(')
+    expect(resourceFree).toContain('_$mountCompiledKeyedSingleRowOwnerless(')
+    expect(resourceFree).not.toContain('_$mountCompiledKeyedSingleRow(')
     expect(resourceFree).toContain('_$reconcileKeyedSingle')
     expect(resourceFree).not.toContain('_$reconcileKeyed,')
     expect(resourceFree).not.toContain('_$mountCompiledKeyedRowOwnerless')
@@ -340,6 +341,7 @@ describe('compiled simple native row patch', () => {
     for (const source of [
       `export const View = () => <ul>{rows.get().map(row => <li key={row.id} onClick={event => capture(event, row)}>{row.label}</li>)}</ul>`,
       `export const View = () => <ul>{rows.get().map(row => <li key={row.id} onClickCapture={() => capture(row)}>{row.label}</li>)}</ul>`,
+      `export const View = () => <ul>{rows.get().map(row => <li key={row.id} onScroll={() => capture(row)}>{row.label}</li>)}</ul>`,
       `export const View = () => <ul>{rows.get().map(row => <li key={row.id} v-memo={[row.label]}>{row.label}</li>)}</ul>`,
       `const Row = ({label}) => <li>{label}</li>; export const View = () => <ul>{rows.get().map(row => <Row key={row.id} label={row.label} />)}</ul>`,
       `export const View = () => <ul>{rows.get().map(row => { onCleanup(() => capture(row)); return <li key={row.id}>{row.label}</li> })}</ul>`,
@@ -349,7 +351,7 @@ describe('compiled simple native row patch', () => {
     }
   })
 
-  it('owns and disposes all 1k row factories, including resource-free rows', async () => {
+  it('does not allocate row owners for 1k resource-free rows', async () => {
     const resourceFreeOutput = compile(`
       export const View = () => <ul>{rows.get().map(row =>
         <li key={row.id} className={row.className}>{row.label}</li>
@@ -368,7 +370,7 @@ describe('compiled simple native row patch', () => {
     host.appendChild(handle.__rue_compiled_mount(host)!)
 
     expect(compilerInternalRuntime.__rueGetCompiledReactiveDebugState().activeOwners).toBe(
-      before.activeOwners + 1000,
+      before.activeOwners,
     )
     expect(compilerInternalRuntime.__rueGetCompiledReactiveDebugState().activeEffects).toBe(
       before.activeEffects,
@@ -387,7 +389,7 @@ describe('compiled simple native row patch', () => {
     rows.set([{ id: 1, label: 'restored', className: 'restored' }])
     await flush()
     expect(compilerInternalRuntime.__rueGetCompiledReactiveDebugState().activeOwners).toBe(
-      before.activeOwners + 1,
+      before.activeOwners,
     )
     handle.dispose()
 

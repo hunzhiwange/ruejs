@@ -34,7 +34,7 @@
     "build": "node scripts/build.js",
     "build-dts": "tsc -p tsconfig.build.json --noCheck && node scripts/build-dts.js",
     "test-dts": "pnpm run build-dts",
-    "prepare-unit-test-artifacts": "node scripts/build.js '^shared$' '^runtime$' '^server-renderer$' '^rue$' '^rue-design$' '^router$' '^store$' '^i18n$' -f esm-bundler,esm-bundler-runtime -t",
+    "prepare-unit-test-artifacts": "pnpm --filter @rue-js/rsc run build && node scripts/build.js '^shared$' '^runtime$' '^server-renderer$' '^rue$' '^rue-design$' '^router$' '^store$' '^i18n$' -f esm-bundler,esm-bundler-runtime -t",
     "clean": "rimraf --glob packages/*/dist temp",
     "size": "run-s \"size-*\" && node scripts/usage-size.js",
     "size-global": "node scripts/build.js rue runtime -f global -p --size",

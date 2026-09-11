@@ -69,15 +69,14 @@ export default defineConfig({
 下面是一个最小 Rue 应用示例：
 
 ```tsx
-import { type FC, ref, useApp, useError } from '@rue-js/rue'
+import { type FC, ref, useApp } from '@rue-js/rue'
 
 const Counter: FC = () => {
   const count = ref(0)
 
-  return <button onClick={() => count.value++}>点击次数：{count.value}</button>
+  return <button onClick={() => count.value++}>点击次数：{count}</button>
 }
 
-useError({ overlay: true, console: true })
 useApp(Counter).mount('#app')
 ```
 

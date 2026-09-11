@@ -601,6 +601,10 @@ export const disposeOwner = (owner: CompiledOwner): boolean => {
 export type Selector<T> = ((key: T) => boolean) & {
   /** @internal Compiler-only direct subscription used by proven keyed-row bindings. */
   subscribe(callback: EffectCallback): EffectCleanup
+  /** @internal Compiler-only fixed-key subscription for ownerless keyed rows. */
+  subscribeKey(key: T, callback: EffectCallback): EffectCleanup
+  /** @internal Compiler-only fixed unique-key subscription for keyed rows. */
+  subscribeKeyUnique(key: T, callback: EffectCallback): EffectCleanup
 }
 
 export const createSelector = <T>(source: () => T): Selector<T> => {
@@ -634,5 +638,7 @@ export const createSelector = <T>(source: () => T): Selector<T> => {
   }
   return Object.assign(read, {
     subscribe: subscriptions.subscribe,
+    subscribeKey: subscriptions.subscribeKey,
+    subscribeKeyUnique: subscriptions.subscribeKeyUnique,
   })
 }

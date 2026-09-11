@@ -1,4 +1,5 @@
 import {
+  _$collectCompiledOwnerCleanups,
   createOwner,
   disposeOwner,
   effect,
@@ -13,6 +14,12 @@ import {
   withDOMHostOperations,
 } from './dom.browser'
 import type { BlockFactory } from './block-factory'
+import type { BlockSetup } from './block'
+import {
+  _$selectorCleanupRegistry,
+  type SelectorCleanupRegistry,
+  type SelectorKeyCleanup,
+} from '../runtime-core/reactive-kernel/selector'
 
 export interface CompactListMemo {
   read: <T>(read: () => T) => T
@@ -111,6 +118,8 @@ export type CompactCompiledKeyedSingleMount<T> = (
 // Only our inserting setup helper can certify a fresh result for this batch parent.
 // Keep the capability out of the exported mount result type.
 const batchPlacement = Symbol('rue.batchPlacement')
+const directCleanups = Symbol('rue.directCleanups')
+const ownerlessRowOwner = 0
 let initializingRowOwner: ReturnType<typeof createOwner> | undefined
 
 const mountBatchRow = <T, K>(
@@ -120,7 +129,25 @@ const mountBatchRow = <T, K>(
   key: K,
   mount: CompactCompiledKeyedMount<T>,
   created: CompactCompiledKeyedRow<T, K>[],
+  ownerless: boolean,
 ): void => {
+  if (ownerless) {
+    const mounted = mount(item, index, { parent: staging, before: null, batch: true })
+    if (
+      (mounted as typeof mounted & { [batchPlacement]?: ParentNode })[batchPlacement] === staging
+    ) {
+      const row = mounted as CompactCompiledKeyedRow<T, K>
+      row.key = key
+      row.item = item
+      row.index = index
+      created.push(row)
+      return
+    }
+    const row = { ...mounted, key, item, index } as CompactCompiledKeyedRow<T, K>
+    created.push(row)
+    moveRange(staging, row, null)
+    return
+  }
   // Initialize row signals, memo and DOM under the same row owner, including the
   // declarations emitted before the BlockFactory is invoked.
   const owner = createOwner()
@@ -296,8 +323,52 @@ const clearContiguousRows = <T, K>(
   parent: Node & ParentNode,
   before: Node | null,
   rows: readonly CompactCompiledKeyedRow<T, K>[],
+  ownerless: boolean,
+  clearAllOwnerless = false,
 ): boolean => {
   if (rows.length === 0) return true
+  if (
+    ownerless &&
+    clearAllOwnerless &&
+    rows[0].node === parent.firstChild &&
+    (before === null || before === parent.lastChild) &&
+    parent.childNodes.length === rows.length + (before === null ? 0 : 1)
+  ) {
+    const registries = new Set<SelectorCleanupRegistry>()
+    const canBatchCleanups = rows.every(row => {
+      const cleanups = (
+        row as CompactCompiledKeyedRow<T, K> & {
+          [directCleanups]?: SelectorKeyCleanup[]
+        }
+      )[directCleanups]
+      if (cleanups === undefined) return false
+      return cleanups.every(cleanup => {
+        const registry = cleanup[_$selectorCleanupRegistry]
+        if (registry === undefined) return false
+        registries.add(registry)
+        return true
+      })
+    })
+    if (canBatchCleanups) {
+      const errors: unknown[] = []
+      try {
+        for (const registry of registries) registry.clear()
+        if (before === null) parent.replaceChildren()
+        else parent.replaceChildren(before)
+      } catch (error) {
+        errors.push(error)
+        for (const row of rows) {
+          try {
+            row.dispose()
+          } catch (disposeError) {
+            errors.push(disposeError)
+          }
+        }
+      }
+      throwCollectedErrors(errors)
+      return true
+    }
+  }
   if (!hasContiguousRowsBefore(parent, before, rows)) return false
   const ownerDocument = rows[0].node.ownerDocument
   if (ownerDocument == null || typeof ownerDocument.createRange !== 'function') return false
@@ -312,8 +383,63 @@ const clearContiguousRows = <T, K>(
   }
 
   const errors: unknown[] = []
-  for (const row of rows) collectError(errors, () => row.dispose())
-  collectError(errors, () => range.deleteContents())
+  if (ownerless) {
+    let batchCleanupsCleared = false
+    const registries = new Set<SelectorCleanupRegistry>()
+    const canBatchCleanups =
+      clearAllOwnerless &&
+      rows.every(row => {
+        const cleanups = (
+          row as CompactCompiledKeyedRow<T, K> & {
+            [directCleanups]?: SelectorKeyCleanup[]
+          }
+        )[directCleanups]
+        if (cleanups === undefined) return false
+        return cleanups.every(cleanup => {
+          const registry = cleanup[_$selectorCleanupRegistry]
+          if (registry === undefined) return false
+          registries.add(registry)
+          return true
+        })
+      })
+    if (canBatchCleanups) {
+      try {
+        for (const registry of registries) registry.clear()
+        batchCleanupsCleared = true
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+    // Compiler-proven ownerless rows cannot observe their DOM during cleanup, so
+    // detach the contiguous range once instead of letting every block remove its
+    // node individually before the range operation becomes a no-op.
+    try {
+      if (
+        batchCleanupsCleared &&
+        rows[0].node === parent.firstChild &&
+        (before === null || before === parent.lastChild)
+      ) {
+        if (before === null) parent.replaceChildren()
+        else parent.replaceChildren(before)
+      } else {
+        range.deleteContents()
+      }
+    } catch (error) {
+      errors.push(error)
+    }
+    if (!batchCleanupsCleared) {
+      for (const row of rows) {
+        try {
+          row.dispose()
+        } catch (error) {
+          errors.push(error)
+        }
+      }
+    }
+  } else {
+    for (const row of rows) collectError(errors, () => row.dispose())
+    collectError(errors, () => range.deleteContents())
+  }
   throwCollectedErrors(errors)
   return true
 }
@@ -325,15 +451,17 @@ const mountBatch = <T, K>(
   items: readonly T[],
   keys: readonly K[],
   mount: CompactCompiledKeyedMount<T>,
+  ownerless: boolean,
 ): CompactCompiledKeyedRow<T, K>[] => {
   const staging = createDocumentFragment(parent)
   const created: CompactCompiledKeyedRow<T, K>[] = []
   try {
     items.forEach((item, index) => {
-      mountBatchRow(staging, item, index, keys[index], mount, created)
+      mountBatchRow(staging, item, index, keys[index], mount, created, ownerless)
     })
     // Keep the old UI intact until every replacement row has mounted.
-    if (!clearContiguousRows(parent, before, previous)) clearRowsIndividually(parent, previous)
+    if (!clearContiguousRows(parent, before, previous, ownerless))
+      clearRowsIndividually(parent, previous)
   } catch (error) {
     const errors = [error]
     for (const row of created) collectError(errors, () => disposeDetachedRow(row))
@@ -341,6 +469,39 @@ const mountBatch = <T, K>(
   }
   insertBefore(parent, staging, before)
   return created
+}
+
+const mountStableAppend = <T, K>(
+  parent: Node & ParentNode,
+  before: Node | null,
+  previous: readonly CompactCompiledKeyedRow<T, K>[],
+  items: readonly T[],
+  tailKeys: readonly K[],
+  mount: CompactCompiledKeyedMount<T>,
+  ownerless: boolean,
+): CompactCompiledKeyedRow<T, K>[] => {
+  const staging = createDocumentFragment(parent)
+  const created: CompactCompiledKeyedRow<T, K>[] = []
+  try {
+    for (let index = previous.length; index < items.length; index += 1) {
+      mountBatchRow(
+        staging,
+        items[index],
+        index,
+        tailKeys[index - previous.length],
+        mount,
+        created,
+        ownerless,
+      )
+    }
+  } catch (error) {
+    const errors = [error]
+    for (const row of created) collectError(errors, () => disposeDetachedRow(row))
+    throwCollectedErrors(errors)
+    throw error
+  }
+  insertBefore(parent, staging, before)
+  return previous.length === 0 ? created : previous.concat(created)
 }
 
 /** The compiler supplies row factories; reconciliation only manages keyed ranges. */
@@ -352,13 +513,70 @@ export const _$reconcileKeyed = <T, K>(
   getKey: (item: T, index: number) => K,
   mount: CompactCompiledKeyedMount<T>,
   rowUsesIndex = true,
+  ownerless = false,
 ): CompactCompiledKeyedRow<T, K>[] => {
   let result: CompactCompiledKeyedRow<T, K>[] = []
   withDOMHostOperations(parent, () => {
     result = (() => {
       if (items.length === 0) {
-        if (!clearContiguousRows(parent, before, previous)) clearRowsIndividually(parent, previous)
+        if (!clearContiguousRows(parent, before, previous, ownerless, true))
+          clearRowsIndividually(parent, previous)
         return []
+      }
+      if (items.length > previous.length) {
+        let stablePrefix = true
+        for (let index = 0; index < previous.length; index += 1) {
+          const row = previous[index]
+          if (
+            !sameKey(row.key, getKey(items[index], index)) ||
+            !Object.is(row.item, items[index])
+          ) {
+            stablePrefix = false
+            break
+          }
+        }
+        if (stablePrefix && hasContiguousRowsBefore(parent, before, previous)) {
+          const tailKeys = new Array<K>(items.length - previous.length)
+          for (let index = previous.length; index < items.length; index += 1) {
+            tailKeys[index - previous.length] = getKey(items[index], index)
+          }
+          const uniqueTailKeys = new Set(tailKeys)
+          if (
+            uniqueTailKeys.size !== tailKeys.length ||
+            previous.some(row => uniqueTailKeys.has(row.key))
+          ) {
+            throw new Error('duplicate key')
+          }
+          return mountStableAppend(parent, before, previous, items, tailKeys, mount, ownerless)
+        }
+      }
+      if (
+        previous.length === items.length + 1 &&
+        hasContiguousRowsBefore(parent, before, previous)
+      ) {
+        let removedIndex = 0
+        while (
+          removedIndex < items.length &&
+          sameKey(previous[removedIndex].key, getKey(items[removedIndex], removedIndex))
+        ) {
+          removedIndex += 1
+        }
+        let stableRemoval = true
+        for (let index = removedIndex; index < items.length; index += 1) {
+          if (!sameKey(previous[index + 1].key, getKey(items[index], index))) {
+            stableRemoval = false
+            break
+          }
+        }
+        if (stableRemoval) {
+          const removed = previous[removedIndex]
+          disposeRow(parent, removed)
+          const next = previous.slice(0, removedIndex).concat(previous.slice(removedIndex + 1))
+          for (let index = 0; index < next.length; index += 1) {
+            refreshReusedRow(next[index], items[index], index, rowUsesIndex)
+          }
+          return next
+        }
       }
       const keys = items.map(getKey)
       if (
@@ -366,23 +584,32 @@ export const _$reconcileKeyed = <T, K>(
         keys.every((key, index) => sameKey(key, previous[index].key))
       ) {
         const next = previous.slice()
-        let cursor = before
-        for (let index = next.length - 1; index >= 0; index--) {
+        // Compiler-proven ownerless single rows that still occupy the complete parent
+        // segment need no placement pass. Boundary/count checks retain recovery when
+        // consumers have moved a row outside that segment.
+        const placementIntact =
+          ownerless &&
+          next.length > 0 &&
+          next[0].last === undefined &&
+          next[0].node === parent.firstChild &&
+          next[next.length - 1].node.nextSibling === before &&
+          parent.childNodes.length === next.length + (before === null ? 0 : 1)
+        for (let index = 0; index < next.length; index += 1) {
           refreshReusedRow(next[index], items[index], index, rowUsesIndex)
-          moveRange(parent, next[index], cursor)
-          cursor = next[index].node
+        }
+        if (!placementIntact) {
+          let cursor = before
+          for (let index = next.length - 1; index >= 0; index -= 1) {
+            moveRange(parent, next[index], cursor)
+            cursor = next[index].node
+          }
         }
         return next
       }
-      const stableAppend =
-        items.length > previous.length &&
-        previous.every(
-          (row, index) => sameKey(row.key, keys[index]) && Object.is(row.item, items[index]),
-        )
       if (new Set(keys).size !== keys.length) throw new Error('duplicate key')
       const old = new Map(previous.map(row => [row.key, row]))
       if (keys.every(key => !old.has(key)))
-        return mountBatch(parent, before, previous, items, keys, mount)
+        return mountBatch(parent, before, previous, items, keys, mount, ownerless)
       const created: CompactCompiledKeyedRow<T, K>[] = []
       const staging = createDocumentFragment(parent)
       let next: CompactCompiledKeyedRow<T, K>[]
@@ -392,10 +619,10 @@ export const _$reconcileKeyed = <T, K>(
           const reused = old.get(key)
           if (reused) {
             old.delete(key)
-            if (!stableAppend) refreshReusedRow(reused, item, index, rowUsesIndex)
+            refreshReusedRow(reused, item, index, rowUsesIndex)
             return reused
           }
-          mountBatchRow(staging, item, index, key, mount, created)
+          mountBatchRow(staging, item, index, key, mount, created, ownerless)
           return created[created.length - 1]
         })
       } catch (error) {
@@ -490,4 +717,171 @@ export const _$mountCompiledKeyedSingleRow = <T>(
     throw new Error('invalid row')
   }
   return row
+}
+
+/** Compiler-proven single-node row whose resources fit the compact cleanup protocol. */
+export const _$mountCompiledKeyedSingleRowOwnerless = <T>(
+  factory: BlockFactory,
+  patch: (item: T, index: number) => void,
+  memo?: CompactListMemo,
+  target?: CompactCompiledKeyedMountTarget,
+) => {
+  const parent = target?.parent ?? createDocumentFragment()
+  const cleanups: Array<() => void> = []
+  let rowOwner = initializingRowOwner
+  let block: ReturnType<BlockFactory> | undefined
+  let disposed = false
+  const collectDisposalErrors = (errors: unknown[]) => {
+    if (disposed) return
+    disposed = true
+    if (block !== undefined) collectError(errors, () => block!.dispose())
+    if (memo !== undefined) collectError(errors, () => memo.dispose())
+    for (const cleanup of cleanups.splice(0)) collectError(errors, cleanup)
+    if (rowOwner !== undefined) {
+      collectError(errors, () => disposeOwner(rowOwner!))
+      rowOwner = undefined
+    }
+  }
+  try {
+    block = _$collectCompiledOwnerCleanups(cleanups, () =>
+      factory(target ?? { parent, before: null }, {}, ownerlessRowOwner),
+    )
+    if (block.first !== block.last) throw new Error('invalid row')
+    if (rowOwner !== undefined) {
+      disposeOwner(rowOwner)
+      rowOwner = undefined
+    }
+    return {
+      node: block.first,
+      patch,
+      memo,
+      dispose: () => {
+        const errors: unknown[] = []
+        collectDisposalErrors(errors)
+        throwCollectedErrors(errors)
+      },
+      [batchPlacement]: target?.batch ? parent : undefined,
+    }
+  } catch (error) {
+    const errors = [error]
+    collectDisposalErrors(errors)
+    throwCollectedErrors(errors)
+    throw error
+  }
+}
+
+/** Compiler-proven ownerless single node mounted directly from its root setup. */
+export const _$mountCompiledKeyedSingleRowDirect = <T>(
+  setup: BlockSetup,
+  patch: (item: T, index: number) => void,
+  memo?: CompactListMemo,
+  target?: CompactCompiledKeyedMountTarget,
+) => {
+  const parent = target?.parent ?? createDocumentFragment()
+  const cleanups: Array<() => void> = []
+  let rowOwner = initializingRowOwner
+  if (memo === undefined && rowOwner === undefined) {
+    let node: Node | undefined
+    try {
+      const [first, last] = _$collectCompiledOwnerCleanups(cleanups, () => setup(parent))
+      if (first == null || first !== last) throw new Error('invalid row')
+      node = first
+      insertBefore(parent, node, target?.before ?? null)
+      return {
+        key: undefined,
+        item: undefined,
+        index: 0,
+        node,
+        patch,
+        dispose: () => {
+          const errors: unknown[] = []
+          if (node?.parentNode != null) {
+            collectError(errors, () => removeChild(node!.parentNode!, node!))
+          }
+          for (let index = 0; index < cleanups.length; index += 1) {
+            collectError(errors, cleanups[index])
+          }
+          cleanups.length = 0
+          throwCollectedErrors(errors)
+        },
+        [directCleanups]: cleanups,
+        [batchPlacement]: target?.batch ? parent : undefined,
+      }
+    } catch (error) {
+      const errors = [error]
+      if (node?.parentNode != null)
+        collectError(errors, () => removeChild(node!.parentNode!, node!))
+      for (let index = 0; index < cleanups.length; index += 1) {
+        collectError(errors, cleanups[index])
+      }
+      cleanups.length = 0
+      throwCollectedErrors(errors)
+      throw error
+    }
+  }
+  let node: Node | undefined
+  let disposed = false
+  const collectDisposalErrors = (initialErrors?: unknown[]) => {
+    let errors = initialErrors
+    if (disposed) return errors
+    disposed = true
+    if (node?.parentNode != null) {
+      try {
+        removeChild(node.parentNode, node)
+      } catch (error) {
+        ;(errors ??= []).push(error)
+      }
+    }
+    if (memo !== undefined) {
+      try {
+        memo.dispose()
+      } catch (error) {
+        ;(errors ??= []).push(error)
+      }
+    }
+    for (let index = 0; index < cleanups.length; index += 1) {
+      try {
+        cleanups[index]()
+      } catch (error) {
+        ;(errors ??= []).push(error)
+      }
+    }
+    cleanups.length = 0
+    if (rowOwner !== undefined) {
+      try {
+        disposeOwner(rowOwner)
+      } catch (error) {
+        ;(errors ??= []).push(error)
+      }
+      rowOwner = undefined
+    }
+    return errors
+  }
+  try {
+    const [first, last] = _$collectCompiledOwnerCleanups(cleanups, () => setup(parent))
+    if (first == null || first !== last) throw new Error('invalid row')
+    node = first
+    insertBefore(parent, node, target?.before ?? null)
+    if (rowOwner !== undefined) {
+      disposeOwner(rowOwner)
+      rowOwner = undefined
+    }
+    return {
+      key: undefined,
+      item: undefined,
+      index: 0,
+      node,
+      patch,
+      memo,
+      dispose: () => {
+        const errors = collectDisposalErrors()
+        if (errors !== undefined) throwCollectedErrors(errors)
+      },
+      [directCleanups]: cleanups,
+      [batchPlacement]: target?.batch ? parent : undefined,
+    }
+  } catch (error) {
+    throwCollectedErrors(collectDisposalErrors([error])!)
+    throw error
+  }
 }

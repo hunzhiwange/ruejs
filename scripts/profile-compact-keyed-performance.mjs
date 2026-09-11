@@ -9,7 +9,12 @@ import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright-core'
 import { build } from 'vite'
 
-export const PROFILE_SCHEMA_VERSION = 4
+export const PROFILE_SCHEMA_VERSION = 5
+
+export const RESOURCE_BUDGETS = Object.freeze({
+  retainedHeapSlopeBytesPerCycle: 64 * 1024,
+  swapRangeMoves: 2,
+})
 
 export const REFERENCE_BENCHMARK_SUMMARY = Object.freeze({
   measuredRounds: 6,
@@ -37,9 +42,15 @@ export const COUNTER_NAMES = [
   'rowPatches',
   'indexOnlyPatches',
   'rowDisposes',
+  'generalKeyedRowMounts',
+  'generalKeyedRowDisposes',
+  'ownerlessKeyedRowMounts',
+  'ownerlessKeyedRowDisposes',
   'keyReads',
   'mapConstructions',
   'setConstructions',
+  'oldMapConstructions',
+  'appendSetConstructions',
   'rangeChecks',
   'rangeMoves',
   'signals',
@@ -55,6 +66,8 @@ export const COUNTER_NAMES = [
   'keyedOwnersCreated',
   'rootOwnersCreated',
   'ownerCleanupCallbacks',
+  'compactCleanupRegistrations',
+  'compactCleanupCallbacks',
   'listenersAdded',
   'listenersRemoved',
   'textNodesCreated',
@@ -77,7 +90,7 @@ const profileDist = path.resolve(profileRoot, 'dist')
 const defaultOutput = path.resolve(profileRoot, 'profile.json')
 const defaultEvidence = path.resolve(
   workspaceRoot,
-  '.plans/2026-09-06-keyed列表性能超越Vue-Vapor/evidence/1-baseline.md',
+  '.plans/2026-09-11-keyed行轻量生命周期性能/evidence/4-profile.md',
 )
 const compactKeyedSource = path.resolve(
   workspaceRoot,
@@ -148,42 +161,85 @@ const counted = (search, counter, expected = 1) => [
   expected,
 ]
 
-export const instrumentCompactKeyedSource = input =>
-  `${profileHelper}\n${instrumentSites(input, [
+export const instrumentAppendAllocationSites = source =>
+  instrumentSites(source, [
+    [
+      'const uniqueTailKeys = new Set(tailKeys)',
+      "const uniqueTailKeys = (profileCount('appendSetConstructions'), profileCount('setConstructions'), new Set(tailKeys))",
+      'stable append Set',
+    ],
+    [
+      'const old = new Map(previous.map(row => [row.key, row]))',
+      "const old = (profileCount('oldMapConstructions'), profileCount('mapConstructions'), new Map(previous.map(row => [row.key, row])))",
+      'old-row Map',
+    ],
+  ])
+
+export const instrumentOwnerlessLifecycleSites = source =>
+  instrumentSites(source, [
+    [
+      ') => {\n  const parent = target?.parent ?? createDocumentFragment()\n  const cleanups: Array<() => void> = []',
+      ") => {\n  profileCount('ownerlessKeyedRowMounts')\n  const parent = target?.parent ?? createDocumentFragment()\n  const cleanups: Array<() => void> = []",
+      'ownerless row mount',
+    ],
+    [
+      'for (const cleanup of cleanups.splice(0)) collectError(errors, cleanup)',
+      "for (const cleanup of cleanups.splice(0)) { profileCount('compactCleanupCallbacks'); collectError(errors, cleanup) }",
+      'compact cleanup callbacks',
+    ],
+    [
+      'dispose: () => {\n        const errors: unknown[] = []',
+      "dispose: () => {\n        profileCount('ownerlessKeyedRowDisposes')\n        const errors: unknown[] = []",
+      'ownerless row dispose',
+    ],
+  ])
+
+export const instrumentCompactKeyedSource = input => {
+  let source = instrumentAppendAllocationSites(input)
+  source = instrumentOwnerlessLifecycleSites(source)
+  source = instrumentSites(source, [
     [
       '): CompactCompiledKeyedRow<T, K>[] => {\n  let result',
       "): CompactCompiledKeyedRow<T, K>[] => {\n  profileCount('reconciles')\n  let result",
       'range reconcile',
     ],
+    counted('getKey(items[index], index)', 'keyReads'),
+    counted('getKey(item, previous.length + offset)', 'keyReads'),
     [
-      '): CompactCompiledKeyedSingleRow<T, K>[] => {\n  let result',
-      "): CompactCompiledKeyedSingleRow<T, K>[] => {\n  profileCount('reconciles')\n  let result",
-      'single reconcile',
+      'const keys = items.map(getKey)',
+      "const keys = items.map((item, index) => { profileCount('keyReads'); return getKey(item, index) })",
+      'full key reads',
     ],
-    counted('new Map(previous.map(row => [row.key, row]))', 'mapConstructions', 2),
-    counted('new Set<K>()', 'setConstructions', 4),
-    counted('getKey(items[index], index)', 'keyReads', 6),
+    counted('new Set(keys)', 'setConstructions'),
     [
       'if (itemChanged || (rowUsesIndex && indexChanged)) {\n    row.patch(item, index)',
       "if (itemChanged || (rowUsesIndex && indexChanged)) {\n    if (!itemChanged && indexChanged) profileCount('indexOnlyPatches');\n    row.patch(item, index)",
       'index-only patches',
     ],
     counted('row.patch(item, index)', 'rowPatches', 2),
-    counted('row.dispose()', 'rowDisposes', 8),
-    counted('createOwner()', 'keyedOwnersCreated', 4),
-    ['const mounted = mount(', "profileCount('rowMounts')\nconst mounted = mount(", 'mounts', 2],
+    counted('row.dispose()', 'rowDisposes', 6),
+    counted('createOwner()', 'keyedOwnersCreated', 2),
     [
-      'const row = mount(',
-      "profileCount('rowMounts')\nprofileCount('rowRecordReuses')\nconst row = mount(",
-      'single mounts',
-      2,
+      '): void => {\n  // Initialize row signals',
+      "): void => {\n  profileCount('rowMounts')\n  // Initialize row signals",
+      'row mounts',
     ],
     [
       'const row = mounted as CompactCompiledKeyedRow<T, K>',
       "profileCount('rowRecordReuses'); const row = mounted as CompactCompiledKeyedRow<T, K>",
       'row record reuses',
     ],
-    ['const row = {', "profileCount('rowRecordCopies'); const row = {", 'row record copies', 2],
+    ['const row = {', "profileCount('rowRecordCopies'); const row = {", 'row record copies'],
+    [
+      'mounted.dispose = () => {\n        try {',
+      "mounted.dispose = () => {\n        profileCount('generalKeyedRowDisposes')\n        try {",
+      'general row dispose',
+    ],
+    [
+      'export const _$mountCompiledKeyedRow = <T>(\n  factory:',
+      'export const _$mountCompiledKeyedRow = <T>(\n  factory:',
+      'general row mount declaration',
+    ],
     [
       'moveRange(staging, row, null)',
       "profileCount('batchPositionChecks'); moveRange(staging, row, null)",
@@ -210,13 +266,20 @@ export const instrumentCompactKeyedSource = input =>
       "() => { profileCount('individualRowDeletes'); removeChild(parent, cursor!) }",
       'fallback row delete',
     ],
-  ])}`
+  ])
+  const generalMountBody = ') => {\n  const owner = initializingRowOwner ??'
+  source = instrumentSites(source, [
+    [
+      generalMountBody,
+      ") => {\n  profileCount('generalKeyedRowMounts')\n  const owner = initializingRowOwner ??",
+      'general row mount',
+    ],
+  ])
+  return `${profileHelper}\n${source}`
+}
 
 export const instrumentCompactRootSource = input =>
-  `${profileHelper}\n${instrumentSites(input, [
-    counted('createOwner()', 'rootOwnersCreated'),
-    counted('Array.from(new Set(result.__rue_compiled_roots))', 'privateMountMetadata'),
-  ])}`
+  `${profileHelper}\n${instrumentSites(input, [counted('createOwner()', 'rootOwnersCreated')])}`
 
 export const instrumentCompiledRuntimeSource = input => {
   let source = `${profileHelper}\n${input}`
@@ -246,6 +309,11 @@ export const instrumentCompiledRuntimeSource = input => {
       'for (const cleanup of record[OwnerField.Cleanups].splice(0)) attempt(cleanup, undefined)',
       "for (const cleanup of record[OwnerField.Cleanups].splice(0)) { profileCount('ownerCleanupCallbacks'); attempt(cleanup, undefined) }",
       'owner cleanup',
+    ],
+    [
+      'if (currentOwnerCleanupCollector !== undefined) currentOwnerCleanupCollector.push(cleanup)',
+      "if (currentOwnerCleanupCollector !== undefined) { profileCount('compactCleanupRegistrations'); currentOwnerCleanupCollector.push(cleanup) }",
+      'compact cleanup registration',
     ],
   ])
 }
@@ -356,6 +424,21 @@ const runCommand = (command, args, cwd = workspaceRoot) =>
     })
   })
 
+const runCommandOutput = (command, args, cwd = workspaceRoot) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', chunk => (stdout += chunk))
+    child.stderr.on('data', chunk => (stderr += chunk))
+    child.once('error', reject)
+    child.once('exit', (code, signal) => {
+      if (code === 0) resolve(stdout.trim())
+      else
+        reject(new Error(`${command} ${args.join(' ')} exited with ${code ?? signal}: ${stderr}`))
+    })
+  })
+
 const chromeCandidates = [
   process.env.CHROME_PATH,
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -389,12 +472,62 @@ const buildProfileFixture = async () => {
     benchmarkRoot,
     'node_modules/@rue-js/runtime/src/compiler-internal.ts',
   )
+  const installedRueListSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/rue/src/compiler-runtime/entries/list.ts',
+  )
+  const installedRuntimeListSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/runtime/src/compiler-runtime/entries/list.ts',
+  )
+  const installedRueBlockSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/rue/src/compiler-runtime/entries/block.ts',
+  )
+  const installedRuntimeBlockSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/runtime/src/compiler-runtime/entries/block.ts',
+  )
+  const installedRueReactiveSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/rue/src/compiler-runtime/entries/reactive.ts',
+  )
+  const installedRuntimeReactiveSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/runtime/src/compiler-runtime/entries/reactive.ts',
+  )
+  const installedRueEventsSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/rue/src/compiler-runtime/entries/events.ts',
+  )
+  const installedRuntimeEventsSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/runtime/src/compiler-runtime/entries/events.ts',
+  )
+  const installedRueDomSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/rue/src/compiler-runtime/entries/dom.ts',
+  )
+  const installedRuntimeDomSource = path.resolve(
+    benchmarkRoot,
+    'node_modules/@rue-js/runtime/src/compiler-runtime/entries/dom.ts',
+  )
   await build({
     configFile: path.resolve(benchmarkRoot, 'vite.config.ts'),
     root: benchmarkRoot,
     logLevel: 'warn',
     resolve: {
       alias: [
+        { find: '@rue-js/rue/internal/reactive', replacement: installedRueReactiveSource },
+        { find: '@rue-js/runtime/internal/reactive', replacement: installedRuntimeReactiveSource },
+        { find: '@rue-js/rue/internal/events', replacement: installedRueEventsSource },
+        { find: '@rue-js/runtime/internal/events', replacement: installedRuntimeEventsSource },
+        { find: '@rue-js/rue/internal/dom', replacement: installedRueDomSource },
+        { find: '@rue-js/runtime/internal/dom', replacement: installedRuntimeDomSource },
+        { find: '@rue-js/rue/internal/block', replacement: installedRueBlockSource },
+        { find: '@rue-js/runtime/internal/block', replacement: installedRuntimeBlockSource },
+        { find: '@rue-js/rue/internal/list', replacement: installedRueListSource },
+        { find: '@rue-js/runtime/internal/list', replacement: installedRuntimeListSource },
         { find: '@rue-js/rue/internal/compiler', replacement: installedRueSource },
         { find: '@rue-js/runtime/internal/compiler', replacement: installedRuntimeSource },
       ],
@@ -409,7 +542,7 @@ const buildProfileFixture = async () => {
           if (
             [
               'compiler-runtime/compact-keyed-list.ts',
-              'compiler-runtime/compact-root.ts',
+              'compiler-runtime/block.ts',
               'runtime-core/compiled.ts',
             ].includes(runtimePath)
           ) {
@@ -419,7 +552,7 @@ const buildProfileFixture = async () => {
             keyedInstrumented = true
             return { code: instrumentCompactKeyedSource(source), map: null }
           }
-          if (normalized.endsWith('/runtime/src/compiler-runtime/compact-root.ts')) {
+          if (normalized.endsWith('/runtime/src/compiler-runtime/block.ts')) {
             rootInstrumented = true
             return { code: instrumentCompactRootSource(source), map: null }
           }
@@ -441,7 +574,7 @@ const buildProfileFixture = async () => {
   })
   if (!keyedInstrumented || !compiledInstrumented || !rootInstrumented) {
     throw new Error(
-      `Profile build missed runtime instrumentation (keyed=${keyedInstrumented}, compiled=${compiledInstrumented})`,
+      `Profile build missed runtime instrumentation (keyed=${keyedInstrumented}, compiled=${compiledInstrumented}, root=${rootInstrumented})`,
     )
   }
   for (const [relative, hash] of Object.entries(instrumentedSources)) {
@@ -503,9 +636,15 @@ export const installBrowserCounters = () => {
     'rowPatches',
     'indexOnlyPatches',
     'rowDisposes',
+    'generalKeyedRowMounts',
+    'generalKeyedRowDisposes',
+    'ownerlessKeyedRowMounts',
+    'ownerlessKeyedRowDisposes',
     'keyReads',
     'mapConstructions',
     'setConstructions',
+    'oldMapConstructions',
+    'appendSetConstructions',
     'rangeChecks',
     'rangeMoves',
     'signals',
@@ -521,6 +660,8 @@ export const installBrowserCounters = () => {
     'keyedOwnersCreated',
     'rootOwnersCreated',
     'ownerCleanupCallbacks',
+    'compactCleanupRegistrations',
+    'compactCleanupCallbacks',
     'listenersAdded',
     'listenersRemoved',
     'textNodesCreated',
@@ -655,6 +796,52 @@ const forceGcAndReadHeap = async session => {
   return (await session.send('Runtime.getHeapUsage')).usedSize
 }
 
+const measureMemoryGate = async ({ page, session, cycles }) => {
+  await prepareScenario(page, 'run-memory')
+  await page.evaluate(() => globalThis.__RUE_PROFILE_RESET__())
+  const readyHeapBytes = await forceGcAndReadHeap(session)
+  const samples = []
+  for (let cycle = 1; cycle <= cycles; cycle += 1) {
+    await page.evaluate(async () => {
+      document.querySelector('#run').click()
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    })
+    const afterCreateHeapBytes = await forceGcAndReadHeap(session)
+    await page.evaluate(async () => {
+      document.querySelector('#clear').click()
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    })
+    const afterClearHeapBytes = await forceGcAndReadHeap(session)
+    const rowCount = await page.locator('tbody tr').count()
+    if (rowCount !== 0) throw new Error(`memory cycle ${cycle} left ${rowCount} rows after clear`)
+    samples.push({ cycle, afterCreateHeapBytes, afterClearHeapBytes })
+  }
+  const counters = await page.evaluate(() => globalThis.__RUE_PROFILE_SNAPSHOT__())
+  const retainedSamples = samples
+    .slice(Math.min(2, samples.length - 2))
+    .map(sample => sample.afterClearHeapBytes)
+  return {
+    cycles,
+    readyHeapBytes,
+    samples,
+    slopeSampleStartCycle: samples.length - retainedSamples.length + 1,
+    retainedHeapSlopeBytesPerCycle: calculateLinearSlope(retainedSamples),
+    ...Object.fromEntries(
+      [
+        'keyedOwnersCreated',
+        'generalKeyedRowMounts',
+        'generalKeyedRowDisposes',
+        'ownerlessKeyedRowMounts',
+        'ownerlessKeyedRowDisposes',
+        'compactCleanupRegistrations',
+        'compactCleanupCallbacks',
+        'oldMapConstructions',
+        'appendSetConstructions',
+      ].map(name => [name, counters[name]]),
+    ),
+  }
+}
+
 const measureScenario = async ({ page, session, scenario, trace }) => {
   await prepareScenario(page, scenario)
   const heapBeforeBytes = await forceGcAndReadHeap(session)
@@ -704,6 +891,90 @@ const summarizeScenario = samples => ({
 
 const counterMedian = (scenarios, scenario, counter) =>
   scenarios[scenario]?.counters[counter]?.median ?? 0
+
+export const calculateLinearSlope = values => {
+  if (
+    !Array.isArray(values) ||
+    values.length < 2 ||
+    values.some(value => !Number.isFinite(value))
+  ) {
+    throw new Error('Linear slope requires at least two finite samples')
+  }
+  const xMean = (values.length - 1) / 2
+  const yMean = values.reduce((sum, value) => sum + value, 0) / values.length
+  let numerator = 0
+  let denominator = 0
+  values.forEach((value, index) => {
+    numerator += (index - xMean) * (value - yMean)
+    denominator += (index - xMean) ** 2
+  })
+  return round(numerator / denominator)
+}
+
+export const validateResourceBudgets = report => {
+  const scenarios = report?.scenarios ?? {}
+  const memory = report?.memoryGate ?? {}
+  const failures = []
+  const expectCounter = (scenario, counter, expected) => {
+    const actual = counterMedian(scenarios, scenario, counter)
+    if (actual !== expected) failures.push(`${scenario}.${counter}=${actual}, expected ${expected}`)
+  }
+
+  for (const [scenario, rows] of [
+    ['create1k', 1_000],
+    ['create10k', 10_000],
+  ]) {
+    expectCounter(scenario, 'keyedOwnersCreated', 0)
+    expectCounter(scenario, 'generalKeyedRowMounts', 0)
+    expectCounter(scenario, 'ownerlessKeyedRowMounts', rows)
+  }
+  expectCounter('append1k', 'oldMapConstructions', 0)
+  expectCounter('append1k', 'appendSetConstructions', 1)
+  expectCounter('append1k', 'generalKeyedRowMounts', 0)
+  expectCounter('append1k', 'ownerlessKeyedRowMounts', 1_000)
+  expectCounter('clear1k', 'generalKeyedRowDisposes', 0)
+  expectCounter('clear1k', 'ownerlessKeyedRowDisposes', 1_000)
+
+  const registered = counterMedian(scenarios, 'create1k', 'compactCleanupRegistrations')
+  const cleaned = counterMedian(scenarios, 'clear1k', 'compactCleanupCallbacks')
+  if (registered <= 0 || cleaned !== registered) {
+    failures.push(`cleanup balance create1k=${registered}, clear1k=${cleaned}`)
+  }
+  const swapMoves = counterMedian(scenarios, 'swap1k', 'rangeMoves')
+  if (swapMoves > RESOURCE_BUDGETS.swapRangeMoves) {
+    failures.push(`swap1k.rangeMoves=${swapMoves}, max ${RESOURCE_BUDGETS.swapRangeMoves}`)
+  }
+
+  for (const field of ['keyedOwnersCreated', 'generalKeyedRowMounts', 'generalKeyedRowDisposes']) {
+    if (memory[field] !== 0) failures.push(`memoryGate.${field}=${memory[field]}, expected 0`)
+  }
+  if (
+    memory.ownerlessKeyedRowMounts <= 0 ||
+    memory.ownerlessKeyedRowDisposes !== memory.ownerlessKeyedRowMounts
+  ) {
+    failures.push(
+      `memory row balance mounts=${memory.ownerlessKeyedRowMounts}, disposes=${memory.ownerlessKeyedRowDisposes}`,
+    )
+  }
+  if (
+    memory.compactCleanupRegistrations <= 0 ||
+    memory.compactCleanupCallbacks !== memory.compactCleanupRegistrations
+  ) {
+    failures.push(
+      `cleanup balance memory registrations=${memory.compactCleanupRegistrations}, callbacks=${memory.compactCleanupCallbacks}`,
+    )
+  }
+  if (
+    !Number.isFinite(memory.retainedHeapSlopeBytesPerCycle) ||
+    memory.retainedHeapSlopeBytesPerCycle > RESOURCE_BUDGETS.retainedHeapSlopeBytesPerCycle
+  ) {
+    failures.push(
+      `retained heap slope=${memory.retainedHeapSlopeBytesPerCycle}, max ${RESOURCE_BUDGETS.retainedHeapSlopeBytesPerCycle}`,
+    )
+  }
+  if (failures.length > 0) throw new Error(`resource budget failed:\n- ${failures.join('\n- ')}`)
+  return report
+}
 
 export const buildHotspots = scenarios =>
   [
@@ -789,10 +1060,22 @@ export const validateProfileReport = report => {
       throw new Error(`${name} has a failed DOM assertion`)
     }
   }
+  if (
+    !Number.isInteger(report.memoryGate?.cycles) ||
+    report.memoryGate.cycles < 4 ||
+    report.memoryGate.samples?.length !== report.memoryGate.cycles ||
+    report.memoryGate.samples.some(
+      sample =>
+        !Number.isFinite(sample.afterCreateHeapBytes) ||
+        !Number.isFinite(sample.afterClearHeapBytes),
+    )
+  ) {
+    throw new Error('Memory gate has incomplete forced-GC samples')
+  }
   if (!Array.isArray(report.hotspots) || report.hotspots.length === 0) {
     throw new Error('Profile has no actionable hotspot')
   }
-  return report
+  return validateResourceBudgets(report)
 }
 
 const renderCount = value =>
@@ -823,6 +1106,7 @@ const renderEvidence = report => {
 
 - Schema：${report.schemaVersion}
 - Chrome：${report.source.chromeVersion}（${report.source.chromeExecutable}）
+- Git：${report.source.gitCommit}${report.source.gitDirty ? '（工作区有未提交修改）' : ''}
 - 工作区源码版本：${report.source.workspaceVersion}；实际安装到 fixture 的本地包版本：${report.source.localPackageVersion}
 - benchmark package/元数据版本：${report.source.benchmarkPackageVersion}/${report.source.benchmarkMetadataVersion}（它们仅描述 fixture，不作为本地 Rue 源码版本）
 - 响应式调度基线：${report.configuration.schedulingMode}
@@ -831,7 +1115,7 @@ const renderEvidence = report => {
 - compact keyed 源码 SHA-256：\`${report.source.compactKeyedSha256}\`
 - 真实 SWC/Vite 构建产物 SHA-256：\`${report.source.artifactSha256}\`
 - 采样：${report.configuration.warmupRounds} 轮预热、${report.configuration.measuredRounds} 轮旋转顺序实测；每个场景每轮均验证真实 DOM，强制 GC 后读取 heap。
-- 命令：\`node scripts/profile-compact-keyed-performance.mjs --rounds ${report.configuration.measuredRounds} --warmup-rounds ${report.configuration.warmupRounds} --output ${report.configuration.outputPath} --evidence ${report.configuration.evidencePath} --skip-install\`
+- 命令：\`node scripts/profile-compact-keyed-performance.mjs --rounds ${report.configuration.measuredRounds} --warmup-rounds ${report.configuration.warmupRounds} --memory-cycles ${report.configuration.memoryCycles} --output ${report.configuration.outputPath} --evidence ${report.configuration.evidencePath}\`
 - 既有同机三方 CPU 摘要（本画像不重复运行）：${report.benchmarkComparison.measuredRounds} 次中位数，Rue/Vue JSX=${report.benchmarkComparison.rueVsVueJsx}，Rue/Vue Vapor=${report.benchmarkComparison.rueVsVueVapor}；口径为 ${report.benchmarkComparison.metric}。
 
 ## 场景统计
@@ -844,12 +1128,24 @@ ${rows}
 
 ## 深度计数（各轮中位数）
 
-| 场景 | keyed/root owner | effect | owner cleanup | listener add/remove | text create/hole | index-only patch | batch check | row copy/reuse | individual delete | private metadata |
+| 场景 | general/ownerless mount | general/ownerless dispose | keyed/root owner | compact cleanup reg/run | old Map/append Set | effect | owner cleanup | listener add/remove | index-only patch | batch check |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 ${PROFILE_SCENARIOS.map(name => {
   const c = report.scenarios[name].counters
-  return `| ${name} | ${c.keyedOwnersCreated.median}/${c.rootOwnersCreated.median} | ${c.effects.median} | ${c.ownerCleanupCallbacks.median} | ${c.listenersAdded.median}/${c.listenersRemoved.median} | ${c.textNodesCreated.median}/${c.textHoleReplacements.median} | ${c.indexOnlyPatches.median} | ${c.batchPositionChecks.median} | ${c.rowRecordCopies.median}/${c.rowRecordReuses.median} | ${c.individualRowDeletes.median} | ${c.privateMountMetadata.median} |`
+  return `| ${name} | ${c.generalKeyedRowMounts.median}/${c.ownerlessKeyedRowMounts.median} | ${c.generalKeyedRowDisposes.median}/${c.ownerlessKeyedRowDisposes.median} | ${c.keyedOwnersCreated.median}/${c.rootOwnersCreated.median} | ${c.compactCleanupRegistrations.median}/${c.compactCleanupCallbacks.median} | ${c.oldMapConstructions.median}/${c.appendSetConstructions.median} | ${c.effects.median} | ${c.ownerCleanupCallbacks.median} | ${c.listenersAdded.median}/${c.listenersRemoved.median} | ${c.indexOnlyPatches.median} | ${c.batchPositionChecks.median} |`
 }).join('\n')}
+
+## 强制 GC retained heap 门禁
+
+- ready heap：${renderCount(report.memoryGate.readyHeapBytes / 1_048_576)} MiB
+- create/clear 周期：${report.memoryGate.cycles}；斜率样本从第 ${report.memoryGate.slopeSampleStartCycle} 轮开始
+- retained heap 斜率：${renderCount(report.memoryGate.retainedHeapSlopeBytesPerCycle / 1024)} KiB/周期；硬门槛：${renderCount(RESOURCE_BUDGETS.retainedHeapSlopeBytesPerCycle / 1024)} KiB/周期
+- 行生命周期：ownerless mount/dispose=${report.memoryGate.ownerlessKeyedRowMounts}/${report.memoryGate.ownerlessKeyedRowDisposes}，general mount/dispose=${report.memoryGate.generalKeyedRowMounts}/${report.memoryGate.generalKeyedRowDisposes}
+- compact cleanup 注册/执行=${report.memoryGate.compactCleanupRegistrations}/${report.memoryGate.compactCleanupCallbacks}；keyed owner=${report.memoryGate.keyedOwnersCreated}
+
+| 周期 | create 后 heap MiB | clear + GC 后 heap MiB |
+| ---: | ---: | ---: |
+${report.memoryGate.samples.map(sample => `| ${sample.cycle} | ${renderCount(sample.afterCreateHeapBytes / 1_048_576)} | ${renderCount(sample.afterClearHeapBytes / 1_048_576)} |`).join('\n')}
 
 ## Chrome trace 主线程阶段
 
@@ -870,6 +1166,7 @@ ${hotspots}
 ## 结论与限制
 
 - DOM 正确性：${PROFILE_SCENARIOS.every(name => report.scenarios[name].samples.every(sample => sample.domCorrect)) ? '全部样本通过' : '存在失败'}。
+- 确定性资源门禁：通过（create1k/create10k 无 keyed Owner；append 无 old Map；clear cleanup 平衡；swap 最多 ${RESOURCE_BUDGETS.swapRangeMoves} 次 range move；retained heap 斜率未超预算）。
 - 已确认的首要计数热点是 ${report.hotspots[0].costCenter}（${report.hotspots[0].scenario}，可节省上界 ${report.hotspots[0].upperBoundCalls} 次）。
 - trace 是单轮代表样本，计数与 timing 使用 ${report.configuration.measuredRounds} 轮中位数和 IQR；嵌套 trace 事件会重叠，heap 差值也受 V8 分代与缓存影响。
 - 诊断构建保持真实 SWC 输出、真实 compact runtime 和真实 DOM，但插桩会增加常数开销；因此本画像用于热点归因和操作上界，不替代无插桩官方 benchmark 的绝对时间。
@@ -879,6 +1176,7 @@ ${hotspots}
 const parseCli = argv => {
   const options = {
     evidence: defaultEvidence,
+    memoryCycles: 6,
     measuredRounds: 5,
     output: defaultOutput,
     skipInstall: false,
@@ -888,6 +1186,7 @@ const parseCli = argv => {
     const argument = argv[index]
     if (argument === '--') continue
     if (argument === '--rounds') options.measuredRounds = Number(argv[++index])
+    else if (argument === '--memory-cycles') options.memoryCycles = Number(argv[++index])
     else if (argument === '--warmup-rounds') options.warmupRounds = Number(argv[++index])
     else if (argument === '--output') options.output = path.resolve(argv[++index])
     else if (argument === '--evidence') options.evidence = path.resolve(argv[++index])
@@ -899,6 +1198,9 @@ const parseCli = argv => {
   }
   if (!Number.isInteger(options.warmupRounds) || options.warmupRounds < 1) {
     throw new Error('--warmup-rounds must be a positive integer')
+  }
+  if (!Number.isInteger(options.memoryCycles) || options.memoryCycles < 4) {
+    throw new Error('--memory-cycles must be an integer of at least 4')
   }
   return options
 }
@@ -953,6 +1255,12 @@ export const runProfile = async options => {
     const scenarios = Object.fromEntries(
       PROFILE_SCENARIOS.map(name => [name, summarizeScenario(samples[name])]),
     )
+    console.info(`Memory gate ${options.memoryCycles} create/clear cycles`)
+    const memoryGate = await measureMemoryGate({ page, session, cycles: options.memoryCycles })
+    console.info(
+      `Memory retained heaps: ${memoryGate.samples.map(sample => sample.afterClearHeapBytes).join(', ')}; ` +
+        `slope=${memoryGate.retainedHeapSlopeBytesPerCycle} bytes/cycle`,
+    )
     const [workspaceManifest, localPackageManifest, benchmarkManifest] = await Promise.all([
       fs.readFile(workspacePackage, 'utf8').then(JSON.parse),
       fs.readFile(localRuePackage, 'utf8').then(JSON.parse),
@@ -971,6 +1279,8 @@ export const runProfile = async options => {
         compactKeyedSha256: await sha256(compactKeyedSource),
         fixturePath: path.relative(workspaceRoot, fixtureSource),
         fixtureSha256: await sha256(fixtureSource),
+        gitCommit: await runCommandOutput('git', ['rev-parse', 'HEAD']),
+        gitDirty: (await runCommandOutput('git', ['status', '--short'])).length > 0,
         workspaceVersion: workspaceManifest.version,
         localPackageVersion: localPackageManifest.version,
         benchmarkPackageVersion: benchmarkManifest.version,
@@ -978,6 +1288,7 @@ export const runProfile = async options => {
       },
       configuration: {
         evidencePath: path.relative(workspaceRoot, options.evidence),
+        memoryCycles: options.memoryCycles,
         measuredRounds: options.measuredRounds,
         order: 'left rotation by measured round index',
         outputPath: path.relative(workspaceRoot, options.output),
@@ -987,6 +1298,7 @@ export const runProfile = async options => {
       },
       benchmarkComparison: REFERENCE_BENCHMARK_SUMMARY,
       scenarios,
+      memoryGate,
       hotspots: buildHotspots(scenarios),
     })
     await fs.mkdir(path.dirname(options.output), { recursive: true })

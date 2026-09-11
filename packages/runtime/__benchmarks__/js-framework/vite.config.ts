@@ -57,10 +57,6 @@ export default defineConfig({
         replacement: workspaceProductionEntry('rue', './internal/compiler'),
       },
       {
-        find: /^@rue-js\/rue\/internal$/,
-        replacement: workspaceProductionEntry('rue', './internal'),
-      },
-      {
         find: /^@rue-js\/rue$/,
         replacement: workspaceProductionEntry('rue'),
       },

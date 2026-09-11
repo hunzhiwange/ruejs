@@ -1,5 +1,6 @@
 import { _$compiledRoot, type BlockSetup } from '../src/compiler-runtime/block'
 import { _$mountCompiledSlotFactory } from '../src/compiler-runtime/block-factory'
+import { _$selectorCleanupRegistry } from '../src/runtime-core/reactive-kernel/selector'
 
 // Test fixtures exercise the production closed factory with explicit node ranges.
 const mountRowFactory = <T>(
@@ -18,6 +19,8 @@ const mountRowFactory = <T>(
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  _$mountCompiledKeyedSingleRowDirect,
+  _$mountCompiledKeyedSingleRowOwnerless,
   _$mountCompiledKeyedRow,
   _$reconcileKeyed,
   _$reconcileKeyedSingle,
@@ -239,6 +242,150 @@ describe('compact keyed list DOM moves', () => {
     expect(() => failingCleanup.render([])).toThrow('failed to dispose 2')
     expect(failingCleanup.disposed).toEqual([1, 2, 3])
     expect([...failingCleanup.parent.childNodes]).toEqual([failingCleanup.anchor])
+  })
+
+  it.each([
+    ['range', _$reconcileKeyed],
+    ['single', _$reconcileKeyedSingle],
+  ] as const)(
+    'stable 1k+1k append uses tail-only allocation and one DOM insertion (%s)',
+    (_mode, reconcile) => {
+      const parent = document.createElement('div')
+      const anchor = document.createComment('end')
+      parent.append(anchor)
+      let keyReads = 0
+      let mounts = 0
+      let patches = 0
+      const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) => {
+        mounts += 1
+        const node = document.createElement('span')
+        node.textContent = item.label
+        const staging = target?.parent ?? document.createDocumentFragment()
+        staging.insertBefore(node, target?.before ?? null)
+        return {
+          node,
+          patch: () => {
+            patches += 1
+          },
+          dispose() {},
+        }
+      }
+      const getKey = (item: Item) => {
+        keyReads += 1
+        return item.id
+      }
+      const initialItems = Array.from({ length: 1000 }, (_, id) => ({ id, label: String(id) }))
+      const previous = reconcile(parent, anchor, [], initialItems, getKey, mount)
+      const oldNodes = previous.map(row => row.node)
+      const nativeMap = globalThis.Map
+      const nativeSet = globalThis.Set
+      const mapInputSizes: number[] = []
+      const setInputSizes: number[] = []
+      const inputSize = (value: unknown) =>
+        value == null ? 0 : Array.isArray(value) ? value.length : -1
+      vi.stubGlobal(
+        'Map',
+        new Proxy(nativeMap, {
+          construct(target, args) {
+            const size = inputSize(args[0])
+            if (size >= 1000) mapInputSizes.push(size)
+            return Reflect.construct(target, args, target)
+          },
+        }),
+      )
+      vi.stubGlobal(
+        'Set',
+        new Proxy(nativeSet, {
+          construct(target, args) {
+            const size = inputSize(args[0])
+            if (size >= 1000) setInputSizes.push(size)
+            return Reflect.construct(target, args, target)
+          },
+        }),
+      )
+      const insert = vi.spyOn(parent, 'insertBefore')
+      keyReads = 0
+      mounts = 0
+      try {
+        const appended = initialItems.concat(
+          Array.from({ length: 1000 }, (_, offset) => ({
+            id: 1000 + offset,
+            label: String(1000 + offset),
+          })),
+        )
+        const next = reconcile(parent, anchor, previous, appended, getKey, mount)
+        expect(next.slice(0, 1000)).toEqual(previous)
+        expect(next.slice(0, 1000).map(row => row.node)).toEqual(oldNodes)
+        expect(keyReads).toBe(2000)
+        expect(mounts).toBe(1000)
+        expect(patches).toBe(0)
+        expect(mapInputSizes).toEqual([])
+        expect(setInputSizes).toEqual([1000])
+        expect(insert).toHaveBeenCalledExactlyOnceWith(expect.any(DocumentFragment), anchor)
+      } finally {
+        vi.stubGlobal('Map', nativeMap)
+        vi.stubGlobal('Set', nativeSet)
+      }
+    },
+    60_000,
+  )
+
+  it('rejects stable-append duplicates and rolls back a failing tail atomically', () => {
+    const parent = document.createElement('div')
+    const anchor = document.createComment('end')
+    parent.append(anchor)
+    const disposed: number[] = []
+    let failAt: number | undefined
+    const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) => {
+      if (item.id === failAt) throw new Error(`failed to mount ${item.id}`)
+      const node = document.createElement('span')
+      const staging = target?.parent ?? document.createDocumentFragment()
+      staging.insertBefore(node, target?.before ?? null)
+      return { node, patch() {}, dispose: () => disposed.push(item.id) }
+    }
+    const initialItems = [0, 1, 2].map(id => ({ id, label: String(id) }))
+    const previous = _$reconcileKeyed(parent, anchor, [], initialItems, item => item.id, mount)
+    const originalDOM = [...parent.childNodes]
+
+    expect(() =>
+      _$reconcileKeyed(
+        parent,
+        anchor,
+        previous,
+        initialItems.concat({ id: 1, label: 'prefix duplicate' }),
+        item => item.id,
+        mount,
+      ),
+    ).toThrow(/duplicate.*key/)
+    expect(() =>
+      _$reconcileKeyed(
+        parent,
+        anchor,
+        previous,
+        initialItems.concat([
+          { id: 3, label: 'three' },
+          { id: 3, label: 'tail duplicate' },
+        ]),
+        item => item.id,
+        mount,
+      ),
+    ).toThrow(/duplicate.*key/)
+    expect(disposed).toEqual([])
+    expect([...parent.childNodes]).toEqual(originalDOM)
+
+    failAt = 5
+    expect(() =>
+      _$reconcileKeyed(
+        parent,
+        anchor,
+        previous,
+        initialItems.concat([3, 4, 5].map(id => ({ id, label: String(id) }))),
+        item => item.id,
+        mount,
+      ),
+    ).toThrow('failed to mount 5')
+    expect(disposed).toEqual([3, 4])
+    expect([...parent.childNodes]).toEqual(originalDOM)
   })
 
   it.each(['direct', 'plain', 'frozen', 'wrong target'] as const)(
@@ -1226,6 +1373,263 @@ describe('single owner native setup lifecycle', () => {
     ).toThrow(AggregateError)
     expect(failedRoot.parentNode).toBeNull()
     expect(events).toContain('second cleanup')
+    expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
+  })
+})
+
+describe('ownerless single row lifecycle', () => {
+  it('clears compiler-proven fixed-key subscriptions as one full-list batch', () => {
+    const parent = document.createElement('div')
+    const anchor = document.createComment('end')
+    parent.appendChild(anchor)
+    const registry = { clear: vi.fn() }
+    const individualCleanup = vi.fn()
+    const replaceChildren = vi.spyOn(parent, 'replaceChildren')
+    const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) =>
+      _$mountCompiledKeyedSingleRowDirect<Item>(
+        () => {
+          const node = document.createElement('span')
+          node.textContent = item.label
+          const cleanup = Object.assign(individualCleanup, {
+            [_$selectorCleanupRegistry]: registry,
+          })
+          onOwnerCleanup(cleanup)
+          return [node, node]
+        },
+        () => {},
+        undefined,
+        target,
+      )
+    const previous = _$reconcileKeyedSingle(
+      parent,
+      anchor,
+      [],
+      [
+        { id: 1, label: 'one' },
+        { id: 2, label: 'two' },
+      ],
+      item => item.id,
+      mount,
+      false,
+      true,
+    )
+
+    expect(
+      _$reconcileKeyedSingle(parent, anchor, previous, [], item => item.id, mount, false, true),
+    ).toEqual([])
+    expect(registry.clear).toHaveBeenCalledTimes(1)
+    expect(individualCleanup).not.toHaveBeenCalled()
+    expect(replaceChildren).toHaveBeenCalledWith(anchor)
+    expect([...parent.childNodes]).toEqual([anchor])
+  })
+
+  it('mounts direct row setups without a compiled block handle', () => {
+    const parent = document.createElement('div')
+    const anchor = document.createComment('end')
+    parent.appendChild(anchor)
+    const cleaned: number[] = []
+    let rows: CompactCompiledKeyedSingleRow<Item, number>[] = []
+    const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) => {
+      let current = item
+      let node!: HTMLSpanElement
+      return _$mountCompiledKeyedSingleRowDirect<Item>(
+        parentContext => {
+          expect(parentContext).toBe(target?.parent)
+          node = document.createElement('span')
+          node.textContent = current.label
+          onOwnerCleanup(() => cleaned.push(item.id))
+          return [node, node]
+        },
+        next => {
+          current = next
+          node.textContent = current.label
+        },
+        undefined,
+        target,
+      )
+    }
+    const render = (items: Item[]) => {
+      rows = _$reconcileKeyedSingle(
+        parent,
+        anchor,
+        rows,
+        items,
+        item => item.id,
+        mount,
+        false,
+        true,
+      )
+      return rows
+    }
+
+    const initial = render([
+      { id: 1, label: 'one' },
+      { id: 2, label: 'two' },
+    ])
+    expect([...parent.childNodes]).toEqual([initial[0].node, initial[1].node, anchor])
+    const updated = render([
+      { id: 2, label: 'updated' },
+      { id: 1, label: 'one' },
+    ])
+    expect(updated[0].node).toBe(initial[1].node)
+    expect(updated[0].node.textContent).toBe('updated')
+    expect(render([])).toEqual([])
+    expect(cleaned.sort()).toEqual([1, 2])
+    expect([...parent.childNodes]).toEqual([anchor])
+  })
+
+  it('detaches one contiguous DOM range before releasing ownerless row blocks', () => {
+    const parent = document.createElement('div')
+    const anchor = document.createComment('end')
+    parent.appendChild(anchor)
+    const range = document.createRange()
+    const deleteContents = vi.spyOn(range, 'deleteContents')
+    vi.spyOn(document, 'createRange').mockReturnValue(range)
+    const remove = vi.spyOn(parent, 'removeChild')
+    const disposalConnectivity: boolean[] = []
+    const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) =>
+      _$mountCompiledKeyedSingleRowOwnerless<Item>(
+        (rowTarget, _props, owner) => {
+          const node = document.createElement('span')
+          node.textContent = item.label
+          rowTarget.parent.insertBefore(node, rowTarget.before)
+          return {
+            owner,
+            first: node,
+            last: node,
+            dispose() {
+              disposalConnectivity.push(node.parentNode === parent)
+              node.parentNode?.removeChild(node)
+            },
+          }
+        },
+        () => {},
+        undefined,
+        target,
+      )
+
+    const previous = _$reconcileKeyedSingle(
+      parent,
+      anchor,
+      [],
+      Array.from({ length: 1000 }, (_, id) => ({ id, label: String(id) })),
+      item => item.id,
+      mount,
+      false,
+      true,
+    )
+    expect(() =>
+      _$reconcileKeyedSingle(parent, anchor, previous, [], item => item.id, mount, false, true),
+    ).not.toThrow()
+
+    expect(deleteContents).toHaveBeenCalledTimes(1)
+    expect(remove).not.toHaveBeenCalled()
+    expect(disposalConnectivity).toEqual(Array.from({ length: 1000 }, () => false))
+    expect([...parent.childNodes]).toEqual([anchor])
+  })
+
+  it('ownerless single rows collect cleanup without allocating owners', () => {
+    const parent = document.createElement('div')
+    const anchor = document.createComment('end')
+    parent.appendChild(anchor)
+    const baselineOwners = __rueGetCompiledReactiveDebugState().activeOwners
+    const cleaned: number[] = []
+    let rows: CompactCompiledKeyedSingleRow<Item, number>[] = []
+    const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) => {
+      let current = item
+      let node!: HTMLSpanElement
+      return _$mountCompiledKeyedSingleRowOwnerless<Item>(
+        (rowTarget, _props, owner) => {
+          node = document.createElement('span')
+          node.textContent = current.label
+          rowTarget.parent.insertBefore(node, rowTarget.before)
+          onOwnerCleanup(() => cleaned.push(item.id))
+          return { owner, first: node, last: node, dispose() {} }
+        },
+        next => {
+          current = next
+          node.textContent = current.label
+        },
+        undefined,
+        target,
+      )
+    }
+    const render = (items: Item[]) => {
+      rows = _$reconcileKeyedSingle(parent, anchor, rows, items, item => item.id, mount)
+      expect(__rueGetCompiledReactiveDebugState().activeOwners).toBe(baselineOwners)
+      return rows
+    }
+    const items = Array.from({ length: 1000 }, (_, id) => ({ id, label: String(id) }))
+    const initial = render(items)
+    const nodes = initial.map(row => row.node)
+
+    const updated = items.slice()
+    updated[500] = { ...updated[500], label: 'updated' }
+    let next = render(updated)
+    expect(next.map(row => row.node)).toEqual(nodes)
+    expect(next[500].node.textContent).toBe('updated')
+
+    ;[updated[1], updated[998]] = [updated[998], updated[1]]
+    next = render(updated)
+    expect(next[1].node).toBe(nodes[998])
+    expect(next[998].node).toBe(nodes[1])
+
+    next = render(updated.slice(0, 750))
+    expect(cleaned).toHaveLength(250)
+    expect(new Set(cleaned).size).toBe(250)
+    expect([...parent.childNodes]).toEqual([...next.map(row => row.node), anchor])
+
+    expect(render([])).toEqual([])
+    expect(cleaned).toHaveLength(1000)
+    expect(new Set(cleaned).size).toBe(1000)
+    expect([...parent.childNodes]).toEqual([anchor])
+  })
+
+  it('rolls back ownerless single rows and aggregates cleanup failures', () => {
+    const parent = document.createElement('div')
+    const anchor = document.createComment('end')
+    parent.appendChild(anchor)
+    const baseline = __rueGetCompiledReactiveDebugState()
+    const cleaned: number[] = []
+    const mountFailure = new Error('ownerless mount failed')
+    const cleanupFailure = new Error('ownerless cleanup failed')
+    const nodes: Node[] = []
+    const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) =>
+      _$mountCompiledKeyedSingleRowOwnerless<Item>(
+        (rowTarget, _props, owner) => {
+          onOwnerCleanup(() => {
+            cleaned.push(item.id)
+            if (item.id === 0) throw cleanupFailure
+          })
+          if (item.id === 500) throw mountFailure
+          const node = document.createElement('span')
+          nodes.push(node)
+          rowTarget.parent.insertBefore(node, rowTarget.before)
+          return { owner, first: node, last: node, dispose() {} }
+        },
+        () => {},
+        undefined,
+        target,
+      )
+
+    let caught: unknown
+    try {
+      _$reconcileKeyedSingle(
+        parent,
+        anchor,
+        [],
+        Array.from({ length: 1000 }, (_, id) => ({ id, label: String(id) })),
+        item => item.id,
+        mount,
+      )
+    } catch (error) {
+      caught = error
+    }
+    expect(caught).toBeInstanceOf(AggregateError)
+    expect((caught as AggregateError).errors).toEqual([mountFailure, cleanupFailure])
+    expect(cleaned.slice().sort((a, b) => a - b)).toEqual(Array.from({ length: 501 }, (_, i) => i))
+    expect(nodes.every(node => node.parentNode === null)).toBe(true)
+    expect([...parent.childNodes]).toEqual([anchor])
     expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
   })
 })

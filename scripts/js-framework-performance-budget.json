@@ -34,7 +34,7 @@
     "entry": "rue-signal",
     "referenceEntry": "vue",
     "cpu": {
-      "maxWeightedGeometricMeanRatio": 1.2,
+      "maxWeightedGeometricMeanRatio": 1,
       "weights": {
         "create1k": 0.64280248137063,
         "replace1k": 0.5607178150466176,
@@ -51,12 +51,12 @@
       "update10th": { "maxRatio": 1.05 },
       "select1k": { "maxRatio": 1.05 },
       "swap1k": { "maxRatio": 1.05 },
-      "clear1k": { "maxRatio": 2.5 }
+      "clear1k": { "maxRatio": 1.1 }
     },
     "heap": {
-      "ready": { "maxRatio": 1.2 },
+      "ready": { "maxRatio": 1.1 },
       "create1k": { "maxRatio": 1.6 },
-      "createClear": { "maxRatio": 1.2 }
+      "createClear": { "maxRatio": 1.1 }
     },
     "size": { "brotli": { "maxRatio": 1 } },
     "firstPaint": { "maxRatio": 1.1 }

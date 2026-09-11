@@ -69,15 +69,14 @@ export default defineConfig({
 Here is a minimal Rue application:
 
 ```tsx
-import { type FC, ref, useApp, useError } from '@rue-js/rue'
+import { type FC, ref, useApp } from '@rue-js/rue'
 
 const Counter: FC = () => {
   const count = ref(0)
 
-  return <button onClick={() => count.value++}>Count: {count.value}</button>
+  return <button onClick={() => count.value++}>Count: {count}</button>
 }
 
-useError({ overlay: true, console: true })
 useApp(Counter).mount('#app')
 ```
 

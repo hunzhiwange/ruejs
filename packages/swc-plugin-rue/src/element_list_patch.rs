@@ -1,6 +1,6 @@
 use swc_core::common::{DUMMY_SP, SyntaxContext};
 use swc_core::ecma::ast::*;
-use swc_core::ecma::visit::{VisitMut, VisitMutWith};
+use swc_core::ecma::visit::{VisitMut, VisitMutWith, VisitWith};
 
 use crate::emit::{call_ident, call_member, const_decl, ident, ident_name, string_expr};
 use crate::utils;
@@ -199,6 +199,43 @@ pub(crate) fn accepts_simple_native_row(expr: &Expr, row: &Ident) -> bool {
     matches!(utils::unwrap_expr(expr), Expr::JSXElement(element) if simple_native_element(element, row, true))
 }
 
+fn ownerless_event_handler(attr: &JSXAttr) -> bool {
+    let JSXAttrName::Ident(name) = &attr.name else { return false };
+    if !is_event(name.sym.as_ref()) {
+        return true;
+    }
+    let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+        expr: JSXExpr::Expr(handler), ..
+    })) = &attr.value
+    else {
+        return false;
+    };
+    crate::attrs::is_compiled_delegated_event(name.sym.as_ref(), handler)
+}
+
+fn ownerless_native_resources(element: &JSXElement) -> bool {
+    element.opening.attrs.iter().all(|attr| match attr {
+        JSXAttrOrSpread::SpreadElement(_) => false,
+        JSXAttrOrSpread::JSXAttr(attr) => ownerless_event_handler(attr),
+    }) && element.children.iter().all(|child| match child {
+        JSXElementChild::JSXElement(child) => ownerless_native_resources(child),
+        JSXElementChild::JSXFragment(_) | JSXElementChild::JSXSpreadChild(_) => false,
+        _ => true,
+    })
+}
+
+/// The stricter resource proof used by the ownerless single-row ABI.
+///
+/// The existing simple-row classifier is intentionally broader because the owned
+/// direct-patch path supports capture listeners and event-parameter handlers.
+pub(crate) fn accepts_ownerless_simple_native_row(expr: &Expr, row: &Ident) -> bool {
+    matches!(
+        utils::unwrap_expr(expr),
+        Expr::JSXElement(element)
+            if simple_native_element(element, row, true) && ownerless_native_resources(element)
+    )
+}
+
 fn call_name(call: &CallExpr) -> Option<&str> {
     let Callee::Expr(callee) = &call.callee else { return None };
     let Expr::Ident(name) = callee.as_ref() else { return None };
@@ -272,7 +309,7 @@ fn guarded_text_binding(target: Expr, reader: Expr, index: usize) -> (Vec<Stmt>,
         decls: vec![VarDeclarator {
             span: DUMMY_SP,
             name: Pat::Ident(BindingIdent { id: value.clone(), type_ann: None }),
-            init: None,
+            init: Some(Box::new(text_value(reader.clone()))),
             definite: false,
         }],
     })));
@@ -292,13 +329,13 @@ fn guarded_text_binding(target: Expr, reader: Expr, index: usize) -> (Vec<Stmt>,
             span: DUMMY_SP,
             ctxt: SyntaxContext::empty(),
             stmts: vec![
-                assignment(target, Expr::Ident(next.clone())),
+                assignment(target.clone(), Expr::Ident(next.clone())),
                 Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Assign(AssignExpr {
                         span: DUMMY_SP,
                         op: AssignOp::Assign,
-                        left: AssignTarget::Simple(SimpleAssignTarget::Ident(value.into())),
+                        left: AssignTarget::Simple(SimpleAssignTarget::Ident(value.clone().into())),
                         right: Box::new(Expr::Ident(next)),
                     })),
                 }),
@@ -311,7 +348,7 @@ fn guarded_text_binding(target: Expr, reader: Expr, index: usize) -> (Vec<Stmt>,
         ctxt: SyntaxContext::empty(),
         stmts: vec![next_decl, write],
     });
-    (vec![init], block)
+    (vec![init, assignment(target, Expr::Ident(value))], block)
 }
 
 struct DirectBindingCollector {
@@ -324,29 +361,42 @@ struct DirectBindingCollector {
 struct CompiledSelectorRead {
     found: bool,
     selector: Option<Ident>,
+    key: Option<Expr>,
     ambiguous: bool,
 }
 
 impl swc_core::ecma::visit::Visit for CompiledSelectorRead {
-    fn visit_ident(&mut self, ident: &Ident) {
-        if !ident.sym.ends_with("_selector") {
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        let Callee::Expr(callee) = &call.callee else {
+            call.visit_children_with(self);
             return;
+        };
+        let Expr::Ident(ident) = crate::utils::unwrap_expr(callee) else {
+            call.visit_children_with(self);
+            return;
+        };
+        if ident.sym.ends_with("_selector") && call.args.len() == 1 && call.args[0].spread.is_none()
+        {
+            self.found = true;
+            if self.selector.as_ref().is_some_and(|selector| selector.to_id() != ident.to_id())
+                || self.key.is_some()
+            {
+                self.ambiguous = true;
+            } else {
+                self.selector = Some(ident.clone());
+                self.key = Some((*call.args[0].expr).clone());
+            }
         }
-        self.found = true;
-        if self.selector.as_ref().is_some_and(|selector| selector.to_id() != ident.to_id()) {
-            self.ambiguous = true;
-        } else if self.selector.is_none() {
-            self.selector = Some(ident.clone());
-        }
+        call.visit_children_with(self);
     }
 }
 
-fn compiled_selector_read(call: &CallExpr) -> Option<Ident> {
+fn compiled_selector_read(call: &CallExpr) -> Option<(Ident, Expr)> {
     use swc_core::ecma::visit::VisitWith;
 
     let mut read = CompiledSelectorRead::default();
     call.visit_with(&mut read);
-    (read.found && !read.ambiguous).then_some(read.selector).flatten()
+    (read.found && !read.ambiguous).then(|| read.selector.zip(read.key)).flatten()
 }
 
 impl VisitMut for DirectBindingCollector {
@@ -369,14 +419,18 @@ impl VisitMut for DirectBindingCollector {
                         ctxt: SyntaxContext::empty(),
                         stmts: body,
                     });
-                    if let Some(selector) = compiled_selector_read(call) {
+                    if let Some((selector, key)) = compiled_selector_read(call) {
                         let callback =
                             call.args.first().expect("effect callback").expr.as_ref().clone();
                         next_stmts.push(Stmt::Expr(ExprStmt {
                             span: DUMMY_SP,
                             expr: Box::new(call_ident(
                                 "onOwnerCleanup",
-                                vec![call_member(selector, "subscribe", vec![callback])],
+                                vec![call_member(
+                                    selector,
+                                    "subscribeKeyUnique",
+                                    vec![key, callback],
+                                )],
                             )),
                         }));
                     } else {
@@ -399,7 +453,6 @@ impl VisitMut for DirectBindingCollector {
                     );
                     self.next_text += 1;
                     next_stmts.extend(decls);
-                    next_stmts.push(block.clone());
                     patch_blocks.push(block);
                     self.found = true;
                     continue;

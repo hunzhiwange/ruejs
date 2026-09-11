@@ -102,15 +102,19 @@ fn uses_a_direct_item_slot_for_simple_native_rows() {
 }
 
 #[test]
-fn emits_closed_factory_for_resource_free_simple_native_rows() {
+fn emits_ownerless_factory_for_resource_free_simple_native_rows() {
     let resource_free = compile_list(
         "items.map(item => <li key={item.id} className={item.className}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(resource_free.contains("_$mountCompiledKeyedSingleRow("), "{resource_free}");
+    assert!(resource_free.contains("_$mountCompiledKeyedSingleRowDirect("), "{resource_free}");
+    assert!(!resource_free.contains("_$mountCompiledKeyedSingleRowOwnerless("), "{resource_free}");
+    assert!(!resource_free.contains("_$compiledStaticRoot("), "{resource_free}");
+    assert!(!resource_free.contains("_$compiledRoot("), "{resource_free}");
+    assert!(!resource_free.contains("_$mountCompiledKeyedSingleRow("), "{resource_free}");
     assert!(resource_free.contains("_$reconcileKeyedSingle("), "{resource_free}");
     assert!(!resource_free.contains("_$reconcileKeyed("), "{resource_free}");
-    assert!(resource_free.contains("_$mountCompiledSlotFactory("), "{resource_free}");
+    assert!(!resource_free.contains("_$mountCompiledSlotFactory("), "{resource_free}");
 
     for source in [
         "items.map(item => <li key={item.id} v-memo={[item.name]}>{item.name}</li>)",
@@ -122,25 +126,35 @@ fn emits_closed_factory_for_resource_free_simple_native_rows() {
 }
 
 #[test]
-fn emits_closed_factory_for_delegated_events_and_direct_selector_subscriptions() {
+fn emits_ownerless_factory_for_delegated_events_and_direct_selector_subscriptions() {
     let delegated = compile_list(
         "items.map(item => <li key={item.id} onClick={() => select(item)}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(delegated.contains("_$mountCompiledKeyedSingleRow("), "{delegated}");
-    assert!(delegated.contains("_$compiledDelegateEvent("), "{delegated}");
+    assert!(delegated.contains("_$mountCompiledKeyedSingleRowDirect("), "{delegated}");
+    assert!(!delegated.contains("_$mountCompiledKeyedSingleRowOwnerless("), "{delegated}");
+    assert!(!delegated.contains("_$compiledStaticRoot("), "{delegated}");
+    assert!(delegated.contains("_$compiledDelegateEventOwnerless("), "{delegated}");
+    assert!(!delegated.contains("onOwnerCleanup(_$compiledDelegateEvent"), "{delegated}");
 
     let selector = compile_list(
         "items.map(item => <li key={item.id} className={item.id === selected.get() ? 'selected' : ''}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(selector.contains("_$mountCompiledKeyedSingleRow("), "{selector}");
-    assert!(selector.contains("_selector.subscribe("), "{selector}");
+    assert!(selector.contains("_$mountCompiledKeyedSingleRowDirect("), "{selector}");
+    assert!(selector.contains("_selector.subscribeKeyUnique("), "{selector}");
     assert!(!selector.contains("effect("), "{selector}");
 
     for source in [
         "items.map(item => <li key={item.id} onClick={event => select(event, item)}>{item.name}</li>)",
         "items.map(item => <li key={item.id} onClickCapture={() => select(item)}>{item.name}</li>)",
+        "items.map(item => <li key={item.id} onScroll={() => select(item)}>{item.name}</li>)",
+        "items.map(item => <li key={item.id} v-memo={[item.name]}>{item.name}</li>)",
+        "items.map(item => <li key={item.id} ref={capture}>{item.name}</li>)",
+        "items.map(item => <li key={item.id} {...item}>{item.name}</li>)",
+        "items.map(item => item.ok ? <li key={item.id}>{item.name}</li> : null)",
+        "items.map(item => { onCleanup(() => select(item)); return <li key={item.id}>{item.name}</li> })",
+        "items.map(item => { effect(() => select(item)); return <li key={item.id}>{item.name}</li> })",
     ] {
         let out = compile_list(source).expect("compiled list");
         assert!(!out.contains("_$mountCompiledKeyedSingleRowOwnerless("), "{source}: {out}");
@@ -190,9 +204,9 @@ fn emits_the_existing_index_proof_into_the_reconcile_abi() {
     )
     .expect("compiled list");
 
-    assert!(without_index.contains("},false)"), "{without_index}");
-    assert!(text_index.contains("},true)"), "{text_index}");
-    assert!(event_index.contains("},true)"), "{event_index}");
+    assert!(without_index.contains("},false,true)"), "{without_index}");
+    assert!(text_index.contains("},true,false)"), "{text_index}");
+    assert!(event_index.contains("},true,false)"), "{event_index}");
 }
 
 #[test]
