@@ -1,18 +1,7 @@
 'use client'
 
-import { useState } from '@rue-js/rue'
+import { useActionState } from 'text/form'
 import { counterAction } from './actions'
-
-function useTextActionState<S>(
-  action: (state: S, formData: FormData) => S | Promise<S>,
-  initialState: S,
-): [S, (formData: FormData) => Promise<void>] {
-  const [state, setState] = useState(initialState)
-  const formAction = async (formData: FormData) => {
-    setState(await action(state, formData))
-  }
-  return [state, formAction]
-}
 
 function SubmitButton({ label }: { label: string }) {
   const pending = false
@@ -24,7 +13,7 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export default function ActionStateCounter() {
-  const [state, formAction] = useTextActionState(counterAction, { count: 0 })
+  const [state, formAction] = useActionState(counterAction, { count: 0 })
 
   return (
     <div>

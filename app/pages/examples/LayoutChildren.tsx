@@ -1,11 +1,16 @@
-import createHomeSplitExamplePage from './createHomeSplitExamplePage'
+import HomeSplitExamplePage from './createHomeSplitExamplePage'
 import LayoutChildrenDemo from './home-demos/LayoutChildrenDemo'
 import source from './home-demos/LayoutChildrenDemo.tsx?raw'
 
-const LayoutChildren = createHomeSplitExamplePage({
-  title: 'Layout children',
-  source,
-  Demo: LayoutChildrenDemo,
-})
+const LayoutChildren = () => (
+  <HomeSplitExamplePage
+    options={{
+      title: 'Layout children',
+      source,
+    }}
+  >
+    <LayoutChildrenDemo />
+  </HomeSplitExamplePage>
+)
 
 export default LayoutChildren

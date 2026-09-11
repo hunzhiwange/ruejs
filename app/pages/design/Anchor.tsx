@@ -257,7 +257,6 @@ const containerTab = ref<PreviewTabMode>('preview')
 const horizontalTab = ref<PreviewTabMode>('preview')
 
 const basicCode = `import { Anchor } from '@rue-js/design'
-
 const sections = [
   { id: 'overview', title: '项目全景', description: '长页面的起始说明' },
   { id: 'rhythm', title: '内容节奏', description: '内容组织与阅读路径' },
@@ -287,7 +286,6 @@ const sections = [
 
 const containerCode = `import { useRef } from '@rue-js/rue'
 import { Anchor } from '@rue-js/design'
-
 const panelRef = useRef<HTMLDivElement>()
 const sections = [
   { id: 'brief', title: 'Brief Intake' },
@@ -318,7 +316,6 @@ const sections = [
 
 const horizontalCode = `import { useRef } from '@rue-js/rue'
 import { Anchor } from '@rue-js/design'
-
 const panelRef = useRef<HTMLDivElement>()
 const navItems = [
   { id: 'kickoff', title: 'Kickoff' },

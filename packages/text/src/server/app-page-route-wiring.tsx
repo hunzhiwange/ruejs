@@ -1,3 +1,6 @@
+import { AppMeta, AppDiv } from './app-server-tree.js'
+import { createAppPageTreePath } from './app-page-segment-state.js'
+export { createAppPageTreePath } from './app-page-segment-state.js'
 import {
   AppElementsWire,
   APP_PREFETCH_LOADING_SHELL_MARKER_KEY,
@@ -13,7 +16,6 @@ import {
   RedirectBoundary,
   UnauthorizedBoundary,
 } from '../shims/error-boundary.js'
-import { markAppSsrPassthroughComponent } from './app-ssr-passthrough-protocol.js'
 import {
   APP_SLOT_PLACEHOLDER_SENTINEL_TYPE,
   createAppSlotPlaceholderSentinelProps,
@@ -28,7 +30,7 @@ import {
   type Metadata,
   type Viewport,
 } from '../shims/metadata.js'
-import { Slot } from '../shims/slot.js'
+import { Slot, Children, ParallelSlot } from '../shims/slot-core.js'
 import type { AppPageParams } from './app-page-boundary.js'
 import {
   createAppRenderDependency,
@@ -53,29 +55,18 @@ import {
   AppServerSuspense,
   type AppServerComponent,
   createAppServerElement,
+  markAppServerPlanAsPage,
+  scopeAppServerPlan,
   type AppServerRenderable,
 } from './app-server-tree.js'
 
 export { resolveAppPageChildSegments } from './app-page-segment-state.js'
 
-markAppSsrPassthroughComponent(RedirectBoundary)
-markAppSsrPassthroughComponent(ErrorBoundary)
-markAppSsrPassthroughComponent(NotFoundBoundary)
-markAppSsrPassthroughComponent(ForbiddenBoundary)
-markAppSsrPassthroughComponent(UnauthorizedBoundary)
-
 function createAppChildrenPlaceholder(): AppServerRenderable {
-  return createAppServerElement(
-    APP_SLOT_PLACEHOLDER_SENTINEL_TYPE,
-    createAppSlotPlaceholderSentinelProps({ kind: 'children' }),
-  )
+  return createAppServerElement(Children)
 }
-
 function createAppParallelSlotPlaceholder(name: string): AppServerRenderable {
-  return createAppServerElement(
-    APP_SLOT_PLACEHOLDER_SENTINEL_TYPE,
-    createAppSlotPlaceholderSentinelProps({ kind: 'parallel-slot', name }),
-  )
+  return createAppServerElement(ParallelSlot, { name })
 }
 
 type AppPageComponentProps = {
@@ -229,17 +220,6 @@ function getErrorBoundaryExport<TModule extends AppPageErrorModule>(
   module: TModule | null | undefined,
 ): AppPageErrorComponent | null {
   return module?.default ?? null
-}
-
-export function createAppPageTreePath(
-  routeSegments: readonly string[] | null | undefined,
-  treePosition: number,
-): string {
-  const treePathSegments = routeSegments?.slice(0, treePosition) ?? []
-  if (treePathSegments.length === 0) {
-    return '/'
-  }
-  return `/${treePathSegments.join('/')}`
 }
 
 export function createAppPageLayoutEntries<
@@ -399,7 +379,7 @@ function createAppPageRouteHead(
   return createAppServerElement(
     AppServerFragment,
     null,
-    createAppServerElement('meta', { charSet: 'utf-8' }),
+    createAppServerElement(AppMeta, { charSet: 'utf-8' }),
     metadata && metadataPlacement === 'head'
       ? createAppServerElement(MetadataHead, { metadata, pathname })
       : null,
@@ -413,7 +393,7 @@ function createAppPageRouteBodyMetadata(
   metadataPlacement: 'body' | 'head',
 ): AppServerRenderable {
   if (!metadata || metadataPlacement !== 'body') return null
-  return createAppServerElement('div', {
+  return createAppServerElement(AppDiv, {
     dangerouslySetInnerHTML: { __html: renderMetadataToHtml(metadata, pathname) },
     hidden: true,
   })
@@ -565,9 +545,7 @@ export function buildAppPageElements<
     elements[APP_PREFETCH_LOADING_SHELL_MARKER_KEY] = 'LoadingBoundary'
   }
 
-  elements[pageId] = isPrefetchLoadingShell
-    ? null
-    : renderAfterAppDependencies(options.element, pageDependencies)
+  elements[pageId] = isPrefetchLoadingShell ? null : markAppServerPlanAsPage(options.element)
 
   for (const templateEntry of templateEntries) {
     const templateComponent = getDefaultExport(templateEntry.templateModule)
@@ -633,9 +611,10 @@ export function buildAppPageElements<
           layoutDependency,
         )
       : createAppServerElement(LayoutComponent, layoutComponentProps)
-    elements[layoutEntry.id] = renderAfterAppDependencies(
-      layoutElement,
-      layoutDependenciesBefore[index] ?? [],
+    elements[layoutEntry.id] = scopeAppServerPlan(
+      renderAfterAppDependencies(layoutElement, layoutDependenciesBefore[index] ?? [])!,
+      layoutEntry.id,
+      index,
     )
   }
 
@@ -938,13 +917,7 @@ export function buildAppPageElements<
   }
 
   const globalErrorComponent = getErrorBoundaryExport(options.globalErrorModule)
-  if (globalErrorComponent) {
-    routeChildren = createAppServerElement(
-      ErrorBoundary,
-      { fallback: globalErrorComponent },
-      routeChildren,
-    )
-  }
+  if (globalErrorComponent) elements.__globalError = globalErrorComponent
 
   elements[routeId] = createAppServerElement(
     AppServerFragment,

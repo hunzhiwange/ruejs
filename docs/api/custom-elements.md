@@ -10,12 +10,7 @@
 
   ```ts
   function useCustomElement(
-    component:
-      | ComponentInstance
-      | {
-          setup?: (props: Record<string, unknown>) => any
-          render?: (ctx: any) => RenderableOutput
-        },
+    component: ComponentInstance,
     options?: CustomElementsOptions,
   ): {
     new (): HTMLElement & {
@@ -54,7 +49,7 @@
 
   在 `shadowRoot: true` 模式下，组件模板中的原生 `<slot>` 会直接依赖浏览器的 slot 分发机制，从宿主 light DOM 投影内容。
 
-  Rue 自定义元素也支持 Rue 的 `<Slot>` / `Template slot="name"` 协议。自定义元素由 Rue 父树渲染时，函数 children 和 `Template slot` 会被编译为 `__rue_slots` property，因此可跨自定义元素边界传递 scoped slot。若外层存在 `createContext()` Provider，内部组件可继续通过 `useContext()` 读取最近的 Provider 值。
+  Rue 自定义元素也支持编译器可证明的静态 children 与具名内容。传入组件必须经过 Rue 编译器；不支持 `setup + render` 配置对象或运行时 JSX 值。
 
   请注意，这些选项可以作为第二个参数传递，而不是作为组件本身的一部分传递：
 

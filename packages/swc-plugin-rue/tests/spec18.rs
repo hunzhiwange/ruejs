@@ -48,7 +48,7 @@ const Hello: FC = ()=>{
             };
         }));
     const { color: color } = _$useSetup;
-    return _$compiledRoot(Object.assign((__rue_parent_context)=>{
+    return _$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[0];
@@ -104,11 +104,11 @@ export default Hello;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec18.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("@rue-js/rue/internal/component"), "{normalized}");
+    assert!(normalized.contains("@rue-js/rue/internal/dom"), "{normalized}");
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
     assert!(normalized.contains("Object.assign(_el1.style"), "{normalized}");
-    assert!(normalized.contains("_$setStyle(_el2, __child1_next)"), "{normalized}");
+    assert!(normalized.contains("_el2.style.cssText = __child1_next"), "{normalized}");
     assert!(normalized.contains("Object.is(__child1, __child1_next)"), "{normalized}");
     assert!(!normalized.contains("vapor("), "{normalized}");
 }

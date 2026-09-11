@@ -1,6 +1,9 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { render } from '@rue-js/rue'
+import { render, setReactiveScheduling } from '@rue-js/rue'
+
+setReactiveScheduling('sync')
 import Collapse from '..'
 
 const waitCollapseRender = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -12,7 +15,7 @@ afterEach(() => {
 describe('Collapse', () => {
   it('renders with base class and children', async () => {
     const c = document.createElement('div')
-    render(<Collapse tabIndex={0}>{'hello'}</Collapse>, c)
+    mountTestApp(c, () => render(<Collapse tabIndex={0}>{'hello'}</Collapse>, c))
     await waitCollapseRender()
     const el = c.querySelector('.collapse') as HTMLElement
     expect(el).toBeTruthy()
@@ -23,11 +26,13 @@ describe('Collapse', () => {
 
   it('applies modifier classes', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse arrow={true} plus={true} open={true} close={true}>
-        {'x'}
-      </Collapse>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse arrow={true} plus={true} open={true} close={true}>
+          {'x'}
+        </Collapse>,
+        c,
+      ),
     )
     await waitCollapseRender()
     const el = c.querySelector('.collapse') as HTMLElement
@@ -39,7 +44,7 @@ describe('Collapse', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Collapse className={'bg-base-100 border'}>{'x'}</Collapse>, c)
+    mountTestApp(c, () => render(<Collapse className={'bg-base-100 border'}>{'x'}</Collapse>, c))
     await waitCollapseRender()
     const el = c.querySelector('.collapse') as HTMLElement
     expect(el.classList.contains('bg-base-100')).toBe(true)
@@ -48,16 +53,16 @@ describe('Collapse', () => {
 
   it('renders details tag with summary title', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse tag={'details'} className={'bg-base-100 border border-base-300'}>
-        {[
+    mountTestApp(c, () =>
+      render(
+        <Collapse tag={'details'} className={'bg-base-100 border border-base-300'}>
           <Collapse.Title as={'summary'} className={'font-semibold'}>
             {'Title'}
-          </Collapse.Title>,
-          <Collapse.Content className={'text-sm'}>{'Content'}</Collapse.Content>,
-        ]}
-      </Collapse>,
-      c,
+          </Collapse.Title>
+          <Collapse.Content className={'text-sm'}>{'Content'}</Collapse.Content>
+        </Collapse>,
+        c,
+      ),
     )
     await waitCollapseRender()
     const details = c.querySelector('details.collapse') as HTMLElement
@@ -70,25 +75,27 @@ describe('Collapse', () => {
 
   it('renders items with default active keys and metadata', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse
-        items={[
-          {
-            key: 'overview',
-            label: 'Overview',
-            description: '系统概览',
-            extra: 'Beta',
-            children: 'Overview content',
-            open: true,
-          },
-          {
-            key: 'api',
-            label: 'API',
-            children: 'API content',
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          items={[
+            {
+              key: 'overview',
+              label: 'Overview',
+              description: '系统概览',
+              extra: 'Beta',
+              content: 'Overview content',
+              open: true,
+            },
+            {
+              key: 'api',
+              label: 'API',
+              content: 'API content',
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -102,16 +109,18 @@ describe('Collapse', () => {
 
   it('toggles uncontrolled items opened by defaultActiveKey', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse
-        arrow={true}
-        defaultActiveKey={['overview']}
-        items={[
-          { key: 'overview', label: 'Overview', children: 'Overview content' },
-          { key: 'release', label: 'Release', children: 'Release content' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          arrow={true}
+          defaultActiveKey={['overview']}
+          items={[
+            { key: 'overview', label: 'Overview', content: 'Overview content' },
+            { key: 'release', label: 'Release', content: 'Release content' },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -131,28 +140,31 @@ describe('Collapse', () => {
 
   it('toggles metadata header without triggering from extra area', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse
-        arrow={true}
-        defaultActiveKey={['ops']}
-        items={[
-          {
-            key: 'ops',
-            label: 'Ops Console',
-            description: '控制发布节奏、灰度范围与告警阈值。',
-            extra: <span className={'badge badge-soft badge-info'}>{'Beta'}</span>,
-            children: 'content',
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          arrow={true}
+          defaultActiveKey={['ops']}
+          items={[
+            {
+              key: 'ops',
+              label: 'Ops Console',
+              description: '控制发布节奏、灰度范围与告警阈值。',
+              extra: 'Beta',
+              extraClassName: 'badge badge-soft badge-info',
+              content: 'content',
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
     const item = c.querySelector('.collapse') as HTMLElement
     const header = c.querySelector('.collapse-title') as HTMLElement
     const extra = c.querySelector('.collapse-title .shrink-0') as HTMLElement
-    const badge = extra.querySelector('.badge') as HTMLElement
+    const badge = extra
 
     expect(item.classList.contains('collapse-open')).toBe(true)
     expect(badge).toBeTruthy()
@@ -170,17 +182,19 @@ describe('Collapse', () => {
   it('supports controlled activeKey and onChange in items mode', async () => {
     const c = document.createElement('div')
     const spy = vi.fn()
-    render(
-      <Collapse
-        activeKey={'release'}
-        arrow={true}
-        items={[
-          { key: 'intro', label: 'Intro', children: 'Intro content' },
-          { key: 'release', label: 'Release', children: 'Release content' },
-        ]}
-        onChange={spy}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          activeKey={'release'}
+          arrow={true}
+          items={[
+            { key: 'intro', label: 'Intro', content: 'Intro content' },
+            { key: 'release', label: 'Release', content: 'Release content' },
+          ]}
+          onChange={spy}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -198,16 +212,18 @@ describe('Collapse', () => {
 
   it('supports accordion mode', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse
-        accordion={true}
-        defaultActiveKey={'a'}
-        items={[
-          { key: 'a', label: 'A', children: 'A content' },
-          { key: 'b', label: 'B', children: 'B content' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          accordion={true}
+          defaultActiveKey={'a'}
+          items={[
+            { key: 'a', label: 'A', content: 'A content' },
+            { key: 'b', label: 'B', content: 'B content' },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -222,20 +238,22 @@ describe('Collapse', () => {
 
   it('supports icon-only collapsible trigger and start placement', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse
-        arrow={true}
-        expandIconPlacement={'start'}
-        items={[
-          {
-            key: 'safe',
-            label: 'Safe rollout',
-            children: 'content',
-            collapsible: 'icon',
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          arrow={true}
+          expandIconPlacement={'start'}
+          items={[
+            {
+              key: 'safe',
+              label: 'Safe rollout',
+              content: 'content',
+              collapsible: 'icon',
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -255,20 +273,22 @@ describe('Collapse', () => {
   it('keeps a single icon trigger while toggling between expand and collapse', async () => {
     const c = document.createElement('div')
     const spy = vi.fn()
-    render(
-      <Collapse
-        arrow={true}
-        items={[
-          {
-            key: 'single-trigger',
-            label: 'Single trigger',
-            children: 'content',
-            collapsible: 'icon',
-          },
-        ]}
-        onChange={spy}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          arrow={true}
+          items={[
+            {
+              key: 'single-trigger',
+              label: 'Single trigger',
+              content: 'content',
+              collapsible: 'icon',
+            },
+          ]}
+          onChange={spy}
+        />,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -295,16 +315,16 @@ describe('Collapse', () => {
 
   it('supports title metadata in legacy composition mode', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse bordered={true}>
-        {[
+    mountTestApp(c, () =>
+      render(
+        <Collapse bordered={true}>
           <Collapse.Title description={'灰度发布'} extra={'v2'}>
             {'发布策略'}
-          </Collapse.Title>,
-          <Collapse.Content>{'content'}</Collapse.Content>,
-        ]}
-      </Collapse>,
-      c,
+          </Collapse.Title>
+          <Collapse.Content>{'content'}</Collapse.Content>
+        </Collapse>,
+        c,
+      ),
     )
 
     await waitCollapseRender()
@@ -316,14 +336,14 @@ describe('Collapse', () => {
 
   it('toggles legacy focus mode by repeatedly clicking the title', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse tabIndex={0}>
-        {[
-          <Collapse.Title className={'font-semibold'}>{'Title'}</Collapse.Title>,
-          <Collapse.Content className={'text-sm'}>{'Content'}</Collapse.Content>,
-        ]}
-      </Collapse>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse tabIndex={0}>
+          <Collapse.Title className={'font-semibold'}>{'Title'}</Collapse.Title>
+          <Collapse.Content className={'text-sm'}>{'Content'}</Collapse.Content>
+        </Collapse>,
+        c,
+      ),
     )
     await waitCollapseRender()
 
@@ -345,15 +365,15 @@ describe('Collapse', () => {
 
   it('toggles legacy checkbox mode by clicking the title', async () => {
     const c = document.createElement('div')
-    render(
-      <Collapse>
-        {[
-          <input type={'checkbox'} className={'peer'} />,
-          <Collapse.Title className={'font-semibold'}>{'Title'}</Collapse.Title>,
-          <Collapse.Content className={'text-sm'}>{'Content'}</Collapse.Content>,
-        ]}
-      </Collapse>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Collapse>
+          <input type={'checkbox'} className={'peer'} />
+          <Collapse.Title className={'font-semibold'}>{'Title'}</Collapse.Title>
+          <Collapse.Content className={'text-sm'}>{'Content'}</Collapse.Content>
+        </Collapse>,
+        c,
+      ),
     )
     await waitCollapseRender()
 

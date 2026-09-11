@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useRef } from './hooks-adapter.js'
+import { useCallback } from './hooks-adapter.js'
+import { useRef } from '@rue-js/rue'
 import type { RueRef } from './rue-shim-types.js'
 
 // Ported from Text.js: packages/text/src/client/use-merged-ref.ts

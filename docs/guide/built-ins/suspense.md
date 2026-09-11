@@ -123,28 +123,20 @@ const App: FC = () => {
 以下示例显示如何嵌套这些组件以使它们都按预期工作。对于更简单的组合，您可以移除不需要的组件：
 
 ```tsx
-import { Suspense, KeepAlive, Transition } from '@rue-js/rue'
+import { Suspense } from '@rue-js/rue'
 import { RouterView } from '@rue-js/rue-router'
 import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
   return (
-    <RouterView>
-      {({ Component }) =>
-        Component && (
-          <Transition>
-            <KeepAlive>
-              <Suspense fallback={<div>加载中...</div>}>
-                <Component />
-              </Suspense>
-            </KeepAlive>
-          </Transition>
-        )
-      }
-    </RouterView>
+    <Suspense fallback={<div>加载中...</div>}>
+      <RouterView />
+    </Suspense>
   )
 }
 ```
+
+`RouterView` 自己负责有限路由表中的页面选择；不要从插槽中取出运行时组件再写成 `<Component />`。如需同时使用 `Transition` 或 `KeepAlive`，请把它们放在包含 `RouterView` 的静态组件边界上。
 
 Rue Router 内置支持使用动态导入懒加载组件。这些与异步组件不同，目前它们不会触发 `<Suspense>`。但是，它们仍然可以有作为后代的异步组件，这些可以以通常的方式触发 `<Suspense>`。
 

@@ -1,6 +1,6 @@
 # 渲染机制 {#rendering-mechanism}
 
-Rue 的渲染机制由编译器选择最小可用层级：静态 JSX 直接降为原生 DOM 操作；Signal 驱动的安全同步路径使用 compiled core；无法静态证明的复杂能力按需回退到 Vapor 兼容层。
+Rue 的渲染机制由编译器选择最小可用层级：静态 JSX 直接降为原生 DOM 操作，交互路径使用 compiled core。无法静态证明的结构会在构建期失败，不存在运行时 JSX 或 Vapor fallback。
 
 ## 公开渲染输出 {#public-render-output}
 
@@ -8,11 +8,10 @@ Rue 的渲染机制由编译器选择最小可用层级：静态 JSX 直接降�
 
 Rue 应用使用 JSX / TSX 描述输出。编译器会提前识别静态结构、动态绑定、锚点布局和清理边界，并为每个模块选择足以保持语义的最小产物。应用代码通常继续从 `@rue-js/rue` 导入；`@rue-js/rue/internal` 是编译产物和底层集成的入口，不需要为普通组件手动切换。
 
-## 三层执行模型 {#three-tier-execution-model}
+## 两层执行模型 {#three-tier-execution-model}
 
 1. **静态 DOM**：没有 Rue 动态值的原生 JSX 会被直接编译成 DOM 创建与插入代码，Rue 值依赖为零。
-2. **Compiled core**：Signal、effect、owner、选择器和可证明安全的键控列表只加载最小响应式与 DOM 核心，不依赖 `createRue`、JSX facade 或通用 Vapor helper。
-3. **Vapor fallback**：Hydration、Teleport、Transition、异步或不透明 renderable 等无法静态证明的能力由编译器导向 Vapor 层，以完整语义为优先。编译组件本身不等于 fallback；它通过 fine-grained 协议挂载，并由局部 effect 响应 props。
+2. **Compiled core**：Signal、effect、owner、选择器、可证明安全的键控列表以及受支持的内置组件只加载所需响应式与 DOM 核心。
 
 “静态零运行时”只描述第一层的构建产物。只要页面使用交互状态或复杂能力，就会加载与该能力匹配的运行时代码。
 
@@ -20,7 +19,7 @@ Rue 应用使用 JSX / TSX 描述输出。编译器会提前识别静态结构�
 
 在高层次上，当 Rue 组件挂载和更新时，会发生以下事情：
 
-1. **编译**：模板或 JSX 被分类为静态 DOM、compiled core 或 Vapor fallback。静态结构、动态区段、锚点与更新提示会尽可能在构建时确定。
+1. **编译**：JSX 被分类为静态 DOM 或 compiled core。静态结构、动态区段、锚点与更新提示必须在构建时确定。
 2. **挂载**：静态输出直接创建真实 DOM；动态输出由对应的最小层建立 effect、owner、锚点或区间边界。
 3. **更新**：依赖变更后，只重新执行受影响的 binding、列表 reconcile、block 或 effect，并直接更新对应 DOM。同身份编译组件会原地同步只读响应式 props，不会仅因 props 变化重新调用整个组件函数。
 4. **清理**：当分支切换、组件卸载或 renderable 边界失效时，对应 owner / cleanup bucket 会被回收，事件、订阅与 DOM 区间一并释放。
@@ -35,7 +34,7 @@ Rue 应用使用 JSX / TSX 描述输出。编译器会提前识别静态结构�
 2. 编译器能识别静态段、动态段、锚点和清理边界，从而选择静态 DOM 或更小的 compiled 输出。
 3. 应用无需维护底层渲染对象，也不会依赖生成 helper 的内部协议。
 
-高度动态的标签或组件身份使用 `<Component is={...}>` 表达；children 和 render prop 继续建模为普通 props。相关写法见[编译 JSX 与动态渲染](/guide/guide/extras/render-function)。
+有限动态组件使用 `<Component is={kind} registry={{ ... }}>` 表达；任意函数值、全局字符串注册、MDX 组件模块和运行时 JSX factory 不受支持。children 和 render prop 继续建模为普通 props。
 
 这里的“编译 JSX”特指经过 Rue SWC 的产物。编译器会直接导入 `@rue-js/rue/internal`。TypeScript 配置必须使用 `jsx: preserve`，并由 Rue 插件执行转换；如果转换后仍有 JSX AST，构建会在对应文件和语法位置失败。其他工具的 automatic JSX 降级不能替代 Rue 编译器。
 
@@ -44,11 +43,11 @@ Rue 应用使用 JSX / TSX 描述输出。编译器会提前识别静态结构�
 <span id="compiler-informed-virtual-dom"></span>
 <span id="compiler-informed-block-vapor"></span>
 
-Rue 的核心优势在于同时掌控编译器与分层运行时。编译器可以提前知道哪些结构稳定、哪些片段会更新、哪些区段需要锚点、哪些分支在切换时必须清理；无法证明安全时则保守回退，而不是牺牲行为一致性。
+Rue 的核心优势在于同时掌控编译器与分层运行时。编译器必须提前知道哪些结构稳定、哪些片段会更新、哪些区段需要锚点、哪些分支在切换时必须清理；无法证明安全时会给出构建错误。
 
 Rue 会把编译期知识直接下沉到渲染运行时，让更新路径尽量接近真实 DOM 变更本身。
 
-下面这些优化服务于静态 DOM、compiled core 和编译组件；只有无法静态证明安全的结构才会自动改用 Vapor fallback。
+下面这些优化服务于静态 DOM、compiled core 和编译组件；无法静态证明安全的结构需要改写为显式有限分支。
 
 ### 静态提升 {#cache-static}
 

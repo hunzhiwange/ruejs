@@ -160,7 +160,6 @@ export interface DrawerSidebarProps {
   /** getContainer 配置项。 */
   getContainer?: DrawerSidebarGetContainer
   /** drawerRender 自定义渲染函数。 */
-  drawerRender?: (node: any) => any
   /** 组件子内容。 */
   children?: any
   /** 关闭时触发的回调。 */
@@ -212,23 +211,8 @@ const mergeClassName = (...parts: Array<string | undefined | false | null>) =>
   parts.filter(Boolean).join(' ')
 
 /** flatten Children 的内部工具函数。 */
-const flattenChildren = (children: any, result: any[] = []) => {
-  if (children == null || children === false) return result
-  if (Array.isArray(children)) {
-    children.forEach(child => flattenChildren(child, result))
-    return result
-  }
-  result.push(children)
-  return result
-}
 
 /** 判断是否存在 Compound Children 的内部工具函数。 */
-const hasCompoundChildren = (children: any) => {
-  return flattenChildren(children).some(child => {
-    if (!child || typeof child !== 'object') return false
-    return Boolean((child as any).type?.[COMPOUND_PART_FLAG])
-  })
-}
 
 /** 归一化 Style Key 的内部工具函数。 */
 const normalizeStyleKey = (key: string) => {
@@ -449,7 +433,6 @@ const getManagedModeSignature = (props: DrawerSidebarProps) => {
     props.footerStyle,
     props.maskStyle,
     props.getContainer,
-    props.drawerRender,
     props.onClose,
     props.onOpenChange,
     props.afterOpenChange,
@@ -477,7 +460,7 @@ const unlockDocumentScroll = () => {
 }
 
 /** 渲染 Loading Body 的内部工具函数。 */
-const renderLoadingBody = () => {
+const RenderLoadingBody = () => {
   return (
     <div className="space-y-3" data-rue-drawer-sidebar-loading="true">
       <div className="skeleton h-4 w-1/3" />
@@ -543,7 +526,7 @@ const DrawerSidebarCloseButton: FC<DrawerSidebarCloseButtonProps> = ({
       }}
       data-rue-drawer-sidebar-close="true"
     >
-      {icon ?? <DefaultCloseIcon />}
+      {icon != null ? <span>{String(icon)}</span> : <DefaultCloseIcon />}
     </button>
   )
 }
@@ -606,6 +589,9 @@ const DrawerSidebarManagedPanel: FC<DrawerSidebarManagedPanelProps> = ({
   setPanelElement,
   onRequestClose,
 }) => {
+  const readFooterSlot = () => footer
+  const readExtraSlot = () => extra
+
   return (
     <div
       {...managedRest}
@@ -654,9 +640,9 @@ const DrawerSidebarManagedPanel: FC<DrawerSidebarManagedPanelProps> = ({
             className={mergeClassName('min-w-0 flex-1', classNames?.title)}
             style={mergeStyleValue(styles?.title)}
           >
-            {title ? <div className="text-lg font-semibold leading-6">{title}</div> : null}
+            {title ? <div className="text-lg font-semibold leading-6">{String(title)}</div> : null}
           </div>
-          {extra ? <div className="shrink-0">{extra}</div> : null}
+          {extra ? <div className="shrink-0">{readExtraSlot()}</div> : null}
           {resolvedClosable.get().placement === 'end' ? (
             <DrawerSidebarCloseButton
               disabled={resolvedClosable.get().disabled}
@@ -678,7 +664,7 @@ const DrawerSidebarManagedPanel: FC<DrawerSidebarManagedPanelProps> = ({
         aria-busy={loading ? 'true' : undefined}
         data-rue-drawer-sidebar-body="true"
       >
-        {loading ? renderLoadingBody() : children}
+        {loading ? <RenderLoadingBody /> : children}
       </div>
       {footer !== undefined && footer !== null && footer !== false ? (
         <div
@@ -690,7 +676,7 @@ const DrawerSidebarManagedPanel: FC<DrawerSidebarManagedPanelProps> = ({
           style={mergeStyleValue(styles?.footer, footerStyle)}
           data-rue-drawer-sidebar-footer="true"
         >
-          {footer}
+          {readFooterSlot()}
         </div>
       ) : null}
     </div>
@@ -698,9 +684,6 @@ const DrawerSidebarManagedPanel: FC<DrawerSidebarManagedPanelProps> = ({
 }
 
 /** render Managed Panel 的内部工具函数。 */
-const renderDrawerSidebarManagedPanel = (props: DrawerSidebarManagedPanelProps) => {
-  return <DrawerSidebarManagedPanel {...props} />
-}
 
 interface DrawerSidebarManagedFrameProps extends DrawerSidebarManagedPanelProps {
   resolvedMaskConfig: DrawerSidebarReadableSignal<Required<DrawerSidebarMaskConfig>>
@@ -709,7 +692,6 @@ interface DrawerSidebarManagedFrameProps extends DrawerSidebarManagedPanelProps 
   rootStyle?: DrawerSidebarInlineStyle
   maskStyle?: DrawerSidebarInlineStyle
   zIndex?: number
-  drawerRender?: (node: any) => any
   setRootElement?: (element: HTMLDivElement | null) => void
   setMaskElement?: (element: HTMLDivElement | null) => void
 }
@@ -727,7 +709,6 @@ const DrawerSidebarManagedFrame: FC<DrawerSidebarManagedFrameProps> = ({
   maskStyle,
   zIndex,
   inline,
-  drawerRender,
   setRootElement,
   setMaskElement,
   ...panelProps
@@ -775,27 +756,14 @@ const DrawerSidebarManagedFrame: FC<DrawerSidebarManagedFrameProps> = ({
         }}
         data-rue-drawer-sidebar-wrapper="true"
       >
-        {drawerRender ? (
-          drawerRender(
-            renderDrawerSidebarManagedPanel({
-              ...panelProps,
-              mergedOpen,
-              placement,
-              classNames,
-              styles,
-              inline,
-            }),
-          )
-        ) : (
-          <DrawerSidebarManagedPanel
-            {...panelProps}
-            mergedOpen={mergedOpen}
-            placement={placement}
-            classNames={classNames}
-            styles={styles}
-            inline={inline}
-          />
-        )}
+        <DrawerSidebarManagedPanel
+          {...panelProps}
+          mergedOpen={mergedOpen}
+          placement={placement}
+          classNames={classNames}
+          styles={styles}
+          inline={inline}
+        />
       </div>
     </div>
   )
@@ -858,7 +826,6 @@ const ManagedRoot: FC<DrawerSidebarProps> = ({
   footerStyle,
   maskStyle,
   getContainer,
-  drawerRender,
   children,
   onClose,
   onOpenChange,
@@ -887,34 +854,6 @@ const ManagedRoot: FC<DrawerSidebarProps> = ({
   const resolvedContainer = computed(() =>
     typeof getContainer === 'function' ? getContainer() : getContainer,
   )
-  let rootElement: HTMLDivElement | null = null
-  let maskElement: HTMLDivElement | null = null
-  let panelElement: HTMLDivElement | null = null
-
-  const syncManagedDom = (nextOpen: boolean) => {
-    if (rootElement) {
-      rootElement.setAttribute('data-rue-drawer-sidebar-open', nextOpen ? 'true' : 'false')
-      rootElement.classList.toggle('pointer-events-auto', nextOpen)
-      rootElement.classList.toggle('pointer-events-none', !nextOpen)
-      rootElement.style.display = mergedDestroyOnHidden.get() && !nextOpen ? 'none' : ''
-    }
-
-    if (maskElement) {
-      maskElement.classList.toggle('opacity-100', nextOpen)
-      maskElement.classList.toggle('opacity-0', !nextOpen)
-    }
-
-    if (panelElement) {
-      const openTransformClassName = getPanelTransformClassName(placement.get(), true)
-      const closeTransformClassName = getPanelTransformClassName(placement.get(), false)
-
-      panelElement.setAttribute('aria-hidden', nextOpen ? 'false' : 'true')
-      panelElement.setAttribute('aria-modal', nextOpen && !inline ? 'true' : 'false')
-      panelElement.classList.toggle(openTransformClassName, nextOpen)
-      panelElement.classList.toggle(closeTransformClassName, !nextOpen)
-    }
-  }
-
   const requestOpenChange = (nextOpen: boolean) => {
     if (currentOpen.value === nextOpen) return
     currentOpen.value = nextOpen
@@ -953,7 +892,6 @@ const ManagedRoot: FC<DrawerSidebarProps> = ({
   watch(
     () => currentOpen.value,
     (nextOpen: boolean) => {
-      syncManagedDom(nextOpen)
       if (nextOpen) {
         hasOpened.value = true
         if (!inline && !locked.value) {
@@ -1040,19 +978,6 @@ const ManagedRoot: FC<DrawerSidebarProps> = ({
             loading={loading}
             inline={inline}
             zIndex={zIndex}
-            drawerRender={drawerRender}
-            setRootElement={(element: HTMLDivElement | null) => {
-              rootElement = element
-              syncManagedDom(currentOpen.value)
-            }}
-            setMaskElement={(element: HTMLDivElement | null) => {
-              maskElement = element
-              syncManagedDom(currentOpen.value)
-            }}
-            setPanelElement={(element: HTMLDivElement | null) => {
-              panelElement = element
-              syncManagedDom(currentOpen.value)
-            }}
             onRequestClose={emitClose}
           >
             {children}
@@ -1089,19 +1014,6 @@ const ManagedRoot: FC<DrawerSidebarProps> = ({
               loading={loading}
               inline={inline}
               zIndex={zIndex}
-              drawerRender={drawerRender}
-              setRootElement={(element: HTMLDivElement | null) => {
-                rootElement = element
-                syncManagedDom(currentOpen.value)
-              }}
-              setMaskElement={(element: HTMLDivElement | null) => {
-                maskElement = element
-                syncManagedDom(currentOpen.value)
-              }}
-              setPanelElement={(element: HTMLDivElement | null) => {
-                panelElement = element
-                syncManagedDom(currentOpen.value)
-              }}
               onRequestClose={emitClose}
             >
               {children}
@@ -1114,13 +1026,17 @@ const ManagedRoot: FC<DrawerSidebarProps> = ({
 }
 
 /** Root 的内部工具函数。 */
-const Root: FC<DrawerSidebarProps> = props => {
-  const shouldUseManagedMode = computed(
-    () => !hasCompoundChildren(props.children) && getManagedModeSignature(props),
-  )
+const Root: FC<DrawerSidebarProps> = (props, slots: Record<string, any> = {}) => {
+  const shouldUseManagedMode = computed(() => getManagedModeSignature(props))
 
   return (
-    <>{shouldUseManagedMode.get() ? <ManagedRoot {...props} /> : <CompoundRoot {...props} />}</>
+    <>
+      {shouldUseManagedMode.get() ? (
+        <ManagedRoot {...props} extra={slots.extra} footer={slots.footer} />
+      ) : (
+        <CompoundRoot {...props} />
+      )}
+    </>
   )
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { computed, useState } from '@rue-js/rue'
+import { computed, type FC, ref } from '@rue-js/rue'
 
 type TodoFilter = 'all' | 'active' | 'done'
 
@@ -16,43 +16,75 @@ const initialTodos: Todo[] = [
   { id: 3, title: 'Ship a tiny interactive todo app', completed: false },
 ]
 
+const TodoFilterButton: FC<{
+  item: TodoFilter
+  filter: { value: TodoFilter }
+}> = ({ item, filter }) => (
+  <button
+    className={`tab-button${filter.value === item ? ' active' : ''}`}
+    type="button"
+    aria-pressed={filter.value === item}
+    onClick={() => {
+      filter.value = item
+    }}
+  >
+    {item === 'all' ? 'All' : item === 'active' ? 'Active' : 'Done'}
+  </button>
+)
+
+const TodoRow: FC<{
+  todo: Todo
+  onToggle: (id: number) => void
+  onRemove: (id: number) => void
+}> = ({ todo, onToggle, onRemove }) => (
+  <li className={`todo-item${todo.completed ? ' completed' : ''}`}>
+    <label>
+      <input type="checkbox" checked={todo.completed} onChange={() => onToggle(todo.id)} />
+      <span>{todo.title}</span>
+    </label>
+    <button className="todo-remove" type="button" onClick={() => onRemove(todo.id)}>
+      Remove
+    </button>
+  </li>
+)
+
 export default function ClientTodoApp() {
-  const [todos, setTodos] = useState<Todo[]>(initialTodos)
-  const [draft, setDraft] = useState('')
-  const [filter, setFilter] = useState<TodoFilter>('all')
-  const [nextId, setNextId] = useState(4)
+  const todos = ref<Todo[]>(initialTodos)
+  const draft = ref('')
+  const filter = ref<TodoFilter>('all')
+  const nextId = ref(4)
 
   const visibleTodos = computed(() =>
-    todos.filter(todo => {
-      if (filter === 'active') return !todo.completed
-      if (filter === 'done') return todo.completed
+    todos.value.filter(todo => {
+      if (filter.value === 'active') return !todo.completed
+      if (filter.value === 'done') return todo.completed
       return true
     }),
   )
-  const remainingCount = computed(() => todos.filter(todo => !todo.completed).length)
-  const completedCount = computed(() => todos.length - remainingCount.get())
+  const remainingCount = computed(() => todos.value.filter(todo => !todo.completed).length)
+  const completedCount = computed(() => todos.value.length - remainingCount.get())
 
   function addTodo() {
-    const title = draft.trim()
+    const title = draft.value.trim()
     if (!title) return
 
-    setTodos(previous => [...previous, { id: nextId, title, completed: false }])
-    setNextId(value => value + 1)
-    setDraft('')
+    todos.value = [...todos.value, { id: nextId.value, title, completed: false }]
+    nextId.value += 1
+    draft.value = ''
   }
 
   function toggleTodo(id: number) {
-    setTodos(previous =>
-      previous.map(todo => (todo.id === id ? { ...todo, completed: !todo.completed } : todo)),
+    todos.value = todos.value.map(todo =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo,
     )
   }
 
   function removeTodo(id: number) {
-    setTodos(previous => previous.filter(todo => todo.id !== id))
+    todos.value = todos.value.filter(todo => todo.id !== id)
   }
 
   function clearCompleted() {
-    setTodos(previous => previous.filter(todo => !todo.completed))
+    todos.value = todos.value.filter(todo => !todo.completed)
   }
 
   return (
@@ -71,10 +103,10 @@ export default function ClientTodoApp() {
           <label className="field todo-field">
             <span>New task</span>
             <input
-              value={draft}
+              value={draft.value}
               placeholder="Add something for the client to track"
               onInput={(event: InputEvent) => {
-                setDraft((event.target as HTMLInputElement).value)
+                draft.value = (event.target as HTMLInputElement).value
               }}
               onKeyDown={(event: KeyboardEvent) => {
                 if (event.key === 'Enter') {
@@ -91,15 +123,7 @@ export default function ClientTodoApp() {
         <div className="todo-toolbar">
           <div className="filter-tabs" role="group" aria-label="Todo filter">
             {(['all', 'active', 'done'] as TodoFilter[]).map(item => (
-              <button
-                className={`tab-button${filter === item ? ' active' : ''}`}
-                type="button"
-                aria-pressed={filter === item}
-                onClick={() => setFilter(item)}
-                key={item}
-              >
-                {item === 'all' ? 'All' : item === 'active' ? 'Active' : 'Done'}
-              </button>
+              <TodoFilterButton key={item} item={item} filter={filter} />
             ))}
           </div>
           <button
@@ -114,24 +138,12 @@ export default function ClientTodoApp() {
 
         <ul className="todo-list" aria-live="polite">
           {visibleTodos.get().map(todo => (
-            <li className={`todo-item${todo.completed ? ' completed' : ''}`} key={todo.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={todo.completed}
-                  onChange={() => toggleTodo(todo.id)}
-                />
-                <span>{todo.title}</span>
-              </label>
-              <button className="todo-remove" type="button" onClick={() => removeTodo(todo.id)}>
-                Remove
-              </button>
-            </li>
+            <TodoRow key={todo.id} todo={todo} onToggle={toggleTodo} onRemove={removeTodo} />
           ))}
         </ul>
 
         <p className="todo-summary">
-          {remainingCount.get()} active · {completedCount.get()} done · {todos.length} total
+          {remainingCount.get()} active · {completedCount.get()} done · {todos.value.length} total
         </p>
       </div>
     </section>

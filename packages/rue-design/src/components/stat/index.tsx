@@ -4,7 +4,7 @@ Stat 组件概述
 - 复合组件：保留 Item/Title/Value/Desc/Figure/Actions 组合能力。
 - 增强数值展示：补齐 formatter / precision / prefix / suffix / loading / timer。
 */
-import { onUnmounted, ref, watch, type FC } from '@rue-js/rue'
+import { Template, onUnmounted, ref, watch, type FC } from '@rue-js/rue'
 
 /** DEFAULT_DECIMAL_SEPARATOR 内部常量。 */
 const DEFAULT_DECIMAL_SEPARATOR = '.'
@@ -39,7 +39,7 @@ export type StatTimerFormatUnit = 'Y' | 'M' | 'D' | 'H' | 'm' | 's' | 'S'
 export type StatTargetValue = number | string | Date
 
 interface StatFormatConfig {
-  formatter?: (value?: any) => any
+  formatter?: (value?: string | number) => string | number
   precision?: number
   decimalSeparator?: string
   groupSeparator?: string
@@ -65,14 +65,14 @@ interface StatValueTextProps {
 /** StatValueProps 组件属性。 */
 export interface StatValueProps extends StatPartProps, StatFormatConfig {
   /** 受控值。 */
-  value?: any
+  value?: string | number
   /** 前缀内容。 */
-  prefix?: any
+  prefix?: string | number
   /** 后缀内容。 */
-  suffix?: any
+  suffix?: string | number
   /** 是否展示加载态。 */
   loading?: boolean
-  /** valueRender 自定义渲染函数。 */
+  /** Transform the formatted value node. */
   valueRender?: (node: any) => any
 }
 
@@ -85,39 +85,37 @@ export interface StatItemProps extends StatFormatConfig {
   /** 组件子内容。 */
   children?: any
   /** figure 配置项。 */
-  figure?: any
+  figure?: string | number
   /** figureClassName 附加类名。 */
   figureClassName?: string
   /** figureStyle 内联样式。 */
   figureStyle?: any
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** titleClassName 附加类名。 */
   titleClassName?: string
   /** titleStyle 内联样式。 */
   titleStyle?: any
   /** 受控值。 */
-  value?: any
+  value?: string | number
   /** valueClassName 附加类名。 */
   valueClassName?: string
   /** valueStyle 内联样式。 */
   valueStyle?: any
-  /** valueRender 自定义渲染函数。 */
-  valueRender?: (node: any) => any
   /** 前缀内容。 */
-  prefix?: any
+  prefix?: string | number
   /** 后缀内容。 */
-  suffix?: any
+  suffix?: string | number
   /** 是否展示加载态。 */
   loading?: boolean
   /** desc 配置项。 */
-  desc?: any
+  desc?: string | number
   /** descClassName 附加类名。 */
   descClassName?: string
   /** descStyle 内联样式。 */
   descStyle?: any
   /** 操作区内容。 */
-  actions?: any
+  actions?: string | number
   /** actionsClassName 附加类名。 */
   actionsClassName?: string
   /** actionsStyle 内联样式。 */
@@ -152,13 +150,13 @@ export interface StatTimerProps {
   /** center 配置项。 */
   center?: boolean
   /** figure 配置项。 */
-  figure?: any
+  figure?: string | number
   /** figureClassName 附加类名。 */
   figureClassName?: string
   /** figureStyle 内联样式。 */
   figureStyle?: any
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** titleClassName 附加类名。 */
   titleClassName?: string
   /** titleStyle 内联样式。 */
@@ -168,19 +166,19 @@ export interface StatTimerProps {
   /** valueStyle 内联样式。 */
   valueStyle?: any
   /** 前缀内容。 */
-  prefix?: any
+  prefix?: string | number
   /** 后缀内容。 */
-  suffix?: any
+  suffix?: string | number
   /** 是否展示加载态。 */
   loading?: boolean
   /** desc 配置项。 */
-  desc?: any
+  desc?: string | number
   /** descClassName 附加类名。 */
   descClassName?: string
   /** descStyle 内联样式。 */
   descStyle?: any
   /** 操作区内容。 */
-  actions?: any
+  actions?: string | number
   /** actionsClassName 附加类名。 */
   actionsClassName?: string
   /** actionsStyle 内联样式。 */
@@ -252,31 +250,6 @@ const formatNumericValue = ({
   }
 
   return `${negative}${int}${decimal ? `${decimalSeparator}${decimal}` : ''}`
-}
-
-/** 渲染 Value Node 的内部工具函数。 */
-const renderValueNode = ({
-  value,
-  children,
-  valueRender,
-  formatter,
-  precision,
-  decimalSeparator,
-  groupSeparator,
-}: Pick<
-  StatValueProps,
-  | 'value'
-  | 'children'
-  | 'valueRender'
-  | 'formatter'
-  | 'precision'
-  | 'decimalSeparator'
-  | 'groupSeparator'
->) => {
-  const baseNode = hasContent(value)
-    ? formatNumericValue({ value, formatter, precision, decimalSeparator, groupSeparator })
-    : children
-  return typeof valueRender === 'function' ? valueRender(baseNode) : baseNode
 }
 
 /** parse Timer Format 的内部工具函数。 */
@@ -376,7 +349,6 @@ const ItemContent: FC<Omit<StatItemProps, 'center' | 'className' | 'children'>> 
   value,
   valueClassName,
   valueStyle,
-  valueRender,
   prefix,
   suffix,
   loading,
@@ -395,20 +367,19 @@ const ItemContent: FC<Omit<StatItemProps, 'center' | 'className' | 'children'>> 
     <>
       {hasContent(figure) ? (
         <Figure className={figureClassName} style={figureStyle}>
-          {figure}
+          {String(figure)}
         </Figure>
       ) : null}
       {hasContent(title) ? (
         <Title className={titleClassName} style={titleStyle}>
-          {title}
+          {String(title)}
         </Title>
       ) : null}
       {loading ||
       hasContent(value) ||
       hasContent(prefix) ||
       hasContent(suffix) ||
-      typeof formatter === 'function' ||
-      typeof valueRender === 'function' ? (
+      typeof formatter === 'function' ? (
         <Value
           className={valueClassName}
           style={valueStyle}
@@ -416,7 +387,6 @@ const ItemContent: FC<Omit<StatItemProps, 'center' | 'className' | 'children'>> 
           prefix={prefix}
           suffix={suffix}
           loading={loading}
-          valueRender={valueRender}
           formatter={formatter}
           precision={precision}
           decimalSeparator={decimalSeparator}
@@ -425,12 +395,12 @@ const ItemContent: FC<Omit<StatItemProps, 'center' | 'className' | 'children'>> 
       ) : null}
       {hasContent(desc) ? (
         <Desc className={descClassName} style={descStyle}>
-          {desc}
+          {String(desc)}
         </Desc>
       ) : null}
       {hasContent(actions) ? (
         <Actions className={actionsClassName} style={actionsStyle}>
-          {actions}
+          {String(actions)}
         </Actions>
       ) : null}
     </>
@@ -466,7 +436,6 @@ const Item: FC<StatItemProps> = ({
   value,
   valueClassName,
   valueStyle,
-  valueRender,
   prefix,
   suffix,
   loading,
@@ -499,7 +468,6 @@ const Item: FC<StatItemProps> = ({
           value={value}
           valueClassName={valueClassName}
           valueStyle={valueStyle}
-          valueRender={valueRender}
           prefix={prefix}
           suffix={suffix}
           loading={loading}
@@ -538,30 +506,22 @@ const ValueText: FC<StatValueTextProps> = ({ children }) => {
 }
 
 /** 数值区域 */
-const Value: FC<StatValueProps> = ({
-  className,
-  style,
-  children,
-  value,
-  prefix,
-  suffix,
-  loading,
-  valueRender,
-  formatter,
-  precision,
-  decimalSeparator,
-  groupSeparator,
-}) => {
-  const content = renderValueNode({
-    value,
+const Value: FC<StatValueProps> = (
+  {
+    className,
+    style,
     children,
-    valueRender,
+    value,
+    prefix,
+    suffix,
+    loading,
     formatter,
     precision,
     decimalSeparator,
     groupSeparator,
-  })
-
+  },
+  slots: Record<string, any> = {},
+) => {
   return (
     <div className={mergeClassName('stat-value', className)} style={style}>
       {hasContent(prefix) ? (
@@ -569,7 +529,7 @@ const Value: FC<StatValueProps> = ({
           className="stat-value-prefix mr-2 text-base-content/70 text-[0.55em]"
           aria-hidden="true"
         >
-          {prefix}
+          {String(prefix)}
         </span>
       ) : null}
       {loading ? (
@@ -578,15 +538,24 @@ const Value: FC<StatValueProps> = ({
           data-stat-loading="true"
           aria-hidden="true"
         />
-      ) : hasContent(content) ? (
-        <ValueText>{content}</ValueText>
-      ) : null}
+      ) : slots.value ? (
+        <ValueText>{slots.value}</ValueText>
+      ) : hasContent(value) ? (
+        <ValueText>
+          {String(
+            formatNumericValue({ value, formatter, precision, decimalSeparator, groupSeparator }) ??
+              '',
+          )}
+        </ValueText>
+      ) : (
+        <ValueText>{children}</ValueText>
+      )}
       {hasContent(suffix) ? (
         <span
           className="stat-value-suffix ml-2 text-base-content/70 text-[0.55em]"
           aria-hidden="true"
         >
-          {suffix}
+          {String(suffix)}
         </span>
       ) : null}
     </div>
@@ -709,12 +678,12 @@ const Timer: FC<StatTimerProps> = ({
     <div className={cls}>
       {hasContent(figure) ? (
         <Figure className={figureClassName} style={figureStyle}>
-          {figure}
+          {String(figure)}
         </Figure>
       ) : null}
       {hasContent(title) ? (
         <Title className={titleClassName} style={titleStyle}>
-          {title}
+          {String(title)}
         </Title>
       ) : null}
       <Value
@@ -727,19 +696,19 @@ const Timer: FC<StatTimerProps> = ({
         <span
           data-stat-timer={type}
           aria-live={ariaLive ?? (format.includes('S') ? 'off' : 'polite')}
-          aria-label={formatTimerDuration(duration.value, format)}
+          aria-label={String(formatTimerDuration(duration.value, format))}
         >
-          {formatTimerDuration(duration.value, format)}
+          {String(formatTimerDuration(duration.value, format))}
         </span>
       </Value>
       {hasContent(desc) ? (
         <Desc className={descClassName} style={descStyle}>
-          {desc}
+          {String(desc)}
         </Desc>
       ) : null}
       {hasContent(actions) ? (
         <Actions className={actionsClassName} style={actionsStyle}>
-          {actions}
+          {String(actions)}
         </Actions>
       ) : null}
     </div>

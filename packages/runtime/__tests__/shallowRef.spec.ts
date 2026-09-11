@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { isReactive, setReactiveScheduling, shallowRef, watchEffect } from '@rue-js/rue'
+import { setReactiveScheduling, shallowRef, watchEffect } from '@rue-js/rue'
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -17,7 +17,7 @@ describe('shallowRef api', () => {
       seen.push(state.value.count)
     })
 
-    expect(isReactive(state.value)).toBe(false)
+    expect(state.value).toEqual({ count: 1 })
     expect(seen).toEqual([1])
 
     state.value.count = 2

@@ -80,11 +80,11 @@ export default OrCases;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec44.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert_eq!(normalized.matches("_$compiledRoot(Object.assign(").count(), 6);
-    assert_eq!(normalized.matches("__rue_compiled_explicit_roots").count(), 6);
+    assert_eq!(normalized.matches("_$compiledRoot(").count(), 4);
+    assert_eq!(normalized.matches("return [").count(), 4);
     assert!(normalized.contains("const show = ref(false)"), "{out}");
-    assert_eq!(normalized.matches("_$compiledBranchAt(").count(), 2);
-    assert!(normalized.contains("const __rue_branch_value = show"), "{out}");
-    assert!(normalized.contains("_$compiledBranch(()=>"), "{out}");
-    assert!(!normalized.contains("renderAnchor"), "{out}");
+    assert_eq!(normalized.matches("_$compiledBranchAt(").count(), 0);
+    assert!(normalized.contains("const __slot = show ||"), "{out}");
+    assert!(!normalized.contains("_$compiledBranch(()=>"), "{out}");
+    assert!(normalized.contains("renderAnchor(__slot,"), "{out}");
 }

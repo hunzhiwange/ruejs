@@ -171,16 +171,13 @@ const mergeClassName = (base: string, className?: string) => {
 }
 
 /** 渲染 Quick Item Content 的内部工具函数。 */
-const renderQuickItemContent = (content: any) => {
+const RenderQuickItemContent = ({ arg0: content }: { arg0: any }) => {
   return <div className="relative h-full [&>*]:h-full [&>*]:w-full [&>*]:max-w-none">{content}</div>
 }
 
 /** 判断是否存在 Renderable Children 的内部工具函数。 */
-const hasRenderableChildren = (children: any) => {
-  if (children == null) return false
-  if (Array.isArray(children)) return children.length > 0
-  return true
-}
+const hasRenderableChildren = (children: any) =>
+  children != null && children !== false && children !== ''
 
 /** assign Forwarded Ref 的内部工具函数。 */
 const assignForwardedRef = (forwardedRef: any, element: HTMLElement | null) => {
@@ -510,7 +507,7 @@ const Diff: FC<DiffProps> = ({
         style={getQuickItem1Style()}
         data-rue-diff-item="1"
       >
-        {renderQuickItemContent(item1)}
+        <RenderQuickItemContent arg0={item1} />
       </Item1>
       <Item2
         className="absolute inset-0 overflow-hidden after:hidden"
@@ -518,7 +515,7 @@ const Diff: FC<DiffProps> = ({
         style={getQuickItem2Style()}
         data-rue-diff-item="2"
       >
-        {renderQuickItemContent(item2)}
+        <RenderQuickItemContent arg0={item2} />
       </Item2>
       {item1Label != null ? (
         <span className="pointer-events-none absolute left-4 top-4 z-30 rounded-full bg-base-100/80 px-3 py-1 text-xs font-medium text-base-content shadow-sm backdrop-blur">

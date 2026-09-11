@@ -1,9 +1,10 @@
+import { provideContext } from '@rue-js/rue/internal/app'
 /*
 Space 模块概述
 - 汇总间距组件的公开类型、渲染入口和局部工具逻辑。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
-import type { FC } from '@rue-js/rue'
+import { createContext, useContext, type FC } from '@rue-js/rue'
 
 /** SpaceDirection 位置或方向类型。 */
 export type SpaceDirection = 'horizontal' | 'vertical'
@@ -15,7 +16,7 @@ export type SpaceSize = 'small' | 'middle' | 'large' | number | string
 /** SpaceProps 组件属性。 */
 export interface SpaceProps {
   /** 自定义渲染的宿主元素。 */
-  as?: any
+  as?: 'div' | 'span' | 'section'
   /** 组件尺寸。 */
   size?: SpaceSize | [SpaceSize, SpaceSize]
   /** 布局方向。 */
@@ -26,10 +27,6 @@ export interface SpaceProps {
   vertical?: boolean
   /** 交叉轴或内容对齐方式。 */
   align?: SpaceAlign
-  /** split 配置项。 */
-  split?: any
-  /** separator 配置项。 */
-  separator?: any
   /** wrap 配置项。 */
   wrap?: boolean
   /** block 配置项。 */
@@ -51,7 +48,7 @@ export interface SpaceProps {
 /** SpaceCompactProps 组件属性。 */
 export interface SpaceCompactProps {
   /** 自定义渲染的宿主元素。 */
-  as?: any
+  as?: 'div' | 'span' | 'section'
   /** 组件尺寸。 */
   size?: SpaceSize
   /** 布局方向。 */
@@ -72,20 +69,20 @@ export interface SpaceCompactProps {
   [key: string]: any
 }
 
-interface SpaceItemProps {
-  child?: any
-  direction: SpaceDirection
+export interface SpaceItemProps {
+  children?: any
+  direction?: SpaceDirection
   align?: SpaceAlign
   itemClassName?: string
   itemStyle?: Record<string, any>
   showSeparator?: boolean
-  separator?: any
+  separator?: string | number
   separatorGap?: string
 }
 
-interface SpaceCompactItemProps {
-  child?: any
-  direction: SpaceDirection
+export interface SpaceCompactItemProps {
+  children?: any
+  direction?: SpaceDirection
   index: number
   total: number
   block?: boolean
@@ -117,19 +114,6 @@ const mergeStyle = (...styles: Array<Record<string, any> | undefined>) => {
   })
 
   return Object.keys(nextStyle).length > 0 ? nextStyle : undefined
-}
-
-/** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  return children == null || typeof children === 'boolean' ? [] : [children]
-}
-
-/** is Renderable Node 的内部工具函数。 */
-const _isRenderableNode = (node: any) => {
-  return !!node && typeof node === 'object'
 }
 
 /** 归一化 Space Value 的内部工具函数。 */
@@ -175,25 +159,6 @@ const resolveDirection = (
 }
 
 /** resolve Compact Size Class Name 的内部工具函数。 */
-const _resolveCompactSizeClassName = (className: string | undefined, size?: SpaceSize) => {
-  if (!className || size == null || typeof size === 'number') {
-    return undefined
-  }
-
-  const normalizedSize =
-    size === 'middle' ? 'md' : size === 'small' ? 'sm' : size === 'large' ? 'lg' : undefined
-  if (!normalizedSize) {
-    return undefined
-  }
-
-  const nextClassNames: string[] = []
-  if (/\bbtn\b/.test(className)) nextClassNames.push(`btn-${normalizedSize}`)
-  if (/\binput\b/.test(className)) nextClassNames.push(`input-${normalizedSize}`)
-  if (/\bselect\b/.test(className)) nextClassNames.push(`select-${normalizedSize}`)
-  if (/\btextarea\b/.test(className)) nextClassNames.push(`textarea-${normalizedSize}`)
-
-  return nextClassNames.length > 0 ? nextClassNames.join(' ') : undefined
-}
 
 /** 解析 Compact Item Class Name 的内部工具函数。 */
 const resolveCompactItemClassName = (direction: SpaceDirection, index: number, total: number) => {
@@ -213,11 +178,6 @@ const resolveCompactItemClassName = (direction: SpaceDirection, index: number, t
     !isFirst && '-ml-px rounded-l-none',
     !isLast && 'rounded-r-none',
   )
-}
-
-/** 解析 Separator Content 的内部工具函数。 */
-const resolveSeparatorContent = (separator: any) => {
-  return typeof separator === 'function' ? separator() : separator
 }
 
 /** 解析 Compact Shell Style 的内部工具函数。 */
@@ -246,7 +206,13 @@ const resolveCompactShellStyle = (size?: SpaceSize) => {
 }
 
 /** 渲染 Space Separator 的内部工具函数。 */
-const renderSpaceSeparator = (separator: any, direction: SpaceDirection) => {
+const RenderSpaceSeparator = ({
+  arg0: separator,
+  arg1: direction,
+}: {
+  arg0: string | number
+  arg1: SpaceDirection
+}) => {
   return (
     <span
       aria-hidden="true"
@@ -255,15 +221,15 @@ const renderSpaceSeparator = (separator: any, direction: SpaceDirection) => {
         direction === 'vertical' && 'leading-none',
       )}
     >
-      {separator}
+      {String(separator)}
     </span>
   )
 }
 
 /** Space Item 的内部工具函数。 */
-const SpaceItem: FC<SpaceItemProps> = ({
-  child,
-  direction,
+export const SpaceItem: FC<SpaceItemProps> = ({
+  children,
+  direction = 'horizontal',
   align,
   itemClassName,
   itemStyle,
@@ -290,22 +256,31 @@ const SpaceItem: FC<SpaceItemProps> = ({
         itemStyle,
       )}
     >
-      {child}
-      {showSeparator ? renderSpaceSeparator(resolveSeparatorContent(separator), direction) : null}
+      {children}
+      {showSeparator ? <RenderSpaceSeparator arg0={separator ?? ''} arg1={direction} /> : null}
     </div>
   )
 }
 
+const CompactContext = createContext<{
+  direction: SpaceDirection
+  block: boolean
+  size?: SpaceSize
+}>({ direction: 'horizontal', block: false })
+
 /** Space Compact Item 的内部工具函数。 */
-const SpaceCompactItem: FC<SpaceCompactItemProps> = ({
-  child,
-  direction,
+export const SpaceCompactItem: FC<SpaceCompactItemProps> = ({
+  children,
+  direction: itemDirection,
   index,
   total,
-  block,
+  block: itemBlock,
   blockItemStyle,
   compactShellStyle,
 }) => {
+  const context = useContext(CompactContext)
+  const direction = itemDirection ?? context.direction
+  const block = itemBlock ?? context.block
   return (
     <div
       data-rue-space-compact-item=""
@@ -320,10 +295,11 @@ const SpaceCompactItem: FC<SpaceCompactItemProps> = ({
           maxWidth: '100%',
         },
         blockItemStyle,
+        resolveCompactShellStyle(context.size),
         compactShellStyle,
       )}
     >
-      {child}
+      {children}
     </div>
   )
 }
@@ -336,8 +312,6 @@ const SpaceRoot: FC<SpaceProps> = ({
   orientation,
   vertical,
   align,
-  split,
-  separator,
   wrap = false,
   block = false,
   className,
@@ -347,17 +321,13 @@ const SpaceRoot: FC<SpaceProps> = ({
   children,
   ...rest
 }) => {
-  const Component = as as any
-  const childNodes = toChildArray(children)
-
+  const Component = as
   const resolvedDirection = resolveDirection(orientation, direction, vertical)
   const resolvedAlign = align ?? (resolvedDirection === 'horizontal' ? 'center' : undefined)
   const gap = resolveGap(size)
-  const mergedSeparator = separator ?? split
-  const separatorGap = resolvedDirection === 'vertical' ? gap.rowGap : gap.columnGap
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={mergeClassNames('rue-space min-w-0 max-w-full', className)}
       style={mergeStyle(
@@ -377,25 +347,56 @@ const SpaceRoot: FC<SpaceProps> = ({
       data-rue-space-direction={resolvedDirection}
       aria-orientation={resolvedDirection}
     >
-      {childNodes.map((child, index) => {
-        const key = child?.key ?? child?.props?.key ?? index
-        const showSeparator = mergedSeparator != null && index < childNodes.length - 1
-
-        return (
-          <SpaceItem
-            key={key}
-            child={child}
-            direction={resolvedDirection}
-            align={resolvedAlign}
-            itemClassName={itemClassName}
-            itemStyle={itemStyle}
-            showSeparator={showSeparator}
-            separator={mergedSeparator}
-            separatorGap={separatorGap}
-          />
-        )
-      })}
-    </Component>
+      {children}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={mergeClassNames('rue-space min-w-0 max-w-full', className)}
+      style={mergeStyle(
+        {
+          display: block ? 'flex' : 'inline-flex',
+          flexDirection: resolvedDirection === 'vertical' ? 'column' : 'row',
+          flexWrap: wrap ? 'wrap' : 'nowrap',
+          alignItems: resolvedAlign,
+          width: block ? '100%' : undefined,
+          maxWidth: '100%',
+          columnGap: gap.columnGap,
+          rowGap: gap.rowGap,
+        },
+        style,
+      )}
+      data-rue-space=""
+      data-rue-space-direction={resolvedDirection}
+      aria-orientation={resolvedDirection}
+    >
+      {children}
+    </span>
+  ) : Component === 'section' ? (
+    <section
+      {...rest}
+      className={mergeClassNames('rue-space min-w-0 max-w-full', className)}
+      style={mergeStyle(
+        {
+          display: block ? 'flex' : 'inline-flex',
+          flexDirection: resolvedDirection === 'vertical' ? 'column' : 'row',
+          flexWrap: wrap ? 'wrap' : 'nowrap',
+          alignItems: resolvedAlign,
+          width: block ? '100%' : undefined,
+          maxWidth: '100%',
+          columnGap: gap.columnGap,
+          rowGap: gap.rowGap,
+        },
+        style,
+      )}
+      data-rue-space=""
+      data-rue-space-direction={resolvedDirection}
+      aria-orientation={resolvedDirection}
+    >
+      {children}
+    </section>
+  ) : (
+    <></>
   )
 }
 
@@ -412,13 +413,7 @@ const SpaceCompact: FC<SpaceCompactProps> = ({
   children,
   ...rest
 }) => {
-  const Component = as as any
-  const childNodes = toChildArray(children)
-
-  if (childNodes.length === 0) {
-    return null
-  }
-
+  const Component = as
   const resolvedDirection = resolveDirection(orientation, direction, vertical)
   const blockItemStyle = block
     ? resolvedDirection === 'vertical'
@@ -427,8 +422,10 @@ const SpaceCompact: FC<SpaceCompactProps> = ({
     : undefined
   const compactShellStyle = resolveCompactShellStyle(size)
 
-  return (
-    <Component
+  provideContext(CompactContext, () => ({ direction: resolvedDirection, block, size }))
+
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={mergeClassNames('rue-space-compact max-w-full', className)}
       style={mergeStyle(
@@ -444,21 +441,29 @@ const SpaceCompact: FC<SpaceCompactProps> = ({
       data-rue-space-direction={resolvedDirection}
       aria-orientation={resolvedDirection}
     >
-      {childNodes.map((child, index) => {
-        return (
-          <SpaceCompactItem
-            key={index}
-            child={child}
-            direction={resolvedDirection}
-            index={index}
-            total={childNodes.length}
-            block={block}
-            blockItemStyle={blockItemStyle}
-            compactShellStyle={compactShellStyle}
-          />
-        )
-      })}
-    </Component>
+      {children}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={mergeClassNames('rue-space-compact max-w-full', className)}
+      style={mergeStyle(
+        {
+          display: 'flex',
+          flexDirection: resolvedDirection === 'vertical' ? 'column' : 'row',
+          width: block ? '100%' : undefined,
+          maxWidth: '100%',
+        },
+        style,
+      )}
+      data-rue-space-compact=""
+      data-rue-space-direction={resolvedDirection}
+      aria-orientation={resolvedDirection}
+    >
+      {children}
+    </span>
+  ) : (
+    <></>
   )
 }
 

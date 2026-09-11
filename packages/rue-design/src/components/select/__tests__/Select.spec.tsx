@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 import Select from '../index'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -19,12 +20,14 @@ describe('Select', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Select className="w-full" value="amber" data-testid="select-root">
-        <option value="crimson">Crimson</option>
-        <option value="amber">Amber</option>
-      </Select>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select className="w-full" value="amber" data-testid="select-root">
+          <option value="crimson">Crimson</option>
+          <option value="amber">Amber</option>
+        </Select>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -40,20 +43,22 @@ describe('Select', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Select color="primary" ghost uiSize="lg" data-testid="select-variants">
-          <option>One</option>
-          <option>Two</option>
-        </Select>
-        <Select size="large" data-testid="select-size-alias">
-          <option>Three</option>
-        </Select>
-        <Select size={4} data-testid="select-native-size">
-          <option>Four</option>
-        </Select>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Select color="primary" ghost uiSize="lg" data-testid="select-variants">
+            <option>One</option>
+            <option>Two</option>
+          </Select>
+          <Select size="large" data-testid="select-size-alias">
+            <option>Three</option>
+          </Select>
+          <Select size={4} data-testid="select-native-size">
+            <option>Four</option>
+          </Select>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -78,33 +83,35 @@ describe('Select', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Select
-        placeholder="选择技术栈"
-        options={[
-          {
-            name: 'Frontend',
-            items: [
-              { text: 'Rue', id: 'rue' },
-              { text: 'Vue', id: 'vue', disabled: true },
-            ],
-          },
-          {
-            text: 'Rust',
-            id: 'rust',
-            titleText: 'System language',
-          },
-        ]}
-        fieldNames={{
-          label: 'text',
-          value: 'id',
-          options: 'items',
-          groupLabel: 'name',
-          title: 'titleText',
-        }}
-        data-testid="select-options"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          placeholder="选择技术栈"
+          options={[
+            {
+              name: 'Frontend',
+              items: [
+                { text: 'Rue', id: 'rue' },
+                { text: 'Vue', id: 'vue', disabled: true },
+              ],
+            },
+            {
+              text: 'Rust',
+              id: 'rust',
+              titleText: 'System language',
+            },
+          ]}
+          fieldNames={{
+            label: 'text',
+            value: 'id',
+            options: 'items',
+            groupLabel: 'name',
+            title: 'titleText',
+          }}
+          data-testid="select-options"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -127,21 +134,25 @@ describe('Select', () => {
     const handleChange = vi.fn()
     const handleClear = vi.fn()
 
-    render(
-      <Select
-        value="amber"
-        placeholder="选择颜色"
-        prefix="Palette"
-        suffix={<span data-testid="select-shell-suffix">stable</span>}
-        allowClear
-        onChange={handleChange}
-        onClear={handleClear}
-        data-testid="select-shell"
-      >
-        <option value="amber">Amber</option>
-        <option value="crimson">Crimson</option>
-      </Select>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          value="amber"
+          placeholder="选择颜色"
+          prefix="Palette"
+          allowClear
+          onChange={handleChange}
+          onClear={handleClear}
+          data-testid="select-shell"
+        >
+          <Template slot="suffix">
+            <span data-testid="select-shell-suffix">stable</span>
+          </Template>
+          <option value="amber">Amber</option>
+          <option value="crimson">Crimson</option>
+        </Select>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -181,21 +192,23 @@ describe('Select', () => {
     const handleSelect = vi.fn()
     const handleDeselect = vi.fn()
 
-    render(
-      <Select
-        defaultValue="amber"
-        labelInValue
-        optionLabelProp="label"
-        onValueChange={handleValueChange}
-        onSelect={handleSelect}
-        onDeselect={handleDeselect}
-        options={[
-          { label: 'Amber', value: 'amber' },
-          { label: 'Crimson', value: 'crimson' },
-        ]}
-        data-testid="select-semantic"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          defaultValue="amber"
+          labelInValue
+          optionLabelProp="label"
+          onValueChange={handleValueChange}
+          onSelect={handleSelect}
+          onDeselect={handleDeselect}
+          options={[
+            { label: 'Amber', value: 'amber' },
+            { label: 'Crimson', value: 'crimson' },
+          ]}
+          data-testid="select-semantic"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -235,19 +248,21 @@ describe('Select', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Select
-        mode="multiple"
-        defaultValue={['jack', 'lucy']}
-        options={[
-          { label: 'Jack', value: 'jack' },
-          { label: 'Lucy', value: 'lucy' },
-          { label: 'yiminghe', value: 'yiminghe' },
-        ]}
-        placeholder="Select members"
-        data-testid="select-compact-multiple"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          mode="multiple"
+          defaultValue={['jack', 'lucy']}
+          options={[
+            { label: 'Jack', value: 'jack' },
+            { label: 'Lucy', value: 'lucy' },
+            { label: 'yiminghe', value: 'yiminghe' },
+          ]}
+          placeholder="Select members"
+          data-testid="select-compact-multiple"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -350,19 +365,21 @@ describe('Select', () => {
     const container = mountContainer()
     resetActiveRuntime()
     const renderControlled = (currentValue: string[]) => {
-      render(
-        <Select
-          mode="multiple"
-          value={currentValue}
-          options={[
-            { label: 'Jack', value: 'jack' },
-            { label: 'Lucy', value: 'lucy' },
-            { label: 'yiminghe', value: 'yiminghe' },
-          ]}
-          placeholder="Select members"
-          data-testid="select-controlled-compact-multiple"
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <Select
+            mode="multiple"
+            value={currentValue}
+            options={[
+              { label: 'Jack', value: 'jack' },
+              { label: 'Lucy', value: 'lucy' },
+              { label: 'yiminghe', value: 'yiminghe' },
+            ]}
+            placeholder="Select members"
+            data-testid="select-controlled-compact-multiple"
+          />,
+          container,
+        ),
       )
     }
 
@@ -424,23 +441,25 @@ describe('Select', () => {
     resetActiveRuntime()
     const handleValueChange = vi.fn()
     const renderControlled = (currentValue: string[]) => {
-      render(
-        <Select
-          mode="multiple"
-          value={currentValue}
-          options={[
-            { label: 'Jack', value: 'jack' },
-            { label: 'Lucy', value: 'lucy' },
-            { label: 'yiminghe', value: 'yiminghe' },
-          ]}
-          onValueChange={nextValue => {
-            const nextValues = nextValue as string[]
-            handleValueChange(nextValues)
-            setTimeout(() => renderControlled(nextValues), 20)
-          }}
-          data-testid="select-delayed-controlled-compact-multiple"
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <Select
+            mode="multiple"
+            value={currentValue}
+            options={[
+              { label: 'Jack', value: 'jack' },
+              { label: 'Lucy', value: 'lucy' },
+              { label: 'yiminghe', value: 'yiminghe' },
+            ]}
+            onValueChange={nextValue => {
+              const nextValues = nextValue as string[]
+              handleValueChange(nextValues)
+              setTimeout(() => renderControlled(nextValues), 20)
+            }}
+            data-testid="select-delayed-controlled-compact-multiple"
+          />,
+          container,
+        ),
       )
     }
 
@@ -489,18 +508,20 @@ describe('Select', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Select
-        mode="multiple"
-        nativeSize={6}
-        defaultValue={['release']}
-        options={[
-          { label: 'Release digest', value: 'release' },
-          { label: 'Design review', value: 'design' },
-        ]}
-        data-testid="select-native-listbox"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          mode="multiple"
+          nativeSize={6}
+          defaultValue={['release']}
+          options={[
+            { label: 'Release digest', value: 'release' },
+            { label: 'Design review', value: 'design' },
+          ]}
+          data-testid="select-native-listbox"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -521,20 +542,22 @@ describe('Select', () => {
     resetActiveRuntime()
     const handleValueChange = vi.fn()
 
-    render(
-      <Select
-        mode="multiple"
-        maxCount={2}
-        defaultValue={['release']}
-        options={[
-          { label: 'Release digest', value: 'release' },
-          { label: 'Design review', value: 'design' },
-          { label: 'Labs rollout', value: 'labs' },
-        ]}
-        onValueChange={handleValueChange}
-        data-testid="select-max-count"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          mode="multiple"
+          maxCount={2}
+          defaultValue={['release']}
+          options={[
+            { label: 'Release digest', value: 'release' },
+            { label: 'Design review', value: 'design' },
+            { label: 'Labs rollout', value: 'labs' },
+          ]}
+          onValueChange={handleValueChange}
+          data-testid="select-max-count"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -576,18 +599,20 @@ describe('Select', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Select
-        multiple={true}
-        disabled={true}
-        name="frameworks"
-        onChange={handleChange}
-        data-testid="select-native"
-      >
-        <option value="rue">Rue</option>
-        <option value="vue">Vue</option>
-      </Select>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Select
+          multiple={true}
+          disabled={true}
+          name="frameworks"
+          onChange={handleChange}
+          data-testid="select-native"
+        >
+          <option value="rue">Rue</option>
+          <option value="vue">Vue</option>
+        </Select>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

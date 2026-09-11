@@ -1,3 +1,6 @@
+import { Template } from '@rue-js/rue'
+import { ToastHolder } from '../index'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Toast from '..'
@@ -25,11 +28,13 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toast className="absolute" data-testid="toast">
-        <div>Message</div>
-      </Toast>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast className="absolute" data-testid="toast">
+          <div>Message</div>
+        </Toast>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -45,7 +50,9 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Toast horizontal="center" vertical="top" data-testid="toast" />, container)
+    mountTestApp(container, () =>
+      render(<Toast horizontal="center" vertical="top" data-testid="toast" />, container),
+    )
 
     await waitForContent(() => {
       const toast = container.querySelector('[data-testid="toast"]') as HTMLElement
@@ -58,7 +65,9 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Toast placement="top-start" horizontal="center" data-testid="toast" />, container)
+    mountTestApp(container, () =>
+      render(<Toast placement="top-start" horizontal="center" data-testid="toast" />, container),
+    )
 
     await waitForContent(() => {
       const toast = container.querySelector('[data-testid="toast"]') as HTMLElement
@@ -72,16 +81,18 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toast
-        stack="horizontal"
-        reverse
-        inset={{ x: 16, y: '0.75rem' }}
-        gap={12}
-        zIndex={50}
-        data-testid="toast"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast
+          stack="horizontal"
+          reverse
+          inset={{ x: 16, y: '0.75rem' }}
+          gap={12}
+          zIndex={50}
+          data-testid="toast"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -98,12 +109,14 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toast data-testid="toast">
-        <div className="first">First</div>
-        <div className="second">Second</div>
-      </Toast>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast data-testid="toast">
+          <div className="first">First</div>
+          <div className="second">Second</div>
+        </Toast>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -118,7 +131,7 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Toast as="section" data-testid="toast" />, container)
+    mountTestApp(container, () => render(<Toast as="section" data-testid="toast" />, container))
 
     await waitForContent(() => {
       const toast = container.querySelector('[data-testid="toast"]') as HTMLElement
@@ -130,18 +143,23 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toast data-testid="toast">
-        <Toast.Item
-          type="success"
-          title="Deployment ready"
-          description="Production artifacts have been verified."
-          action={<button type="button">Undo</button>}
-          closable
-          data-testid="toast-item"
-        />
-      </Toast>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast data-testid="toast">
+          <Toast.Item
+            type="success"
+            title="Deployment ready"
+            description="Production artifacts have been verified."
+            closable
+            data-testid="toast-item"
+          >
+            <Template slot="action">
+              <button type="button">Undo</button>
+            </Template>
+          </Toast.Item>
+        </Toast>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -161,9 +179,11 @@ describe('Toast', () => {
     resetActiveRuntime()
     const onClose = vi.fn()
 
-    render(
-      <Toast.Item closable title="Closable item" data-testid="toast-item" onClose={onClose} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast.Item closable title="Closable item" data-testid="toast-item" onClose={onClose} />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -185,9 +205,11 @@ describe('Toast', () => {
     resetActiveRuntime()
     const onClose = vi.fn()
 
-    render(
-      <Toast.Item duration={1} title="Saved" data-testid="toast-item" onClose={onClose} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast.Item duration={1} title="Saved" data-testid="toast-item" onClose={onClose} />,
+        container,
+      ),
     )
 
     await flush(5)
@@ -204,18 +226,20 @@ describe('Toast', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toast data-testid="toast">
-        <Toast.Item data-testid="toast-item" title="Workspace synced" closable={false}>
-          <Toast.Content>
-            <Toast.Title>Workspace synced</Toast.Title>
-          </Toast.Content>
-          <Toast.Action>
-            <Toast.Close data-testid="compound-close" />
-          </Toast.Action>
-        </Toast.Item>
-      </Toast>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toast data-testid="toast">
+          <Toast.Item data-testid="toast-item" title="Workspace synced" closable={false}>
+            <Toast.Content>
+              <Toast.Title>Workspace synced</Toast.Title>
+            </Toast.Content>
+            <Toast.Action>
+              <Toast.Close data-testid="compound-close" />
+            </Toast.Action>
+          </Toast.Item>
+        </Toast>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -243,7 +267,7 @@ describe('Toast', () => {
 
       return (
         <div>
-          {contextHolder}
+          <ToastHolder state={contextHolder} />
           <button
             type="button"
             data-testid="open"
@@ -284,7 +308,7 @@ describe('Toast', () => {
       )
     }
 
-    render(<Harness />, container)
+    mountTestApp(container, () => render(<Harness />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="open"]')).toBeTruthy()
@@ -327,7 +351,7 @@ describe('Toast', () => {
 
       return (
         <div>
-          {showHolder.value ? contextHolder : null}
+          {showHolder.value ? <ToastHolder state={contextHolder} /> : null}
           <button
             type="button"
             data-testid="toggle-holder"
@@ -355,7 +379,7 @@ describe('Toast', () => {
       )
     }
 
-    render(<Harness />, container)
+    mountTestApp(container, () => render(<Harness />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="toggle-holder"]')).toBeTruthy()
@@ -391,7 +415,7 @@ describe('Toast', () => {
 
       return (
         <div data-testid="box" className="relative overflow-hidden">
-          {contextHolder}
+          <ToastHolder state={contextHolder} />
           <button
             type="button"
             data-testid="open-local"
@@ -405,7 +429,7 @@ describe('Toast', () => {
       )
     }
 
-    render(<Harness />, container)
+    mountTestApp(container, () => render(<Harness />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="open-local"]')).toBeTruthy()

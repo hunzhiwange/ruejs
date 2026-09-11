@@ -138,11 +138,37 @@ export async function decodeRueProgressiveServerAction(
 
   const action = await loadServerAction(actionId)
   if (typeof action !== 'function') return action
-  return () => action(cloneActionFormData(body))
+  const state = readProgressiveFormState(body)
+  if (state && state.actionId !== actionId) throw new Error('Invalid Rue action state reference')
+  return () =>
+    state ? action(state.state, cloneActionFormData(body)) : action(cloneActionFormData(body))
 }
 
-export function decodeRueServerActionFormState(): undefined {
-  return undefined
+function readProgressiveFormState(
+  body: FormData,
+): { version: 1; key: string; actionId: string; state: unknown } | undefined {
+  const encoded = body.get('$RUE_ACTION_STATE')
+  if (encoded === null) return undefined
+  if (typeof encoded !== 'string') throw new Error('Invalid Rue action state')
+  let value: any
+  try {
+    value = JSON.parse(encoded)
+  } catch {
+    throw new Error('Invalid Rue action state')
+  }
+  if (
+    !value ||
+    value.version !== 1 ||
+    typeof value.key !== 'string' ||
+    typeof value.actionId !== 'string' ||
+    !Object.hasOwn(value, 'state')
+  )
+    throw new Error('Invalid Rue action state')
+  return value
+}
+export function decodeRueServerActionFormState(actionResult?: unknown, body?: FormData): unknown {
+  const state = body && readProgressiveFormState(body)
+  return state ? { ...state, state: actionResult } : undefined
 }
 
 export function createRueServerActionProtocol(
@@ -155,8 +181,8 @@ export function createRueServerActionProtocol(
     decodeProgressiveAction(body) {
       return decodeRueProgressiveServerAction(body, loadServerAction)
     },
-    decodeFormState() {
-      return decodeRueServerActionFormState()
+    decodeFormState(actionResult, body) {
+      return decodeRueServerActionFormState(actionResult, body)
     },
     parseActionArgs(body) {
       return decodeRueServerActionReply(body)

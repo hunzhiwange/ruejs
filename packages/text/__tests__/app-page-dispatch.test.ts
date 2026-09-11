@@ -1,4 +1,4 @@
-import { createAppServerElement as createElement } from '../src/server/app-server-tree.js'
+import { createElement } from './rue-ssr-test-utils.js'
 import { decodeRuePayloadReadableStream } from '@rue-js/rsc/core/payload'
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { dispatchAppPage } from '../src/server/app-page-dispatch.js'

@@ -1,3 +1,4 @@
+import { Template } from '@rue-js/rue'
 /*
 Button 组件概述
 - 提供语义化按钮 API，内部仍映射到 rue 当前的 btn 系列视觉类。
@@ -5,7 +6,8 @@ Button 组件概述
 - 组件仅保留当前推荐 API，不再承载旧版兼容分支。
 */
 import type { FC } from '@rue-js/rue'
-import { onMounted, onUnmounted, useRef } from '@rue-js/rue'
+import { createContext, useContext } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 
 /** ButtonTone 语义色类型。 */
 export type ButtonTone =
@@ -124,13 +126,6 @@ const mergeClassName = (base: string, className?: string) => {
   return className ? `${base} ${className}` : base
 }
 
-/** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value === undefined || value === null || value === false || value === '') return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
-
 /**
  * 归一化尺寸别名，保留一组更顺手的语义名称，最终仍落到 daisyUI 的尺寸类。
  */
@@ -165,36 +160,8 @@ const resolveLoadingSizeClass = (size?: ButtonSize) => {
 }
 
 /** 解析 Button Size Utility Class 的内部工具函数。 */
-const resolveButtonSizeUtilityClass = (size?: ButtonSize) => {
-  switch (resolveSizeClass(size)) {
-    case 'xs':
-      return 'btn-xs'
-    case 'sm':
-      return 'btn-sm'
-    case 'md':
-      return 'btn-md'
-    case 'lg':
-      return 'btn-lg'
-    case 'xl':
-      return 'btn-xl'
-    default:
-      return undefined
-  }
-}
 
 /** resolve Button Shape Utility Class 的内部工具函数。 */
-const _resolveButtonShapeUtilityClass = (shape?: ButtonShape) => {
-  switch (shape) {
-    case 'square':
-      return 'btn-square'
-    case 'circle':
-      return 'btn-circle'
-    case 'round':
-      return 'rounded-full'
-    default:
-      return undefined
-  }
-}
 
 /** 解析 Button Group Shape Utility Class 的内部工具函数。 */
 const resolveButtonGroupShapeUtilityClass = (shape?: ButtonShape) => {
@@ -269,65 +236,58 @@ const ButtonIconSlot: FC<{ hiddenFromA11y?: boolean; children?: any }> = ({
   )
 }
 
-/** ButtonChildren 内部内容编排组件，避免 Fragment 换行产生文本节点。 */
+/** Button content uses explicit icon and default slot factories. */
 const ButtonChildren: FC<{
   iconPlacement: ButtonIconPlacement
-  iconNode: any
+  loading: boolean
+  size?: ButtonSize
   hasIcon: boolean
   hasChildren: boolean
   children?: any
-}> = ({ iconPlacement, iconNode, hasIcon, hasChildren, children }) => {
+}> = (
+  { iconPlacement, loading, size, hasIcon, hasChildren, children },
+  slots: Record<string, any> = {},
+) => {
   return iconPlacement === 'end' ? (
     <>
       {hasChildren ? <ButtonContentSlot>{children}</ButtonContentSlot> : null}
-      {hasIcon ? <ButtonIconSlot hiddenFromA11y={hasChildren}>{iconNode}</ButtonIconSlot> : null}
+      {hasIcon ? (
+        <ButtonIconSlot hiddenFromA11y={hasChildren}>
+          {loading ? (
+            slots.loadingIcon ? (
+              <>{slots.loadingIcon}</>
+            ) : (
+              <DefaultLoadingIcon size={size} />
+            )
+          ) : (
+            <>{slots.icon}</>
+          )}
+        </ButtonIconSlot>
+      ) : null}
     </>
   ) : (
     <>
-      {hasIcon ? <ButtonIconSlot hiddenFromA11y={hasChildren}>{iconNode}</ButtonIconSlot> : null}
+      {hasIcon ? (
+        <ButtonIconSlot hiddenFromA11y={hasChildren}>
+          {loading ? (
+            slots.loadingIcon ? (
+              <>{slots.loadingIcon}</>
+            ) : (
+              <DefaultLoadingIcon size={size} />
+            )
+          ) : (
+            <>{slots.icon}</>
+          )}
+        </ButtonIconSlot>
+      ) : null}
       {hasChildren ? <ButtonContentSlot>{children}</ButtonContentSlot> : null}
     </>
   )
 }
 
-/** sync Button Group Items 的内部工具函数。 */
-const syncButtonGroupItems = (
-  root: HTMLElement | null | undefined,
-  size?: ButtonSize,
-  shape?: ButtonShape,
-) => {
-  if (!root) return
-
-  const groupSizeClass = resolveButtonSizeUtilityClass(size)
-  const groupShapeClass = resolveButtonGroupShapeUtilityClass(shape)
-
-  root.querySelectorAll<HTMLElement>('.btn').forEach(button => {
-    if (button.closest('[data-rue-button-group="true"]') !== root) return
-
-    button.classList.add('join-item')
-    const previousSizeClass = button.dataset.rueButtonGroupSizeClass
-    if (previousSizeClass) {
-      button.classList.remove(previousSizeClass)
-    }
-    if (groupSizeClass) {
-      button.classList.add(groupSizeClass)
-      button.dataset.rueButtonGroupSizeClass = groupSizeClass
-    } else {
-      delete button.dataset.rueButtonGroupSizeClass
-    }
-
-    const previousShapeClass = button.dataset.rueButtonGroupShapeClass
-    if (previousShapeClass) {
-      button.classList.remove(previousShapeClass)
-    }
-    if (shape && shape !== 'default' && groupShapeClass) {
-      button.classList.add(groupShapeClass)
-      button.dataset.rueButtonGroupShapeClass = groupShapeClass
-    } else {
-      delete button.dataset.rueButtonGroupShapeClass
-    }
-  })
-}
+const ButtonGroupContext = createContext<{ size?: ButtonSize; shape?: ButtonShape } | undefined>(
+  undefined,
+)
 
 /** Button Group 的内部工具函数。 */
 const ButtonGroup: FC<ButtonGroupProps> = ({
@@ -341,33 +301,7 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
   children,
   ...rest
 }) => {
-  const groupRef = useRef<HTMLElement | null>(null)
-  const observerRef = useRef<MutationObserver | undefined>(undefined)
-
-  const syncGroupItems = () => {
-    syncButtonGroupItems(groupRef.current, size, shape)
-  }
-
-  const observeGroup = () => {
-    observerRef.current?.disconnect()
-    if (!groupRef.current || typeof MutationObserver !== 'function') return
-    observerRef.current?.observe(groupRef.current, { childList: true, subtree: true })
-  }
-
-  onMounted(() => {
-    if (typeof MutationObserver === 'function') {
-      observerRef.current = new MutationObserver(() => {
-        syncGroupItems()
-      })
-      observeGroup()
-    }
-    syncGroupItems()
-  })
-
-  onUnmounted(() => {
-    observerRef.current?.disconnect()
-    observerRef.current = undefined
-  })
+  provideContext(ButtonGroupContext, () => ({ size, shape }))
 
   let cls = 'join'
   if (direction === 'vertical') cls += ' join-vertical flex-col'
@@ -378,7 +312,6 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
     return (
       <div
         {...rest}
-        ref={groupRef}
         className={cls}
         style={style}
         data-rue-button-group="true"
@@ -393,7 +326,6 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
     return (
       <section
         {...rest}
-        ref={groupRef}
         className={cls}
         style={style}
         data-rue-button-group="true"
@@ -408,7 +340,6 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
     return (
       <nav
         {...rest}
-        ref={groupRef}
         className={cls}
         style={style}
         data-rue-button-group="true"
@@ -421,58 +352,111 @@ const ButtonGroup: FC<ButtonGroupProps> = ({
 
   const Tag = as as any
 
-  return (
-    <Tag
+  return Tag === 'div' ? (
+    <div
       {...rest}
-      ref={groupRef}
       className={cls}
       style={style}
       data-rue-button-group="true"
       data-rue-button-group-direction={direction ?? 'horizontal'}
     >
       {children}
-    </Tag>
+    </div>
+  ) : Tag === 'span' ? (
+    <span
+      {...rest}
+      className={cls}
+      style={style}
+      data-rue-button-group="true"
+      data-rue-button-group-direction={direction ?? 'horizontal'}
+    >
+      {children}
+    </span>
+  ) : Tag === 'button' ? (
+    <button
+      {...rest}
+      className={cls}
+      style={style}
+      data-rue-button-group="true"
+      data-rue-button-group-direction={direction ?? 'horizontal'}
+    >
+      {children}
+    </button>
+  ) : Tag === 'a' ? (
+    <a
+      {...rest}
+      className={cls}
+      style={style}
+      data-rue-button-group="true"
+      data-rue-button-group-direction={direction ?? 'horizontal'}
+    >
+      {children}
+    </a>
+  ) : Tag === 'section' ? (
+    <section
+      {...rest}
+      className={cls}
+      style={style}
+      data-rue-button-group="true"
+      data-rue-button-group-direction={direction ?? 'horizontal'}
+    >
+      {children}
+    </section>
+  ) : Tag === 'nav' ? (
+    <nav
+      {...rest}
+      className={cls}
+      style={style}
+      data-rue-button-group="true"
+      data-rue-button-group-direction={direction ?? 'horizontal'}
+    >
+      {children}
+    </nav>
+  ) : (
+    <></>
   )
 }
 
 /** Button 的内部工具函数。 */
-const Button: FC<ButtonProps> = ({
-  as,
-  type,
-  htmlType,
-  color,
-  shape = 'default',
-  size,
-  icon,
-  iconPlacement = 'start',
-  loading,
-  disabled,
-  danger,
-  active,
-  block,
-  wide,
-  className,
-  href,
-  target,
-  rel,
-  onClick,
-  children,
-  ...rest
-}) => {
+const Button: FC<ButtonProps> = (
+  {
+    as,
+    type,
+    htmlType,
+    color,
+    shape = 'default',
+    size,
+    icon,
+    iconPlacement = 'start',
+    loading,
+    disabled,
+    danger,
+    active,
+    block,
+    wide,
+    className,
+    href,
+    target,
+    rel,
+    onClick,
+    children,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
+  const group = useContext(ButtonGroupContext)
+  const mergedShape = group?.shape ?? shape
   const typePreset = resolveTypePreset(type)
   const mergedColor: ButtonColor = color ?? (danger ? 'danger' : 'default')
-  const mergedSize = resolveSizeClass(size)
+  const mergedSize = resolveSizeClass(group?.size ?? size)
   const normalizedLoading = normalizeLoading(loading)
   const mergedDisabled = !!disabled || normalizedLoading.active
   const renderAs = as ?? (href ? 'a' : 'button')
   const loadingVisible = normalizedLoading.active
-  const iconNode = loadingVisible
-    ? (normalizedLoading.icon ?? <DefaultLoadingIcon size={size} />)
-    : icon
-  const hasIcon = iconNode != null
-  const hasChildren = hasRenderableContent(children)
+  const hasIcon = loadingVisible || slots.icon != null
+  const hasChildren = children != null
 
-  let cls = 'btn'
+  let cls = group ? 'btn join-item' : 'btn'
   if (mergedColor !== 'default') {
     cls += ` btn-${mergedColor === 'danger' ? 'error' : mergedColor}`
   }
@@ -485,9 +469,10 @@ const Button: FC<ButtonProps> = ({
   if (active) cls += ' btn-active'
   if (block) cls += ' btn-block'
   if (wide) cls += ' btn-wide'
-  if (shape === 'square') cls += ' btn-square'
-  if (shape === 'circle') cls += ' btn-circle'
-  if (shape === 'round') cls += ' rounded-full'
+  if (mergedShape === 'square') cls += ' btn-square'
+  if (mergedShape === 'circle') cls += ' btn-circle'
+  if (mergedShape === 'round') cls += ' rounded-full'
+  if (group?.shape) cls += ` ${resolveButtonGroupShapeUtilityClass(group.shape)}`
   if (mergedDisabled && renderAs !== 'button') cls += ' btn-disabled'
   if (className) cls += ` ${className}`
 
@@ -522,10 +507,15 @@ const Button: FC<ButtonProps> = ({
       >
         <ButtonChildren
           iconPlacement={iconPlacement}
-          iconNode={iconNode}
+          loading={loadingVisible}
+          size={size}
           hasIcon={hasIcon}
           hasChildren={hasChildren}
         >
+          <Template slot="icon">{slots.icon}</Template>
+          <Template slot="loadingIcon">
+            {slots.loadingIcon ? <>{slots.loadingIcon}</> : <DefaultLoadingIcon size={size} />}
+          </Template>
           {children}
         </ButtonChildren>
       </a>
@@ -545,10 +535,15 @@ const Button: FC<ButtonProps> = ({
       >
         <ButtonChildren
           iconPlacement={iconPlacement}
-          iconNode={iconNode}
+          loading={loadingVisible}
+          size={size}
           hasIcon={hasIcon}
           hasChildren={hasChildren}
         >
+          <Template slot="icon">{slots.icon}</Template>
+          <Template slot="loadingIcon">
+            {slots.loadingIcon ? <>{slots.loadingIcon}</> : <DefaultLoadingIcon size={size} />}
+          </Template>
           {children}
         </ButtonChildren>
       </div>
@@ -566,10 +561,15 @@ const Button: FC<ButtonProps> = ({
     >
       <ButtonChildren
         iconPlacement={iconPlacement}
-        iconNode={iconNode}
+        loading={loadingVisible}
+        size={size}
         hasIcon={hasIcon}
         hasChildren={hasChildren}
       >
+        <Template slot="icon">{slots.icon}</Template>
+        <Template slot="loadingIcon">
+          {slots.loadingIcon ? <>{slots.loadingIcon}</> : <DefaultLoadingIcon size={size} />}
+        </Template>
         {children}
       </ButtonChildren>
     </button>

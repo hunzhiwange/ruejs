@@ -3,6 +3,10 @@ import * as effects from './effect-core.js'
 import { graphCreateDependencyNode } from './graph-core.js'
 import type { ReactiveEffectRuntimeStorage } from './effect-core.js'
 
+const scalarBridge = globalThis as typeof globalThis & {
+  __rue_s__?: (source: object, trigger?: boolean) => void
+}
+
 export type EqualityComparator<T> = (previous: T, next: T) => boolean
 
 export interface SignalOptions<T> {
@@ -42,6 +46,7 @@ export class SignalBase<T> {
 
   get(): T {
     effects.effectTrackDependency(this.kernel, this.node)
+    scalarBridge.__rue_s__?.(this)
     return this._value
   }
 
@@ -80,6 +85,7 @@ export class SignalBase<T> {
   }
 
   protected notify(oldValue: T, newValue: T): void {
+    scalarBridge.__rue_s__?.(this, true)
     effects.effectTriggerDependency(this.kernel, this.node, {
       key: 'value',
       newValue,
@@ -104,7 +110,8 @@ export const createRootSignal = <T>(
   const node = graphCreateDependencyNode(runtime.graph)
   const equals = options?.equals ?? Object.is
   const notify = (oldValue: T, newValue: T) => {
-    if (!disposed)
+    if (!disposed) {
+      scalarBridge.__rue_s__?.(handle, true)
       effects.effectTriggerDependency(runtime, node, {
         key: 'value',
         oldValue,
@@ -113,6 +120,7 @@ export const createRootSignal = <T>(
         target: handle,
         type: 'set',
       })
+    }
   }
   const handle: RootSignalHandle<T> = {
     __rue_signal_id__: effects.effectAllocateSignalId(runtime),
@@ -124,6 +132,7 @@ export const createRootSignal = <T>(
     },
     get() {
       effects.effectTrackDependency(runtime, node)
+      scalarBridge.__rue_s__?.(handle)
       return value
     },
     peek: () => value,

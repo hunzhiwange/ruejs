@@ -1,6 +1,8 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { DrawerSidebar } from '@rue-js/design'
+import DrawerSidebar from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,11 +20,13 @@ describe('DrawerSidebar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <DrawerSidebar end={true} open={true} className="h-56">
-        body
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar end={true} open={true} className="h-56">
+          body
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -37,7 +41,9 @@ describe('DrawerSidebar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<DrawerSidebar.Toggle id="drawer-a" className="sr-only" />, container)
+    mountTestApp(container, () =>
+      render(<DrawerSidebar.Toggle id="drawer-a" className="sr-only" />, container),
+    )
 
     await waitForContent(() => {
       const toggle = container.querySelector('input.drawer-toggle') as HTMLInputElement
@@ -51,14 +57,20 @@ describe('DrawerSidebar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <DrawerSidebar>
-        <DrawerSidebar.Content data-testid="content">Content</DrawerSidebar.Content>
-        <DrawerSidebar.Side data-testid="side">
-          <DrawerSidebar.Overlay data-testid="overlay" for="drawer-b" aria-label="close sidebar" />
-        </DrawerSidebar.Side>
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar>
+          <DrawerSidebar.Content data-testid="content">Content</DrawerSidebar.Content>
+          <DrawerSidebar.Side data-testid="side">
+            <DrawerSidebar.Overlay
+              data-testid="overlay"
+              for="drawer-b"
+              aria-label="close sidebar"
+            />
+          </DrawerSidebar.Side>
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -77,29 +89,35 @@ describe('DrawerSidebar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <DrawerSidebar
-        open={true}
-        title="用户详情"
-        extra={<button id="drawer-extra">更多</button>}
-        footer={<button id="drawer-save">保存</button>}
-        placement="left"
-        size="large"
-        className="panel-prop"
-        rootClassName="root-prop"
-        bodyClassName="body-prop"
-        headerClassName="header-prop"
-        footerClassName="footer-prop"
-        maskClassName="mask-prop"
-        classNames={{
-          panel: 'panel-slot',
-          body: 'body-slot',
-          close: 'close-slot',
-        }}
-      >
-        Drawer body
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar
+          open={true}
+          title="用户详情"
+          placement="left"
+          size="large"
+          className="panel-prop"
+          rootClassName="root-prop"
+          bodyClassName="body-prop"
+          headerClassName="header-prop"
+          footerClassName="footer-prop"
+          maskClassName="mask-prop"
+          classNames={{
+            panel: 'panel-slot',
+            body: 'body-slot',
+            close: 'close-slot',
+          }}
+        >
+          <Template slot="extra">
+            <button id="drawer-extra">更多</button>
+          </Template>
+          <Template slot="footer">
+            <button id="drawer-save">保存</button>
+          </Template>
+          Drawer body
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -149,11 +167,13 @@ describe('DrawerSidebar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <DrawerSidebar open={true} title="层级覆盖" zIndex={1200}>
-        内容
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar open={true} title="层级覆盖" zIndex={1200}>
+          内容
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -168,11 +188,18 @@ describe('DrawerSidebar', () => {
     const onClose = vi.fn()
     const onOpenChange = vi.fn()
 
-    render(
-      <DrawerSidebar defaultOpen={true} title="待办" onClose={onClose} onOpenChange={onOpenChange}>
-        内容
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar
+          defaultOpen={true}
+          title="待办"
+          onClose={onClose}
+          onOpenChange={onOpenChange}
+        >
+          内容
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -206,20 +233,22 @@ describe('DrawerSidebar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <DrawerSidebar
-        open={false}
-        forceRender={true}
-        destroyOnHidden={false}
-        inline={true}
-        placement="top"
-        title="加载中"
-        loading={true}
-        closable={{ placement: 'start' }}
-      >
-        内容
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar
+          open={false}
+          forceRender={true}
+          destroyOnHidden={false}
+          inline={true}
+          placement="top"
+          title="加载中"
+          loading={true}
+          closable={{ placement: 'start' }}
+        >
+          内容
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -245,11 +274,13 @@ describe('DrawerSidebar', () => {
     document.body.appendChild(target)
     resetActiveRuntime()
 
-    render(
-      <DrawerSidebar open={true} title="Portal Drawer" getContainer={target}>
-        内容
-      </DrawerSidebar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <DrawerSidebar open={true} title="Portal Drawer" getContainer={target}>
+          内容
+        </DrawerSidebar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

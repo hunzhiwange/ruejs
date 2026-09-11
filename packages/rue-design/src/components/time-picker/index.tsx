@@ -6,11 +6,13 @@ TimePicker 组件概述
 */
 import type { FC } from '@rue-js/rue'
 import {
+  Template,
+  computed,
+  effect,
   onMounted,
   onUnmounted,
   onUpdated,
   ref,
-  render as renderRue,
   toValue,
   useRef,
   watch,
@@ -69,7 +71,6 @@ interface ScrollSnapshot {
 }
 
 type RuntimeGlobalRecord = typeof globalThis & {
-  __rue_active?: unknown
   __rue?: unknown
 }
 
@@ -193,12 +194,8 @@ export interface TimePickerProps {
   addonBefore?: any
   /** 输入后置附加内容。 */
   addonAfter?: any
-  /** renderExtraFooter 配置项。 */
-  renderExtraFooter?: () => any
   /** disabledTime 配置项。 */
   disabledTime?: (selection: TimePickerValue | null) => TimePickerDisabledConfig | undefined
-  /** cellRender 自定义渲染函数。 */
-  cellRender?: (current: number | string, info: TimePickerCellRenderInfo) => any
   /** 根节点附加类名。 */
   rootClassName?: string
   /** popupClassName 附加类名。 */
@@ -281,8 +278,6 @@ export interface TimeRangePickerProps {
   variant?: TimePickerVariant
   /** 组件尺寸。 */
   size?: TimePickerSize
-  /** renderExtraFooter 配置项。 */
-  renderExtraFooter?: () => any
   /** disabledTime 配置项。 */
   disabledTime?: (
     selection: TimePickerValue | null,
@@ -345,32 +340,6 @@ const escapeRegExp = (value: string) => {
 }
 
 /** 解析 Active Runtime 的内部工具函数。 */
-const resolveActiveRuntime = () => {
-  const globalRecord = globalThis as RuntimeGlobalRecord
-  return globalRecord.__rue_active ?? globalRecord.__rue
-}
-
-/** run With Active Runtime 的内部工具函数。 */
-const runWithActiveRuntime = <T,>(runtime: unknown, runner: () => T): T => {
-  if ((typeof runtime !== 'object' && typeof runtime !== 'function') || runtime == null) {
-    return runner()
-  }
-
-  const globalRecord = globalThis as RuntimeGlobalRecord
-  const hadActiveRuntime = Object.prototype.hasOwnProperty.call(globalRecord, '__rue_active')
-  const previousRuntime = globalRecord.__rue_active
-
-  globalRecord.__rue_active = runtime
-  try {
-    return runner()
-  } finally {
-    if (hadActiveRuntime) {
-      globalRecord.__rue_active = previousRuntime
-    } else {
-      delete globalRecord.__rue_active
-    }
-  }
-}
 
 /** 解析 Size Class 的内部工具函数。 */
 const resolveSizeClass = (size?: TimePickerSize) => {
@@ -915,59 +884,8 @@ const resolveColumnHeading = (column: TimePickerPanelColumn) => {
 const internalBlurCloseDelay = 32
 const internalBlurPreserveWindow = 160
 const internalSelectionScrollRestoreDelays = [0, internalBlurCloseDelay + 8, 120, 320, 720, 1200]
-const controlledSelectionOpenResumeWindow = 2000
-
-interface ControlledSelectionOpenResume {
-  expiresAt: number
-  format: string
-  text: string
-  use12Hours: boolean
-}
-
-let controlledSelectionOpenResume: ControlledSelectionOpenResume | undefined
-
 const focusWithoutScroll = (element: HTMLElement) => {
   element.focus({ preventScroll: true })
-}
-
-const rememberControlledSelectionOpen = (text: string, format: string, use12Hours: boolean) => {
-  controlledSelectionOpenResume = {
-    text,
-    format,
-    use12Hours,
-    expiresAt: Date.now() + controlledSelectionOpenResumeWindow,
-  }
-}
-
-const consumeControlledSelectionOpen = (
-  value: string | null | undefined,
-  format: string,
-  use12Hours: boolean,
-) => {
-  const resume = controlledSelectionOpenResume
-  if (!resume) {
-    return false
-  }
-
-  if (Date.now() > resume.expiresAt) {
-    controlledSelectionOpenResume = undefined
-    return false
-  }
-
-  const rawValue = value == null ? '' : String(value).trim()
-  const parsedValue = parseTimeString(rawValue, format, use12Hours)
-  const normalizedText = parsedValue ? formatTimeSelection(parsedValue, format) : rawValue
-
-  if (
-    resume.text !== normalizedText ||
-    resume.format !== format ||
-    resume.use12Hours !== use12Hours
-  ) {
-    return false
-  }
-
-  controlledSelectionOpenResume = undefined
-  return true
 }
 
 /** 解析 Current Column Value 的内部工具函数。 */
@@ -1095,7 +1013,7 @@ const ClockIcon: FC<{ iconRef?: { current?: SVGSVGElement } }> = ({ iconRef }) =
 }
 
 /** Time Picker Root 的内部工具函数。 */
-const TimePickerRoot: FC<TimePickerProps> = props => {
+const TimePickerRoot: FC<TimePickerProps> = (props, slots: Record<string, any> = {}) => {
   const {
     defaultValue,
     defaultOpenValue,
@@ -1125,9 +1043,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     suffixIcon,
     addonBefore,
     addonAfter,
-    renderExtraFooter,
     disabledTime,
-    cellRender,
     rootClassName,
     popupClassName,
     panelClassName,
@@ -1146,9 +1062,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
   const shellRef = useRef<HTMLLabelElement>()
   const inputRef = useRef<HTMLInputElement>()
   const popupRef = useRef<HTMLDivElement>()
-  const popupContentHostRef = useRef<HTMLDivElement>()
   /** fast popup 模式下单独承载 renderExtraFooter 的 Rue 子树。 */
-  const fastExtraFooterHostRef = useRef<HTMLDivElement>()
   const clearButtonRef = useRef<HTMLButtonElement>()
   const defaultSuffixIconRef = useRef<SVGSVGElement>()
   const preservePopupOnInternalBlur = useRef(false)
@@ -1163,18 +1077,11 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     resolvedFormatValue,
     use12Hours,
   )
-  const shouldResumeControlledSelectionOpen =
-    !isControlledOpen &&
-    readControlledValue() !== undefined &&
-    consumeControlledSelectionOpen(readControlledValue(), resolvedFormatValue, use12Hours)
-  const popupOpen = useRef(
-    isControlledOpen ? !!open : shouldResumeControlledSelectionOpen || !!defaultOpen,
-  )
-  const inputText = useRef(initialInputText)
+  const popupOpen = ref(isControlledOpen ? !!open : !!defaultOpen)
+  const inputText = ref(initialInputText)
   const lastSyncedPropInputText = useRef(initialInputText)
-  const committedSelection = useRef<InternalTimeSelection | null>(null)
-  const draftSelection = useRef<InternalTimeSelection | null>(null)
-  const popupContentRenderMode = useRef<'none' | 'fast' | 'rue'>('none')
+  const committedSelection = ref<InternalTimeSelection | null>(null)
+  const draftSelection = ref<InternalTimeSelection | null>(null)
   const blurTimer = useRef<ReturnType<typeof setTimeout>>()
   const internalBlurPreserveTimer = useRef<ReturnType<typeof setTimeout>>()
   const suppressFocusOpenTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -1190,8 +1097,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     hideDisabledOptions,
     disabledTime,
   })
-  const callbackRuntime = resolveActiveRuntime()
-  const withCallbackRuntime = <T,>(runner: () => T) => runWithActiveRuntime(callbackRuntime, runner)
+  const withCallbackRuntime = <T,>(runner: () => T) => runner()
 
   if ('ref' in rest) {
     delete rest.ref
@@ -1291,7 +1197,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
 
   const keepPopupRootInView = () => {
     const root = rootRef.current
-    if (!root || !root.isConnected || !popupOpen.current) return
+    if (!root || !root.isConnected || !popupOpen.value) return
     if (typeof root.scrollIntoView !== 'function') return
 
     const ownerWindow = root.ownerDocument.defaultView
@@ -1340,59 +1246,14 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     })
   }
 
-  const syncInputDom = () => {
-    const input = inputRef.current
-    if (!input) return
-    const nextText = inputText.current ?? ''
-    if (input.value !== nextText) {
-      input.value = nextText
-    }
-    input.disabled = !!disabled
-    if (disabled) {
-      input.setAttribute('disabled', '')
-    } else {
-      input.removeAttribute('disabled')
-    }
-    input.readOnly = !!inputReadOnly
-    if (inputReadOnly) {
-      input.setAttribute('readonly', '')
-    } else {
-      input.removeAttribute('readonly')
-    }
-  }
-
-  const syncClearButtonDom = () => {
-    clearButtonRef.current?.classList.toggle(
-      'hidden',
-      !(!!allowClear && !disabled && (inputText.current ?? '').length > 0),
-    )
-  }
-
-  const syncShellDom = () => {
-    const popupVisible = !!popupOpen.current && !disabled
-    shellRef.current?.classList.toggle('ring', popupVisible)
-    shellRef.current?.classList.toggle('ring-primary/15', popupVisible)
-    defaultSuffixIconRef.current?.classList.toggle('scale-110', popupVisible)
-  }
-
-  const syncPopupDom = () => {
-    const popup = popupRef.current
-    if (!popup) return
-    const visible = !!popupOpen.current && !disabled
-    popup.hidden = !visible
-    popup.classList.toggle('hidden', !visible)
-    popup.setAttribute('aria-hidden', visible ? 'false' : 'true')
-    syncShellDom()
-    syncPopupContent()
-  }
-
   const syncInputText = (selection: InternalTimeSelection | null) => {
-    inputText.current = selection ? formatTimeSelection(selection, resolvedFormatValue) : ''
+    inputText.value = selection ? formatTimeSelection(selection, resolvedFormatValue) : ''
   }
 
   const assignInputRef = (element: HTMLInputElement | null) => {
     inputRef.current = element ?? undefined
-    syncInputDom()
+    if (element) element.readOnly = !!inputReadOnly
+
     if (typeof forwardedRef === 'function') {
       forwardedRef(element)
       return
@@ -1402,23 +1263,30 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     }
   }
 
+  const assignPopupRef = (element: HTMLDivElement | null) => {
+    popupRef.current = element ?? undefined
+    if (!element) return
+    effect(() => {
+      element.hidden = !popupOpen.value || !!disabled
+    })
+  }
+
   const setPopupOpen = (nextOpen: boolean) => {
     if (disabled) return
-    if (!isControlledOpen && popupOpen.current === nextOpen) {
-      syncPopupDom()
+    if (!isControlledOpen && popupOpen.value === nextOpen) {
       return
     }
     if (!isControlledOpen) {
-      popupOpen.current = nextOpen
+      popupOpen.value = nextOpen
     }
     if (nextOpen) {
-      draftSelection.current = resolveDefaultSelection(
-        committedSelection.current ?? null,
+      draftSelection.value = resolveDefaultSelection(
+        committedSelection.value ?? null,
         defaultOpenValue,
         runtimeConfig(),
       )
     }
-    syncPopupDom()
+
     if (onOpenChange) {
       withCallbackRuntime(() => {
         onOpenChange(nextOpen)
@@ -1463,21 +1331,16 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     source: TimePickerChangeSource,
   ) => {
     const nextSelection = selection ? sanitizeSelection(selection, runtimeConfig()) : null
-    const previousSelection = committedSelection.current ?? null
+    const previousSelection = committedSelection.value ?? null
     const previousText = previousSelection
       ? formatTimeSelection(previousSelection, resolvedFormatValue)
       : ''
     const nextText = nextSelection ? formatTimeSelection(nextSelection, resolvedFormatValue) : ''
 
-    committedSelection.current = nextSelection ? { ...nextSelection } : null
+    committedSelection.value = nextSelection ? { ...nextSelection } : null
     syncInputText(nextSelection)
-    syncInputDom()
-    syncClearButtonDom()
-    if (popupOpen.current && (source === 'panel' || source === 'now')) {
-      syncPopupContent()
-    }
-    if ((source === 'panel' || source === 'now') && nextText) {
-      rememberControlledSelectionOpen(nextText, resolvedFormatValue, use12Hours)
+
+    if (popupOpen.value && (source === 'panel' || source === 'now')) {
     }
 
     if (previousText === nextText && source !== 'clear') {
@@ -1502,379 +1365,172 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     const nextInputText = nextSelection
       ? formatTimeSelection(nextSelection, resolvedFormatValue)
       : ''
-    const shouldSyncDraft = controlledValue !== undefined || !popupOpen.current || !needConfirm
+    const shouldSyncDraft = controlledValue !== undefined || !popupOpen.value || !needConfirm
     const nextDraftSelection = shouldSyncDraft
       ? resolveDefaultSelection(nextSelection, defaultOpenValue, runtimeConfig())
       : null
-    const committedChanged = !selectionsEqual(committedSelection.current ?? null, nextSelection)
-    const inputChanged = (inputText.current ?? '') !== nextInputText
+    const committedChanged = !selectionsEqual(committedSelection.value ?? null, nextSelection)
+    const inputChanged = (inputText.value ?? '') !== nextInputText
     const draftChanged =
-      shouldSyncDraft && !selectionsEqual(draftSelection.current ?? null, nextDraftSelection)
+      shouldSyncDraft && !selectionsEqual(draftSelection.value ?? null, nextDraftSelection)
     const shouldPreserveFocusedControlledInput =
       controlledValue !== undefined &&
       inputRef.current?.ownerDocument.activeElement === inputRef.current &&
       lastSyncedPropInputText.current === nextInputText
 
     if (committedChanged) {
-      committedSelection.current = nextSelection ? { ...nextSelection } : null
+      committedSelection.value = nextSelection ? { ...nextSelection } : null
     }
 
     if (inputChanged && !shouldPreserveFocusedControlledInput) {
-      inputText.current = nextInputText
+      inputText.value = nextInputText
     }
 
     if (draftChanged) {
-      draftSelection.current = nextDraftSelection ? { ...nextDraftSelection } : null
+      draftSelection.value = nextDraftSelection ? { ...nextDraftSelection } : null
     }
 
     if (controlledValue !== undefined) {
       lastSyncedPropInputText.current = nextInputText
     }
 
-    syncInputDom()
-    syncClearButtonDom()
-
-    if (committedChanged || inputChanged || draftChanged || popupOpen.current) {
-      syncPopupDom()
+    if (committedChanged || inputChanged || draftChanged || popupOpen.value) {
     } else {
-      syncShellDom()
     }
   }
 
   const getActiveSelection = () => {
     return (
-      draftSelection.current ??
-      resolveDefaultSelection(committedSelection.current ?? null, defaultOpenValue, runtimeConfig())
+      draftSelection.value ??
+      resolveDefaultSelection(committedSelection.value ?? null, defaultOpenValue, runtimeConfig())
     )
   }
 
-  /** 清理 fast 模式下额外 footer 的 Rue 渲染内容。 */
-  const clearFastExtraFooterContent = () => {
-    const host = fastExtraFooterHostRef.current
-    if (!host) return
-    fastExtraFooterHostRef.current = undefined
-    queueMicrotask(() => {
-      withCallbackRuntime(() => {
-        renderRue(null, host)
-      })
-    })
-  }
+  const RenderPopupContent = () => {
+    const activeSelection = computed(() => getActiveSelection())
+    const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+      const CompiledRow2 = ({ rowArg0 }: { rowArg0: any }) => {
+        const option = rowArg0
 
-  const clearPopupContent = (host: HTMLDivElement) => {
-    if (popupContentRenderMode.current === 'rue') {
-      withCallbackRuntime(() => {
-        renderRue(null, host)
-      })
-    } else if (popupContentRenderMode.current === 'fast') {
-      clearFastExtraFooterContent()
-      host.replaceChildren()
-    }
-    popupContentRenderMode.current = 'none'
-  }
-
-  const renderFastPopupContent = (host: HTMLDivElement, activeSelection: InternalTimeSelection) => {
-    const ownerDocument = host.ownerDocument
-    clearFastExtraFooterContent()
-
-    const panel = ownerDocument.createElement('div')
-    panel.className = mergeClassName(
-      'rounded-[1.1rem] bg-gradient-to-br from-base-100 via-base-100 to-base-200/55 p-1',
-      panelClassName,
-    )
-    panel.setAttribute('data-rue-time-picker-popup-content', 'true')
-
-    const columnsGrid = ownerDocument.createElement('div')
-    columnsGrid.className = 'grid gap-2 px-2 pt-2'
-    columnsGrid.style.gridTemplateColumns = `repeat(${visibleColumns.length}, minmax(0, 1fr))`
-
-    for (const column of visibleColumns) {
-      const options = getColumnOptions(column, activeSelection, runtimeConfig(), true)
-      const selectedValue = resolveCurrentColumnValue(column, activeSelection)
-      const columnPanel = ownerDocument.createElement('div')
-      columnPanel.className = 'min-w-0 rounded-xl border border-base-300/70 bg-base-100/85 p-2'
-
-      const heading = ownerDocument.createElement('div')
-      heading.className = 'mb-2 px-2 text-[11px] uppercase tracking-[0.2em] text-base-content/45'
-      heading.textContent = resolveColumnHeading(column)
-      columnPanel.appendChild(heading)
-
-      const list = ownerDocument.createElement('div')
-      list.className = 'max-h-56 space-y-1 overflow-y-auto pr-1'
-      if (changeOnScroll) {
-        list.addEventListener(
-          'wheel',
-          event => {
-            event.preventDefault()
-            stepColumn(column, event.deltaY > 0 ? 1 : -1)
-          },
-          { passive: false },
+        const selected = option.value === selectedValue.get()
+        return (
+          <button
+            key={option.key}
+            type="button"
+            disabled={option.disabled}
+            aria-selected={selected ? 'true' : 'false'}
+            data-rue-time-selected={selected ? 'true' : 'false'}
+            data-rue-time-column={column}
+            data-rue-time-option={String(option.value)}
+            className={mergeClassName(
+              'flex w-full items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-150',
+              option.disabled
+                ? 'cursor-not-allowed border-transparent opacity-35'
+                : selected
+                  ? 'border-primary bg-primary text-primary-content shadow-[0_14px_28px_-20px_rgba(59,130,246,0.95)]'
+                  : 'border-transparent text-base-content/75 hover:bg-base-200',
+            )}
+            onPointerDown={preventPopupButtonBlur}
+            onMouseDown={preventPopupButtonBlur}
+            onClick={() => handlePanelSelection(column, option.value)}
+          >
+            {String(option.label)}
+          </button>
         )
       }
 
-      if (options.length) {
-        for (const option of options) {
-          const selected = option.value === selectedValue
-          const button = ownerDocument.createElement('button')
-          button.type = 'button'
-          button.disabled = !!option.disabled
-          button.setAttribute('aria-selected', selected ? 'true' : 'false')
-          button.setAttribute('data-rue-time-selected', selected ? 'true' : 'false')
-          button.setAttribute('data-rue-time-column', column)
-          button.setAttribute('data-rue-time-option', String(option.value))
-          button.className = mergeClassName(
-            'flex w-full items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-150',
-            option.disabled
-              ? 'cursor-not-allowed border-transparent opacity-35'
-              : selected
-                ? 'border-primary bg-primary text-primary-content shadow-[0_14px_28px_-20px_rgba(59,130,246,0.95)]'
-                : 'border-transparent text-base-content/75 hover:bg-base-200',
-          )
-          button.textContent = option.label
-          button.addEventListener('pointerdown', event =>
-            preventPopupButtonBlur(event as PointerEvent),
-          )
-          button.addEventListener('mousedown', event => preventPopupButtonBlur(event as MouseEvent))
-          button.addEventListener('click', () => {
-            handlePanelSelection(column, option.value)
-          })
-          list.appendChild(button)
-        }
-      } else {
-        const empty = ownerDocument.createElement('div')
-        empty.className = 'px-2 py-6 text-center text-sm text-base-content/40'
-        empty.textContent = '暂无可选项'
-        list.appendChild(empty)
-      }
+      const column = rowArg0
 
-      columnPanel.appendChild(list)
-      columnsGrid.appendChild(columnPanel)
-    }
-
-    panel.appendChild(columnsGrid)
-
-    const footer = ownerDocument.createElement('div')
-    footer.className = 'mt-3 border-t border-base-300/70 px-2 pt-3'
-
-    const footerRow = ownerDocument.createElement('div')
-    footerRow.className = 'flex flex-wrap items-center justify-between gap-2'
-
-    const helperText = ownerDocument.createElement('div')
-    helperText.className = 'text-xs text-base-content/45'
-    helperText.textContent = changeOnScroll ? '支持滚轮快速切换' : '点击列表项完成选择'
-    footerRow.appendChild(helperText)
-
-    const actionGroup = ownerDocument.createElement('div')
-    actionGroup.className = 'flex flex-wrap items-center gap-2'
-
-    if (showNow) {
-      const nowButton = ownerDocument.createElement('button')
-      nowButton.type = 'button'
-      nowButton.className = 'btn btn-ghost btn-sm'
-      nowButton.textContent = nowLabel
-      nowButton.addEventListener('pointerdown', event =>
-        preventPopupButtonBlur(event as PointerEvent),
+      const options = computed(() =>
+        getColumnOptions(column, activeSelection.get(), runtimeConfig(), true),
       )
-      nowButton.addEventListener('mousedown', event => preventPopupButtonBlur(event as MouseEvent))
-      nowButton.addEventListener('click', handleNowClick)
-      actionGroup.appendChild(nowButton)
-    }
+      const selectedValue = computed(() => resolveCurrentColumnValue(column, activeSelection.get()))
 
-    if (needConfirm) {
-      const confirmButton = ownerDocument.createElement('button')
-      confirmButton.type = 'button'
-      confirmButton.className = 'btn btn-primary btn-sm'
-      confirmButton.setAttribute('data-rue-time-confirm', 'true')
-      confirmButton.textContent = confirmLabel
-      confirmButton.addEventListener('pointerdown', event =>
-        preventPopupButtonBlur(event as PointerEvent),
-      )
-      confirmButton.addEventListener('mousedown', event =>
-        preventPopupButtonBlur(event as MouseEvent),
-      )
-      confirmButton.addEventListener('click', handleConfirm)
-      actionGroup.appendChild(confirmButton)
-    }
-
-    footerRow.appendChild(actionGroup)
-
-    // fast 渲染主面板仍允许 renderExtraFooter 使用 Rue 子树挂到专用 host。
-    let extraFooterHost: HTMLDivElement | undefined
-    if (renderExtraFooter) {
-      extraFooterHost = ownerDocument.createElement('div')
-      extraFooterHost.className = 'mb-3 text-sm text-base-content/65'
-      footer.appendChild(extraFooterHost)
-    }
-
-    footer.appendChild(footerRow)
-    panel.appendChild(footer)
-
-    if (popupContentRenderMode.current === 'rue') {
-      withCallbackRuntime(() => {
-        renderRue(null, host)
-      })
-    }
-    host.replaceChildren(panel)
-    if (extraFooterHost && renderExtraFooter) {
-      fastExtraFooterHostRef.current = extraFooterHost
-      withCallbackRuntime(() => {
-        renderRue(renderExtraFooter(), extraFooterHost)
-      })
-    }
-    popupContentRenderMode.current = 'fast'
-  }
-
-  const renderPopupContent = () => {
-    const host = popupContentHostRef.current
-    if (!host) {
-      return
-    }
-
-    const popupVisible = !!popupOpen.current && !disabled
-    if (!popupVisible) {
-      return
-    }
-
-    const activeSelection = getActiveSelection()
-
-    if (!cellRender) {
-      renderFastPopupContent(host, activeSelection)
-      return
-    }
-
-    if (popupContentRenderMode.current === 'fast') {
-      clearPopupContent(host)
-    }
-
-    withCallbackRuntime(() => {
-      renderRue(
+      return (
         <div
-          className={mergeClassName(
-            'rounded-[1.1rem] bg-gradient-to-br from-base-100 via-base-100 to-base-200/55 p-1',
-            panelClassName,
-          )}
-          data-rue-time-picker-popup-content="true"
+          key={column}
+          className="min-w-0 rounded-xl border border-base-300/70 bg-base-100/85 p-2"
         >
-          <div
-            className="grid gap-2 px-2 pt-2"
-            style={{ gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr))` }}
-          >
-            {visibleColumns.map(column => {
-              const options = getColumnOptions(column, activeSelection, runtimeConfig(), true)
-              const selectedValue = resolveCurrentColumnValue(column, activeSelection)
-
-              return (
-                <div
-                  key={column}
-                  className="min-w-0 rounded-xl border border-base-300/70 bg-base-100/85 p-2"
-                >
-                  <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.2em] text-base-content/45">
-                    {resolveColumnHeading(column)}
-                  </div>
-                  <div
-                    className="max-h-56 space-y-1 overflow-y-auto pr-1"
-                    onWheel={(event: WheelEvent) => {
-                      if (!changeOnScroll) return
-                      event.preventDefault()
-                      stepColumn(column, event.deltaY > 0 ? 1 : -1)
-                    }}
-                  >
-                    {options.length ? (
-                      options.map(option => {
-                        const selected = option.value === selectedValue
-                        return (
-                          <button
-                            key={option.key}
-                            type="button"
-                            disabled={option.disabled}
-                            aria-selected={selected ? 'true' : 'false'}
-                            data-rue-time-selected={selected ? 'true' : 'false'}
-                            data-rue-time-column={column}
-                            data-rue-time-option={String(option.value)}
-                            className={mergeClassName(
-                              'flex w-full items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors duration-150',
-                              option.disabled
-                                ? 'cursor-not-allowed border-transparent opacity-35'
-                                : selected
-                                  ? 'border-primary bg-primary text-primary-content shadow-[0_14px_28px_-20px_rgba(59,130,246,0.95)]'
-                                  : 'border-transparent text-base-content/75 hover:bg-base-200',
-                            )}
-                            onPointerDown={preventPopupButtonBlur}
-                            onMouseDown={preventPopupButtonBlur}
-                            onClick={() => handlePanelSelection(column, option.value)}
-                          >
-                            {cellRender
-                              ? cellRender(option.value, {
-                                  subType: column,
-                                  selected,
-                                  disabled: !!option.disabled,
-                                  label: option.label,
-                                })
-                              : option.label}
-                          </button>
-                        )
-                      })
-                    ) : (
-                      <div className="px-2 py-6 text-center text-sm text-base-content/40">
-                        暂无可选项
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+          <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.2em] text-base-content/45">
+            {String(resolveColumnHeading(column))}
           </div>
+          <div
+            className="max-h-56 space-y-1 overflow-y-auto pr-1"
+            onWheel={(event: WheelEvent) => {
+              if (!changeOnScroll) return
+              event.preventDefault()
+              stepColumn(column, event.deltaY > 0 ? 1 : -1)
+            }}
+          >
+            {options.get().length ? (
+              <>
+                {' '}
+                {options.get().map((rowArg0: any, rowIndex: number) => (
+                  <CompiledRow2 rowArg0={rowArg0} />
+                ))}{' '}
+              </>
+            ) : (
+              <div className="px-2 py-6 text-center text-sm text-base-content/40">暂无可选项</div>
+            )}
+          </div>
+        </div>
+      )
+    }
 
-          <div className="mt-3 border-t border-base-300/70 px-2 pt-3">
-            {renderExtraFooter ? (
-              <div className="mb-3 text-sm text-base-content/65">{renderExtraFooter()}</div>
-            ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs text-base-content/45">
-                {changeOnScroll ? '支持滚轮快速切换' : '点击列表项完成选择'}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {showNow ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onPointerDown={preventPopupButtonBlur}
-                    onMouseDown={preventPopupButtonBlur}
-                    onClick={handleNowClick}
-                  >
-                    {nowLabel}
-                  </button>
-                ) : null}
-                {needConfirm ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    data-rue-time-confirm="true"
-                    onPointerDown={preventPopupButtonBlur}
-                    onMouseDown={preventPopupButtonBlur}
-                    onClick={handleConfirm}
-                  >
-                    {confirmLabel}
-                  </button>
-                ) : null}
-              </div>
+    return (
+      <div
+        className={mergeClassName(
+          'rounded-[1.1rem] bg-gradient-to-br from-base-100 via-base-100 to-base-200/55 p-1',
+          panelClassName,
+        )}
+        data-rue-time-picker-popup-content="true"
+      >
+        <div
+          className="grid gap-2 px-2 pt-2"
+          style={{ gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr))` }}
+        >
+          {visibleColumns.map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow1 rowArg0={rowArg0} />
+          ))}
+        </div>
+
+        <div className="mt-3 border-t border-base-300/70 px-2 pt-3">
+          {slots.footer ? (
+            <div className="mb-3 text-sm text-base-content/65">{slots.footer}</div>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs text-base-content/45">
+              {changeOnScroll ? '支持滚轮快速切换' : '点击列表项完成选择'}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {showNow ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onPointerDown={preventPopupButtonBlur}
+                  onMouseDown={preventPopupButtonBlur}
+                  onClick={handleNowClick}
+                >
+                  {String(nowLabel)}
+                </button>
+              ) : null}
+              {needConfirm ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  data-rue-time-confirm="true"
+                  onPointerDown={preventPopupButtonBlur}
+                  onMouseDown={preventPopupButtonBlur}
+                  onClick={handleConfirm}
+                >
+                  {String(confirmLabel)}
+                </button>
+              ) : null}
             </div>
           </div>
-        </div>,
-        host,
-      )
-    })
-    popupContentRenderMode.current = 'rue'
-  }
-
-  const syncPopupContent = () => {
-    renderPopupContent()
-  }
-
-  const assignPopupContentHostRef = (element: HTMLDivElement | null) => {
-    popupContentHostRef.current = element ?? undefined
-    if (element) {
-      syncPopupContent()
-    }
+        </div>
+      </div>
+    )
   }
 
   const handlePanelSelection = (
@@ -1889,9 +1545,8 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
       applyColumnValue(currentSelection, column, optionValue),
       runtimeConfig(),
     )
-    draftSelection.current = { ...nextSelection }
+    draftSelection.value = { ...nextSelection }
     if (needConfirm) {
-      syncPopupContent()
     }
     emitCalendarChange(nextSelection, source)
 
@@ -1909,9 +1564,8 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     const scrollSnapshot = captureDocumentScroll()
     markPopupInternalInteraction()
     const nextSelection = sanitizeSelection(nowSelection(), runtimeConfig())
-    draftSelection.current = { ...nextSelection }
+    draftSelection.value = { ...nextSelection }
     if (needConfirm) {
-      syncPopupContent()
     }
     emitCalendarChange(nextSelection, 'now')
 
@@ -1923,34 +1577,32 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
   }
 
   const resetDraftSelection = () => {
-    draftSelection.current = resolveDefaultSelection(
-      committedSelection.current ?? null,
+    draftSelection.value = resolveDefaultSelection(
+      committedSelection.value ?? null,
       defaultOpenValue,
       runtimeConfig(),
     )
-    syncPopupContent()
   }
 
   const applyInputTextValue = () => {
-    const trimmedText = (inputText.current ?? '').trim()
+    const trimmedText = (inputText.value ?? '').trim()
 
     if (!trimmedText) {
-      draftSelection.current = resolveDefaultSelection(null, defaultOpenValue, runtimeConfig())
+      draftSelection.value = resolveDefaultSelection(null, defaultOpenValue, runtimeConfig())
       commitSelection(null, 'clear')
       return
     }
 
     const parsed = parseTimeString(trimmedText, resolvedFormatValue, use12Hours)
     if (!parsed) {
-      syncInputText(committedSelection.current ?? null)
+      syncInputText(committedSelection.value ?? null)
       resetDraftSelection()
-      syncInputDom()
-      syncClearButtonDom()
+
       return
     }
 
     const nextSelection = sanitizeSelection(parsed, runtimeConfig())
-    draftSelection.current = { ...nextSelection }
+    draftSelection.value = { ...nextSelection }
     emitCalendarChange(nextSelection, 'input')
     commitSelection(nextSelection, 'input')
   }
@@ -1971,7 +1623,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
 
   const handleConfirm = () => {
     clearPopupInternalInteraction()
-    commitSelection(draftSelection.current ?? null, 'confirm')
+    commitSelection(draftSelection.value ?? null, 'confirm')
     setPopupOpen(false)
   }
 
@@ -1983,8 +1635,8 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
   }
 
   const handleInput = (event: Event) => {
-    inputText.current = (event.target as HTMLInputElement | null)?.value ?? ''
-    syncClearButtonDom()
+    inputText.value = (event.target as HTMLInputElement | null)?.value ?? ''
+
     if (onInput) {
       withCallbackRuntime(() => {
         onInput(event)
@@ -1993,14 +1645,14 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
   }
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'ArrowDown' && !popupOpen.current) {
+    if (event.key === 'ArrowDown' && !popupOpen.value) {
       event.preventDefault()
       setPopupOpen(true)
       return
     }
 
     if (event.key === 'Escape') {
-      syncInputText(committedSelection.current ?? null)
+      syncInputText(committedSelection.value ?? null)
       resetDraftSelection()
       clearPopupInternalInteraction()
       setPopupOpen(false)
@@ -2009,7 +1661,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
 
     if (event.key === 'Enter') {
       event.preventDefault()
-      if (needConfirm && popupOpen.current) {
+      if (needConfirm && popupOpen.value) {
         handleConfirm()
         return
       }
@@ -2048,7 +1700,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     }
     blurTimer.current = setTimeout(() => {
       if (preservePopupOnInternalBlur.current) {
-        if (!popupOpen.current) {
+        if (!popupOpen.value) {
           setPopupOpen(true)
         }
         if (inputRef.current) {
@@ -2081,8 +1733,6 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
 
   onMounted(() => {
     syncFromProps()
-    syncPopupDom()
-    syncClearButtonDom()
 
     if (typeof window === 'undefined') return
 
@@ -2092,7 +1742,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
         window.removeEventListener('keydown', handleWindowKeyDown)
         return
       }
-      if (!popupOpen.current) return
+      if (!popupOpen.value) return
       const target = event.target as Node | null
       if (!target) return
       if (rootRef.current?.contains(target)) return
@@ -2107,8 +1757,8 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
         window.removeEventListener('keydown', handleWindowKeyDown)
         return
       }
-      if (!popupOpen.current || event.key !== 'Escape') return
-      syncInputText(committedSelection.current ?? null)
+      if (!popupOpen.value || event.key !== 'Escape') return
+      syncInputText(committedSelection.value ?? null)
       resetDraftSelection()
       clearPopupInternalInteraction()
       setPopupOpen(false)
@@ -2148,13 +1798,6 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     syncFromProps()
   })
 
-  onUnmounted(() => {
-    if (popupContentHostRef.current) {
-      clearPopupContent(popupContentHostRef.current)
-      popupContentHostRef.current = undefined
-    }
-  })
-
   watch(
     () => readControlledValue(),
     () => {
@@ -2176,16 +1819,13 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
     () => open,
     () => {
       if (open !== undefined) {
-        popupOpen.current = !!open
-        syncPopupDom()
+        popupOpen.value = !!open
       }
     },
     { immediate: true },
   )
 
   const hasAddons = addonBefore !== undefined || addonAfter !== undefined
-  const popupVisible = !!popupOpen.current && !disabled
-
   return (
     <div ref={rootRef} className={mergeClassName('relative', rootClassName)}>
       <div className={hasAddons ? 'join w-full items-stretch' : undefined}>
@@ -2212,7 +1852,8 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
             ref={assignInputRef}
             type="text"
             data-testid={rest['data-testid']}
-            value={inputText.current ?? ''}
+            value={inputText.value ?? ''}
+            disabled={disabled ? true : undefined}
             placeholder={placeholder}
             aria-invalid={status === 'error' ? 'true' : rest['aria-invalid']}
             className={mergeClassName(
@@ -2220,7 +1861,7 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
               inputClassName,
             )}
             onClick={() => {
-              if (!popupOpen.current) {
+              if (!popupOpen.value) {
                 setPopupOpen(true)
               }
             }}
@@ -2234,30 +1875,37 @@ const TimePickerRoot: FC<TimePickerProps> = props => {
             type="button"
             tabIndex={-1}
             aria-label={clearLabel}
-            className="btn btn-ghost btn-xs btn-circle hidden h-7 min-h-0 w-7 shrink-0 p-0 text-base-content/55 hover:text-base-content"
+            className={mergeClassName(
+              'btn btn-ghost btn-xs btn-circle h-7 min-h-0 w-7 shrink-0 p-0 text-base-content/55 hover:text-base-content',
+              !(allowClear && !disabled && inputText.value?.length) && 'hidden',
+            )}
             data-rue-time-clear="true"
             onClick={handleClear}
           >
-            {allowClearConfig?.clearIcon ?? <DefaultClearIcon />}
+            {allowClearConfig?.clearIcon ? (
+              String(allowClearConfig.clearIcon)
+            ) : (
+              <DefaultClearIcon />
+            )}
           </button>
           <span className="shrink-0 text-base-content/55">
-            {suffixIcon ?? <ClockIcon iconRef={defaultSuffixIconRef} />}
+            {suffixIcon ? String(suffixIcon) : <ClockIcon iconRef={defaultSuffixIconRef} />}
           </span>
         </label>
         {addonAfter !== undefined ? <Addon>{addonAfter}</Addon> : null}
       </div>
       <div
-        ref={popupRef}
+        ref={assignPopupRef}
         role="dialog"
         aria-label="Time picker panel"
-        aria-hidden={popupVisible ? 'false' : 'true'}
+        aria-hidden={popupOpen.value && !disabled ? 'false' : 'true'}
         className={mergeClassName(
           buildPopupClassName(placement, popupClassName),
-          popupVisible ? undefined : 'hidden',
+          popupOpen.value && !disabled ? undefined : 'hidden',
         )}
         data-rue-time-picker-popup="true"
       >
-        <div ref={assignPopupContentHostRef} />
+        <RenderPopupContent />
       </div>
     </div>
   )
@@ -2288,7 +1936,6 @@ const RangePicker: FC<TimeRangePickerProps> = ({
   status,
   variant,
   size,
-  renderExtraFooter,
   disabledTime,
   rootClassName,
   className,
@@ -2399,13 +2046,12 @@ const RangePicker: FC<TimeRangePickerProps> = ({
         inputReadOnly={inputReadOnly}
         needConfirm={needConfirm}
         showNow={showNow}
-        nowLabel={nowLabel}
-        confirmLabel={confirmLabel}
+        nowLabel={String(nowLabel)}
+        confirmLabel={String(confirmLabel)}
         changeOnScroll={changeOnScroll}
         status={status}
         variant={variant}
         size={size}
-        renderExtraFooter={renderExtraFooter}
         disabledTime={selection => disabledTime?.(selection, 'start')}
         rootClassName="min-w-0 flex-1"
         className={mergeClassName(pickerClassName, startPickerClassName)}
@@ -2432,13 +2078,12 @@ const RangePicker: FC<TimeRangePickerProps> = ({
         inputReadOnly={inputReadOnly}
         needConfirm={needConfirm}
         showNow={showNow}
-        nowLabel={nowLabel}
-        confirmLabel={confirmLabel}
+        nowLabel={String(nowLabel)}
+        confirmLabel={String(confirmLabel)}
         changeOnScroll={changeOnScroll}
         status={status}
         variant={variant}
         size={size}
-        renderExtraFooter={renderExtraFooter}
         disabledTime={selection => disabledTime?.(selection, 'end')}
         rootClassName="min-w-0 flex-1"
         className={mergeClassName(pickerClassName, endPickerClassName)}
@@ -2457,10 +2102,12 @@ type TimePickerCompound = FC<TimePickerProps> & {
   RangePicker: FC<TimeRangePickerProps>
 }
 
-const TimePickerComponent: FC<TimePickerProps> = props => {
+const TimePickerComponent: FC<TimePickerProps> = (props, slots: Record<string, any> = {}) => {
   return (
     <div className="contents">
-      <TimePickerRoot {...props} />
+      <TimePickerRoot {...props}>
+        <Template slot="footer">{slots.footer}</Template>
+      </TimePickerRoot>
     </div>
   )
 }
@@ -2471,3 +2118,5 @@ TimePicker.RangePicker = RangePicker
 
 /** 默认导出时间选择器组件。 */
 export default TimePicker
+
+export { RangePicker as TimePickerRangePicker }

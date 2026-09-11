@@ -1,5 +1,5 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { FC } from '@rue-js/rue'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Segmented from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -26,10 +26,6 @@ const getHiddenInput = (container: HTMLElement) => {
 const getThumb = (container: HTMLElement) => {
   return container.querySelector('[data-rue-segmented-thumb="true"]') as HTMLSpanElement | null
 }
-
-const MailIcon: FC = () => <svg data-testid="mail-icon" />
-const NoticeIcon: FC = () => <svg data-testid="notice-icon" />
-const LaunchIcon: FC = () => <svg data-testid="launch-icon" />
 
 const mockRect = (
   element: HTMLElement,
@@ -61,13 +57,15 @@ describe('Segmented', () => {
     const handleChange = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Segmented
-        options={['daily', 'weekly', 'monthly']}
-        defaultValue="weekly"
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Segmented
+          options={['daily', 'weekly', 'monthly']}
+          defaultValue="weekly"
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -107,7 +105,7 @@ describe('Segmented', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(getItem(container, 'list')?.getAttribute('aria-checked')).toBe('true')
@@ -125,16 +123,18 @@ describe('Segmented', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Segmented
-        options={[
-          { label: 'List', value: 'list' },
-          { label: 'Board', value: 'board' },
-          { label: 'Pulse', value: 'pulse' },
-        ]}
-        defaultValue="list"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Segmented
+          options={[
+            { label: 'List', value: 'list' },
+            { label: 'Board', value: 'board' },
+            { label: 'Pulse', value: 'pulse' },
+          ]}
+          defaultValue="list"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -168,24 +168,26 @@ describe('Segmented', () => {
     const handleChange = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Segmented
-        name="density"
-        orientation="vertical"
-        defaultValue="comfortable"
-        onChange={handleChange}
-        options={[
-          { value: 'compact', icon: <span>C</span>, tooltip: 'Compact mode', title: 'Compact' },
-          {
-            value: 'comfortable',
-            icon: <span>M</span>,
-            tooltip: { title: 'Comfortable mode' },
-            title: 'Comfortable',
-          },
-          { value: 'expanded', icon: <span>E</span>, title: 'Expanded', disabled: true },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Segmented
+          name="density"
+          orientation="vertical"
+          defaultValue="comfortable"
+          onChange={handleChange}
+          options={[
+            { value: 'compact', icon: 'C', tooltip: 'Compact mode', title: 'Compact' },
+            {
+              value: 'comfortable',
+              icon: 'M',
+              tooltip: { title: 'Comfortable mode' },
+              title: 'Comfortable',
+            },
+            { value: 'expanded', icon: 'E', title: 'Expanded', disabled: true },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -217,38 +219,44 @@ describe('Segmented', () => {
     const verticalContainer = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Segmented
-        defaultValue="list"
-        options={[
-          { value: 'list', label: 'List', icon: <span>L</span> },
-          { value: 'board', label: 'Board', icon: <span>B</span> },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Segmented
+          defaultValue="list"
+          options={[
+            { value: 'list', label: 'List', icon: 'L' },
+            { value: 'board', label: 'Board', icon: 'B' },
+          ]}
+        />,
+        container,
+      ),
     )
 
-    render(
-      <Segmented
-        defaultValue="list"
-        options={[
-          { value: 'list', label: 'List' },
-          { value: 'board', label: 'Board' },
-        ]}
-      />,
-      labelOnlyContainer,
+    mountTestApp(labelOnlyContainer, () =>
+      render(
+        <Segmented
+          defaultValue="list"
+          options={[
+            { value: 'list', label: 'List' },
+            { value: 'board', label: 'Board' },
+          ]}
+        />,
+        labelOnlyContainer,
+      ),
     )
 
-    render(
-      <Segmented
-        orientation="vertical"
-        defaultValue="list"
-        options={[
-          { value: 'list', label: 'List', icon: <span>L</span> },
-          { value: 'board', label: 'Board', icon: <span>B</span> },
-        ]}
-      />,
-      verticalContainer,
+    mountTestApp(verticalContainer, () =>
+      render(
+        <Segmented
+          orientation="vertical"
+          defaultValue="list"
+          options={[
+            { value: 'list', label: 'List', icon: 'L' },
+            { value: 'board', label: 'Board', icon: 'B' },
+          ]}
+        />,
+        verticalContainer,
+      ),
     )
 
     await waitForContent(() => {
@@ -281,15 +289,15 @@ describe('Segmented', () => {
         <Segmented
           value={current.value}
           options={[
-            { value: 'compact', icon: <span data-testid="compact-icon">C</span>, title: 'Compact' },
+            { value: 'compact', icon: 'C', title: 'Compact' },
             {
               value: 'comfortable',
-              icon: <span data-testid="comfortable-icon">M</span>,
+              icon: 'M',
               title: 'Comfortable',
             },
             {
               value: 'expanded',
-              icon: <span data-testid="expanded-icon">E</span>,
+              icon: 'E',
               title: 'Expanded',
             },
           ]}
@@ -300,11 +308,13 @@ describe('Segmented', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const comfortable = getItem(container, 'comfortable')
-      expect(comfortable?.querySelector('[data-testid="comfortable-icon"]')?.textContent).toBe('M')
+      expect(comfortable?.querySelector('[data-rue-segmented-icon-host="true"]')?.textContent).toBe(
+        'M',
+      )
       expect(comfortable?.querySelector('.sr-only')?.textContent).toBe('comfortable')
     })
 
@@ -314,7 +324,7 @@ describe('Segmented', () => {
       const compact = getItem(container, 'compact')
       expect(current.value).toBe('compact')
       expect(compact?.getAttribute('aria-checked')).toBe('true')
-      expect(compact?.querySelector('[data-testid="compact-icon"]')?.textContent).toBe('C')
+      expect(compact?.querySelector('[data-rue-segmented-icon-host="true"]')?.textContent).toBe('C')
       expect(compact?.querySelector('.sr-only')?.textContent).toBe('compact')
       expect(compact?.querySelector('span.min-w-0')).toBeNull()
       expect(compact?.className.includes('gap-0')).toBe(true)
@@ -327,9 +337,9 @@ describe('Segmented', () => {
     resetActiveRuntime()
 
     const createOptions = () => [
-      { value: 'mail', label: 'Email', icon: <MailIcon /> },
-      { value: 'notice', label: 'Notification', icon: <NoticeIcon /> },
-      { value: 'launch', label: 'Launch Feed', icon: <LaunchIcon /> },
+      { value: 'mail', label: 'Email', icon: '✉' },
+      { value: 'notice', label: 'Notification', icon: '!' },
+      { value: 'launch', label: 'Launch Feed', icon: '↗' },
     ]
 
     const Demo = () => {
@@ -344,10 +354,12 @@ describe('Segmented', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
-      expect(getItem(container, 'mail')?.querySelector('[data-testid="mail-icon"]')).toBeTruthy()
+      expect(
+        getItem(container, 'mail')?.querySelector('[data-rue-segmented-icon-host="true"]'),
+      ).toBeTruthy()
       expect(getItem(container, 'notice')?.textContent).toContain('Notification')
     })
 
@@ -357,9 +369,11 @@ describe('Segmented', () => {
       const notice = getItem(container, 'notice')
       expect(current.value).toBe('notice')
       expect(notice?.getAttribute('aria-checked')).toBe('true')
-      expect(notice?.querySelector('[data-testid="notice-icon"]')).toBeTruthy()
+      expect(notice?.querySelector('[data-rue-segmented-icon-host="true"]')).toBeTruthy()
       expect(notice?.textContent).toContain('Notification')
-      expect(getItem(container, 'mail')?.querySelector('[data-testid="mail-icon"]')).toBeTruthy()
+      expect(
+        getItem(container, 'mail')?.querySelector('[data-rue-segmented-icon-host="true"]'),
+      ).toBeTruthy()
     })
   })
 
@@ -369,9 +383,9 @@ describe('Segmented', () => {
     resetActiveRuntime()
 
     const createOptions = () => [
-      { value: 'list', label: 'List', icon: <MailIcon /> },
-      { value: 'board', label: 'Board', icon: <NoticeIcon /> },
-      { value: 'pulse', label: 'Pulse', icon: <LaunchIcon /> },
+      { value: 'list', label: 'List', icon: '✉' },
+      { value: 'board', label: 'Board', icon: '!' },
+      { value: 'pulse', label: 'Pulse', icon: '↗' },
     ]
 
     const Demo = () => {
@@ -414,7 +428,7 @@ describe('Segmented', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const groups = Array.from(container.querySelectorAll('[role="radiogroup"]'))
@@ -426,8 +440,8 @@ describe('Segmented', () => {
         const board = group.querySelector(
           '[data-rue-segmented-value="string:board"]',
         ) as HTMLElement | null
-        expect(list?.querySelector('[data-testid="mail-icon"]')).toBeTruthy()
-        expect(board?.querySelector('[data-testid="notice-icon"]')).toBeTruthy()
+        expect(list?.querySelector('[data-rue-segmented-icon-host="true"]')).toBeTruthy()
+        expect(board?.querySelector('[data-rue-segmented-icon-host="true"]')).toBeTruthy()
         expect(board?.textContent).toContain('Board')
       })
     })
@@ -448,8 +462,8 @@ describe('Segmented', () => {
           '[data-rue-segmented-value="string:board"]',
         ) as HTMLElement | null
         expect(board?.getAttribute('aria-checked')).toBe('true')
-        expect(list?.querySelector('[data-testid="mail-icon"]')).toBeTruthy()
-        expect(board?.querySelector('[data-testid="notice-icon"]')).toBeTruthy()
+        expect(list?.querySelector('[data-rue-segmented-icon-host="true"]')).toBeTruthy()
+        expect(board?.querySelector('[data-rue-segmented-icon-host="true"]')).toBeTruthy()
         expect(board?.textContent).toContain('Board')
       })
     })
@@ -489,7 +503,7 @@ describe('Segmented', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const groups = Array.from(container.querySelectorAll('[role="radiogroup"]'))
@@ -529,26 +543,31 @@ describe('Segmented', () => {
     const customLabelContainer = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Segmented
-        defaultValue="launch"
-        options={[{ value: 'launch', label: 'Launch Feed', icon: <LaunchIcon /> }]}
-      />,
-      plainTextContainer,
+    mountTestApp(plainTextContainer, () =>
+      render(
+        <Segmented
+          defaultValue="launch"
+          options={[{ value: 'launch', label: 'Launch Feed', icon: '↗' }]}
+        />,
+        plainTextContainer,
+      ),
     )
 
-    render(
-      <Segmented
-        defaultValue="launch"
-        options={[
-          {
-            value: 'launch',
-            label: <span className="leading-tight">Launch Feed</span>,
-            icon: <LaunchIcon />,
-          },
-        ]}
-      />,
-      customLabelContainer,
+    mountTestApp(customLabelContainer, () =>
+      render(
+        <Segmented
+          defaultValue="launch"
+          options={[
+            {
+              value: 'launch',
+              label: 'Launch Feed',
+              wrapLabel: true,
+              icon: '↗',
+            },
+          ]}
+        />,
+        customLabelContainer,
+      ),
     )
 
     await waitForContent(() => {

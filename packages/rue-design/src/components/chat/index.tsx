@@ -229,14 +229,16 @@ const Header: FC<HeaderProps> = ({ className, children, author, time, timeClassN
   }
 
   if (author == null && time == null) {
-    return null
+    return <></>
   }
 
   return (
     <div className={headerClassName}>
-      {author}
+      {String(author ?? '')}
       {time != null ? (
-        <time className={appendClassName('text-xs opacity-50', timeClassName)}>{time}</time>
+        <time className={appendClassName('text-xs opacity-50', timeClassName)}>
+          {String(time ?? '')}
+        </time>
       ) : null}
     </div>
   )
@@ -245,7 +247,7 @@ const Header: FC<HeaderProps> = ({ className, children, author, time, timeClassN
 /** 脚注子组件：保留 chat-footer 语义。 */
 const Footer: FC<ChatPartProps> = ({ className, children }) => {
   if (!hasRenderableNode(children)) {
-    return null
+    return <></>
   }
   return <div className={appendClassName('chat-footer', className)}>{children}</div>
 }
@@ -269,7 +271,7 @@ const Image: FC<ImageProps> = ({ className, children, src, alt, bodyClassName, i
   }
 
   if (hasRenderableNode(children)) return <div className={imageClassName}>{children}</div>
-  return null
+  return <></>
 }
 
 /** 语义消息组件：避免 helper 返回 JSX 时被深编译到组件边界之外。 */
@@ -319,10 +321,10 @@ const SemanticMessage: FC<ChatSemanticMessageProps> = ({
             bodyClassName={avatar.bodyClassName ?? avatarBodyClassName}
             imgClassName={avatar.imgClassName ?? avatarImgClassName}
           >
-            {avatar.content ?? avatar.children}
+            {String(avatar.content ?? avatar.children ?? '')}
           </Image>
         ) : (
-          <Image className={resolvedAvatarClassName}>{avatar}</Image>
+          <Image className={resolvedAvatarClassName}>{String(avatar ?? '')}</Image>
         )
       ) : resolvedAvatarSrc != null ? (
         <Image
@@ -335,7 +337,7 @@ const SemanticMessage: FC<ChatSemanticMessageProps> = ({
       ) : null}
 
       {header != null ? (
-        <Header className={headerClassName}>{header}</Header>
+        <Header className={headerClassName}>{String(header ?? '')}</Header>
       ) : resolvedAuthor != null || resolvedTime != null ? (
         <Header className={headerClassName} author={resolvedAuthor} time={resolvedTime} />
       ) : null}
@@ -347,11 +349,11 @@ const SemanticMessage: FC<ChatSemanticMessageProps> = ({
           typing={typing}
           typingIndicator={typingIndicator}
         >
-          {messageText}
+          {String(messageText ?? '')}
         </Bubble>
       ) : null}
 
-      <Footer className={footerClassName}>{footer}</Footer>
+      <Footer className={footerClassName}>{String(footer ?? '')}</Footer>
     </div>
   )
 }

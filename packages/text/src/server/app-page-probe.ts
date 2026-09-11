@@ -12,7 +12,6 @@ import {
   type LayoutFlags,
 } from './app-page-execution.js'
 import { isAppRscServerClientReference } from './app-rsc-client-reference-protocol.js'
-import { runWithServerElementRuntime } from './server-element-runtime.js'
 
 const TEXT_CLIENT_REFERENCE_SSR_KEY = Symbol.for('text.clientReferenceSsr')
 
@@ -51,9 +50,7 @@ export function probeAppPage(options: {
   if (isAppRscServerClientReference(pageComponent)) {
     return resolveAppClientPageComponentForProbe(pageComponent, pageProps)
   }
-  return runWithServerElementRuntime(() =>
-    (pageComponent as (props: Record<string, unknown>) => unknown)(pageProps),
-  )
+  return (pageComponent as (props: Record<string, unknown>) => unknown)(pageProps)
 }
 
 function isThenable(value: unknown): value is PromiseLike<unknown> {
@@ -95,7 +92,7 @@ function runClientPageComponentForProbe(
   component: (props: Record<string, unknown>) => unknown,
   pageProps: Record<string, unknown>,
 ): unknown {
-  return runWithAppClientReferenceSsr(() => runWithServerElementRuntime(() => component(pageProps)))
+  return runWithAppClientReferenceSsr(() => component(pageProps))
 }
 
 async function resolveAppClientPageComponentForProbe(
@@ -160,7 +157,7 @@ function isRueRuntimeDomProbeError(error: unknown): boolean {
   if (typeof error.stack !== 'string') return false
   return (
     (error.message === 'document is not defined' &&
-      error.stack.includes('BrowserDOMAdapter.createTextNode')) ||
+      error.stack.includes('browserDOMOperations.createTextNode')) ||
     (error.message ===
       'Unsupported object inputs are no longer accepted on the default @rue-js/runtime entry.' &&
       error.stack.includes('TextCompatProvider'))

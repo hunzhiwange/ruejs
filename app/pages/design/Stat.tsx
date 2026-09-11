@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Avatar, Button, Stat, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -192,7 +191,6 @@ const basicCode = `<Stat className="shadow">
 </Stat>`
 
 const itemsCode = `import { Button, Stat } from '@rue-js/design'
-
 const statItems = [
   {
     figure: <InfoIcon />,

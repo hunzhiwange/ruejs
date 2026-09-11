@@ -72,9 +72,10 @@ fn wraps_dynamic_slot_reads_in_watch_effect_with_children_anchor() {
 
     assert!(out.contains(&normalize(r#"const _list1 = _$createComment("rue:children:anchor");"#)));
     assert!(out.contains(&normalize(r#"_$appendChild(root, _list1);"#)));
-    assert!(out.contains(&normalize(
-        r#"effect(()=>{ const __slot = (slotValue); untrack(()=>renderAnchor(__slot, root, _list1)); });"#,
-    )));
+    assert!(out.contains("_$mountCompiledSlotAt("));
+    assert!(out.contains("parent: root"));
+    assert!(out.contains("before: _list1"));
+    assert!(!out.contains("renderAnchor"));
 }
 
 #[test]
@@ -99,7 +100,7 @@ fn renders_static_slot_once_without_watch_effect() {
 
     assert!(out.contains(&normalize(r#"const _list1 = _$createComment("rue:slot:anchor");"#)));
     assert!(out.contains(&normalize(r#"const _list2 = buildSlot();"#)));
-    assert!(out.contains(&normalize(r#"renderAnchor(_list2, root, _list1);"#)));
+    assert!(out.contains(&normalize(r#"_$mountCompiledSlotAt("#)));
     assert!(!out.contains("watchEffect("));
 }
 
@@ -111,7 +112,7 @@ fn renders_identifier_slot_once_with_parenthesized_slot_value() {
     render_once_for_slot(&mut vt, &ident("root"), &Expr::Ident(ident("slotValue")), &mut stmts);
 
     let out = normalize(&emit_stmts(stmts));
-    assert!(out.contains(&normalize(r#"const _list2 = (slotValue);"#)));
-    assert!(out.contains(&normalize(r#"renderAnchor(_list2, root, _list1);"#)));
+    assert!(out.contains(&normalize(r#"const _list2 = slotValue;"#)));
+    assert!(out.contains(&normalize(r#"_$mountCompiledSlotAt("#)));
     assert!(!out.contains("watchEffect("));
 }

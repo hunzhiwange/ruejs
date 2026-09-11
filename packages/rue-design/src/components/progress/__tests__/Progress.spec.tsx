@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { computed, ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Progress from '..'
@@ -18,7 +19,9 @@ describe('Progress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Progress value={40} max={100} className="w-56" />, container)
+    mountTestApp(container, () =>
+      render(<Progress value={40} max={100} className="w-56" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('progress.progress') as HTMLProgressElement
@@ -33,7 +36,7 @@ describe('Progress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Progress color="success" />, container)
+    mountTestApp(container, () => render(<Progress color="success" />, container))
 
     await waitForContent(() => {
       const element = container.querySelector('progress.progress') as HTMLProgressElement
@@ -45,7 +48,9 @@ describe('Progress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Progress data-testid="progress" aria-label="loading" />, container)
+    mountTestApp(container, () =>
+      render(<Progress data-testid="progress" aria-label="loading" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="progress"]') as HTMLProgressElement
@@ -59,14 +64,16 @@ describe('Progress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Progress
-        data-testid="enhanced-line"
-        percent={72}
-        success={{ percent: 30 }}
-        format={(percent, successPercent) => `${successPercent}/${percent}`}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Progress
+          data-testid="enhanced-line"
+          percent={72}
+          success={{ percent: 30 }}
+          format={(percent, successPercent) => `${successPercent}/${percent}`}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -82,7 +89,9 @@ describe('Progress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Progress data-testid="circle-progress" type="circle" percent={60} />, container)
+    mountTestApp(container, () =>
+      render(<Progress data-testid="circle-progress" type="circle" percent={60} />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="circle-progress"]') as HTMLElement
@@ -102,9 +111,11 @@ describe('Progress', () => {
     )
     const success = computed(() => ({ percent: Math.min(percent.value, 30) }))
 
-    render(
-      <Progress data-testid="ref-progress" percent={percent} status={status} success={success} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Progress data-testid="ref-progress" percent={percent} status={status} success={success} />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -157,7 +168,7 @@ describe('Progress', () => {
       )
     }
 
-    render(<Preview />, container)
+    mountTestApp(container, () => render(<Preview />, container))
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="boundary-progress"]') as HTMLElement

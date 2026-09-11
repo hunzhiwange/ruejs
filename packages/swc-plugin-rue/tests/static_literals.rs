@@ -99,16 +99,22 @@ export default StaticLiteralAttrs;
         "Should NOT create watchEffect for static literal attrs"
     );
 
-    assert!(s.contains("_$template('<div class=\"wrap\">"));
-    assert!(s.contains("_$setAttribute(_el3, \"width\", \"200\")"));
-    assert!(s.contains("_$setAttribute(_el3, \"height\", \"200\")"));
-    assert!(s.contains("_$setAttribute(_el4, \"cx\", \"100\")"));
-    assert!(s.contains("_$setAttribute(_el4, \"cy\", \"100\")"));
-    assert!(s.contains("_$setAttribute(_el4, \"r\", \"80\")"));
-    assert!(s.contains("_$setAttribute(_el4, \"strokeWidth\", \"1.5\")"));
-    assert!(s.contains("<input min=\"0\" max=\"100\" value=\"0\" disabled=\"\">"));
-    assert!(s.contains("<select multiple=\"\"></select>"));
-    assert!(s.contains("_$getTemplate1().content.cloneNode(true)"));
+    assert!(s.contains("_$compiledCreateElement(\"svg\""));
+    for (field, value) in [
+        ("width", "200"),
+        ("height", "200"),
+        ("cx", "100"),
+        ("cy", "100"),
+        ("r", "80"),
+        ("strokeWidth", "1.5"),
+    ] {
+        assert!(s.contains(&format!(".setAttribute(\"{field}\", \"{value}\")")), "{s}");
+    }
+    assert!(s.contains(".checked = false"));
+    assert!(s.contains(".disabled = true"));
+    assert!(s.contains(".multiple = true"));
+    assert!(!s.contains("_$setAttribute"));
+    assert!(!s.contains("effect("));
 }
 
 #[test]

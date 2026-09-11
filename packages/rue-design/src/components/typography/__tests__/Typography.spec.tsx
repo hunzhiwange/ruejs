@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { render, setReactiveScheduling } from '@rue-js/rue'
@@ -17,11 +18,13 @@ afterEach(() => {
 describe('Typography', () => {
   it('renders root wrapper with base class', async () => {
     const c = mountContainer()
-    render(
-      <Typography as={'section'} className={'space-y-3'}>
-        {'Content'}
-      </Typography>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Typography as={'section'} className={'space-y-3'}>
+          {'Content'}
+        </Typography>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -35,20 +38,20 @@ describe('Typography', () => {
 
   it('renders compound semantic subcomponents', async () => {
     const c = mountContainer()
-    render(
-      <Typography>
-        {[
+    mountTestApp(c, () =>
+      render(
+        <Typography>
           <Typography.Text type={'warning'} code={true} italic={true}>
             {'npm create rue'}
-          </Typography.Text>,
+          </Typography.Text>
           <Typography.Link href={'https://rue.dev'} strong={true}>
             {'Rue Link'}
-          </Typography.Link>,
-          <Typography.Title level={3}>{'Typography Title'}</Typography.Title>,
-          <Typography.Paragraph mark={true}>{'Typography paragraph content'}</Typography.Paragraph>,
-        ]}
-      </Typography>,
-      c,
+          </Typography.Link>
+          <Typography.Title level={3}>{'Typography Title'}</Typography.Title>
+          <Typography.Paragraph mark={true}>{'Typography paragraph content'}</Typography.Paragraph>
+        </Typography>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -69,16 +72,18 @@ describe('Typography', () => {
   it('adds safe rel for blank links and disables navigation when disabled', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <div>
-        <Typography.Link href="https://rue.dev" target="_blank">
-          Docs
-        </Typography.Link>
-        <Typography.Link href="https://rue.dev" disabled>
-          Disabled
-        </Typography.Link>
-      </div>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <div>
+          <Typography.Link href="https://rue.dev" target="_blank">
+            Docs
+          </Typography.Link>
+          <Typography.Link href="https://rue.dev" disabled>
+            Disabled
+          </Typography.Link>
+        </div>,
+        c,
+      ),
     )
 
     await waitForContent(() => {

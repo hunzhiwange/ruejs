@@ -11,20 +11,20 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
 describe('Pages Router router helpers', () => {
   it('exports wrapWithRouterContext function', async () => {
-    const mod = await import('../src/shims/router.js')
+    const mod = await import('../src/shims/router.js?text-ssr')
     expect(typeof mod.wrapWithRouterContext).toBe('function')
   })
 
@@ -63,7 +63,7 @@ describe('Pages Router router helpers', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       await routerModule.default.push(
         { pathname: '/search', query: { tag: ['a', 'b'], q: 'x' } },
         undefined,
@@ -115,7 +115,7 @@ describe('Pages Router router helpers', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       await routerModule.default.push(
         {
           pathname: '/search',
@@ -143,7 +143,7 @@ describe('Pages Router router helpers', () => {
     // Ported from Text.js: test/e2e/middleware-rewrites/test/index.test.ts
     // https://github.com/vercel/next.js/blob/canary/test/e2e/middleware-rewrites/test/index.test.ts
     const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const routerModule = await import('../src/shims/router.js')
+    const routerModule = await import('../src/shims/router.js?text-ssr')
 
     const previousWindow = (globalThis as any).window
     const win = {
@@ -193,7 +193,7 @@ describe('Pages Router router helpers', () => {
         return createElement('div', null, 'probe')
       }
 
-      renderAppServerElementToHtml(routerModule.wrapWithRouterContext(createElement(Probe)))
+      await renderAppServerElementToHtml(routerModule.wrapWithRouterContext(createElement(Probe)))
 
       expect(captured).not.toBeNull()
       expect((captured as any).pathname).toBe('/posts/[id]')
@@ -210,7 +210,7 @@ describe('Pages Router router helpers', () => {
   })
 
   it('exposes beforePopState on both the Router singleton and wrapped router context', async () => {
-    const mod = await import('../src/shims/router.js')
+    const mod = await import('../src/shims/router.js?text-ssr')
     const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
     const routerSingleton = mod.default
 
@@ -220,7 +220,7 @@ describe('Pages Router router helpers', () => {
       return createElement('div', null, 'probe')
     }
 
-    renderAppServerElementToHtml(mod.wrapWithRouterContext(createElement(Probe)))
+    await renderAppServerElementToHtml(mod.wrapWithRouterContext(createElement(Probe)))
 
     expect(typeof (routerSingleton as any).beforePopState).toBe('function')
     expect(typeof (captured as any).beforePopState).toBe('function')
@@ -283,7 +283,7 @@ describe('Pages Router router helpers', () => {
 
   describe('applyNavigationLocale', () => {
     it('does not prefix absolute https:// URLs', async () => {
-      const { applyNavigationLocale } = await import('../src/shims/router.js')
+      const { applyNavigationLocale } = await import('../src/shims/router.js?text-ssr')
       // Simulate a browser-like window so the locale guard is reached
       ;(globalThis as any).window = { __TEXT_DEFAULT_LOCALE__: 'en' }
       try {
@@ -296,7 +296,7 @@ describe('Pages Router router helpers', () => {
     })
 
     it('does not prefix absolute http:// URLs', async () => {
-      const { applyNavigationLocale } = await import('../src/shims/router.js')
+      const { applyNavigationLocale } = await import('../src/shims/router.js?text-ssr')
       ;(globalThis as any).window = { __TEXT_DEFAULT_LOCALE__: 'en' }
       try {
         expect(applyNavigationLocale('http://example.com/path', 'de')).toBe(
@@ -308,7 +308,7 @@ describe('Pages Router router helpers', () => {
     })
 
     it('does not prefix protocol-relative // URLs', async () => {
-      const { applyNavigationLocale } = await import('../src/shims/router.js')
+      const { applyNavigationLocale } = await import('../src/shims/router.js?text-ssr')
       ;(globalThis as any).window = { __TEXT_DEFAULT_LOCALE__: 'en' }
       try {
         expect(applyNavigationLocale('//cdn.example.com/img.png', 'fr')).toBe(
@@ -320,7 +320,7 @@ describe('Pages Router router helpers', () => {
     })
 
     it('does not prefix native URI schemes', async () => {
-      const { applyNavigationLocale } = await import('../src/shims/router.js')
+      const { applyNavigationLocale } = await import('../src/shims/router.js?text-ssr')
       ;(globalThis as any).window = { __TEXT_DEFAULT_LOCALE__: 'en' }
       try {
         expect(applyNavigationLocale('mailto:hello@example.com', 'fr')).toBe(
@@ -333,7 +333,7 @@ describe('Pages Router router helpers', () => {
     })
 
     it('prefixes local paths with locale', async () => {
-      const { applyNavigationLocale } = await import('../src/shims/router.js')
+      const { applyNavigationLocale } = await import('../src/shims/router.js?text-ssr')
       ;(globalThis as any).window = { __TEXT_DEFAULT_LOCALE__: 'en' }
       try {
         expect(applyNavigationLocale('/about', 'fr')).toBe('/fr/about')
@@ -353,7 +353,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
+      await import('../src/shims/router.js?text-ssr')
 
       expect(win.addEventListener).not.toHaveBeenCalledWith('popstate', expect.any(Function))
     } finally {
@@ -374,8 +374,9 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
-      const { installPagesRouterRuntime } = await import('../src/shims/pages-router-runtime.js')
+      await import('../src/shims/router.js?text-ssr')
+      const { installPagesRouterRuntime } =
+        await import('../src/shims/pages-router-runtime.js?text-ssr')
 
       installPagesRouterRuntime()
       installPagesRouterRuntime()
@@ -568,7 +569,7 @@ describe('Pages Router concurrent navigation', () => {
     })
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push(target, undefined, { shallow: true })
@@ -636,7 +637,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/404', '/slug-2')
@@ -683,7 +684,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/_error', '/slug-2')
@@ -743,7 +744,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/404', '/slug-2')
@@ -803,7 +804,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/_error', '/slug-2')
@@ -847,7 +848,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       // Start two navigations — don't await yet
@@ -900,7 +901,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeComplete', onRouteChangeComplete)
@@ -922,7 +923,7 @@ describe('Pages Router concurrent navigation', () => {
       // cancelled navigation never fires routeChangeComplete.
       expect(completedUrls).not.toContain('/page-a')
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeComplete', onRouteChangeComplete)
       if (previousWindow === undefined) {
@@ -956,7 +957,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeError', onRouteChangeError)
@@ -979,7 +980,7 @@ describe('Pages Router concurrent navigation', () => {
       const errObj = cancelledError?.err
       expect(errObj).toHaveProperty('cancelled', true)
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeError', onRouteChangeError)
       if (previousWindow === undefined) {
@@ -1010,7 +1011,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeComplete', onRouteChangeComplete)
@@ -1023,7 +1024,7 @@ describe('Pages Router concurrent navigation', () => {
       // Should have fired routeChangeError
       expect(errorUrls).toContain('/failing-page')
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeComplete', onRouteChangeComplete)
       Router.events.off('routeChangeError', onRouteChangeError)
@@ -1047,7 +1048,7 @@ describe('Pages Router concurrent navigation', () => {
       new Response('Internal Server Error', { status: 500 })
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/failing-page')
@@ -1109,7 +1110,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/')
@@ -1169,7 +1170,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/')
@@ -1227,7 +1228,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/')
@@ -1292,8 +1293,9 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
-      const { installPagesRouterRuntime } = await import('../src/shims/pages-router-runtime.js')
+      await import('../src/shims/router.js?text-ssr')
+      const { installPagesRouterRuntime } =
+        await import('../src/shims/pages-router-runtime.js?text-ssr')
       installPagesRouterRuntime()
 
       const popstateHandler = listeners.get('popstate')
@@ -1351,7 +1353,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/fr/about')
@@ -1411,7 +1413,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/old-home')
@@ -1479,7 +1481,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/old-home')
@@ -1539,7 +1541,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/old-home')
@@ -1598,7 +1600,7 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('/to?pathname=/api/ok', undefined, { locale: 'nl' })
@@ -1668,7 +1670,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.on('hashChangeStart', onHashChangeStart)
       Router.events.on('hashChangeComplete', onHashChangeComplete)
@@ -1682,7 +1684,7 @@ describe('Pages Router concurrent navigation', () => {
       expect(hashEvents).toEqual([`start:${expectedEventUrl}`, `complete:${expectedEventUrl}`])
       expect(routeEvents).toEqual([])
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('hashChangeStart', onHashChangeStart)
       Router.events.off('hashChangeComplete', onHashChangeComplete)
@@ -1733,7 +1735,7 @@ describe('Pages Router concurrent navigation', () => {
     vi.resetModules()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('#hello%20world')
@@ -1775,7 +1777,7 @@ describe('Pages Router concurrent navigation', () => {
     vi.resetModules()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('#legacy-anchor')
@@ -1817,7 +1819,7 @@ describe('Pages Router concurrent navigation', () => {
     vi.resetModules()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       const result = await Router.push('#legacy-anchor', undefined, { scroll: false })
@@ -1871,8 +1873,9 @@ describe('Pages Router concurrent navigation', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
-      const { installPagesRouterRuntime } = await import('../src/shims/pages-router-runtime.js')
+      await import('../src/shims/router.js?text-ssr')
+      const { installPagesRouterRuntime } =
+        await import('../src/shims/pages-router-runtime.js?text-ssr')
       installPagesRouterRuntime()
 
       const popstateHandler = listeners.get('popstate')
@@ -1927,7 +1930,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeComplete', onRouteChangeComplete)
@@ -1950,7 +1953,7 @@ describe('Pages Router concurrent navigation', () => {
       expect(cancelledA).toBeDefined()
       expect(cancelledA?.err).toHaveProperty('cancelled', true)
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeComplete', onRouteChangeComplete)
       Router.events.off('routeChangeError', onRouteChangeError)
@@ -1996,7 +1999,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeError', onRouteChangeError)
@@ -2016,7 +2019,7 @@ describe('Pages Router concurrent navigation', () => {
       expect(cancelledError).toBeDefined()
       expect(cancelledError?.err).toHaveProperty('cancelled', true)
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeError', onRouteChangeError)
       if (previousWindow === undefined) {
@@ -2053,7 +2056,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeComplete', onRouteChangeComplete)
@@ -2076,7 +2079,7 @@ describe('Pages Router concurrent navigation', () => {
       // Stale navigation must not fire routeChangeComplete
       expect(completedUrls).not.toContain('/page-a')
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeComplete', onRouteChangeComplete)
       if (previousWindow === undefined) {
@@ -2114,7 +2117,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       Router.events.on('routeChangeError', onRouteChangeError)
@@ -2136,7 +2139,7 @@ describe('Pages Router concurrent navigation', () => {
         expect(page).not.toBe('/page-a')
       }
     } finally {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.off('routeChangeError', onRouteChangeError)
       if (previousWindow === undefined) {
@@ -2173,7 +2176,7 @@ describe('Pages Router concurrent navigation', () => {
     ;(globalThis as any).window = win
     vi.resetModules()
 
-    const routerModule = await import('../src/shims/router.js')
+    const routerModule = await import('../src/shims/router.js?text-ssr')
 
     let capturedRouter: any
     function Probe() {
@@ -2182,7 +2185,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     try {
-      renderAppServerElementToHtml(routerModule.wrapWithRouterContext(createElement(Probe)))
+      await renderAppServerElementToHtml(routerModule.wrapWithRouterContext(createElement(Probe)))
 
       expect(capturedRouter.query.path).toEqual(['first'])
       expect(capturedRouter.pathname).toBe('/[...path]')
@@ -2245,7 +2248,7 @@ describe('Pages Router concurrent navigation', () => {
     // and window.__TEXT_DATA__ at provider-mount time, so rendering a Probe
     // inside the mocked fetch handler observes the post-pushState state —
     // exactly the code path that #1196 corrupts in Text.js.
-    const routerModule = await import('../src/shims/router.js')
+    const routerModule = await import('../src/shims/router.js?text-ssr')
 
     let capturedRouter: any
     function Probe() {
@@ -2254,7 +2257,7 @@ describe('Pages Router concurrent navigation', () => {
     }
 
     globalThis.fetch = async (_url: any, _init: any) => {
-      renderAppServerElementToHtml(routerModule.wrapWithRouterContext(createElement(Probe)))
+      await renderAppServerElementToHtml(routerModule.wrapWithRouterContext(createElement(Probe)))
       // Return HTML containing the destination's __TEXT_DATA__. The dynamic
       // import of the page module fails in this test env, which is fine — the
       // assertion above has already captured router.query.

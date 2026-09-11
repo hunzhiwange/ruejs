@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Stack } from '@rue-js/design'
+import Stack from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,12 +19,14 @@ describe('Stack', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Stack className="h-20 w-32" data-testid="stack-root">
-        <div>A</div>
-        <div>B</div>
-      </Stack>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Stack className="h-20 w-32" data-testid="stack-root">
+          <div>A</div>
+          <div>B</div>
+        </Stack>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -39,7 +42,9 @@ describe('Stack', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Stack vertical="top" horizontal="end" data-testid="stack-align" />, container)
+    mountTestApp(container, () =>
+      render(<Stack vertical="top" horizontal="end" data-testid="stack-align" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="stack-align"]') as HTMLElement
@@ -52,7 +57,9 @@ describe('Stack', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Stack placement="bottom-start" data-testid="stack-placement" />, container)
+    mountTestApp(container, () =>
+      render(<Stack placement="bottom-start" data-testid="stack-placement" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="stack-placement"]') as HTMLElement
@@ -65,9 +72,11 @@ describe('Stack', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Stack placement="top-end" horizontal="start" data-testid="stack-placement-override" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Stack placement="top-end" horizontal="start" data-testid="stack-placement-override" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -84,13 +93,15 @@ describe('Stack', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Stack reverse data-testid="stack-reverse">
-        <div>A</div>
-        <div>B</div>
-        <div>C</div>
-      </Stack>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Stack
+          reverse
+          data-testid="stack-reverse"
+          items={[{ content: 'A' }, { content: 'B' }, { content: 'C' }]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -104,7 +115,9 @@ describe('Stack', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Stack as="section" id="stack-section" data-testid="stack-section" />, container)
+    mountTestApp(container, () =>
+      render(<Stack as="section" id="stack-section" data-testid="stack-section" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="stack-section"]') as HTMLElement

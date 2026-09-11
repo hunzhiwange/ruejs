@@ -20,7 +20,7 @@ export interface HoverGalleryItem {
   /** 展示标签。 */
   label?: any
   /** node 配置项。 */
-  node?: any
+  text?: string
 }
 
 /** HoverGalleryFit 类型。 */
@@ -60,7 +60,7 @@ interface NormalizedGalleryItem {
   src?: string
   alt?: string
   className?: string
-  node?: any
+  text?: string
   label?: any
 }
 
@@ -101,21 +101,9 @@ const resolveImageClassName = (
   )
 }
 
-/** 转换为 Array 的内部工具函数。 */
-const toArray = (value: any): any[] => {
-  if (value == null || value === false) return []
-  if (!Array.isArray(value)) return [value]
-
-  const result: any[] = []
-  value.forEach(item => {
-    result.push(...toArray(item))
-  })
-  return result
-}
-
 /** 归一化 Item 的内部工具函数。 */
 const normalizeItem = (
-  item: HoverGalleryItem | string | any,
+  item: HoverGalleryItem | string,
   index: number,
   fitClass?: string,
   imageClassName?: string,
@@ -133,11 +121,11 @@ const normalizeItem = (
   if (item && typeof item === 'object') {
     const objectItem = item as HoverGalleryItem
 
-    if (objectItem.node != null) {
+    if (objectItem.text != null) {
       return {
         key: objectItem.key ?? index,
         type: 'node',
-        node: objectItem.node,
+        text: objectItem.text,
         label: objectItem.label,
       }
     }
@@ -162,14 +150,13 @@ const normalizeItem = (
   return {
     key: index,
     type: 'node',
-    node: item,
+    text: typeof item === 'object' ? item.text : item,
   }
 }
 
 /** 归一化 Items 的内部工具函数。 */
 const normalizeItems = (
   items: HoverGalleryProps['items'],
-  children: any,
   fitClass?: string,
   imageClassName?: string,
 ): NormalizedGalleryItem[] => {
@@ -177,11 +164,7 @@ const normalizeItems = (
     return items.map((item, index) => normalizeItem(item, index, fitClass, imageClassName))
   }
 
-  return toArray(children).map((child, index) => ({
-    key: index,
-    type: 'node',
-    node: child,
-  }))
+  return []
 }
 
 /**
@@ -202,8 +185,17 @@ const HoverGallery: FC<HoverGalleryProps> = ({
   ...rest
 }) => {
   const fitClass = resolveFitClass(fit)
-  const normalizedItems = normalizeItems(items, children, fitClass, imageClassName)
+  const normalizedItems = normalizeItems(items, fitClass, imageClassName)
   const guideCount = normalizedItems.length > 1 ? normalizedItems.length - 1 : 0
+  const readGuideItems = () =>
+    normalizedItems.slice(1).map((item, index) => ({
+      key: item.key,
+      text: String(guideLabels?.[index] ?? item.label ?? index + 2),
+      className: mergeClassName(
+        'from-white/10 via-transparent to-black/10 bg-linear-80 grid place-content-center',
+        guideItemClassName,
+      ),
+    }))
   const galleryClassName = mergeClassName('hover-gallery', className)
   const guideGridTemplateColumns = `repeat(${guideCount}, minmax(0, 1fr))`
 
@@ -212,44 +204,32 @@ const HoverGallery: FC<HoverGalleryProps> = ({
     if (as === 'div') {
       return (
         <div {...rest} className={galleryClassName}>
-          {directChildren
-            ? children
-            : normalizedItems.map(item =>
-                item.type === 'image' ? (
-                  <img
-                    key={item.key}
-                    src={item.src}
-                    alt={item.alt ?? ''}
-                    className={item.className}
-                  />
-                ) : (
-                  <span key={item.key} style={{ display: 'contents' }}>
-                    {item.node}
-                  </span>
-                ),
-              )}
+          {directChildren ? (
+            children
+          ) : (
+            <>
+              {' '}
+              {normalizedItems.map((rowArg0: any, rowIndex: number) => (
+                <GalleryItem item={rowArg0} />
+              ))}{' '}
+            </>
+          )}
         </div>
       )
     }
 
     return (
       <figure {...rest} className={galleryClassName}>
-        {directChildren
-          ? children
-          : normalizedItems.map(item =>
-              item.type === 'image' ? (
-                <img
-                  key={item.key}
-                  src={item.src}
-                  alt={item.alt ?? ''}
-                  className={item.className}
-                />
-              ) : (
-                <span key={item.key} style={{ display: 'contents' }}>
-                  {item.node}
-                </span>
-              ),
-            )}
+        {directChildren ? (
+          children
+        ) : (
+          <>
+            {' '}
+            {normalizedItems.map((rowArg0: any, rowIndex: number) => (
+              <GalleryItem item={rowArg0} />
+            ))}{' '}
+          </>
+        )}
       </figure>
     )
   }
@@ -258,27 +238,15 @@ const HoverGallery: FC<HoverGalleryProps> = ({
     <div className={mergeClassName('grid *:[grid-area:1/1]', wrapperClassName)}>
       {as === 'div' ? (
         <div {...rest} className={galleryClassName}>
-          {normalizedItems.map(item =>
-            item.type === 'image' ? (
-              <img key={item.key} src={item.src} alt={item.alt ?? ''} className={item.className} />
-            ) : (
-              <span key={item.key} style={{ display: 'contents' }}>
-                {item.node}
-              </span>
-            ),
-          )}
+          {normalizedItems.map((rowArg0: any, rowIndex: number) => (
+            <GalleryItem item={rowArg0} />
+          ))}
         </div>
       ) : (
         <figure {...rest} className={galleryClassName}>
-          {normalizedItems.map(item =>
-            item.type === 'image' ? (
-              <img key={item.key} src={item.src} alt={item.alt ?? ''} className={item.className} />
-            ) : (
-              <span key={item.key} style={{ display: 'contents' }}>
-                {item.node}
-              </span>
-            ),
-          )}
+          {normalizedItems.map((rowArg0: any, rowIndex: number) => (
+            <GalleryItem item={rowArg0} />
+          ))}
         </figure>
       )}
       <div
@@ -289,15 +257,9 @@ const HoverGallery: FC<HoverGalleryProps> = ({
         style={{ gridTemplateColumns: guideGridTemplateColumns }}
         aria-hidden="true"
       >
-        {normalizedItems.slice(1).map((item, index) => (
-          <div
-            key={item.key}
-            className={mergeClassName(
-              'from-white/10 via-transparent to-black/10 bg-linear-80 grid place-content-center',
-              guideItemClassName,
-            )}
-          >
-            {guideLabels?.[index] ?? item.label ?? index + 2}
+        {readGuideItems().map(item => (
+          <div key={item.key} className={item.className}>
+            {String(item.text)}
           </div>
         ))}
       </div>
@@ -307,3 +269,10 @@ const HoverGallery: FC<HoverGalleryProps> = ({
 
 /** 默认导出悬停画廊组件。 */
 export default HoverGallery
+
+const GalleryItem: FC<{ item: NormalizedGalleryItem }> = ({ item }) =>
+  item.type === 'image' ? (
+    <img src={item.src} alt={item.alt ?? ''} className={item.className} />
+  ) : (
+    <span style={{ display: 'contents' }}>{String(item.text ?? '')}</span>
+  )

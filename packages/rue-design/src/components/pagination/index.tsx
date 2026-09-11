@@ -377,7 +377,17 @@ const Item: FC<PaginationItemProps> = ({
     }
   }
 
-  return <Tag {...props}>{children}</Tag>
+  return Tag === 'div' ? (
+    <div {...props}>{children}</div>
+  ) : Tag === 'span' ? (
+    <span {...props}>{children}</span>
+  ) : Tag === 'button' ? (
+    <button {...props}>{children}</button>
+  ) : Tag === 'a' ? (
+    <a {...props}>{children}</a>
+  ) : (
+    <></>
+  )
 }
 
 /** Root 的内部工具函数。 */
@@ -407,6 +417,35 @@ const Root: FC<PaginationProps> = ({
   locale,
   ...rest
 }) => {
+  const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+    const item = rowArg0
+
+    const label =
+      item.type === 'jump-prev'
+        ? labels.jumpPrev
+        : item.type === 'jump-next'
+          ? labels.jumpNext
+          : item.label
+
+    return (
+      <RenderItem
+        arg0={item.page}
+        arg1={item.type}
+        arg2={label}
+        arg3={{
+          active: item.type === 'page' && item.page === mergedCurrent,
+          disabled: item.type !== 'page' ? !!disabled : false,
+          title:
+            item.type === 'page'
+              ? labels.pageTitle(item.page)
+              : item.type === 'jump-prev'
+                ? labels.jumpPrevTitle
+                : labels.jumpNextTitle,
+        }}
+      />
+    )
+  }
+
   if (
     !isDataMode({
       direction,
@@ -490,7 +529,7 @@ const Root: FC<PaginationProps> = ({
   }
 
   if (hideOnSinglePage && pageCount <= 1) {
-    return null
+    return <></>
   }
 
   const updatePage = (nextPage: number, nextPageSize = mergedPageSize) => {
@@ -527,16 +566,21 @@ const Root: FC<PaginationProps> = ({
     }
   }
 
-  const renderItem = (
-    page: number,
-    type: PaginationItemType,
-    label: any,
-    options?: {
+  const RenderItem = ({
+    arg0: page,
+    arg1: type,
+    arg2: label,
+    arg3: options,
+  }: {
+    arg0: number
+    arg1: PaginationItemType
+    arg2: any
+    arg3?: {
       active?: boolean
       disabled?: boolean
       title?: string
-    },
-  ) => {
+    }
+  }) => {
     const renderedDisabled = !!disabled || !!options?.disabled
     const fallbackContent = label
     const renderedContent = itemRender ? itemRender(page, type, fallbackContent) : fallbackContent
@@ -577,10 +621,15 @@ const Root: FC<PaginationProps> = ({
       ) : null}
       {simpleConfig ? (
         <div className={buildJoinClassName()}>
-          {renderItem(Math.max(1, mergedCurrent - 1), 'prev', labels.prev, {
-            disabled: mergedCurrent <= 1,
-            title: labels.previousPage,
-          })}
+          <RenderItem
+            arg0={Math.max(1, mergedCurrent - 1)}
+            arg1={'prev'}
+            arg2={labels.prev}
+            arg3={{
+              disabled: mergedCurrent <= 1,
+              title: labels.previousPage,
+            }}
+          />
           <div
             className={buildInputClassName(
               size,
@@ -629,40 +678,39 @@ const Root: FC<PaginationProps> = ({
                 : `${labels.pageSuffix} ${pageCount}`}
             </span>
           </div>
-          {renderItem(Math.min(pageCount, mergedCurrent + 1), 'next', labels.next, {
-            disabled: mergedCurrent >= pageCount,
-            title: labels.nextPage,
-          })}
+          <RenderItem
+            arg0={Math.min(pageCount, mergedCurrent + 1)}
+            arg1={'next'}
+            arg2={labels.next}
+            arg3={{
+              disabled: mergedCurrent >= pageCount,
+              title: labels.nextPage,
+            }}
+          />
         </div>
       ) : (
         <div className={buildJoinClassName(direction)}>
-          {renderItem(Math.max(1, mergedCurrent - 1), 'prev', labels.prev, {
-            disabled: mergedCurrent <= 1,
-            title: labels.previousPage,
-          })}
-          {pagerItems.map(item => {
-            const label =
-              item.type === 'jump-prev'
-                ? labels.jumpPrev
-                : item.type === 'jump-next'
-                  ? labels.jumpNext
-                  : item.label
-
-            return renderItem(item.page, item.type, label, {
-              active: item.type === 'page' && item.page === mergedCurrent,
-              disabled: item.type !== 'page' ? !!disabled : false,
-              title:
-                item.type === 'page'
-                  ? labels.pageTitle(item.page)
-                  : item.type === 'jump-prev'
-                    ? labels.jumpPrevTitle
-                    : labels.jumpNextTitle,
-            })
-          })}
-          {renderItem(Math.min(pageCount, mergedCurrent + 1), 'next', labels.next, {
-            disabled: mergedCurrent >= pageCount,
-            title: labels.nextPage,
-          })}
+          <RenderItem
+            arg0={Math.max(1, mergedCurrent - 1)}
+            arg1={'prev'}
+            arg2={labels.prev}
+            arg3={{
+              disabled: mergedCurrent <= 1,
+              title: labels.previousPage,
+            }}
+          />
+          {pagerItems.map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow1 rowArg0={rowArg0} />
+          ))}
+          <RenderItem
+            arg0={Math.min(pageCount, mergedCurrent + 1)}
+            arg1={'next'}
+            arg2={labels.next}
+            arg3={{
+              disabled: mergedCurrent >= pageCount,
+              title: labels.nextPage,
+            }}
+          />
         </div>
       )}
       {showSizeChanger ? (
@@ -684,12 +732,12 @@ const Root: FC<PaginationProps> = ({
               </option>
             ))}
           </select>
-          <span>{labels.itemsPerPage}</span>
+          <span>{String(labels.itemsPerPage ?? '')}</span>
         </label>
       ) : null}
       {quickJumperConfig ? (
         <div className="flex items-center gap-2 text-sm">
-          <span className="opacity-70">{labels.jumpTo}</span>
+          <span className="opacity-70">{String(labels.jumpTo ?? '')}</span>
           <input
             key={`quick-${mergedCurrent}-${pageCount}`}
             type="text"

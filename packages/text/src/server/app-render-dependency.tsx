@@ -4,7 +4,6 @@ import {
   type AppServerRenderable,
 } from './app-server-tree.js'
 import { isAppRscServerClientReference } from './app-rsc-client-reference-protocol.js'
-import { markAppRenderDependencySsrUnwrap } from './app-render-dependency-protocol.js'
 
 export type AppRenderDependency = {
   promise: Promise<void>
@@ -51,7 +50,6 @@ export function renderAfterAppDependencies(
     await Promise.all(dependencies.map(dependency => dependency.promise))
     return children
   }
-  markAppRenderDependencySsrUnwrap(AwaitAppRenderDependencies, children)
 
   return createAppServerElement(AwaitAppRenderDependencies, null)
 }
@@ -112,7 +110,7 @@ export function renderWithAppDependencyBarrier(
     // timeouts, this dependency will also need an abort/reject path so stuck
     // async layouts do not suspend downstream entries forever.
     dependency.release()
-    return null
+    return () => {}
   }
 
   return createAppServerElement(

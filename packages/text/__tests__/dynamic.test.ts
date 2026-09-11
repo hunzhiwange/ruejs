@@ -1,130 +1,65 @@
-/**
- * text/dynamic shim unit tests.
- *
- * Plan 08 keeps these as Rue renderable/normalization tests. Full SSR behavior
- * coverage comes later, once Rue owns Suspense streaming semantics.
- */
-import { describe, it, expect } from 'vite-plus/test'
-import dynamic, { flushPreloads } from '../src/shims/dynamic.js'
-import { RUE_SUSPENSE_ELEMENT_MARKER } from '../src/server/app-optimistic-routing.js'
-import { isRueRenderableHandle } from './rue-test-utils.js'
-
-function Hello() {
-  return null
-}
-
-function LoadingSpinner({ isLoading, error }: { isLoading?: boolean; error?: Error | null }) {
-  if (error) return `Error: ${error.message}`
-  if (isLoading) return 'Loading...'
-  return null
-}
-
-function getProps(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object') return {}
-  const props = Reflect.get(value, 'props')
-  return props && typeof props === 'object' ? (props as Record<string, unknown>) : {}
-}
-
-describe('text/dynamic Rue component shape', () => {
-  it('returns a Rue async component for SSR-enabled dynamic imports', () => {
-    const DynamicHello = dynamic(() => Promise.resolve({ default: Hello }))
-
-    expect(DynamicHello.displayName).toBe('RueDynamicServer')
-    const element = DynamicHello({})
-    expect(isRueRenderableHandle(element)).toBe(true)
-    expect(Reflect.get(element as object, RUE_SUSPENSE_ELEMENT_MARKER)).toBe(true)
-  })
-
-  it('accepts modules exporting a bare component', () => {
-    const DynamicComponent = dynamic(() => Promise.resolve(Hello))
-
-    expect(DynamicComponent.displayName).toBe('RueDynamicServer')
-    expect(isRueRenderableHandle(DynamicComponent({}))).toBe(true)
-  })
-
-  it('accepts a direct loader promise', () => {
-    const DynamicComponent = dynamic(Promise.resolve({ default: Hello }))
-
-    expect(DynamicComponent.displayName).toBe('RueDynamicServer')
-    expect(isRueRenderableHandle(DynamicComponent({}))).toBe(true)
-  })
-
-  it('accepts an options object with loader', () => {
-    const DynamicComponent = dynamic({
-      loader: () => Promise.resolve({ default: Hello }),
-    })
-
-    expect(DynamicComponent.displayName).toBe('RueDynamicServer')
-    expect(isRueRenderableHandle(DynamicComponent({}))).toBe(true)
-  })
+import { beforeEach, describe, it, expect, vi } from 'vite-plus/test'
+import dynamic, { flushPreloads } from '../src/shims/dynamic.js?text-ssr'
+import { createElement, renderToString } from './rue-ssr-test-utils.js'
+const Hello = () => createElement('p', null, 'Hello')
+beforeEach(async () => {
+  await flushPreloads()
 })
-
-describe('text/dynamic ssr: false', () => {
-  it('returns loading component output on server-like runtimes', () => {
-    const DynamicNoSSR = dynamic(() => Promise.resolve({ default: Hello }), {
-      ssr: false,
-      loading: LoadingSpinner,
-    })
-
-    const element = DynamicNoSSR({})
-    expect(DynamicNoSSR.displayName).toBe('DynamicSSRFalse')
-    expect(isRueRenderableHandle(element)).toBe(true)
-    expect(getProps(element)).toMatchObject({
+describe('compiled dynamic loading', () => {
+  it.each(['module', 'bare', 'promise', 'options'] as const)(
+    'accepts the %s loader form',
+    async kind => {
+      const Lazy =
+        kind === 'module'
+          ? dynamic(() => Promise.resolve({ default: Hello }))
+          : kind === 'bare'
+            ? dynamic(() => Promise.resolve(Hello))
+            : kind === 'promise'
+              ? dynamic(Promise.resolve({ default: Hello }))
+              : dynamic({ loader: () => Promise.resolve({ default: Hello }) })
+      expect(await renderToString(createElement(Lazy))).toContain('Hello')
+    },
+  )
+  it('keeps loading props available when server rendering is disabled', async () => {
+    const loader = vi.fn(async () => Hello)
+    const loading = vi.fn(() => createElement('p', null, 'Loading'))
+    const Lazy = dynamic(loader, { ssr: false, loading })
+    expect(await renderToString(createElement(Lazy))).toContain('Loading')
+    expect(loading.mock.calls[0]?.[0]).toMatchObject({
       isLoading: true,
       pastDelay: false,
       error: null,
       timedOut: false,
+      retry: expect.any(Function),
     })
-    expect(getProps(element).retry).toEqual(expect.any(Function))
+    expect(loader).not.toHaveBeenCalled()
   })
-
-  it('returns null on server-like runtimes when ssr:false has no loading component', () => {
-    const DynamicNoSSR = dynamic(() => Promise.resolve({ default: Hello }), { ssr: false })
-
-    expect(DynamicNoSSR({})).toBeNull()
+  it('writes an empty plan when ssr:false has no loading component', async () => {
+    const Lazy = dynamic(async () => Hello, { ssr: false })
+    expect((await renderToString(createElement(Lazy))).replace(/<!--[\s\S]*?-->/g, '')).toBe('')
   })
-})
-
-describe('text/dynamic loading component', () => {
-  it('threads the loading component through the Rue Suspense fallback', () => {
-    const DynamicWithLoading = dynamic(() => Promise.resolve({ default: Hello }), {
-      loading: LoadingSpinner,
-    })
-
-    const suspenseElement = DynamicWithLoading({})
-    const fallback = getProps(suspenseElement).fallback
-
-    expect(isRueRenderableHandle(fallback)).toBe(true)
-    expect(getProps(fallback)).toMatchObject({
-      isLoading: true,
-      pastDelay: true,
-      error: null,
-      timedOut: false,
-    })
+  it('renders by default when options are omitted', async () => {
+    expect(await renderToString(createElement(dynamic(async () => Hello)))).toContain('Hello')
   })
-})
-
-describe('text/dynamic defaults', () => {
-  it('defaults ssr to true', () => {
-    const DynamicDefault = dynamic(() => Promise.resolve({ default: Hello }))
-    expect(DynamicDefault.displayName).toBe('RueDynamicServer')
+  it('accepts explicit undefined options', async () => {
+    expect(await renderToString(createElement(dynamic(async () => Hello, undefined)))).toContain(
+      'Hello',
+    )
   })
-
-  it('handles undefined options', () => {
-    const DynamicNoOpts = dynamic(() => Promise.resolve({ default: Hello }), undefined)
-    expect(DynamicNoOpts.displayName).toBe('RueDynamicServer')
+  it('shares a single resolved loader across renders', async () => {
+    const loader = vi.fn(async () => Hello),
+      Lazy = dynamic(loader)
+    await renderToString(createElement(Lazy))
+    await renderToString(createElement(Lazy))
+    expect(loader).toHaveBeenCalledTimes(1)
   })
-})
-
-describe('flushPreloads', () => {
-  it('returns an empty array when no preloads queued', async () => {
-    const result = await flushPreloads()
-    expect(result).toEqual([])
-  })
-
-  it('can be called multiple times safely', async () => {
+  it('flushes preloads without leaving pending work', async () => {
+    dynamic(async () => Hello)
     await flushPreloads()
-    const result = await flushPreloads()
-    expect(result).toEqual([])
+    expect(await flushPreloads()).toEqual([])
+  })
+  it('can flush an empty queue repeatedly', async () => {
+    expect(await flushPreloads()).toEqual([])
+    expect(await flushPreloads()).toEqual([])
   })
 })

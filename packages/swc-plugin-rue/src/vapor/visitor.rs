@@ -187,6 +187,13 @@ impl VisitMut for VaporTransform {
         );
         let mut scalar_scope = scalar_scope;
         scalar_scope.extend(reactive_scope);
+        scalar_scope.extend(crate::element_expr::collect_plain_local_function_names(
+            block.stmts.iter().filter_map(|stmt| match stmt {
+                Stmt::Decl(decl) => Some(decl),
+                _ => None,
+            }),
+            &scope,
+        ));
         self.push_renderable_local_scope(scope);
         self.push_plain_local_scope(scalar_scope);
         block.visit_mut_children_with(self);
@@ -405,6 +412,16 @@ impl VisitMut for VaporTransform {
         let mut scalar_scope = collect_module_scalar_names(m);
         scalar_scope
             .extend(crate::reactive_provenance::collect_module_scope(m, &self.plain_local_scopes));
+        scalar_scope.extend(crate::element_expr::collect_plain_local_function_names(
+            m.body.iter().filter_map(|item| match item {
+                ModuleItem::Stmt(Stmt::Decl(decl))
+                | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
+                    Some(decl)
+                }
+                _ => None,
+            }),
+            &scope,
+        ));
         VaporTransform::register_component_functions(
             &mut scalar_scope,
             component_function_spans(m),
@@ -416,6 +433,10 @@ impl VisitMut for VaporTransform {
         VaporTransform::register_compiled_components(
             &mut scalar_scope,
             crate::compiled_component::imported_component_names(m),
+        );
+        VaporTransform::register_compiled_components(
+            &mut scalar_scope,
+            crate::compiled_component::compound_component_names(m),
         );
         VaporTransform::register_compiled_components(
             &mut scalar_scope,
@@ -435,7 +456,7 @@ impl VisitMut for VaporTransform {
             return;
         }
         log::info("rue-swc: ensure runtime imports");
-        // 注入导入集合包含：`_$compiledRoot`, `renderAnchor`, `_$createElement`, `_$appendChild`, `watchEffect` 等，
+        // 注入导入集合包含：`_$compiledRoot`, `_$mountCompiledSlotAt`, `_$createElement`, `_$appendChild` 等，
         // 以及类型导入 `FC`；若已存在从 `@rue-js/rue` 的 import，则合并缺失的 specifier，保持一次导入。
         // 细节：
         // - import 源：固定为 '@rue-js/rue'

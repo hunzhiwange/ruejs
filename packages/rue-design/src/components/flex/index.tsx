@@ -186,15 +186,35 @@ const Flex: FC<FlexProps> = ({
   if (flex !== undefined && flex !== null) mergedStyle.flex = flex
   if (resolvedGap !== undefined) mergedStyle.gap = resolvedGap
 
-  return (
-    <Component
+  return Component === 'section' ? (
+    <section
       {...rest}
       className={mergeClassName('rue-flex', className)}
       style={mergedStyle}
       data-rue-orientation={resolvedOrientation}
     >
       {children}
-    </Component>
+    </section>
+  ) : Component === 'div' ? (
+    <div
+      {...rest}
+      className={mergeClassName('rue-flex', className)}
+      style={mergedStyle}
+      data-rue-orientation={resolvedOrientation}
+    >
+      {children}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={mergeClassName('rue-flex', className)}
+      style={mergedStyle}
+      data-rue-orientation={resolvedOrientation}
+    >
+      {children}
+    </span>
+  ) : (
+    <></>
   )
 }
 

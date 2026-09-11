@@ -131,17 +131,8 @@ const mergeClassName = (base: string, className?: string) => {
 }
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value === undefined || value === null || value === false) {
-    return false
-  }
-
-  if (Array.isArray(value)) {
-    return value.some(item => hasRenderableContent(item))
-  }
-
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 解析 Size Token 的内部工具函数。 */
 const resolveSizeToken = (size?: KbdSize) => {
@@ -220,18 +211,32 @@ const joinClassName = (...values: Array<string | undefined | false>) =>
 /** Key Root 的内部工具函数。 */
 const KeyRoot: FC<KbdProps> = ({ as = 'kbd', size, className, children, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={buildKbdClassName(size, className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={buildKbdClassName(size, className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={buildKbdClassName(size, className)}>
+      {children}
+    </span>
+  ) : Component === 'kbd' ? (
+    <kbd {...rest} className={buildKbdClassName(size, className)}>
+      {children}
+    </kbd>
+  ) : Component === 'label' ? (
+    <label {...rest} className={buildKbdClassName(size, className)}>
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 
 /** Separator 的内部工具函数。 */
 const Separator: FC<KbdSeparatorProps> = ({ as = 'span', className, children = '+', ...rest }) => {
   const Component = as as any
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={mergeClassName(
         'inline-flex items-center justify-center px-1 text-sm opacity-60',
@@ -239,7 +244,39 @@ const Separator: FC<KbdSeparatorProps> = ({ as = 'span', className, children = '
       )}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={mergeClassName(
+        'inline-flex items-center justify-center px-1 text-sm opacity-60',
+        className,
+      )}
+    >
+      {children}
+    </span>
+  ) : Component === 'kbd' ? (
+    <kbd
+      {...rest}
+      className={mergeClassName(
+        'inline-flex items-center justify-center px-1 text-sm opacity-60',
+        className,
+      )}
+    >
+      {children}
+    </kbd>
+  ) : Component === 'label' ? (
+    <label
+      {...rest}
+      className={mergeClassName(
+        'inline-flex items-center justify-center px-1 text-sm opacity-60',
+        className,
+      )}
+    >
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 
@@ -251,30 +288,37 @@ const ComboItems: FC<ComboItemsProps> = ({
   separator,
   separatorClassName,
 }) => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const rawItem = rowArg0
+    const index = rowArg1
+
+    const item = normalizeItem(rawItem, index)
+    const itemKey = item.key ?? index
+    const { key: _key, size: itemSize, className: itemOwnClassName, ...itemRest } = item
+
+    return (
+      <span key={`item-${itemKey}`} className="contents">
+        {index > 0 ? (
+          <Separator className={separatorClassName}>
+            {String(hasRenderableContent(separator) ? separator : '+')}
+          </Separator>
+        ) : null}
+        <KeyRoot
+          size={itemSize ?? size}
+          className={joinClassName(itemClassName, itemOwnClassName)}
+          {...itemRest}
+        >
+          {String(renderItemContent(item) ?? '')}
+        </KeyRoot>
+      </span>
+    )
+  }
+
   return (
     <>
-      {(items ?? []).map((rawItem, index) => {
-        const item = normalizeItem(rawItem, index)
-        const itemKey = item.key ?? index
-        const { key: _key, size: itemSize, className: itemOwnClassName, ...itemRest } = item
-
-        return (
-          <span key={`item-${itemKey}`} className="contents">
-            {index > 0 ? (
-              <Separator className={separatorClassName}>
-                {hasRenderableContent(separator) ? separator : '+'}
-              </Separator>
-            ) : null}
-            <KeyRoot
-              size={itemSize ?? size}
-              className={joinClassName(itemClassName, itemOwnClassName)}
-              {...itemRest}
-            >
-              {renderItemContent(item)}
-            </KeyRoot>
-          </span>
-        )
-      })}
+      {(items ?? []).map((rowArg0: any, rowArg1: number) => (
+        <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+      ))}
     </>
   )
 }
@@ -302,9 +346,9 @@ const Group: FC<KbdGroupProps> = ({
     className,
   )
 
-  return (
-    <Component {...rest} className={groupClassName}>
-      {hasRenderableContent(children) ? (
+  return Component === 'div' ? (
+    <div {...rest} className={groupClassName}>
+      {!items?.length && children ? (
         children
       ) : (
         <ComboItems
@@ -315,7 +359,51 @@ const Group: FC<KbdGroupProps> = ({
           separatorClassName={separatorClassName}
         />
       )}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={groupClassName}>
+      {!items?.length && children ? (
+        children
+      ) : (
+        <ComboItems
+          items={items}
+          size={size}
+          itemClassName={itemClassName}
+          separator={separator}
+          separatorClassName={separatorClassName}
+        />
+      )}
+    </span>
+  ) : Component === 'kbd' ? (
+    <kbd {...rest} className={groupClassName}>
+      {!items?.length && children ? (
+        children
+      ) : (
+        <ComboItems
+          items={items}
+          size={size}
+          itemClassName={itemClassName}
+          separator={separator}
+          separatorClassName={separatorClassName}
+        />
+      )}
+    </kbd>
+  ) : Component === 'label' ? (
+    <label {...rest} className={groupClassName}>
+      {!items?.length && children ? (
+        children
+      ) : (
+        <ComboItems
+          items={items}
+          size={size}
+          itemClassName={itemClassName}
+          separator={separator}
+          separatorClassName={separatorClassName}
+        />
+      )}
+    </label>
+  ) : (
+    <></>
   )
 }
 

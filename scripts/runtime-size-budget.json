@@ -3,7 +3,7 @@
   "presets": {
     "client-core": {
       "measurement": "absolute",
-      "max": { "gzip": 1750 },
+      "max": { "gzip": 1434 },
       "requireReactiveKernel": true,
       "requireCompiledRuntime": true,
       "forbidWasm": true,
@@ -19,14 +19,14 @@
     },
     "compiled-component": {
       "measurement": "absolute",
-      "max": { "gzip": 45350 },
+      "max": { "gzip": 5440 },
       "requireCompiledRuntime": true,
       "forbidWasm": true,
       "forbidSSRRenderer": true
     },
     "compiled-list": {
       "measurement": "absolute",
-      "max": { "gzip": 5293 },
+      "max": { "gzip": 5117 },
       "requireReactiveKernel": true,
       "requireCompiledRuntime": true,
       "forbidWasm": true,
@@ -34,28 +34,25 @@
     },
     "compiled-builtins": {
       "measurement": "absolute",
-      "max": { "gzip": 29600 },
-      "requireCompiledRuntime": true,
+      "max": { "gzip": 164 },
       "forbidWasm": true,
       "forbidSSRRenderer": true
     },
     "teleport-only": {
       "measurement": "absolute",
-      "max": { "gzip": 21811 },
-      "requireCompiledRuntime": true,
+      "max": { "gzip": 96 },
       "forbidWasm": true,
       "forbidSSRRenderer": true
     },
     "transition-only": {
       "measurement": "absolute",
-      "max": { "gzip": 22505 },
-      "requireCompiledRuntime": true,
+      "max": { "gzip": 98 },
       "forbidWasm": true,
       "forbidSSRRenderer": true
     },
     "hydrate": {
       "measurement": "absolute",
-      "max": { "gzip": 50000 },
+      "max": { "gzip": 3637 },
       "forbidWasm": true,
       "forbidSSRRenderer": true
     }

@@ -66,8 +66,7 @@ describe('Text.js compat: hooks', () => {
 
   it('useParams returns correct catch-all params in SSR', async () => {
     const { html } = await fetchHtml(baseUrl, '/textjs-compat/hooks-params/catchall/a/b/c')
-    // Rue HTML-encodes quotes in SSR output: &quot; instead of "
-    expect(html).toContain('[&quot;a&quot;,&quot;b&quot;,&quot;c&quot;]')
+    expect(html).toContain('["a","b","c"]')
   })
 
   // ── useSearchParams SSR ─────────────────────────────────────

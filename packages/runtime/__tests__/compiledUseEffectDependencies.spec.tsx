@@ -6,7 +6,7 @@ import swc from '@swc/core'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import * as runtimeRoot from '../src'
-import * as componentRuntime from '../src/component-internal'
+import { compilerCapabilities, resolveCompilerCapability } from './compiler-capability-test-runtime'
 import * as compiledRuntime from '../src/internal'
 
 const pluginPath = resolve(process.cwd(), 'packages/swc-plugin-rue/swc-plugin-rue.wasm')
@@ -16,7 +16,7 @@ afterEach(() => {
   try {
     for (const root of roots.splice(0)) root.dispose()
   } finally {
-    compiledRuntime.setReactiveScheduling('frame')
+    compilerCapabilities.reactive.setReactiveScheduling('frame')
     document.body.innerHTML = ''
   }
 })
@@ -66,8 +66,8 @@ export function App() {
   const module = { exports: {} }
   new Function('require', 'module', 'exports', code)(
     (id: string) => {
-      if (id === '@rue-js/rue/internal/compiler') return compiledRuntime
-      if (id === '@rue-js/rue/internal/component') return componentRuntime
+      const capability = resolveCompilerCapability(id)
+      if (capability) return capability
       if (id === '@rue-js/rue') return runtimeRoot
       throw new Error(`Unexpected generated import: ${id}`)
     },
@@ -92,7 +92,7 @@ describe('real compiled useEffect dependencies', () => {
       mode: 'explicit',
     },
   ])('$name', ({ dependencies, mode }) => {
-    compiledRuntime.setReactiveScheduling('sync')
+    compilerCapabilities.reactive.setReactiveScheduling('sync')
     const { App, declared, incidental, events } = compileEffect(dependencies)
     const root = App()
     roots.push(root)
@@ -104,7 +104,7 @@ describe('real compiled useEffect dependencies', () => {
     const host = document.createElement('main')
     document.body.appendChild(host)
     const mounted = root.__rue_compiled_mount(host)
-    if (mounted instanceof Node) host.appendChild(mounted)
+    if (mounted instanceof Node && mounted.parentNode !== host) host.appendChild(mounted)
     expect(host.textContent).toBe('effect owner')
     const expected = ['run:1:0']
     expect(events).toEqual(expected)

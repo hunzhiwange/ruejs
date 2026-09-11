@@ -192,10 +192,11 @@ export interface TourStepProps {
   nextButtonProps?: TourButtonProps
   /** prevButtonProps 透传属性。 */
   prevButtonProps?: TourButtonProps
-  /** indicatorsRender 自定义渲染函数。 */
-  indicatorsRender?: (current: number, total: number) => any
+  /** indicatorFormatter 自定义渲染函数。 */
+  indicatorFormatter?: (current: number, total: number) => string | number
   /** actionsRender 自定义渲染函数。 */
   actionsRender?: (originNode: any, info: { current: number; total: number }) => any
+
   /** 根节点附加类名。 */
   className?: string
   /** 根节点内联样式。 */
@@ -242,10 +243,12 @@ export interface TourProps {
   getPopupContainer?: TourGetPopupContainer
   /** locale 配置项。 */
   locale?: TourLocale
-  /** indicatorsRender 自定义渲染函数。 */
+  /** indicatorFormatter 自定义渲染函数。 */
+  indicatorFormatter?: (current: number, total: number) => string | number
   indicatorsRender?: (current: number, total: number) => any
   /** actionsRender 自定义渲染函数。 */
   actionsRender?: (originNode: any, info: { current: number; total: number }) => any
+
   /** 根节点附加类名。 */
   className?: string
   /** 根节点内联样式。 */
@@ -667,8 +670,7 @@ const Tour: FC<TourProps> = props => {
     scrollIntoViewOptions = { block: 'center', inline: 'center', behavior: 'smooth' },
     getPopupContainer,
     locale,
-    indicatorsRender,
-    actionsRender,
+    indicatorFormatter,
     className,
     style,
     classNames,
@@ -966,7 +968,7 @@ const Tour: FC<TourProps> = props => {
   const step = props.steps && total > 0 ? props.steps[currentIndex] : undefined
   const mergedOpen = isControlledOpen ? !!props.open : currentOpenRef.value
 
-  if (!mergedOpen || !step || total === 0) return null
+  if (!mergedOpen || !step || total === 0) return <></>
 
   const mergedMask = resolveMaskConfig(step.mask ?? mask)
   const mergedType = step.type ?? type
@@ -1002,10 +1004,121 @@ const Tour: FC<TourProps> = props => {
       ? measuredSpotlight
       : fallbackSpotlight
   const hasSpotlight = !!resolvedSpotlight
-  const indicatorRenderer = step.indicatorsRender ?? indicatorsRender
-  const footerActionsRenderer = step.actionsRender ?? actionsRender
-  const resolvedCloseIcon = step.closeIcon ?? closeIcon ?? <DefaultCloseIcon />
-  const rootNode = (
+  const indicatorRenderer = step.indicatorFormatter ?? indicatorFormatter
+  const ResolvedCloseIconView = () =>
+    step.closeIcon != null || closeIcon != null ? (
+      <>{String(step.closeIcon ?? closeIcon)}</>
+    ) : (
+      <DefaultCloseIcon />
+    )
+  const ActionsView = () => {
+    const OriginIndicatorsView = () =>
+      indicatorRenderer ? (
+        <span>{String(indicatorRenderer(currentIndex, total))}</span>
+      ) : (
+        <div
+          className={mergeClassName(
+            'flex flex-wrap items-center gap-2.5',
+            mergedClassNames.indicators,
+          )}
+          style={mergedStyles.indicators}
+          data-rue-tour-indicators="true"
+        >
+          {Array.from({ length: total }).map((_, index) => (
+            <span
+              key={`indicator-${index}`}
+              className={mergeClassName(
+                'block size-2.5 rounded-full transition-all duration-200',
+                index === currentIndex
+                  ? mergedType === 'primary'
+                    ? 'bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.18)]'
+                    : 'bg-[#1677ff] shadow-[0_0_0_2px_rgba(22,119,255,0.14)]'
+                  : mergedType === 'primary'
+                    ? 'bg-white/30'
+                    : 'bg-black/12',
+                mergedClassNames.indicator,
+              )}
+              style={mergedStyles.indicator}
+              data-rue-tour-indicator={index === currentIndex ? 'active' : 'inactive'}
+              data-rue-tour-indicator-index={String(index)}
+            />
+          ))}
+        </div>
+      )
+
+    const prevDisabled = currentIndex === 0 || step.prevButtonProps?.disabled
+    const nextDisabled = !!step.nextButtonProps?.disabled
+    const OriginActionsView = () => (
+      <div
+        className={mergeClassName(
+          'flex flex-wrap items-center justify-between gap-3',
+          mergedClassNames.actions,
+        )}
+        style={mergedStyles.actions}
+        data-rue-tour-actions="true"
+      >
+        <OriginIndicatorsView />
+        <div
+          className={mergeClassName('flex items-center gap-2.5', mergedClassNames.buttons)}
+          style={mergedStyles.buttons}
+          data-rue-tour-buttons="true"
+        >
+          <button
+            type="button"
+            className={mergeClassName(
+              'inline-flex h-10 min-w-[84px] items-center justify-center rounded-[10px] border px-4 text-[14px] font-medium transition disabled:cursor-not-allowed',
+              mergedType === 'primary'
+                ? 'border-white/18 bg-transparent text-primary-content/78 hover:bg-white/10 hover:text-primary-content disabled:border-white/10 disabled:text-white/28'
+                : 'border-black/[0.08] bg-white text-[#595959] hover:border-black/[0.12] hover:bg-[#fafafa] disabled:border-black/[0.06] disabled:bg-[#fafafa] disabled:text-black/25',
+              mergedClassNames.prevButton,
+              step.prevButtonProps?.className,
+            )}
+            style={mergeStyle(mergedStyles.prevButton, step.prevButtonProps?.style)}
+            disabled={prevDisabled}
+            onClick={handlePrev}
+            data-rue-tour-prev="true"
+          >
+            {String(step.prevButtonProps?.children ?? stepLocale.previous)}
+          </button>
+          <button
+            type="button"
+            className={mergeClassName(
+              'inline-flex h-10 min-w-[96px] items-center justify-center rounded-[10px] border px-4 text-[14px] font-medium transition disabled:cursor-not-allowed',
+              mergedType === 'primary'
+                ? 'border-0 bg-white text-sky-900 shadow-[0_2px_0_rgba(255,255,255,0.08)] hover:bg-sky-50 disabled:bg-white/40 disabled:text-sky-950/40'
+                : 'border-[#1677ff] bg-[#1677ff] text-white shadow-[0_2px_0_rgba(5,145,255,0.12)] hover:border-[#4096ff] hover:bg-[#4096ff] disabled:border-[#91caff] disabled:bg-[#91caff]',
+              mergedClassNames.nextButton,
+              step.nextButtonProps?.className,
+            )}
+            style={mergeStyle(mergedStyles.nextButton, step.nextButtonProps?.style)}
+            disabled={nextDisabled}
+            onClick={handleNext}
+            data-rue-tour-next={currentIndex === total - 1 ? 'finish' : 'next'}
+          >
+            {String(
+              step.nextButtonProps?.children ??
+                (currentIndex === total - 1 ? stepLocale.finish : stepLocale.next),
+            )}
+          </button>
+        </div>
+      </div>
+    )
+
+    return (
+      <div
+        className={mergeClassName(
+          'mt-5 border-t pt-4',
+          mergedType === 'primary' ? 'border-white/10' : 'border-black/[0.06]',
+          mergedClassNames.footer,
+        )}
+        style={mergedStyles.footer}
+        data-rue-tour-footer="true"
+      >
+        <OriginActionsView />
+      </div>
+    )
+  }
+  const RootNodeView = () => (
     <div
       {...rest}
       className={mergeClassName(
@@ -1182,7 +1295,7 @@ const Tour: FC<TourProps> = props => {
             onClick={handleClose}
             data-rue-tour-close="true"
           >
-            {resolvedCloseIcon}
+            <ResolvedCloseIconView />
           </button>
 
           {step.cover ? (
@@ -1221,7 +1334,8 @@ const Tour: FC<TourProps> = props => {
                   mergedType === 'primary' ? 'text-primary-content/50' : 'text-base-content/40'
                 }
               >
-                {String(currentIndex + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+                {String(String(currentIndex + 1).padStart(2, '0'))} /{' '}
+                {String(String(total).padStart(2, '0'))}
               </span>
             </div>
             <div
@@ -1238,7 +1352,7 @@ const Tour: FC<TourProps> = props => {
                   style={mergedStyles.title}
                   data-rue-tour-title="true"
                 >
-                  {step.title}
+                  {String(step.title)}
                 </div>
               ) : null}
             </div>
@@ -1252,119 +1366,12 @@ const Tour: FC<TourProps> = props => {
                 style={mergedStyles.description}
                 data-rue-tour-description="true"
               >
-                {step.description}
+                {String(step.description)}
               </div>
             ) : null}
           </div>
 
-          {(() => {
-            const originIndicators = indicatorRenderer ? (
-              indicatorRenderer(currentIndex, total)
-            ) : (
-              <div
-                className={mergeClassName(
-                  'flex flex-wrap items-center gap-2.5',
-                  mergedClassNames.indicators,
-                )}
-                style={mergedStyles.indicators}
-                data-rue-tour-indicators="true"
-              >
-                {Array.from({ length: total }).map((_, index) => (
-                  <span
-                    key={`indicator-${index}`}
-                    className={mergeClassName(
-                      'block size-2.5 rounded-full transition-all duration-200',
-                      index === currentIndex
-                        ? mergedType === 'primary'
-                          ? 'bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.18)]'
-                          : 'bg-[#1677ff] shadow-[0_0_0_2px_rgba(22,119,255,0.14)]'
-                        : mergedType === 'primary'
-                          ? 'bg-white/30'
-                          : 'bg-black/12',
-                      mergedClassNames.indicator,
-                    )}
-                    style={mergedStyles.indicator}
-                    data-rue-tour-indicator={index === currentIndex ? 'active' : 'inactive'}
-                    data-rue-tour-indicator-index={String(index)}
-                  />
-                ))}
-              </div>
-            )
-
-            const prevDisabled = currentIndex === 0 || step.prevButtonProps?.disabled
-            const nextDisabled = !!step.nextButtonProps?.disabled
-            const originActions = (
-              <div
-                className={mergeClassName(
-                  'flex flex-wrap items-center justify-between gap-3',
-                  mergedClassNames.actions,
-                )}
-                style={mergedStyles.actions}
-                data-rue-tour-actions="true"
-              >
-                {originIndicators}
-                <div
-                  className={mergeClassName('flex items-center gap-2.5', mergedClassNames.buttons)}
-                  style={mergedStyles.buttons}
-                  data-rue-tour-buttons="true"
-                >
-                  <button
-                    type="button"
-                    className={mergeClassName(
-                      'inline-flex h-10 min-w-[84px] items-center justify-center rounded-[10px] border px-4 text-[14px] font-medium transition disabled:cursor-not-allowed',
-                      mergedType === 'primary'
-                        ? 'border-white/18 bg-transparent text-primary-content/78 hover:bg-white/10 hover:text-primary-content disabled:border-white/10 disabled:text-white/28'
-                        : 'border-black/[0.08] bg-white text-[#595959] hover:border-black/[0.12] hover:bg-[#fafafa] disabled:border-black/[0.06] disabled:bg-[#fafafa] disabled:text-black/25',
-                      mergedClassNames.prevButton,
-                      step.prevButtonProps?.className,
-                    )}
-                    style={mergeStyle(mergedStyles.prevButton, step.prevButtonProps?.style)}
-                    disabled={prevDisabled}
-                    onClick={handlePrev}
-                    data-rue-tour-prev="true"
-                  >
-                    {step.prevButtonProps?.children ?? stepLocale.previous}
-                  </button>
-                  <button
-                    type="button"
-                    className={mergeClassName(
-                      'inline-flex h-10 min-w-[96px] items-center justify-center rounded-[10px] border px-4 text-[14px] font-medium transition disabled:cursor-not-allowed',
-                      mergedType === 'primary'
-                        ? 'border-0 bg-white text-sky-900 shadow-[0_2px_0_rgba(255,255,255,0.08)] hover:bg-sky-50 disabled:bg-white/40 disabled:text-sky-950/40'
-                        : 'border-[#1677ff] bg-[#1677ff] text-white shadow-[0_2px_0_rgba(5,145,255,0.12)] hover:border-[#4096ff] hover:bg-[#4096ff] disabled:border-[#91caff] disabled:bg-[#91caff]',
-                      mergedClassNames.nextButton,
-                      step.nextButtonProps?.className,
-                    )}
-                    style={mergeStyle(mergedStyles.nextButton, step.nextButtonProps?.style)}
-                    disabled={nextDisabled}
-                    onClick={handleNext}
-                    data-rue-tour-next={currentIndex === total - 1 ? 'finish' : 'next'}
-                  >
-                    {step.nextButtonProps?.children ??
-                      (currentIndex === total - 1 ? stepLocale.finish : stepLocale.next)}
-                  </button>
-                </div>
-              </div>
-            )
-
-            const footerNode = footerActionsRenderer
-              ? footerActionsRenderer(originActions, { current: currentIndex, total })
-              : originActions
-
-            return footerNode ? (
-              <div
-                className={mergeClassName(
-                  'mt-5 border-t pt-4',
-                  mergedType === 'primary' ? 'border-white/10' : 'border-black/[0.06]',
-                  mergedClassNames.footer,
-                )}
-                style={mergedStyles.footer}
-                data-rue-tour-footer="true"
-              >
-                {footerNode}
-              </div>
-            ) : null
-          })()}
+          <ActionsView />
         </div>
       </div>
     </div>
@@ -1373,10 +1380,14 @@ const Tour: FC<TourProps> = props => {
   const resolvedContainer = resolveContainer(getPopupContainer)
 
   if (resolvedContainer === false || resolvedContainer == null) {
-    return rootNode
+    return <RootNodeView />
   }
 
-  return <Teleport to={resolvedContainer}>{rootNode}</Teleport>
+  return (
+    <Teleport to={resolvedContainer}>
+      <RootNodeView />
+    </Teleport>
+  )
 }
 
 /** 默认导出漫游引导组件。 */

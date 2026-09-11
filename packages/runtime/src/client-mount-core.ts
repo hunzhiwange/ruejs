@@ -16,7 +16,7 @@ import {
 import { copyContextProviderPropsMarker, isContextProviderProps } from './context'
 import { copyBuiltinComponentMarker } from './components/builtinMarkers'
 import { isRueIslandDescriptor, isRueServerIslandDescriptor } from './island-protocol'
-import type { DomElementLike, DomNodeLike } from './dom'
+import { patchDOMProps } from './dom/props'
 import type {
   ComponentInstance,
   ComponentProps,
@@ -569,9 +569,8 @@ export const createLifecycleCore = (options: LifecycleCoreOptions) => {
     runServerPrefetch: () => options.getRuntime().runServerPrefetch(),
     onError: (fn: (error: any, instance?: any) => void) => options.getRuntime().onError(fn),
     getCurrentContainer: () => options.getRuntime().getCurrentContainer(),
-    __rueActivateRange: (start: DomNodeLike) => options.getRuntime()?.__rueActivateRange?.(start),
-    __rueDeactivateRange: (start: DomNodeLike) =>
-      options.getRuntime()?.__rueDeactivateRange?.(start),
+    __rueActivateRange: (start: Node) => options.getRuntime()?.__rueActivateRange?.(start),
+    __rueDeactivateRange: (start: Node) => options.getRuntime()?.__rueDeactivateRange?.(start),
     useEmit: (props: ComponentProps) => {
       const baseEmit = options.getRuntime().emitted(props)
       const bridge = resolveCustomElementEmitBridge(props)
@@ -584,93 +583,15 @@ export const createLifecycleCore = (options: LifecycleCoreOptions) => {
 }
 
 type DOMPropsOperations = {
-  addEventListener(el: DomElementLike, event: string, handler: (...args: any[]) => any): void
-  applyRef(el: DomElementLike, value: unknown): void
-  setAttribute(el: DomElementLike, name: string, value: unknown): void
-  setChecked(el: DomElementLike, value: boolean): void
-  setClassName(el: DomElementLike, value: unknown): void
-  setDisabled(el: DomElementLike, value: boolean): void
-  setInnerHTML(el: DomElementLike, value: string): void
-  setProperty(el: DomElementLike, name: string, value: unknown): void
-  setStyle(el: DomElementLike, value: unknown): void
-  setValue(el: DomElementLike, value: unknown): void
+  addEventListener(el: Element, event: string, handler: (...args: any[]) => any): void
 }
 
 export const createDOMPropsCore = (operations: DOMPropsOperations) => {
-  const isEventPropName = (name: string) =>
-    name.length > 2 && name.startsWith('on') && /[A-Z]/.test(name[2] ?? '')
-  const toEventName = (name: string) => name.slice(2).toLowerCase()
-  const normalizeDomAttributeName = (name: string) =>
-    name === 'className' ? 'class' : name === 'htmlFor' ? 'for' : name
-  const extractDangerouslySetInnerHTML = (value: unknown) =>
-    value && typeof value === 'object' && '__html' in (value as Record<string, unknown>)
-      ? (value as Record<string, unknown>).__html
-      : undefined
-  const isCustomElementLike = (el: DomElementLike) => {
-    const tagName = (el as { tagName?: unknown }).tagName
-    return typeof tagName === 'string' && tagName.includes('-')
-  }
-  const shouldUseDomProperty = (el: DomElementLike, key: string, value: unknown) => {
-    if (!isCustomElementLike(el)) return false
-    if (key === 'props' || key === '__rue_slots' || key.startsWith('__rue_context_')) return true
-    if (key in (el as object)) return true
-    return (typeof value === 'object' || typeof value === 'function') && value != null
-  }
-
-  const applyDomElementProps = (el: DomElementLike, props: ComponentProps | null) => {
-    if (!props) return false
-    let hasInnerHTML = false
-    for (const [key, value] of Object.entries(props)) {
-      if (key === 'children' || key === 'key' || value === undefined || value === null) continue
-      if (key === 'ref') {
-        operations.applyRef(el, value)
-        continue
-      }
-      if (isEventPropName(key)) {
-        if (typeof value === 'function') operations.addEventListener(el, toEventName(key), value)
-        continue
-      }
-      if (key === 'className') {
-        operations.setClassName(el, value)
-        continue
-      }
-      if (key === 'style') {
-        if (typeof value === 'string') operations.setAttribute(el, 'style', value)
-        else operations.setStyle(el, value)
-        continue
-      }
-      if (key === 'dangerouslySetInnerHTML') {
-        const html = extractDangerouslySetInnerHTML(value)
-        if (html !== undefined && html !== null) {
-          operations.setInnerHTML(el, String(html))
-          hasInnerHTML = true
-        }
-        continue
-      }
-      if (key === 'value') {
-        operations.setValue(el, value)
-        continue
-      }
-      if (key === 'checked') {
-        operations.setChecked(el, !!value)
-        continue
-      }
-      if (key === 'disabled') {
-        operations.setDisabled(el, !!value)
-        continue
-      }
-      if (key === 'tabIndex') {
-        ;(el as any).tabIndex = value
-        continue
-      }
-      if (shouldUseDomProperty(el, key, value)) {
-        operations.setProperty(el, key, value)
-        continue
-      }
-      if (value === false) continue
-      operations.setAttribute(el, normalizeDomAttributeName(key), value === true ? 'true' : value)
-    }
-    return hasInnerHTML
+  const applyDomElementProps = (el: Element, props: ComponentProps | null) => {
+    return patchDOMProps(el, props, undefined, {
+      addEventListener: (element, event, listener) =>
+        operations.addEventListener(element, event, listener),
+    })
   }
 
   return { applyDomElementProps }

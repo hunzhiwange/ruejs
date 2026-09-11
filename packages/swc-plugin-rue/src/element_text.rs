@@ -24,6 +24,7 @@ pub fn render_text_between_with_watch(
     inner_expr: &Expr,
     stmts: &mut Vec<Stmt>,
 ) {
+    let display_expr = crate::vapor::display_scalar_expr(vt, inner_expr);
     // 创建包装元素：委托运行时判断 SVG 上下文，返回 <text> 或 <span>
     let expr_wrapper = vt.next_el_ident();
     // CallExpr 细节：
@@ -95,7 +96,7 @@ pub fn render_text_between_with_watch(
             callee: Callee::Expr(Box::new(Expr::Ident(ident("_$settextContent")))),
             args: vec![
                 ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(expr_wrapper.clone())) },
-                ExprOrSpread { spread: None, expr: Box::new(inner_expr.clone()) },
+                ExprOrSpread { spread: None, expr: Box::new(display_expr.clone()) },
             ],
             type_args: None,
             ctxt: SyntaxContext::empty(),
@@ -118,7 +119,7 @@ pub fn render_text_between_with_watch(
         callee: Callee::Expr(Box::new(Expr::Ident(ident("_$settextContent")))),
         args: vec![
             ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(expr_wrapper.clone())) },
-            ExprOrSpread { spread: None, expr: Box::new(inner_expr.clone()) },
+            ExprOrSpread { spread: None, expr: Box::new(display_expr) },
         ],
         type_args: None,
         ctxt: SyntaxContext::empty(),

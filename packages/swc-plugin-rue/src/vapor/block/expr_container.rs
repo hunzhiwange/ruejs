@@ -4,7 +4,7 @@ use swc_core::common::{DUMMY_SP, SyntaxContext};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::visit::{Visit, VisitWith};
 
-use crate::emit::{call_ident, const_decl, ident, string_expr};
+use crate::emit::{call_ident, const_decl, string_expr};
 use crate::reactive_provenance::ReactiveKind;
 use crate::utils::unwrap_expr;
 
@@ -63,7 +63,7 @@ fn reactive_member_is_scalar(vt: &VaporTransform, member: &MemberExpr) -> bool {
             Some(ReactiveKind::RefLike | ReactiveKind::StateValue) => {
                 matches!(&member.prop, MemberProp::Ident(property) if property.sym.as_ref() == "value")
             }
-            Some(ReactiveKind::Signal) | None => false,
+            Some(ReactiveKind::Signal | ReactiveKind::SlotsValue) | None => false,
         },
         Expr::Member(parent) => reactive_member_is_scalar(vt, parent),
         Expr::Call(call) => reactive_signal_get_is_scalar(vt, call),
@@ -98,7 +98,10 @@ fn reactive_signal_get_is_scalar(vt: &VaporTransform, call: &CallExpr) -> bool {
     let Expr::Ident(signal) = unwrap_expr(member.obj.as_ref()) else {
         return false;
     };
-    vt.reactive_kind(signal.sym.as_ref()) == Some(ReactiveKind::Signal)
+    matches!(
+        vt.reactive_kind(signal.sym.as_ref()),
+        Some(ReactiveKind::Signal | ReactiveKind::RefLike)
+    )
 }
 
 fn is_reactive_scalar_accessor_call(
@@ -119,7 +122,6 @@ fn is_reactive_scalar_accessor_call(
         && !shadowed_names.contains(callee.sym.as_ref())
         && call.args.len() == 1
         && call.args[0].spread.is_none()
-        && is_compiled_reactive_scalar_expr(vt, call.args[0].expr.as_ref(), shadowed_names)
 }
 
 /// Source-aware scalar proof for compiled bindings. Only members rooted in a
@@ -132,9 +134,16 @@ pub(crate) fn is_compiled_reactive_scalar_expr(
 ) -> bool {
     match unwrap_expr(expr) {
         Expr::Lit(Lit::Str(_) | Lit::Bool(_) | Lit::Null(_) | Lit::Num(_) | Lit::BigInt(_)) => true,
-        Expr::Ident(ident) => ident.sym.as_ref() == "undefined",
+        Expr::Ident(ident) => {
+            ident.sym.as_ref() == "undefined"
+                || vt.reactive_kind(ident.sym.as_ref())
+                    == Some(crate::reactive_provenance::ReactiveKind::RefLike)
+        }
         Expr::Member(member) => reactive_member_is_scalar(vt, member),
-        Expr::Call(call) => is_reactive_scalar_accessor_call(vt, call, shadowed_names),
+        Expr::Call(call) => {
+            is_reactive_scalar_accessor_call(vt, call, shadowed_names)
+                || crate::element_expr::is_proven_plain_call_expr(vt, expr)
+        }
         Expr::Unary(unary) => {
             !matches!(unary.op, UnaryOp::Delete)
                 && is_compiled_reactive_scalar_expr(vt, unary.arg.as_ref(), shadowed_names)
@@ -157,6 +166,18 @@ pub(crate) fn is_compiled_reactive_scalar_expr(
             .iter()
             .all(|expr| is_compiled_reactive_scalar_expr(vt, expr.as_ref(), shadowed_names)),
         _ => false,
+    }
+}
+
+pub(crate) fn display_scalar_expr(vt: &VaporTransform, expr: &Expr) -> Expr {
+    match unwrap_expr(expr) {
+        Expr::Ident(ident)
+            if vt.reactive_kind(ident.sym.as_ref())
+                == Some(crate::reactive_provenance::ReactiveKind::RefLike) =>
+        {
+            Expr::Member(crate::emit::member(ident.clone(), "value"))
+        }
+        inner => inner.clone(),
     }
 }
 
@@ -263,7 +284,8 @@ pub(crate) fn is_compiled_text_container(
             fn visit_ident(&mut self, ident: &Ident) {
                 self.found |= self.names.contains(ident.sym.as_ref())
                     && !ident.sym.starts_with("_$rueCompiledProp")
-                    && !ident.sym.starts_with("_$row");
+                    && !ident.sym.starts_with("_$row")
+                    && !ident.sym.starts_with("_$state");
             }
         }
 
@@ -296,7 +318,7 @@ pub(crate) fn emit_compiled_text_effect(
     let arrow = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![],
-        body: Box::new(BlockStmtOrExpr::Expr(Box::new(inner.clone()))),
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(display_scalar_expr(vt, inner)))),
         is_async: false,
         is_generator: false,
         type_params: None,
@@ -310,11 +332,10 @@ pub(crate) fn emit_compiled_text_effect(
     Some(())
 }
 
-/// JSX 表达式容器改写（细节详解）：
-/// - emit_markers：生成单锚点注释并插入到根；children 插槽锚点采用独立标识，便于调试与区分。
-/// - build_slot_expr：仅对需要保留 compat 结构的 slot 表达式做局部改写，最终仍把原始值交给 runtime 新协议入口。
-/// - watchEffect：在箭头函数中调用 renderAnchor，保证动态更新合并到微任务批处理。
-/// - 静态组件优化：检测纯静态组件场景，直接一次性渲染（renderAnchor），无需 watch 包裹。
+/// JSX 表达式容器改写：
+/// - 已证明的标量由 compiled text binding 处理；
+/// - map 优先进入 keyed-list lowering；
+/// - 其余 JSX 值统一进入 compiled slot factory ABI，保持 owner 生命周期一致。
 pub(crate) fn handle_expr_container(
     vt: &mut VaporTransform,
     root: &Ident,
@@ -335,49 +356,16 @@ pub(crate) fn handle_expr_container(
             }
             let is_children = crate::utils::is_children_member_expr(inner);
 
-            let maybe_static = match inner {
-                Expr::JSXElement(el) => {
-                    !crate::utils::is_transition_group_component(el)
-                        && (crate::utils::is_static_component_without_props(el)
-                            || crate::utils::is_static_component_children_ident(el)
-                            || crate::utils::component_has_no_dynamic_props_excluding_children(el))
-                }
-                _ => false,
-            };
-
-            // 生成单锚点注释并附加到 root
             let anchor = super::utils::emit_markers(vt, root, is_children, stmts);
             let expr_for_slot =
                 if is_children { inner.clone() } else { super::expr::build_slot_expr(vt, inner) };
-            let render_once = super::expr::is_empty_deps_memoized_jsx_expr(inner)
-                || super::expr::is_empty_deps_memoized_jsx_expr(&expr_for_slot);
-
-            if maybe_static || render_once {
-                // 静态插槽：直接 renderAnchor，无需 watchEffect 包裹
-                let slot_ident = vt.next_slot_ident();
-                let decl_slot = const_decl(slot_ident.clone(), expr_for_slot.clone());
-                let render_call = Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
-                    args: vec![
-                        ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Ident(slot_ident.clone())),
-                        },
-                        ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(root.clone())) },
-                        ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-                    ],
-                    type_args: None,
-                    ctxt: SyntaxContext::empty(),
-                });
-                stmts.push(decl_slot);
-                stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }));
-            } else {
-                // 动态插槽：包裹在 watchEffect 中，按注释锚点进行批处理渲染与更新
-                let arrow = super::utils::watch_render_slot(expr_for_slot, root.clone(), anchor);
-                let watch_expr = call_ident("effect", vec![arrow]);
-                stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(watch_expr) }));
-            }
+            crate::element_slot::render_compiled_slot_for_at(
+                vt,
+                root,
+                &Expr::Ident(anchor),
+                &expr_for_slot,
+                stmts,
+            );
         }
     }
 }

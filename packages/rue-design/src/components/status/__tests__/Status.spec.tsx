@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -10,10 +11,10 @@ const resetActiveRuntime = () => {
   ;(globalThis as any).__rue_active = (globalThis as any).__rue
 }
 
-const renderAndWait = async (node: any) => {
+const renderAndWait = async (mount: (container: HTMLElement) => { dispose(): void }) => {
   const container = mountContainer()
   resetActiveRuntime()
-  render(node, container)
+  mountTestApp(container, () => mount(container))
   await waitForContent(() => {
     expect(container.childNodes.length).toBeGreaterThan(0)
   })
@@ -26,7 +27,7 @@ afterEach(() => {
 
 describe('Status', () => {
   it('renders default as span with base class', async () => {
-    const c = await renderAndWait(<Status />)
+    const c = await renderAndWait((target: HTMLElement) => render(<Status />, target))
     const el = c.querySelector('.status') as HTMLElement
     expect(el).toBeTruthy()
     expect(el.tagName).toBe('SPAN')
@@ -34,8 +35,8 @@ describe('Status', () => {
   })
 
   it('supports as=div, size and color variants', async () => {
-    const c = await renderAndWait(
-      <Status as={'div'} ariaLabel={'status'} size={'lg'} color={'primary'} />,
+    const c = await renderAndWait((target: HTMLElement) =>
+      render(<Status as={'div'} ariaLabel={'status'} size={'lg'} color={'primary'} />, target),
     )
     const el = c.querySelector('.status') as HTMLElement
     expect(el).toBeTruthy()
@@ -46,13 +47,17 @@ describe('Status', () => {
   })
 
   it('appends custom className', async () => {
-    const c = await renderAndWait(<Status className={'animate-bounce'} />)
+    const c = await renderAndWait((target: HTMLElement) =>
+      render(<Status className={'animate-bounce'} />, target),
+    )
     const el = c.querySelector('.status') as HTMLElement
     expect(el.classList.contains('animate-bounce')).toBe(true)
   })
 
   it('renders standalone count text in right-top indicator mode', async () => {
-    const c = await renderAndWait(<Status count={7} text={'待审核'} color={'#f97316'} />)
+    const c = await renderAndWait((target: HTMLElement) =>
+      render(<Status count={7} text={'待审核'} color={'#f97316'} />, target),
+    )
 
     const wrapper = c.querySelector('.indicator') as HTMLElement
     const indicator = c.querySelector('.indicator-item') as HTMLElement
@@ -71,7 +76,9 @@ describe('Status', () => {
   })
 
   it('renders standalone dot text in right-top indicator mode', async () => {
-    const c = await renderAndWait(<Status dot={true} text={'处理中'} color={'warning'} />)
+    const c = await renderAndWait((target: HTMLElement) =>
+      render(<Status dot={true} text={'处理中'} color={'warning'} />, target),
+    )
 
     const wrapper = c.querySelector('.indicator') as HTMLElement
     const dot = c.querySelector('.indicator-item.status') as HTMLElement

@@ -205,12 +205,8 @@ const normalizeToggleProps = <T extends Record<string, any>>(
 }
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (children: any): boolean => {
-  if (Array.isArray(children)) {
-    return children.some(item => hasRenderableContent(item))
-  }
-  return children != null && typeof children !== 'boolean'
-}
+const hasRenderableContent = (children: any): boolean =>
+  children != null && children !== false && children !== ''
 
 /** 解析 Reactive Value 的内部工具函数。 */
 const resolveReactiveValue = <T,>(value: SkeletonReactiveValue<T> | undefined): T | undefined => {
@@ -362,8 +358,8 @@ const PrimitiveSkeleton: FC<SkeletonProps> = ({
   ...rest
 }) => {
   const Component = as as any
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={buildPrimitiveClassName(
         mergeClassName(classNames?.root, className, rootClassName),
@@ -373,7 +369,21 @@ const PrimitiveSkeleton: FC<SkeletonProps> = ({
       style={mergeStyle(styles?.root, style)}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={buildPrimitiveClassName(
+        mergeClassName(classNames?.root, className, rootClassName),
+        text,
+        active,
+      )}
+      style={mergeStyle(styles?.root, style)}
+    >
+      {children}
+    </span>
+  ) : (
+    <></>
   )
 }
 
@@ -473,14 +483,24 @@ const SkeletonNode: FC<SkeletonNodeProps> = ({
   const Component = as as any
   const resolvedActive = () => resolveReactiveValue(active)
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={buildSkeletonNodeClassName(className, resolvedActive())}
       style={style}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={buildSkeletonNodeClassName(className, resolvedActive())}
+      style={style}
+    >
+      {children}
+    </span>
+  ) : (
+    <></>
   )
 }
 
@@ -505,25 +525,41 @@ const SkeletonImage: FC<SkeletonImageProps> = ({
   const resolvedAspect = resolveReactiveValue(aspect) ?? 'video'
   const resolvedActive = resolveReactiveValue(active)
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={buildSkeletonImageClassName(className, resolvedAspect, resolvedActive)}
       style={style}
     >
       {hasRenderableContent(children) ? children : <ImagePlaceholderIcon />}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={buildSkeletonImageClassName(className, resolvedAspect, resolvedActive)}
+      style={style}
+    >
+      {hasRenderableContent(children) ? children : <ImagePlaceholderIcon />}
+    </span>
+  ) : (
+    <></>
   )
 }
 
 /** 渲染 Title 的内部工具函数。 */
-const renderTitle = (
-  props: Partial<SkeletonTitleProps>,
-  active?: boolean,
-  round?: boolean,
-  extraClassName?: string,
-  extraStyle?: Record<string, any>,
-) => {
+const RenderTitle = ({
+  arg0: props,
+  arg1: active,
+  arg2: round,
+  arg3: extraClassName,
+  arg4: extraStyle,
+}: {
+  arg0: Partial<SkeletonTitleProps>
+  arg1?: boolean
+  arg2?: boolean
+  arg3?: string
+  arg4?: Record<string, any>
+}) => {
   const { className, style, width, ...rest } = props
   return (
     <div
@@ -555,13 +591,19 @@ const resolveParagraphRowWidth = (
 }
 
 /** 渲染 Paragraph 的内部工具函数。 */
-const renderParagraph = (
-  props: Partial<SkeletonParagraphProps>,
-  active?: boolean,
-  round?: boolean,
-  extraClassName?: string,
-  extraStyle?: Record<string, any>,
-) => {
+const RenderParagraph = ({
+  arg0: props,
+  arg1: active,
+  arg2: round,
+  arg3: extraClassName,
+  arg4: extraStyle,
+}: {
+  arg0: Partial<SkeletonParagraphProps>
+  arg1?: boolean
+  arg2?: boolean
+  arg3?: string
+  arg4?: Record<string, any>
+}) => {
   const { className, style, rows = 2, width, rowClassName, ...rest } = props
   return (
     <div
@@ -612,7 +654,7 @@ const SkeletonRoot: FC<SkeletonProps> = props => {
   }
 
   if (props.loading === false) {
-    return props.children ?? null
+    return <>{props.children}</>
   }
 
   const avatarConfig = normalizeToggleProps<SkeletonAvatarProps>(avatar, false)
@@ -658,18 +700,24 @@ const SkeletonRoot: FC<SkeletonProps> = props => {
           className={mergeClassName('flex min-w-0 flex-1 flex-col gap-3', classNames?.section)}
           style={styles?.section}
         >
-          {hasTitle
-            ? renderTitle(mergedTitleProps ?? {}, active, round, classNames?.title, styles?.title)
-            : null}
-          {hasParagraph
-            ? renderParagraph(
-                mergedParagraphProps ?? {},
-                active,
-                round,
-                classNames?.paragraph,
-                styles?.paragraph,
-              )
-            : null}
+          {hasTitle ? (
+            <RenderTitle
+              arg0={mergedTitleProps ?? {}}
+              arg1={active}
+              arg2={round}
+              arg3={classNames?.title}
+              arg4={styles?.title}
+            />
+          ) : null}
+          {hasParagraph ? (
+            <RenderParagraph
+              arg0={mergedParagraphProps ?? {}}
+              arg1={active}
+              arg2={round}
+              arg3={classNames?.paragraph}
+              arg4={styles?.paragraph}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>

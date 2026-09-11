@@ -72,7 +72,6 @@ const GuideDocDetail: FC<GuideDocDetailProps> = props => {
       setDocContentType('mdx')
       return
     }
-
     mdxComponentRef.current = null
     setHtml(content.html)
     setDocContentType('html')
@@ -148,9 +147,7 @@ const GuideDocDetail: FC<GuideDocDetailProps> = props => {
     }
   }, [])
 
-  const readMdxComponent = () => {
-    return docContentType === 'mdx' ? mdxComponentRef.current : null
-  }
+  const readMdxComponent = () => (docContentType === 'mdx' ? mdxComponentRef.current : null)
 
   return (
     <SidebarPlayground currentPath={currentPath.get()}>

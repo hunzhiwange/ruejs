@@ -14,11 +14,14 @@ mod emit;
 mod vapor;
 // 功能拆分模块
 mod attrs;
+mod bootstrap;
 mod compiled_capabilities;
 mod compiled_component;
+mod compiled_invariants;
 mod compiled_props;
 mod custom_element;
 mod diagnostics;
+mod element_builtin;
 mod element_children;
 mod element_component;
 mod element_expr;
@@ -45,6 +48,10 @@ mod utils;
 #[cfg(test)]
 #[path = "compiled_capabilities_tests.rs"]
 mod compiled_capabilities_tests;
+
+#[cfg(test)]
+#[path = "compiled_invariants_tests.rs"]
+mod compiled_invariants_tests;
 
 #[cfg(test)]
 #[path = "reactive_provenance_tests.rs"]
@@ -118,13 +125,35 @@ pub fn apply_hydrate(program: Program) -> Program {
 }
 
 fn run_server_transform(program: Program) -> Program {
+    run_node_plan_transform(program, false)
+}
+
+pub(crate) fn run_node_plan_transform(program: Program, hydrate: bool) -> Program {
     let mut program = program;
-    let mut transform = server::ServerTransform { did_transform: false };
+    let props_components = compiled_props::components(&program);
+    let default_exported_components = match &program {
+        Program::Module(module) => compiled_component::default_exported_component_spans(module),
+        Program::Script(_) => Vec::new(),
+    };
+    if let Program::Module(module) = &mut program {
+        compiled_component::lower_custom_hooks(module);
+        compiled_component::lower_node_plan_hooks(module);
+    }
+    let mut transform = server::ServerTransform {
+        did_transform: false,
+        hydrate,
+        next_node: 0,
+        builtins: server::builtin_bindings(&program),
+        slot_props: Default::default(),
+        component_spans: default_exported_components,
+    };
     program.visit_mut_with(&mut transform);
-    if transform.did_transform
-        && let Program::Module(module) = &mut program
-    {
-        imports::ensure_server_runtime_imports(module);
+    if let Program::Module(module) = &mut program {
+        compiled_component::flatten_provider_child_plans(module);
+        compiled_props::lower(module, props_components);
+        compiled_component::finalize_hooks(module);
+        server::route_context_imports(module, hydrate);
+        imports::ensure_runtime_imports(module);
     }
     assert_no_residual_jsx(&program);
     program
@@ -144,8 +173,22 @@ fn run_full_transform_with_options(
     static_component_props: bool,
     comments: Option<swc_core::plugin::proxies::PluginCommentsProxy>,
 ) -> Program {
+    let mut program = program;
+    if let Err(error) = bootstrap::lower(&mut program) {
+        if swc_core::common::errors::HANDLER.is_set() {
+            swc_core::common::errors::HANDLER.with(|handler| {
+                handler.struct_span_err(error.span, error.message).emit();
+            });
+            return program;
+        }
+        panic!("{}", error.message);
+    }
+    compiled_component::assert_closed_component_shapes(&program);
     let props_components = compiled_props::components(&program);
     let mut p = program;
+    if let Program::Module(module) = &mut p {
+        compiled_component::lower_custom_hooks(module);
+    }
     log::info("rue-swc: apply(pre+vapor) start");
     element_children::reset_compiled_list_safety_cache();
     let compiled_components = if static_component_props {
@@ -161,11 +204,16 @@ fn run_full_transform_with_options(
     if static_component_props && let Program::Module(module) = &p {
         compiled_component_names.extend(compiled_component::imported_component_names(module));
     }
+    let static_factory_names = compiled_component::function_component_names(&p);
     let strict_diagnostics = if static_component_props { diagnostics::collect(&p) } else { vec![] };
+    if let Program::Module(module) = &mut p {
+        compiled_component::lower_unspecialized_hooks(module, &compiled_components);
+    }
     p.visit_mut_with(&mut pre::PreTransform::with_compiled_components(
         comments,
         compiled_component_names.clone(),
     ));
+    compiled_component_names.extend(static_factory_names);
     if let Program::Module(module) = &mut p {
         compiled_component::transform_module(module, &compiled_components);
     }
@@ -181,6 +229,7 @@ fn run_full_transform_with_options(
         renderable_local_scopes: Vec::new(),
         plain_local_scopes: Vec::new(),
     };
+    element_builtin::register(&mut vapor_transform, &p);
     let mut compiled_scope = std::collections::HashSet::new();
     vapor::VaporTransform::register_compiled_components(
         &mut compiled_scope,
@@ -197,8 +246,17 @@ fn run_full_transform_with_options(
         }
     }
     if let Program::Module(module) = &mut p {
+        compiled_component::flatten_provider_child_plans(module);
+        compiled_component::rewrite_static_roots(module);
         compiled_props::lower(module, props_components);
         state_path::hoist(module);
+        compiled_component::finalize_hooks(module);
+        element_list::erase_key_metadata(module);
+    }
+    if let Err(violation) = compiled_invariants::validate(&p) {
+        panic!("{}", violation.diagnostic());
+    }
+    if let Program::Module(module) = &mut p {
         imports::ensure_runtime_imports(module);
     }
     assert_no_residual_jsx(&p);

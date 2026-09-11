@@ -23,13 +23,13 @@ export const appBrowserPayloadProtocol: AppBrowserPayloadProtocol =
     async load() {
       return {
         decodeFetch<T>(response: Promise<Response>, _options?: AppBrowserActionCodecOptions) {
-          return decodeRuePayloadFetch<T>(response, { preserveClientReferences: true })
+          return decodeRuePayloadFetch<T>(response, {})
         },
         decodeReadableStream<T>(
           stream: ReadableStream<Uint8Array>,
           _options?: AppBrowserActionCodecOptions,
         ) {
-          return decodeRuePayloadReadableStream<T>(stream, { preserveClientReferences: true })
+          return decodeRuePayloadReadableStream<T>(stream, {})
         },
       }
     },

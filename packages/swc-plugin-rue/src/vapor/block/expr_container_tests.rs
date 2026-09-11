@@ -113,7 +113,7 @@ fn skips_empty_expr_containers_without_emitting_markers() {
 }
 
 #[test]
-fn emits_watch_anchor_for_dynamic_text_exprs() {
+fn emits_compiled_slot_for_dynamic_text_exprs() {
     let mut vt = new_vt();
     let root = crate::emit::ident("_root");
     let mut stmts = Vec::new();
@@ -122,8 +122,9 @@ fn emits_watch_anchor_for_dynamic_text_exprs() {
     let out = compact(&emit_stmts(stmts));
 
     assert!(out.contains("_$createComment(\"rue:slot:anchor\")"));
-    assert!(out.contains("effect(()=>{const__slot=(message);"));
-    assert!(out.contains("untrack(()=>renderAnchor(__slot,_root,_list1));"));
+    assert!(out.contains("_$mountCompiledSlotAt({parent:_root,before:_list1}"), "{out}");
+    assert!(out.contains("_$compiledValueFactory((message))"), "{out}");
+    assert!(!out.contains("renderAnchor"), "{out}");
 }
 
 #[test]
@@ -203,9 +204,8 @@ fn renders_static_jsx_slots_once_and_map_expressions_as_lists() {
     handle_expr_container(&mut jsx_vt, &root, &parse_expr_container("<Box />"), &mut jsx_stmts);
     let jsx_out = compact(&emit_stmts(jsx_stmts));
     assert!(jsx_out.contains("_$createComponent(Box"));
-    assert!(jsx_out.contains("renderAnchor("));
-    assert!(jsx_out.contains(",_root,_list1);"));
-    assert!(!jsx_out.contains("watchEffect("));
+    assert!(jsx_out.contains("_$mountCompiledSlotAt("), "{jsx_out}");
+    assert!(!jsx_out.contains("renderAnchor("), "{jsx_out}");
 
     let mut map_vt = new_vt();
     let mut map_stmts = Vec::new();
@@ -237,7 +237,8 @@ fn handles_children_slots_non_map_calls_and_static_component_variants() {
     );
     let children_out = compact(&emit_stmts(children_stmts));
     assert!(children_out.contains("_$createComment(\"rue:children:anchor\")"));
-    assert!(children_out.contains("const__slot=props.children;"));
+    assert!(children_out.contains("()=>props.children"));
+    assert!(!children_out.contains("_$compiledValueFactory(props.children)"));
 
     let mut member_children_vt = new_vt();
     let mut member_children_stmts = Vec::new();
@@ -249,14 +250,14 @@ fn handles_children_slots_non_map_calls_and_static_component_variants() {
     );
     let member_children_out = compact(&emit_stmts(member_children_stmts));
     assert!(member_children_out.contains("_$createComment(\"rue:children:anchor\")"));
-    assert!(member_children_out.contains("const__slot=ctx.children;"));
+    assert!(member_children_out.contains("_$compiledValueFactory(ctx.children)"));
     assert!(!member_children_out.contains("rue:slot:anchor"));
 
     let mut call_vt = new_vt();
     let mut call_stmts = Vec::new();
     handle_expr_container(&mut call_vt, &root, &parse_expr_container("render()"), &mut call_stmts);
     let call_out = compact(&emit_stmts(call_stmts));
-    assert!(call_out.contains("effect(()=>{const__slot=render();"));
+    assert!(call_out.contains("_$compiledValueFactory(render())"));
     assert!(!call_out.contains("_$compiledKeyedList("));
 
     let mut children_ident_vt = new_vt();
@@ -268,9 +269,8 @@ fn handles_children_slots_non_map_calls_and_static_component_variants() {
         &mut children_ident_stmts,
     );
     let children_ident_out = compact(&emit_stmts(children_ident_stmts));
-    assert!(children_ident_out.contains("renderAnchor("));
-    assert!(children_ident_out.contains(",_root,_list1);"));
-    assert!(!children_ident_out.contains("watchEffect("));
+    assert!(children_ident_out.contains("_$mountCompiledSlotAt("));
+    assert!(!children_ident_out.contains("renderAnchor("));
 
     let mut static_props_vt = new_vt();
     let mut static_props_stmts = Vec::new();
@@ -281,9 +281,8 @@ fn handles_children_slots_non_map_calls_and_static_component_variants() {
         &mut static_props_stmts,
     );
     let static_props_out = compact(&emit_stmts(static_props_stmts));
-    assert!(static_props_out.contains("renderAnchor("));
-    assert!(static_props_out.contains(",_root,_list1);"));
-    assert!(!static_props_out.contains("watchEffect("));
+    assert!(static_props_out.contains("_$mountCompiledSlotAt("));
+    assert!(!static_props_out.contains("renderAnchor("));
 }
 
 #[test]
@@ -300,9 +299,9 @@ fn hardens_memoized_jsx_and_transition_group_container_paths() {
     );
     let memo_out = compact(&emit_stmts(memo_stmts));
     assert!(memo_out.contains("_$createComment(\"rue:slot:anchor\")"), "{memo_out}");
-    assert!(memo_out.contains("const__slot"), "{memo_out}");
-    assert!(memo_out.contains("renderAnchor(__slot"), "{memo_out}");
-    assert!(!memo_out.contains("watchEffect("), "{memo_out}");
+    assert!(memo_out.contains("_$mountCompiledSlotAt("), "{memo_out}");
+    assert!(memo_out.contains("_$compiledValueFactory(_$compiledMemo("), "{memo_out}");
+    assert!(!memo_out.contains("renderAnchor"), "{memo_out}");
 
     let mut transition_vt = new_vt();
     let mut transition_stmts = Vec::new();
@@ -314,6 +313,6 @@ fn hardens_memoized_jsx_and_transition_group_container_paths() {
     );
     let transition_out = compact(&emit_stmts(transition_stmts));
     assert!(transition_out.contains("_$createComment(\"rue:slot:anchor\")"), "{transition_out}");
-    assert!(transition_out.contains("effect("), "{transition_out}");
-    assert!(transition_out.contains("_$createComponent(TransitionGroup"), "{transition_out}");
+    assert!(transition_out.contains("_$mountCompiledSlotAt("), "{transition_out}");
+    assert!(transition_out.contains("_$transitionGroup("), "{transition_out}");
 }

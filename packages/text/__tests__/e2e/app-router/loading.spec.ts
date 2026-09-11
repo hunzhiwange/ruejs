@@ -46,3 +46,9 @@ test.describe('Loading boundaries (loading.tsx)', () => {
     })
   })
 })
+
+test('inline Suspense streams before content without a loading.tsx file', async ({ page }) => {
+  await page.goto(`${BASE}/inline-stream`, { waitUntil: 'commit' })
+  await expect(page.locator('#inline-loading')).toBeVisible()
+  await expect(page.locator('#inline-content')).toHaveText('Inline content ready')
+})

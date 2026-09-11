@@ -31,7 +31,7 @@ struct ModelDirectiveSpec {
 
 #[derive(Clone, Debug)]
 enum NativeModelKind {
-    TextInput { target_type: &'static str, event_name: &'static str, auto_number: bool },
+    TextInput { event_name: &'static str, auto_number: bool },
     TextArea,
     Select { multiple: bool },
     Checkbox,
@@ -394,6 +394,8 @@ fn build_component_update_handler(model_src: &str) -> Expr {
     )
 }
 
+// The host strips TypeScript before invoking Wasm plugins. Generated handlers
+// must therefore contain JavaScript only, including DOM target reads.
 fn build_text_model_handler(model_src: &str, value_src: &str, trim: bool, number: bool) -> Expr {
     let mut body = format!("let value = {};", value_src);
     // 修饰符在 handler 内按顺序落地：先 trim，再尝试 number。
@@ -439,7 +441,7 @@ fn build_checkbox_handler(
 ) -> Expr {
     parsed_expr_or_noop(
         format!(
-            "($event) => {{ const checked = ($event.target as HTMLInputElement).checked; const value = {value_src}; if (Array.isArray({model_src})) {{ {model_src} = checked ? ({model_src}.includes(value) ? {model_src} : {model_src}.concat([value])) : {model_src}.filter(item => item !== value); return; }} if ({model_src} instanceof Set) {{ {model_src} = checked ? new Set([...{model_src}, value]) : new Set(Array.from({model_src}).filter(item => item !== value)); return; }} {model_src} = checked ? {true_value_src} : {false_value_src}; }}",
+            "($event) => {{ const checked = ($event.target).checked; const value = {value_src}; if (Array.isArray({model_src})) {{ {model_src} = checked ? ({model_src}.includes(value) ? {model_src} : {model_src}.concat([value])) : {model_src}.filter(item => item !== value); return; }} if ({model_src} instanceof Set) {{ {model_src} = checked ? new Set([...{model_src}, value]) : new Set(Array.from({model_src}).filter(item => item !== value)); return; }} {model_src} = checked ? {true_value_src} : {false_value_src}; }}",
             model_src = model_src,
             value_src = value_src,
             true_value_src = true_value_src,
@@ -456,7 +458,7 @@ fn build_radio_checked_expr(model_src: &str, value_src: &str) -> Expr {
 fn build_radio_handler(model_src: &str, value_src: &str) -> Expr {
     parsed_expr_or_noop(
         format!(
-            "($event) => {{ if (($event.target as HTMLInputElement).checked) {{ {} = {}; }} }}",
+            "($event) => {{ if (($event.target).checked) {{ {} = {}; }} }}",
             model_src, value_src,
         ),
         "v-model-radio-handler.tsx",
@@ -477,13 +479,9 @@ fn build_select_multiple_handler(model_src: &str, trim: bool, number: bool) -> E
             );
         }
         body.push_str("return value;");
-        format!(
-            "Array.from(($event.target as HTMLSelectElement).selectedOptions).map(option => {{ {} }})",
-            body,
-        )
+        format!("Array.from(($event.target).selectedOptions).map(option => {{ {} }})", body,)
     } else {
-        "Array.from(($event.target as HTMLSelectElement).selectedOptions).map(option => option.value)"
-            .to_string()
+        "Array.from(($event.target).selectedOptions).map(option => option.value)".to_string()
     };
 
     parsed_expr_or_noop(
@@ -509,23 +507,13 @@ fn native_model_kind(opening: &JSXOpeningElement) -> NativeModelKind {
                 // checkbox/radio 的受控状态来自 checked；其它文本型控件统一走 value。
                 "checkbox" => NativeModelKind::Checkbox,
                 "radio" => NativeModelKind::Radio,
-                "number" | "range" => NativeModelKind::TextInput {
-                    target_type: "HTMLInputElement",
-                    event_name: "onInput",
-                    auto_number: true,
-                },
-                _ => NativeModelKind::TextInput {
-                    target_type: "HTMLInputElement",
-                    event_name: "onInput",
-                    auto_number: false,
-                },
+                "number" | "range" => {
+                    NativeModelKind::TextInput { event_name: "onInput", auto_number: true }
+                }
+                _ => NativeModelKind::TextInput { event_name: "onInput", auto_number: false },
             }
         }
-        _ => NativeModelKind::TextInput {
-            target_type: "HTMLInputElement",
-            event_name: "onInput",
-            auto_number: false,
-        },
+        _ => NativeModelKind::TextInput { event_name: "onInput", auto_number: false },
     }
 }
 
@@ -556,7 +544,7 @@ fn apply_native_model(opening: &mut JSXOpeningElement, model_expr: Expr, modifie
     let value_src = value_expr
         .as_ref()
         .and_then(emit_expr_source)
-        .unwrap_or_else(|| "($event.target as HTMLInputElement).value".to_string());
+        .unwrap_or_else(|| "($event.target).value".to_string());
     let checked_value_src =
         value_expr.as_ref().and_then(emit_expr_source).unwrap_or_else(|| "\"on\"".to_string());
     let true_value_src = get_attr_expr_by_names(opening, &["true-value", "trueValue"])
@@ -567,11 +555,11 @@ fn apply_native_model(opening: &mut JSXOpeningElement, model_expr: Expr, modifie
         .unwrap_or_else(|| "false".to_string());
 
     match native_model_kind(opening) {
-        NativeModelKind::TextInput { target_type, event_name, auto_number } => {
+        NativeModelKind::TextInput { event_name, auto_number } => {
             // 文本输入默认 input 实时同步；lazy 修饰符切换到 change。
             let event_name = if lazy { "onChange" } else { event_name };
             let number = explicit_number || auto_number;
-            let dom_value_src = format!("($event.target as {}).value", target_type);
+            let dom_value_src = "($event.target).value".to_string();
             upsert_attr(opening, "value", model_expr);
             upsert_attr(
                 opening,
@@ -587,7 +575,7 @@ fn apply_native_model(opening: &mut JSXOpeningElement, model_expr: Expr, modifie
                 event_name,
                 build_text_model_handler(
                     &model_src,
-                    "($event.target as HTMLTextAreaElement).value",
+                    "($event.target).value",
                     trim,
                     explicit_number,
                 ),
@@ -608,7 +596,7 @@ fn apply_native_model(opening: &mut JSXOpeningElement, model_expr: Expr, modifie
                     "onChange",
                     build_text_model_handler(
                         &model_src,
-                        "($event.target as HTMLSelectElement).value",
+                        "($event.target).value",
                         trim,
                         explicit_number,
                     ),

@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -14,7 +15,7 @@ afterEach(() => {
 describe('Kbd', () => {
   it('renders with base class and children', async () => {
     const c = document.createElement('div')
-    render(<Kbd>{'K'}</Kbd>, c)
+    mountTestApp(c, () => render(<Kbd>{'K'}</Kbd>, c))
     await waitKbdRender()
     const el = c.querySelector('kbd.kbd') as HTMLElement
     expect(el).toBeTruthy()
@@ -25,7 +26,7 @@ describe('Kbd', () => {
   it('applies size classes', async () => {
     for (const s of ['xs', 'sm', 'md', 'lg', 'xl'] as const) {
       const c = document.createElement('div')
-      render(<Kbd size={s}>{'x'}</Kbd>, c)
+      mountTestApp(c, () => render(<Kbd size={s}>{'x'}</Kbd>, c))
       await waitKbdRender()
       const el = c.querySelector('kbd.kbd') as HTMLElement
       expect(el.classList.contains(`kbd-${s}`)).toBe(true)
@@ -34,7 +35,7 @@ describe('Kbd', () => {
 
   it('supports semantic size aliases', async () => {
     const c = document.createElement('div')
-    render(<Kbd size={'large'}>{'Enter'}</Kbd>, c)
+    mountTestApp(c, () => render(<Kbd size={'large'}>{'Enter'}</Kbd>, c))
     await waitKbdRender()
     const el = c.querySelector('kbd.kbd') as HTMLElement
     expect(el.classList.contains('kbd-lg')).toBe(true)
@@ -42,7 +43,7 @@ describe('Kbd', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Kbd className={'kbd-sm text-accent'}>{'A'}</Kbd>, c)
+    mountTestApp(c, () => render(<Kbd className={'kbd-sm text-accent'}>{'A'}</Kbd>, c))
     await waitKbdRender()
     const el = c.querySelector('kbd.kbd') as HTMLElement
     expect(el.classList.contains('kbd-sm')).toBe(true)
@@ -51,7 +52,9 @@ describe('Kbd', () => {
 
   it('renders combo items with separator', async () => {
     const c = document.createElement('div')
-    render(<Kbd items={['ctrl', 'shift', 'p']} separator={'/'} size={'small'} />, c)
+    mountTestApp(c, () =>
+      render(<Kbd items={['ctrl', 'shift', 'p']} separator={'/'} size={'small'} />, c),
+    )
 
     await waitKbdRender()
 
@@ -66,7 +69,7 @@ describe('Kbd', () => {
   it('renders combo items when JSX passes an empty children array', async () => {
     const c = document.createElement('div')
 
-    render(<Kbd items={['⌘', 'K']}>{[]}</Kbd>, c)
+    mountTestApp(c, () => render(<Kbd items={['⌘', 'K']}></Kbd>, c))
 
     await waitKbdRender()
 
@@ -78,15 +81,15 @@ describe('Kbd', () => {
 
   it('supports combo and group compound helpers', async () => {
     const c = document.createElement('div')
-    render(
-      <Kbd.Group wrap={true} gap={'lg'}>
-        {[
-          <Kbd.Combo items={['cmd', 'k']} />,
-          <Kbd.Separator>{'|'}</Kbd.Separator>,
-          <Kbd>{'/'}</Kbd>,
-        ]}
-      </Kbd.Group>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Kbd.Group wrap={true} gap={'lg'}>
+          <Kbd.Combo items={['cmd', 'k']} />
+          <Kbd.Separator>{'|'}</Kbd.Separator>
+          <Kbd>{'/'}</Kbd>
+        </Kbd.Group>,
+        c,
+      ),
     )
 
     await waitKbdRender()

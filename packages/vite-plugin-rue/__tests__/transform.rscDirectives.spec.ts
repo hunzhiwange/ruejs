@@ -45,7 +45,7 @@ describe('vite-plugin-rue RSC directives', () => {
     )
 
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
-    const useClientIndex = code.indexOf('"use client";')
+    const useClientIndex = code.search(/["']use client["'];?/)
     const importIndex = code.indexOf('import ')
 
     expect(code).toContain('/* RUE_TRANSFORMED */')
@@ -71,8 +71,8 @@ describe('vite-plugin-rue RSC directives', () => {
     })
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
-    expect(code).toContain('@rue-js/server-renderer')
-    expect(code).toContain('_$serverComponent(LikeButton')
-    expect(code).not.toContain('@rue-js/rue/internal')
+    expect(code).toContain('@rue-js/rue/internal/ssr')
+    expect(code).toMatch(/_\$writeComponent\(_\$ctx, "\d+", LikeButton/)
+    expect(code).not.toContain('_$serverComponent')
   })
 })

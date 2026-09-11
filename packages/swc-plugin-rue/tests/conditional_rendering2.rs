@@ -67,11 +67,17 @@ export default ReactConditionalDemo;
 
     let vapor_import = out
         .split(';')
-        .find(|statement| statement.contains("@rue-js/rue/internal"))
+        .find(|statement| statement.contains("@rue-js/rue/internal/block"))
         .expect("conditional rendering must import the Vapor runtime");
-    for helper in ["_$compiledBranchAt", "_$compiledRoot", "_$compiledText"] {
+    for helper in ["_$compiledBranchAt", "_$compiledRoot"] {
         assert!(vapor_import.contains(helper), "missing {helper}: {out}");
     }
+    assert!(
+        out.split(';')
+            .any(|statement| statement.contains("_$compiledText")
+                && statement.contains("internal/dom")),
+        "{out}"
+    );
     assert_eq!(out.matches("_$compiledBranchAt(").count(), 5, "{out}");
     assert!(out.contains("if (show.value) return { __rue_compiled_branch_key: true"), "{out}");
     assert!(

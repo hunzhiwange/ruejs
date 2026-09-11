@@ -6,8 +6,8 @@ Tree 组件概述
 - 实现：保持手写 TSX 结构，避免被 Vite 阶段重复 Vapor-transform。
 */
 import type { FC } from '@rue-js/rue'
-import * as RueRuntime from '@rue-js/rue'
-import { onMounted, onUnmounted, ref, render as renderRue, useRef, watch } from '@rue-js/rue'
+import { batch, computed } from '@rue-js/rue'
+import { onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
 
 /** TreeKey 标识键类型。 */
 export type TreeKey = string | number
@@ -313,12 +313,13 @@ export interface TreeProps {
   height?: number
   /** itemHeight 配置项。 */
   itemHeight?: number
-  /** titleRender 自定义渲染函数。 */
+  /** titleFormatter 自定义渲染函数。 */
+  titleFormatter?: (props: TreeTitleRenderProps) => string
   titleRender?: (props: TreeTitleRenderProps) => any
   /** switcherIcon 图标内容。 */
-  switcherIcon?: any | ((props: TreeTitleRenderProps) => any)
+  switcherIcon?: string
   /** 图标内容。 */
-  icon?: any | ((props: TreeTitleRenderProps) => any)
+  icon?: string
   /** filterTreeNode 配置项。 */
   filterTreeNode?: boolean | ((inputValue: string, node: TreeNode) => boolean)
   /** searchValue 值。 */
@@ -435,7 +436,6 @@ interface TreeNormalizationCache {
   normalizedTree: NormalizedTreeResult
 }
 
-const treePersistedStateBySignature = /*#__PURE__*/ new Map<string, TreePersistedState>()
 const treeNormalizationCacheByData = /*#__PURE__*/ new WeakMap<object, TreeNormalizationCache[]>()
 const treeNormalizationCacheByFirstRoot = /*#__PURE__*/ new WeakMap<
   object,
@@ -679,23 +679,6 @@ const resolveTitle = (node: TreeDataNode, fieldNames?: TreeFieldNames) => {
 /** 转换为 Key Text Set 的内部工具函数。 */
 const toKeyTextSet = (keys?: ReadonlyArray<TreeKey>) => {
   return new Set(uniqKeys(keys).map(serializeKey))
-}
-
-const createTreeStateSignature = (
-  normalizedTree: NormalizedTreeResult,
-  options: {
-    directoryMode?: boolean
-    expandAction?: TreeExpandAction
-    rangeSelect?: DirectoryTreeRangeSelectMode
-  },
-) => {
-  const treeShape = normalizedTree.roots.map(node => node.keyText).join('|')
-  return [
-    treeShape,
-    options.directoryMode ? 'directory' : 'tree',
-    String(options.expandAction ?? false),
-    String(options.rangeSelect ?? false),
-  ].join('::')
 }
 
 /** 转换为 Search Text 的内部工具函数。 */
@@ -1144,7 +1127,7 @@ interface TreeBodyContentProps {
   showIcon?: boolean
   selectable?: boolean
   hasLoadData?: boolean
-  titleRender?: TreeProps['titleRender']
+  titleFormatter?: TreeProps['titleFormatter']
   switcherIcon?: TreeProps['switcherIcon']
   icon?: TreeProps['icon']
   directoryMode?: boolean
@@ -1183,7 +1166,7 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
   showIcon,
   selectable,
   hasLoadData,
-  titleRender,
+  titleFormatter,
   switcherIcon,
   icon,
   directoryMode,
@@ -1201,37 +1184,231 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
   handleLabelActivate,
   handleLabelContextMenu,
 }) => {
-  const renderSwitcher = (
-    node: TreeNode,
-    expanded: boolean,
-    selected: boolean,
-    checked: boolean,
-    halfChecked: boolean,
-    loading: boolean,
-  ) => {
-    const renderProps: TreeTitleRenderProps = {
-      node,
-      expanded,
-      selected,
-      checked,
-      halfChecked,
-      loading,
-    }
+  const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+    const node = computed(() => rowArg0.node)
 
-    if (typeof switcherIcon === 'function') return switcherIcon(renderProps)
-    if (switcherIcon !== undefined) return switcherIcon
-    return loading ? (
-      <LoadingIcon />
-    ) : (
-      <ChevronIcon expanded={expanded} hidden={node.isLeaf && node.children.length === 0} />
+    const state = computed(
+      () =>
+        snapshot.checkState.stateMap[node.get().keyText] ?? {
+          checked: false,
+          halfChecked: false,
+          participates: true,
+        },
+    )
+    const expanded = computed(() =>
+      snapshot.searchValue ? true : snapshot.expandedKeyTextSet.has(node.get().keyText),
+    )
+    const selected = computed(() => snapshot.selectedKeyTextSet.has(node.get().keyText))
+    const loading = computed(() => loadingKeyTexts.includes(node.get().keyText))
+    const canExpand = computed(
+      () => !!hasLoadData || !!node.get().children.length || !node.get().isLeaf,
+    )
+    const rowIsDragTarget = computed(() => snapshot.dragState.overKeyText === node.get().keyText)
+    const canDragNode = computed(
+      () =>
+        dragConfig.enabled &&
+        dragConfig.nodeDraggable(node.get()) &&
+        !disabled &&
+        !node.get().disabled,
+    )
+    const dropIntent = computed(() =>
+      rowIsDragTarget.get() ? toDropIntent(snapshot.dragState.dropPosition) : undefined,
+    )
+    const labelText = computed(() =>
+      String(
+        titleFormatter
+          ? titleFormatter({
+              node: node.get(),
+              expanded: expanded.get(),
+              selected: selected.get(),
+              checked: state.get().checked,
+              halfChecked: state.get().halfChecked,
+              loading: loading.get(),
+            })
+          : node.get().title,
+      ),
+    )
+    return (
+      <div
+        key={node.get().keyText}
+        className={appendClassName(
+          joinClassName(
+            'rue-tree-node group relative flex min-w-0 items-center gap-1 rounded-lg py-0.5 pr-2 text-base-content outline-none transition-colors duration-150',
+            disabled || node.get().disabled
+              ? 'opacity-55'
+              : dropIntent.get() === 'inside'
+                ? 'bg-primary/10 ring-1 ring-primary/20'
+                : dropIntent.get()
+                  ? 'bg-primary/5'
+                  : 'hover:bg-base-200/65',
+            showLine && node.get().depth > 0 && 'border-l border-base-300/60',
+            node.get().className,
+          ),
+          classNames?.node,
+        )}
+        style={{
+          paddingLeft: `${node.get().depth * 18 + 8}px`,
+          height: fixedVirtualRowHeight ? `${fixedVirtualRowHeight}px` : undefined,
+          minHeight: fixedVirtualRowHeight ? undefined : `${componentSize.rowMinHeight}px`,
+          ...styles?.node,
+        }}
+        data-rue-tree-node={node.get().keyText}
+        data-rue-tree-drop-intent={dropIntent.get() ?? ''}
+        data-rue-tree-drop-position={
+          rowIsDragTarget.get() ? String(snapshot.dragState.dropPosition ?? 0) : ''
+        }
+        draggable={canDragNode.get()}
+        onDragStart={(event: DragEvent) => handleDragStartNode(node.get(), event)}
+        onDragEnter={(event: DragEvent) => handleDragEnterNode(node.get(), event)}
+        onDragOver={(event: DragEvent) => handleDragOverNode(node.get(), event)}
+        onDragLeave={(event: DragEvent) => handleDragLeaveNode(node.get(), event)}
+        onDragEnd={(event: DragEvent) => handleDragEndNode(node.get(), event)}
+        onDrop={(event: DragEvent) => handleDropNode(node.get(), event)}
+      >
+        {dropIntent.get() === 'before' ? (
+          <RenderGapPlaceholder arg0={node.get()} arg1={'before'} />
+        ) : null}
+        <button
+          type="button"
+          className={appendClassName(
+            joinClassName(
+              'inline-flex size-6 shrink-0 items-center justify-center rounded-md text-base-content/55 transition-colors duration-150 hover:bg-base-200 hover:text-base-content disabled:cursor-default disabled:opacity-30',
+              !canExpand.get() && 'pointer-events-none',
+            ),
+            classNames?.switcher,
+          )}
+          style={styles?.switcher}
+          disabled={!canExpand.get() || disabled || node.get().disabled}
+          aria-label={expanded.get() ? '折叠节点' : '展开节点'}
+          onClick={(event: MouseEvent) => handleExpandToggle(node.get(), event)}
+        >
+          {switcherIcon !== undefined ? (
+            <span>{String(switcherIcon)}</span>
+          ) : loading.get() ? (
+            <LoadingIcon />
+          ) : (
+            <ChevronIcon
+              expanded={expanded.get()}
+              hidden={node.get().isLeaf && node.get().children.length === 0}
+            />
+          )}
+        </button>
+        {checkable ? (
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={
+              state.get().halfChecked ? 'mixed' : state.get().checked ? 'true' : 'false'
+            }
+            disabled={
+              disabled || node.get().disabled || node.get().disableCheckbox || !node.get().checkable
+            }
+            className={appendClassName(
+              joinClassName(
+                'inline-flex size-4 shrink-0 items-center justify-center rounded border text-[11px] font-semibold leading-none transition-colors duration-150',
+                state.get().checked || state.get().halfChecked
+                  ? 'border-primary bg-primary text-primary-content'
+                  : 'border-base-content/35 bg-base-100 text-transparent hover:border-primary/60',
+                (disabled ||
+                  node.get().disabled ||
+                  node.get().disableCheckbox ||
+                  !node.get().checkable) &&
+                  'cursor-not-allowed opacity-45',
+              ),
+              classNames?.checkbox,
+            )}
+            style={styles?.checkbox}
+            onClick={(event: MouseEvent) => handleCheck(node.get(), event)}
+          >
+            {state.get().halfChecked ? '−' : state.get().checked ? '✓' : ''}
+          </button>
+        ) : null}
+        <RenderDragHandle arg0={node.get()} />
+        {showIcon || node.get().icon !== undefined || icon !== undefined ? (
+          <RenderNodeIcon
+            arg0={node.get()}
+            arg1={expanded.get()}
+            arg2={selected.get()}
+            arg3={state.get().checked}
+            arg4={state.get().halfChecked}
+            arg5={loading.get()}
+          />
+        ) : null}
+        <button
+          type="button"
+          className={appendClassName(
+            joinClassName(
+              'flex min-w-0 items-center gap-2 rounded-md px-2 text-left transition-colors duration-150',
+              componentSize.rowPadding,
+              blockNode ? 'flex-1 justify-between' : 'max-w-full',
+              selected.get()
+                ? 'selected bg-primary/12 text-primary'
+                : 'text-base-content hover:bg-base-200/70',
+              (disabled || node.get().disabled || !selectable || !node.get().selectable) &&
+                'cursor-not-allowed opacity-55',
+            ),
+            classNames?.label,
+          )}
+          style={styles?.label}
+          disabled={disabled || node.get().disabled || !selectable || !node.get().selectable}
+          draggable={canDragNode.get()}
+          onDragStart={(event: DragEvent) => {
+            event.stopPropagation()
+            handleDragStartNode(node.get(), event)
+          }}
+          onDragEnter={(event: DragEvent) => {
+            event.stopPropagation()
+            handleDragEnterNode(node.get(), event)
+          }}
+          onDragOver={(event: DragEvent) => {
+            event.stopPropagation()
+            handleDragOverNode(node.get(), event)
+          }}
+          onDragLeave={(event: DragEvent) => {
+            event.stopPropagation()
+            handleDragLeaveNode(node.get(), event)
+          }}
+          onDragEnd={(event: DragEvent) => {
+            event.stopPropagation()
+            handleDragEndNode(node.get(), event)
+          }}
+          onDrop={(event: DragEvent) => {
+            event.stopPropagation()
+            handleDropNode(node.get(), event)
+          }}
+          onMouseDown={(event: MouseEvent) => handleLabelMouseDown(node.get(), event)}
+          onClick={(event: MouseEvent) => handleLabelActivate(node.get(), event, 'click')}
+          onDblClick={(event: MouseEvent) => handleLabelActivate(node.get(), event, 'doubleClick')}
+          onContextMenu={(event: MouseEvent) => handleLabelContextMenu(node.get(), event)}
+        >
+          <span className="min-w-0 truncate">{String(labelText.get())}</span>
+          {dropIntent.get() ? (
+            <span
+              className="badge badge-primary badge-outline badge-xs shrink-0"
+              data-rue-tree-drop-placeholder={dropIntent.get()}
+            >
+              {dropIntent.get() === 'inside'
+                ? '放入'
+                : dropIntent.get() === 'before'
+                  ? '插前'
+                  : '插后'}
+            </span>
+          ) : selected.get() ? (
+            <span className="badge badge-primary badge-xs shrink-0">选中</span>
+          ) : null}
+        </button>
+        {dropIntent.get() === 'after' ? (
+          <RenderGapPlaceholder arg0={node.get()} arg1={'after'} />
+        ) : null}
+      </div>
     )
   }
 
-  const renderDragHandle = (node: TreeNode) => {
+  const RenderDragHandle = ({ arg0: node }: { arg0: TreeNode }) => {
     const canDragHandle =
       dragConfig.enabled && dragConfig.nodeDraggable(node) && !disabled && !node.disabled
 
-    if (!canDragHandle || dragConfig.icon === false) return null
+    if (!canDragHandle || dragConfig.icon === false) return <></>
 
     return (
       <span
@@ -1245,12 +1422,18 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
         data-rue-tree-drag-handle="true"
         onMouseDown={(event: MouseEvent) => handleDragMouseDown(node, event)}
       >
-        {dragConfig.icon ?? <DragHandleIcon />}
+        {dragConfig.icon ? <span>{String(dragConfig.icon)}</span> : <DragHandleIcon />}
       </span>
     )
   }
 
-  const renderGapPlaceholder = (node: TreeNode, position: 'before' | 'after') => {
+  const RenderGapPlaceholder = ({
+    arg0: node,
+    arg1: position,
+  }: {
+    arg0: TreeNode
+    arg1: 'before' | 'after'
+  }) => {
     return (
       <div
         className={joinClassName(
@@ -1266,14 +1449,21 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
     )
   }
 
-  const renderNodeIcon = (
-    node: TreeNode,
-    expanded: boolean,
-    selected: boolean,
-    checked: boolean,
-    halfChecked: boolean,
-    loading: boolean,
-  ) => {
+  const RenderNodeIcon = ({
+    arg0: node,
+    arg1: expanded,
+    arg2: selected,
+    arg3: checked,
+    arg4: halfChecked,
+    arg5: loading,
+  }: {
+    arg0: TreeNode
+    arg1: boolean
+    arg2: boolean
+    arg3: boolean
+    arg4: boolean
+    arg5: boolean
+  }) => {
     const renderProps: TreeTitleRenderProps = {
       node,
       expanded,
@@ -1283,10 +1473,9 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
       loading,
     }
 
-    if (typeof icon === 'function') return icon(renderProps)
-    if (icon !== undefined) return icon
-    if (node.icon !== undefined) return node.icon
-    if (!showIcon) return null
+    if (icon !== undefined) return <span>{String(icon)}</span>
+    if (node.icon !== undefined) return <span>{String(node.icon)}</span>
+    if (!showIcon) return <></>
 
     if (directoryMode) {
       return (
@@ -1313,176 +1502,9 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
       {snapshot.virtualSlice.topSpacer > 0 ? (
         <div style={{ height: `${snapshot.virtualSlice.topSpacer}px` }} aria-hidden="true" />
       ) : null}
-      {snapshot.virtualSlice.items.map(({ node }) => {
-        const state = snapshot.checkState.stateMap[node.keyText] ?? {
-          checked: false,
-          halfChecked: false,
-          participates: true,
-        }
-        const expanded = snapshot.searchValue ? true : snapshot.expandedKeyTextSet.has(node.keyText)
-        const selected = snapshot.selectedKeyTextSet.has(node.keyText)
-        const loading = loadingKeyTexts.includes(node.keyText)
-        const canExpand = !!hasLoadData || !!node.children.length || !node.isLeaf
-        const rowIsDragTarget = snapshot.dragState.overKeyText === node.keyText
-        const canDragNode =
-          dragConfig.enabled && dragConfig.nodeDraggable(node) && !disabled && !node.disabled
-        const dropIntent = rowIsDragTarget
-          ? toDropIntent(snapshot.dragState.dropPosition)
-          : undefined
-        const renderProps: TreeTitleRenderProps = {
-          node,
-          expanded,
-          selected,
-          checked: state.checked,
-          halfChecked: state.halfChecked,
-          loading,
-        }
-        const renderedTitle = titleRender?.(renderProps)
-
-        return (
-          <div
-            key={node.keyText}
-            className={appendClassName(
-              joinClassName(
-                'rue-tree-node group relative flex min-w-0 items-center gap-1 rounded-lg py-0.5 pr-2 text-base-content outline-none transition-colors duration-150',
-                disabled || node.disabled
-                  ? 'opacity-55'
-                  : dropIntent === 'inside'
-                    ? 'bg-primary/10 ring-1 ring-primary/20'
-                    : dropIntent
-                      ? 'bg-primary/5'
-                      : 'hover:bg-base-200/65',
-                showLine && node.depth > 0 && 'border-l border-base-300/60',
-                node.className,
-              ),
-              classNames?.node,
-            )}
-            style={{
-              paddingLeft: `${node.depth * 18 + 8}px`,
-              height: fixedVirtualRowHeight ? `${fixedVirtualRowHeight}px` : undefined,
-              minHeight: fixedVirtualRowHeight ? undefined : `${componentSize.rowMinHeight}px`,
-              ...styles?.node,
-            }}
-            data-rue-tree-node={node.keyText}
-            data-rue-tree-drop-intent={dropIntent ?? ''}
-            data-rue-tree-drop-position={
-              rowIsDragTarget ? String(snapshot.dragState.dropPosition ?? 0) : ''
-            }
-            draggable={canDragNode}
-            onDragStart={(event: DragEvent) => handleDragStartNode(node, event)}
-            onDragEnter={(event: DragEvent) => handleDragEnterNode(node, event)}
-            onDragOver={(event: DragEvent) => handleDragOverNode(node, event)}
-            onDragLeave={(event: DragEvent) => handleDragLeaveNode(node, event)}
-            onDragEnd={(event: DragEvent) => handleDragEndNode(node, event)}
-            onDrop={(event: DragEvent) => handleDropNode(node, event)}
-          >
-            {dropIntent === 'before' ? renderGapPlaceholder(node, 'before') : null}
-            <button
-              type="button"
-              className={appendClassName(
-                joinClassName(
-                  'inline-flex size-6 shrink-0 items-center justify-center rounded-md text-base-content/55 transition-colors duration-150 hover:bg-base-200 hover:text-base-content disabled:cursor-default disabled:opacity-30',
-                  !canExpand && 'pointer-events-none',
-                ),
-                classNames?.switcher,
-              )}
-              style={styles?.switcher}
-              disabled={!canExpand || disabled || node.disabled}
-              aria-label={expanded ? '折叠节点' : '展开节点'}
-              onClick={(event: MouseEvent) => handleExpandToggle(node, event)}
-            >
-              {renderSwitcher(node, expanded, selected, state.checked, state.halfChecked, loading)}
-            </button>
-            {checkable ? (
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={state.halfChecked ? 'mixed' : state.checked ? 'true' : 'false'}
-                disabled={disabled || node.disabled || node.disableCheckbox || !node.checkable}
-                className={appendClassName(
-                  joinClassName(
-                    'inline-flex size-4 shrink-0 items-center justify-center rounded border text-[11px] font-semibold leading-none transition-colors duration-150',
-                    state.checked || state.halfChecked
-                      ? 'border-primary bg-primary text-primary-content'
-                      : 'border-base-content/35 bg-base-100 text-transparent hover:border-primary/60',
-                    (disabled || node.disabled || node.disableCheckbox || !node.checkable) &&
-                      'cursor-not-allowed opacity-45',
-                  ),
-                  classNames?.checkbox,
-                )}
-                style={styles?.checkbox}
-                onClick={(event: MouseEvent) => handleCheck(node, event)}
-              >
-                {state.halfChecked ? '−' : state.checked ? '✓' : ''}
-              </button>
-            ) : null}
-            {renderDragHandle(node)}
-            {showIcon || node.icon !== undefined || icon !== undefined
-              ? renderNodeIcon(node, expanded, selected, state.checked, state.halfChecked, loading)
-              : null}
-            <button
-              type="button"
-              className={appendClassName(
-                joinClassName(
-                  'flex min-w-0 items-center gap-2 rounded-md px-2 text-left transition-colors duration-150',
-                  componentSize.rowPadding,
-                  blockNode ? 'flex-1 justify-between' : 'max-w-full',
-                  selected
-                    ? 'selected bg-primary/12 text-primary'
-                    : 'text-base-content hover:bg-base-200/70',
-                  (disabled || node.disabled || !selectable || !node.selectable) &&
-                    'cursor-not-allowed opacity-55',
-                ),
-                classNames?.label,
-              )}
-              style={styles?.label}
-              disabled={disabled || node.disabled || !selectable || !node.selectable}
-              draggable={canDragNode}
-              onDragStart={(event: DragEvent) => {
-                event.stopPropagation()
-                handleDragStartNode(node, event)
-              }}
-              onDragEnter={(event: DragEvent) => {
-                event.stopPropagation()
-                handleDragEnterNode(node, event)
-              }}
-              onDragOver={(event: DragEvent) => {
-                event.stopPropagation()
-                handleDragOverNode(node, event)
-              }}
-              onDragLeave={(event: DragEvent) => {
-                event.stopPropagation()
-                handleDragLeaveNode(node, event)
-              }}
-              onDragEnd={(event: DragEvent) => {
-                event.stopPropagation()
-                handleDragEndNode(node, event)
-              }}
-              onDrop={(event: DragEvent) => {
-                event.stopPropagation()
-                handleDropNode(node, event)
-              }}
-              onMouseDown={(event: MouseEvent) => handleLabelMouseDown(node, event)}
-              onClick={(event: MouseEvent) => handleLabelActivate(node, event, 'click')}
-              onDblClick={(event: MouseEvent) => handleLabelActivate(node, event, 'doubleClick')}
-              onContextMenu={(event: MouseEvent) => handleLabelContextMenu(node, event)}
-            >
-              {titleRender ? renderedTitle : <span className="min-w-0 truncate">{node.title}</span>}
-              {dropIntent ? (
-                <span
-                  className="badge badge-primary badge-outline badge-xs shrink-0"
-                  data-rue-tree-drop-placeholder={dropIntent}
-                >
-                  {dropIntent === 'inside' ? '放入' : dropIntent === 'before' ? '插前' : '插后'}
-                </span>
-              ) : selected ? (
-                <span className="badge badge-primary badge-xs shrink-0">选中</span>
-              ) : null}
-            </button>
-            {dropIntent === 'after' ? renderGapPlaceholder(node, 'after') : null}
-          </div>
-        )
-      })}
+      {snapshot.virtualSlice.items.map((rowArg0: any, rowIndex: number) => (
+        <CompiledRow1 key={rowArg0.node.keyText} rowArg0={rowArg0} />
+      ))}
       {snapshot.virtualSlice.bottomSpacer > 0 ? (
         <div style={{ height: `${snapshot.virtualSlice.bottomSpacer}px` }} aria-hidden="true" />
       ) : null}
@@ -1494,7 +1516,7 @@ const TreeBodyContent: FC<TreeBodyContentProps> = ({
           )}
           style={styles?.empty}
         >
-          {emptyText}
+          {String(emptyText)}
         </div>
       ) : null}
     </>
@@ -1530,7 +1552,7 @@ const TreeRoot: FC<InternalTreeProps> = ({
   virtual = true,
   height,
   itemHeight,
-  titleRender,
+  titleFormatter,
   switcherIcon,
   icon,
   filterTreeNode,
@@ -1620,19 +1642,7 @@ const TreeRoot: FC<InternalTreeProps> = ({
 
   const normalizedTree = readNormalizedTreeFromProps()
   let normalizedTreeCache = normalizedTree
-  const treeStateSignature = createTreeStateSignature(normalizedTree, {
-    directoryMode,
-    expandAction,
-    rangeSelect,
-  })
-  const persistedState =
-    treePersistedStateBySignature.get(treeStateSignature) ??
-    (() => {
-      const nextState: TreePersistedState = {}
-      treePersistedStateBySignature.set(treeStateSignature, nextState)
-      return nextState
-    })()
-  const bodyHostRef = useRef<HTMLElement | null>(null)
+  const persistedState: TreePersistedState = {}
   const componentSize = sizeConfig(size)
   const dragConfig = resolveDraggableConfig(draggable)
   const initialExpandedKeys = defaultExpandAll
@@ -1672,7 +1682,6 @@ const TreeRoot: FC<InternalTreeProps> = ({
   const dragStateRef = useRef(ref<TreeDragState>({})).current!
   const dragHoverDepthRef = useRef(ref<Record<string, number>>({})).current!
   const mouseDragStateRef = useRef(ref<TreeMouseDragState | null>(null)).current!
-  const renderScheduledRef = useRef(ref(false)).current!
   const directorySuppressClickKeyTextRef = useRef(
     ref<string | null>(persistedState.suppressClickKeyText ?? null),
   ).current!
@@ -1711,7 +1720,6 @@ const TreeRoot: FC<InternalTreeProps> = ({
 
   function requestRender() {
     renderVersion.value += 1
-    scheduleTreeBodyDomSync()
   }
 
   function rebuildNormalizedTree(force = false) {
@@ -1941,23 +1949,6 @@ const TreeRoot: FC<InternalTreeProps> = ({
         const renderRequests = persistedState.renderRequests
         if (renderRequests?.size) renderRequests.forEach(request => request())
         else requestRender()
-        queueMicrotask(() => {
-          const pendingRequests = persistedState.renderRequests
-          if (pendingRequests?.size) pendingRequests.forEach(request => request())
-          else requestRender()
-          const row = Array.from(
-            document.querySelectorAll<HTMLElement>('[data-rue-tree-node]'),
-          ).find(element => element.getAttribute('data-rue-tree-node') === node.keyText)
-          row?.querySelectorAll('.loading').forEach(element => element.remove())
-          if (row && typeof document !== 'undefined') {
-            const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT)
-            let textNode = walker.nextNode() as Text | null
-            while (textNode) {
-              textNode.data = textNode.data.replace(/\s+loading\b/g, '')
-              textNode = walker.nextNode() as Text | null
-            }
-          }
-        })
       }
     }
 
@@ -2375,7 +2366,11 @@ const TreeRoot: FC<InternalTreeProps> = ({
 
     updateDragHoverDepth(node.keyText, 1)
 
-    const dropContext = resolveDropContext(node, event, event.currentTarget as HTMLElement)
+    const dropContext = resolveDropContext(
+      node,
+      event,
+      (event.currentTarget as HTMLElement).closest('[data-rue-tree-node]') as HTMLElement,
+    )
     if (!dropContext) {
       clearDragHoverState(node.keyText)
       return
@@ -2402,7 +2397,11 @@ const TreeRoot: FC<InternalTreeProps> = ({
   const handleDragOverNode = (node: TreeNode, event: DragEvent) => {
     if (!dragStateRef.value.dragKeyText) return
 
-    const dropContext = resolveDropContext(node, event, event.currentTarget as HTMLElement)
+    const dropContext = resolveDropContext(
+      node,
+      event,
+      (event.currentTarget as HTMLElement).closest('[data-rue-tree-node]') as HTMLElement,
+    )
     if (!dropContext) {
       clearDragHoverState(node.keyText)
       return
@@ -2442,7 +2441,11 @@ const TreeRoot: FC<InternalTreeProps> = ({
 
   const handleDropNode = (node: TreeNode, event: DragEvent) => {
     event.stopPropagation()
-    const dropContext = resolveDropContext(node, event, event.currentTarget as HTMLElement)
+    const dropContext = resolveDropContext(
+      node,
+      event,
+      (event.currentTarget as HTMLElement).closest('[data-rue-tree-node]') as HTMLElement,
+    )
     if (!dropContext) {
       resetDragState()
       return
@@ -2510,7 +2513,7 @@ const TreeRoot: FC<InternalTreeProps> = ({
       directoryMode && expandAction === interaction && (node.children.length > 0 || !node.isLeaf)
 
     if (interaction === 'click' && shouldToggleFromLabel) {
-      RueRuntime.batch(() => {
+      batch(() => {
         const currentExpandedKeys = readMergedExpandedKeys()
         const currentlyExpanded = toKeyTextSet(currentExpandedKeys).has(node.keyText)
         const nextExpandedKeys = currentlyExpanded
@@ -2567,63 +2570,40 @@ const TreeRoot: FC<InternalTreeProps> = ({
       : { maxHeight: `${viewportHeight}px`, overflowY: 'auto' }
     : { overflowY: 'visible' }
 
-  const renderTreeBodyContent = () =>
-    TreeBodyContent({
-      snapshot: readRenderSnapshot(),
-      version: renderVersion.value,
-      loadingKeyTexts: loadingKeyTextsRef.value,
-      fixedVirtualRowHeight,
-      componentSize,
-      classNames,
-      styles,
-      emptyText,
-      showLine,
-      disabled,
-      blockNode,
-      checkable,
-      showIcon,
-      selectable,
-      hasLoadData: !!loadData,
-      titleRender,
-      switcherIcon,
-      icon,
-      directoryMode,
-      dragConfig,
-      handleDragStartNode,
-      handleDragEnterNode,
-      handleDragOverNode,
-      handleDragLeaveNode,
-      handleDragEndNode,
-      handleDropNode,
-      handleExpandToggle,
-      handleCheck,
-      handleDragMouseDown,
-      handleLabelMouseDown,
-      handleLabelActivate,
-      handleLabelContextMenu,
-    })
-
-  function scheduleTreeBodyDomSync() {
-    if (renderScheduledRef.value) return
-    renderScheduledRef.value = true
-    queueMicrotask(() => {
-      renderScheduledRef.value = false
-      syncTreeBodyDom()
-    })
-  }
-
-  function syncTreeBodyDom() {
-    const bodyHost = bodyHostRef.current
-    if (!bodyHost) return
-    renderRue(renderTreeBodyContent(), bodyHost)
-  }
-
-  function assignBodyHostRef(element: HTMLElement | null) {
-    bodyHostRef.current = element
-    if (element) {
-      syncTreeBodyDom()
-    }
-  }
+  const readTreeBodyProps = () => ({
+    snapshot: readRenderSnapshot(),
+    version: renderVersion.value,
+    loadingKeyTexts: loadingKeyTextsRef.value,
+    fixedVirtualRowHeight,
+    componentSize,
+    classNames,
+    styles,
+    emptyText,
+    showLine,
+    disabled,
+    blockNode,
+    checkable,
+    showIcon,
+    selectable,
+    hasLoadData: !!loadData,
+    titleFormatter,
+    switcherIcon,
+    icon,
+    directoryMode,
+    dragConfig,
+    handleDragStartNode,
+    handleDragEnterNode,
+    handleDragOverNode,
+    handleDragLeaveNode,
+    handleDragEndNode,
+    handleDropNode,
+    handleExpandToggle,
+    handleCheck,
+    handleDragMouseDown,
+    handleLabelMouseDown,
+    handleLabelActivate,
+    handleLabelContextMenu,
+  })
 
   const requestPersistedRender = () => {
     loadingKeyTextsRef.value = persistedState.loadingKeyTexts ?? []
@@ -2631,7 +2611,6 @@ const TreeRoot: FC<InternalTreeProps> = ({
   }
 
   onMounted(() => {
-    syncTreeBodyDom()
     const renderRequests = persistedState.renderRequests ?? new Set<() => void>()
     renderRequests.add(requestPersistedRender)
     persistedState.renderRequests = renderRequests
@@ -2655,11 +2634,8 @@ const TreeRoot: FC<InternalTreeProps> = ({
     ],
     () => {
       rebuildNormalizedTree()
-      scheduleTreeBodyDomSync()
     },
   )
-
-  scheduleTreeBodyDomSync()
 
   return (
     <section
@@ -2705,11 +2681,12 @@ const TreeRoot: FC<InternalTreeProps> = ({
           joinClassName('grid gap-0.5', componentSize.bodyPadding, componentSize.textClass),
           classNames?.body,
         )}
-        ref={assignBodyHostRef}
         data-rue-tree-body="true"
         style={{ ...bodyViewportStyle, ...styles?.body }}
         onScroll={handleBodyScroll}
-      />
+      >
+        <TreeBodyContent {...readTreeBodyProps()} />
+      </div>
     </section>
   )
 }

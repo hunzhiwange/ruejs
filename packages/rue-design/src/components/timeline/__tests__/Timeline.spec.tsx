@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -18,16 +19,18 @@ describe('Timeline', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Timeline>
-        <li>
-          <Timeline.Middle>
-            <div id="m">M</div>
-          </Timeline.Middle>
-          <hr />
-        </li>
-      </Timeline>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Timeline>
+          <li>
+            <Timeline.Middle>
+              <div id="m">M</div>
+            </Timeline.Middle>
+            <hr />
+          </li>
+        </Timeline>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -42,7 +45,9 @@ describe('Timeline', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Timeline orientation="vertical" snapIcon compact className="w-64" />, container)
+    mountTestApp(container, () =>
+      render(<Timeline orientation="vertical" snapIcon compact className="w-64" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('ul.timeline') as HTMLElement
@@ -57,22 +62,24 @@ describe('Timeline', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Timeline>
-        <li>
-          <Timeline.Start box>
-            <div id="s">S</div>
-          </Timeline.Start>
-          <Timeline.Middle>
-            <div id="mi">MI</div>
-          </Timeline.Middle>
-          <Timeline.End box>
-            <div id="e">E</div>
-          </Timeline.End>
-          <hr />
-        </li>
-      </Timeline>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Timeline>
+          <li>
+            <Timeline.Start box>
+              <div id="s">S</div>
+            </Timeline.Start>
+            <Timeline.Middle>
+              <div id="mi">MI</div>
+            </Timeline.Middle>
+            <Timeline.End box>
+              <div id="e">E</div>
+            </Timeline.End>
+            <hr />
+          </li>
+        </Timeline>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -97,25 +104,21 @@ describe('Timeline', () => {
     const items = [
       {
         beforeLine: true,
-        start: { box: true, content: <div id="is">IS</div> },
+        start: { box: true, content: 'IS', id: 'is' },
         middle: {
-          content: (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 18a8 8 0 100-16 8 8 0 000 16z" />
-            </svg>
-          ),
+          kind: 'dot',
         },
-        end: { box: true, content: <div id="ie">IE</div> },
+        end: { box: true, content: 'IE', id: 'ie' },
         afterLine: true,
       },
       {
         beforeLine: true,
-        middle: { content: <div id="im">IM</div> },
+        middle: { content: 'IM', id: 'im' },
         afterLine: true,
       },
     ] as const
 
-    render(<Timeline items={items} />, container)
+    mountTestApp(container, () => render(<Timeline items={items} />, container))
 
     await waitForContent(() => {
       const element = container.querySelector('ul.timeline') as HTMLElement
@@ -138,17 +141,21 @@ describe('Timeline', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Timeline
-        items={[
-          {
-            title: <span id="auto-title">Planning</span>,
-            content: <div id="auto-content">Draft roadmap</div>,
-            contentBox: true,
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Timeline
+          items={[
+            {
+              title: 'Planning',
+              titleId: 'auto-title',
+              content: 'Draft roadmap',
+              contentId: 'auto-content',
+              contentBox: true,
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -166,27 +173,31 @@ describe('Timeline', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Timeline
-        mode="alternate"
-        reverse
-        pending="Waiting review"
-        items={[
-          {
-            key: 'draft',
-            title: 'Q1',
-            content: <div id="draft-content">Launch prep</div>,
-            contentBox: true,
-          },
-          {
-            key: 'build',
-            content: <div id="build-content">Build</div>,
-            color: 'success',
-            contentBox: true,
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Timeline
+          mode="alternate"
+          reverse
+          pending="Waiting review"
+          items={[
+            {
+              key: 'draft',
+              title: 'Q1',
+              content: 'Launch prep',
+              contentId: 'draft-content',
+              contentBox: true,
+            },
+            {
+              key: 'build',
+              content: 'Build',
+              contentId: 'build-content',
+              color: 'success',
+              contentBox: true,
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

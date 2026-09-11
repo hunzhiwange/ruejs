@@ -5,7 +5,7 @@ Input 组件概述
 - 保留当前 Shell 入口，兼容文档里直接把 input 当作壳层容器使用的写法。
 */
 import type { FC } from '@rue-js/rue'
-import { ref, watch } from '@rue-js/rue'
+import { Template, computed, ref, watch } from '@rue-js/rue'
 import Textarea, { type TextareaProps } from '../textarea'
 
 /** InputTone 语义色类型。 */
@@ -41,7 +41,7 @@ export interface InputShowCountInfo {
 /** InputShowCountConfig 配置对象。 */
 export interface InputShowCountConfig {
   /** formatter 配置项。 */
-  formatter?: (info: InputShowCountInfo) => any
+  formatter?: (info: InputShowCountInfo) => string | number
 }
 
 /** InputAllowClearConfig 配置对象。 */
@@ -163,7 +163,7 @@ export interface PasswordVisibilityToggle {
 /** PasswordProps 组件属性。 */
 export interface PasswordProps extends Omit<InputProps, 'type'> {
   /** iconRender 自定义渲染函数。 */
-  iconRender?: (visible: boolean) => any
+  iconFormatter?: (visible: boolean) => string
   /** visibilityToggle 配置项。 */
   visibilityToggle?: boolean | PasswordVisibilityToggle
 }
@@ -377,37 +377,40 @@ let passwordVisibilitySyncSeed = 0
 const passwordVisibilityIntent = /*#__PURE__*/ new Map<string, boolean>()
 
 /** Input Root 的内部工具函数。 */
-const InputRoot: FC<InputProps> = ({
-  color,
-  size,
-  status,
-  variant,
-  ghost,
-  type = 'text',
-  prefix,
-  suffix,
-  addonBefore,
-  addonAfter,
-  addonBeforeBare,
-  addonAfterBare,
-  showCount,
-  allowClear,
-  rootClassName,
-  inputClassName,
-  countClassName,
-  clearButtonClassName,
-  className,
-  disabled,
-  readOnly,
-  value,
-  defaultValue,
-  onClear,
-  onInput,
-  onChange,
-  onKeyDown,
-  onPressEnter,
-  ...rest
-}) => {
+const InputRoot: FC<InputProps> = (
+  {
+    color,
+    size,
+    status,
+    variant,
+    ghost,
+    type = 'text',
+    prefix,
+    suffix,
+    addonBefore,
+    addonAfter,
+    addonBeforeBare,
+    addonAfterBare,
+    showCount,
+    allowClear,
+    rootClassName,
+    inputClassName,
+    countClassName,
+    clearButtonClassName,
+    className,
+    disabled,
+    readOnly,
+    value,
+    defaultValue,
+    onClear,
+    onInput,
+    onChange,
+    onKeyDown,
+    onPressEnter,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   let inputElement: HTMLInputElement | null = null
   const forwardedRef = rest.ref
   const nativeRest = { ...rest }
@@ -415,8 +418,10 @@ const InputRoot: FC<InputProps> = ({
   const hasCount = !!showCount
   const clearable = !!allowClear
   const clearConfig = allowClear && typeof allowClear === 'object' ? allowClear : undefined
-  const usesShell = prefix !== undefined || suffix !== undefined || clearable
-  const usesAddonGroup = addonBefore !== undefined || addonAfter !== undefined
+  const usesShell =
+    prefix !== undefined || suffix !== undefined || slots.suffix != null || clearable
+  const usesAddonGroup =
+    addonBefore !== undefined || addonAfter !== undefined || slots.addonAfter != null
   const currentValue = ref(resolveInputValue(isControlled ? value : defaultValue))
 
   if ('ref' in nativeRest) {
@@ -543,7 +548,7 @@ const InputRoot: FC<InputProps> = ({
     }),
   )
 
-  const renderRawInputNode = () => {
+  const RenderRawInputNode = () => {
     return (
       <input
         {...nativeRest}
@@ -561,7 +566,7 @@ const InputRoot: FC<InputProps> = ({
     )
   }
 
-  const renderShellNode = () => {
+  const RenderShellNode = () => {
     return (
       <label
         className={shellClassName}
@@ -569,7 +574,7 @@ const InputRoot: FC<InputProps> = ({
         data-rue-input-shell="true"
       >
         {prefix !== undefined ? (
-          <span className="shrink-0 text-sm text-base-content/60">{prefix}</span>
+          <span className="shrink-0 text-sm text-base-content/60">{String(prefix)}</span>
         ) : null}
         <input
           {...nativeRest}
@@ -595,22 +600,28 @@ const InputRoot: FC<InputProps> = ({
             className={clearButtonClass}
             onClick={handleClear}
           >
-            {clearConfig?.clearIcon ?? <DefaultClearIcon />}
+            {clearConfig?.clearIcon ? (
+              <span>{String(clearConfig.clearIcon)}</span>
+            ) : (
+              <DefaultClearIcon />
+            )}
           </button>
         ) : null}
-        {suffix !== undefined ? (
-          <span className="shrink-0 text-sm text-base-content/60">{suffix}</span>
+        {suffix !== undefined || slots.suffix != null ? (
+          <span className="shrink-0 text-sm text-base-content/60">
+            {slots.suffix ? slots.suffix : String(suffix ?? '')}
+          </span>
         ) : null}
       </label>
     )
   }
 
-  const renderControlNode = () => {
-    return usesShell ? renderShellNode() : renderRawInputNode()
+  const RenderControlNode = () => {
+    return usesShell ? <RenderShellNode /> : <RenderRawInputNode />
   }
 
-  const renderGroupedControlNode = () => {
-    if (!usesAddonGroup) return renderControlNode()
+  const RenderGroupedControlNode = () => {
+    if (!usesAddonGroup) return <RenderControlNode />
     return (
       <div className="join w-full items-stretch">
         {addonBefore !== undefined ? (
@@ -620,20 +631,18 @@ const InputRoot: FC<InputProps> = ({
             <Addon>{addonBefore}</Addon>
           )
         ) : null}
-        {renderControlNode()}
-        {addonAfter !== undefined ? (
-          addonAfterBare ? (
-            addonAfter
-          ) : (
-            <Addon>{addonAfter}</Addon>
-          )
+        <RenderControlNode />
+        {slots.addonAfter ? (
+          slots.addonAfter
+        ) : addonAfter !== undefined ? (
+          <Addon>{String(addonAfter)}</Addon>
         ) : null}
       </div>
     )
   }
 
   if (!hasCount && !rootClassName) {
-    return renderGroupedControlNode()
+    return <RenderGroupedControlNode />
   }
 
   return (
@@ -641,7 +650,7 @@ const InputRoot: FC<InputProps> = ({
       className={mergeClassName(hasCount ? 'flex flex-col gap-2' : undefined, rootClassName)}
       data-rue-input-root="true"
     >
-      {renderGroupedControlNode()}
+      <RenderGroupedControlNode />
       {hasCount ? (
         <div
           className={mergeClassName(
@@ -650,7 +659,7 @@ const InputRoot: FC<InputProps> = ({
           )}
           data-rue-input-count="true"
         >
-          {countContent}
+          {String(countContent)}
         </div>
       ) : null}
     </div>
@@ -670,8 +679,8 @@ const Shell: FC<InputShellProps> = ({
   ...rest
 }) => {
   const Component = as as any
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={buildClassName({
         color,
@@ -684,7 +693,54 @@ const Shell: FC<InputShellProps> = ({
       })}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={buildClassName({
+        color,
+        status,
+        size,
+        variant,
+        ghost,
+        shell: true,
+        className,
+      })}
+    >
+      {children}
+    </span>
+  ) : Component === 'button' ? (
+    <button
+      {...rest}
+      className={buildClassName({
+        color,
+        status,
+        size,
+        variant,
+        ghost,
+        shell: true,
+        className,
+      })}
+    >
+      {children}
+    </button>
+  ) : Component === 'label' ? (
+    <label
+      {...rest}
+      className={buildClassName({
+        color,
+        status,
+        size,
+        variant,
+        ghost,
+        shell: true,
+        className,
+      })}
+    >
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 
@@ -729,7 +785,7 @@ const Search: FC<SearchProps> = ({
     }
   }
 
-  const renderSearchButton = () => {
+  const RenderSearchButton = () => {
     if (actionContent !== undefined) {
       return (
         <button
@@ -742,7 +798,7 @@ const Search: FC<SearchProps> = ({
           {loading ? (
             <span className="loading loading-spinner loading-sm" aria-hidden="true" />
           ) : (
-            actionContent
+            String(actionContent)
           )}
         </button>
       )
@@ -772,8 +828,6 @@ const Search: FC<SearchProps> = ({
       type="text"
       disabled={disabled}
       suffix={suffix}
-      addonAfter={renderSearchButton()}
-      addonAfterBare={true}
       onClear={(event: MouseEvent) => {
         currentValue.value = ''
         if (onClear) onClear(event)
@@ -793,245 +847,64 @@ const Search: FC<SearchProps> = ({
         currentValue.value = readEventValue(event)
         if (onChange) onChange(event)
       }}
-    />
+    >
+      <Template slot="addonAfter">
+        <RenderSearchButton />
+      </Template>
+    </InputRoot>
   )
 }
 
 /** Password 的内部工具函数。 */
-const Password: FC<PasswordProps> = ({ iconRender, visibilityToggle = true, suffix, ...rest }) => {
-  let inputElement: HTMLInputElement | null = null
-  let visibilityButtonElement: HTMLButtonElement | null = null
-  const forwardedRef = rest.ref
-  const inputProps = { ...rest }
-  const isValueControlled = inputProps.value !== undefined
-  const originalOnInput = inputProps.onInput
-  const originalOnChange = inputProps.onChange
-  const passwordTestId = inputProps['data-testid']
-  let lastUncontrolledValue =
-    inputProps.defaultValue === undefined ? undefined : resolveInputValue(inputProps.defaultValue)
+const Password: FC<PasswordProps> = ({
+  iconFormatter,
+  visibilityToggle = true,
+  className,
+  ...rest
+}) => {
   const uncontrolledVisible = ref(false)
-  const visibilityConfig =
-    visibilityToggle && typeof visibilityToggle === 'object' ? visibilityToggle : undefined
-  const isControlled = visibilityConfig?.visible !== undefined
-  const visibilityEnabled = visibilityToggle !== false
-  let currentVisible = isControlled ? !!visibilityConfig?.visible : uncontrolledVisible.value
-  const readVisible = () => currentVisible
-  const visible = readVisible()
-
-  if ('ref' in inputProps) {
-    delete inputProps.ref
-  }
-
-  const assignPasswordRef = (element: HTMLInputElement | null) => {
-    inputElement = element
-    if (!isValueControlled && element && lastUncontrolledValue !== undefined) {
-      element.value = lastUncontrolledValue
-    }
-    if (typeof forwardedRef === 'function') {
-      forwardedRef(element)
-      return
-    }
-    if (forwardedRef && typeof forwardedRef === 'object') {
-      ;(forwardedRef as any).current = element ?? undefined
-    }
-  }
-
-  const handlePasswordInput = (event: Event) => {
-    const target = event.target as HTMLInputElement | null
-    if (!isValueControlled) {
-      lastUncontrolledValue = target?.value ?? ''
-    }
-    if (originalOnInput) originalOnInput(event)
-  }
-
-  const handlePasswordChange = (event: Event) => {
-    const target = event.target as HTMLInputElement | null
-    if (!isValueControlled) {
-      lastUncontrolledValue = target?.value ?? ''
-    }
-    if (originalOnChange) originalOnChange(event)
-  }
-
-  const resolvePasswordShellElement = (trigger?: HTMLElement | null) => {
-    if (passwordTestId != null) {
-      const liveInput = document.querySelector(`input[data-testid="${String(passwordTestId)}"]`)
-      const liveShell = liveInput?.closest('[data-rue-input-shell="true"]')
-      if (liveShell) return liveShell as HTMLElement
-    }
-    const source = trigger ?? visibilityButtonElement
-    if (typeof source?.closest !== 'function') return null
-    return source.closest('[data-rue-input-shell="true"]') as HTMLElement | null
-  }
-
-  const resolvePasswordInputElement = (trigger?: HTMLElement | null) => {
-    const shellElement = resolvePasswordShellElement(trigger)
-    const element =
-      typeof shellElement?.querySelector === 'function'
-        ? (shellElement.querySelector('input') as HTMLInputElement | null)
-        : null
-    const liveByTestId =
-      passwordTestId != null
-        ? (document.querySelector(
-            `input[data-testid="${String(passwordTestId)}"]`,
-          ) as HTMLInputElement | null)
-        : null
-    return element ?? liveByTestId ?? inputElement
-  }
-
-  const syncPasswordVisibilityDom = (
-    nextVisible: boolean,
-    valueSnapshot?: string | null,
-    trigger?: HTMLElement | null,
-  ) => {
-    const element = resolvePasswordInputElement(trigger)
-    if (element) {
-      inputElement = element
-      if (!isValueControlled && valueSnapshot !== undefined && valueSnapshot !== null) {
-        lastUncontrolledValue = valueSnapshot
-        element.value = valueSnapshot
-      }
-      if ('type' in element) {
-        element.type = nextVisible ? 'text' : 'password'
-      }
-    }
-    const shellElement = resolvePasswordShellElement(trigger)
-    const buttonElement =
-      (typeof shellElement?.querySelector === 'function'
-        ? (shellElement.querySelector(
-            '[data-rue-password-toggle="true"]',
-          ) as HTMLButtonElement | null)
-        : null) ?? visibilityButtonElement
-    if (buttonElement) {
-      visibilityButtonElement = buttonElement
-      if (typeof buttonElement.setAttribute === 'function') {
-        buttonElement.setAttribute('aria-label', nextVisible ? 'Hide password' : 'Show password')
-      }
-      const visibleIcon =
-        typeof buttonElement.querySelector === 'function'
-          ? buttonElement.querySelector('[data-rue-password-visible-icon="true"]')
-          : null
-      const hiddenIcon =
-        typeof buttonElement.querySelector === 'function'
-          ? buttonElement.querySelector('[data-rue-password-hidden-icon="true"]')
-          : null
-      if (visibleIcon instanceof HTMLElement) {
-        visibleIcon.style.display = nextVisible ? 'inline-flex' : 'none'
-      }
-      if (hiddenIcon instanceof HTMLElement) {
-        hiddenIcon.style.display = nextVisible ? 'none' : 'inline-flex'
-      }
-    }
-  }
-
-  watch(
-    () => visibilityConfig?.visible,
-    nextVisible => {
-      if (!isControlled || typeof nextVisible !== 'boolean') return
-      currentVisible = nextVisible
-      syncPasswordVisibilityDom(nextVisible)
-    },
-    { immediate: true },
+  const visible = computed(() =>
+    typeof visibilityToggle === 'object' && visibilityToggle.visible !== undefined
+      ? visibilityToggle.visible
+      : uncontrolledVisible.value,
   )
-
-  const handleVisibleChange = (nextVisible: boolean, trigger?: HTMLElement | null) => {
-    if (passwordTestId != null) passwordVisibilityIntent.set(String(passwordTestId), nextVisible)
-    if (trigger instanceof HTMLButtonElement) {
-      visibilityButtonElement = trigger
-      trigger.setAttribute('aria-label', nextVisible ? 'Hide password' : 'Show password')
-      const visibleIcon = trigger.querySelector<HTMLElement>(
-        '[data-rue-password-visible-icon="true"]',
-      )
-      const hiddenIcon = trigger.querySelector<HTMLElement>(
-        '[data-rue-password-hidden-icon="true"]',
-      )
-      if (visibleIcon) visibleIcon.style.display = nextVisible ? 'inline-flex' : 'none'
-      if (hiddenIcon) hiddenIcon.style.display = nextVisible ? 'none' : 'inline-flex'
-    }
-    const shellElement = resolvePasswordShellElement(trigger)
-    const syncId = String(++passwordVisibilitySyncSeed)
-    if (typeof shellElement?.setAttribute === 'function') {
-      shellElement.setAttribute('data-rue-password-visibility-sync-id', syncId)
-    }
-    const element = resolvePasswordInputElement(trigger)
-    const valueSnapshot = element?.value ?? null
-    if (element) {
-      inputElement = element
-    }
-    currentVisible = nextVisible
-    if (inputElement) {
-      if ('type' in inputElement) {
-        inputElement.type = nextVisible ? 'text' : 'password'
-      }
-    }
-    if (!isControlled) {
-      uncontrolledVisible.value = nextVisible
-    }
-    if (visibilityConfig?.onVisibleChange) {
-      visibilityConfig.onVisibleChange(nextVisible)
-    }
-    syncPasswordVisibilityDom(nextVisible, valueSnapshot, trigger)
-    setTimeout(() => {
-      const latestVisible =
-        passwordTestId == null
-          ? nextVisible
-          : (passwordVisibilityIntent.get(String(passwordTestId)) ?? nextVisible)
-      syncPasswordVisibilityDom(latestVisible, valueSnapshot, trigger)
-    }, 0)
+  const toggleVisibility = (event: MouseEvent) => {
+    event.preventDefault()
+    const next = !visible.get()
+    if (typeof visibilityToggle !== 'object' || visibilityToggle.visible === undefined)
+      uncontrolledVisible.value = next
+    if (typeof visibilityToggle === 'object') visibilityToggle.onVisibleChange?.(next)
   }
-
-  const visibilityButton = visibilityEnabled ? (
-    <button
-      type="button"
-      data-rue-password-toggle="true"
-      ref={(element: HTMLButtonElement | null) => {
-        visibilityButtonElement = element
-        syncPasswordVisibilityDom(readVisible())
-        if (element) {
-          element.onclick = event => {
-            event.preventDefault()
-            event.stopPropagation()
-            handleVisibleChange(element.getAttribute('aria-label') === 'Show password', element)
-          }
-        }
-      }}
-      aria-label={visible ? 'Hide password' : 'Show password'}
-      className="btn btn-ghost btn-xs btn-circle h-7 min-h-0 w-7 shrink-0 p-0"
-    >
-      <span
-        data-rue-password-visible-icon="true"
-        className="items-center justify-center"
-        style={{ display: visible ? 'inline-flex' : 'none' }}
-      >
-        {iconRender ? iconRender(true) : <EyeOpenIcon />}
-      </span>
-      <span
-        data-rue-password-hidden-icon="true"
-        className="items-center justify-center"
-        style={{ display: visible ? 'none' : 'inline-flex' }}
-      >
-        {iconRender ? iconRender(false) : <EyeClosedIcon />}
-      </span>
-    </button>
-  ) : null
-
-  const mergedSuffix = visibilityButton ? (
-    <span className="inline-flex items-center gap-1">
-      {suffix}
-      {visibilityButton}
-    </span>
-  ) : (
-    suffix
-  )
-
   return (
-    <InputRoot
-      {...inputProps}
-      ref={assignPasswordRef}
-      type={visible ? 'text' : 'password'}
-      suffix={mergedSuffix}
-      onInput={handlePasswordInput}
-      onChange={handlePasswordChange}
-    />
+    <span className="relative inline-flex items-center">
+      <InputRoot
+        {...rest}
+        className={mergeClassName(className, visibilityToggle === false ? undefined : 'pr-10')}
+        type={visible.get() ? 'text' : 'password'}
+      />
+      {visibilityToggle !== false ? (
+        <button
+          type="button"
+          data-rue-password-toggle="true"
+          className="btn btn-ghost btn-xs btn-circle absolute right-2 h-7 min-h-0 w-7 p-0"
+          aria-label={visible.get() ? 'Hide password' : 'Show password'}
+          onClick={toggleVisibility}
+        >
+          <span
+            data-rue-password-visible-icon="true"
+            style={{ display: visible.get() ? 'inline-flex' : 'none' }}
+          >
+            {iconFormatter ? <span>{String(iconFormatter(true))}</span> : <EyeOpenIcon />}
+          </span>
+          <span
+            data-rue-password-hidden-icon="true"
+            style={{ display: visible.get() ? 'none' : 'inline-flex' }}
+          >
+            {iconFormatter ? <span>{String(iconFormatter(false))}</span> : <EyeClosedIcon />}
+          </span>
+        </button>
+      ) : null}
+    </span>
   )
 }
 

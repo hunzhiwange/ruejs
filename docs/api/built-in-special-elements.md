@@ -8,81 +8,31 @@
 
 ## `<Component>` {#component}
 
-用于渲染动态组件或元素的"元组件"。
+`<Component>` 只用于在编译器可证明的有限组件集合中切换。
 
 - **Props**
 
   ```ts
   interface DynamicComponentProps {
-    is?: string | Component | null
+    is: string
+    registry: Record<string, ComponentInstance>
     [key: string]: unknown
   }
   ```
 
 - **详情**
 
-  实际要渲染的组件由 `is` prop 决定。
-
-  当 `is` 是字符串时，Rue 会先尝试把它解析为当前运行时中已注册的组件；如果未命中，就将它当作原生 HTML 标签名处理。
-
-  `is` 也可以直接绑定到组件定义本身，此时不会经过名称注册表。
-
-  当 `is` 为 `null` 或 `undefined` 时，`<Component>` 不渲染任何内容。
-
-  除 `is` 之外的所有 props 和子节点都会原样透传给最终解析出的组件或元素。
-
-  在 JSX / TSX 中，应使用大写的 `Component`，并从 `@rue-js/rue` 显式导入；小写 `<Component>` 仅用于模板语法。
+  JSX / TSX 调用点必须提供字面量 `registry`，其中每个值都是静态组件工厂。编译器把 `is` 降为有限分支；任意函数值、全局字符串注册、动态原生标签和缺少 registry 的调用均不受支持。
 
 - **示例**
-
-  使用变量渲染组件：
 
   ```tsx
   import { Component } from '@rue-js/rue'
   import Foo from './Foo'
   import Bar from './Bar'
 
-  // 渲染 Foo
-  <Component is={Foo} />
-
-  // 条件渲染
-  <Component is={Math.random() > 0.5 ? Foo : Bar} />
+  ;<Component is={kind.value} registry={{ foo: Foo, bar: Bar }} />
   ```
-
-  渲染 HTML 元素：
-
-  ```tsx
-  import { Component } from '@rue-js/rue'
-  ;<Component is={href ? 'a' : 'span'} />
-  ```
-
-  [内置组件](/api/api/built-in-components)都可以传递给 `is`，但如果您想通过名称传递，则必须注册它们。例如：
-
-  ```tsx
-  import { Component, Transition, TransitionGroup } from '@rue-js/rue'
-  ;<Component is={isGroup ? TransitionGroup : Transition}>...</Component>
-  ```
-
-  如果通过字符串名称传递内置组件或用户组件，则它们需要先在当前运行时中注册；如果直接把组件对象传给 `is`，则不需要注册。
-
-  当 `is` 最终解析为原生表单元素时，仍应按原生元素的属性和事件自行处理数据同步，而不是依赖组件式的 `v-model` 约定。例如：
-
-  ```tsx
-  import { Component, ref } from '@rue-js/rue'
-
-  const tag = ref<'input' | 'textarea'>('input')
-  const username = ref('')
-
-  <Component
-    is={tag.value}
-    value={username.value}
-    onInput={e => {
-      username.value = (e.target as HTMLInputElement | HTMLTextAreaElement).value
-    }}
-  />
-  ```
-
-  在 JSX / TSX 中直接使用时，对应的运行时组件名为 `Component`。
 
 - **另请参阅** [动态组件](/guide/guide/essentials/component-basics#dynamic-components)
 

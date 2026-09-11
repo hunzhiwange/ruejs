@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Popconfirm from '../index'
@@ -34,18 +35,20 @@ describe('Popconfirm', () => {
     const openChanges: boolean[] = []
     resetActiveRuntime()
 
-    render(
-      <Popconfirm
-        title="确认归档这条记录？"
-        description="归档后仍可在历史列表中恢复。"
-        cancelText="先等等"
-        okText="确认归档"
-        onCancel={handleCancel}
-        onOpenChange={nextOpen => openChanges.push(nextOpen)}
-      >
-        <button type="button">Archive</button>
-      </Popconfirm>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popconfirm
+          title="确认归档这条记录？"
+          description="归档后仍可在历史列表中恢复。"
+          cancelText="先等等"
+          okText="确认归档"
+          onCancel={handleCancel}
+          onOpenChange={nextOpen => openChanges.push(nextOpen)}
+        >
+          <button type="button">Archive</button>
+        </Popconfirm>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -84,15 +87,17 @@ describe('Popconfirm', () => {
         }),
     )
 
-    render(
-      <Popconfirm
-        title="删除当前分组？"
-        description="异步确认完成后再关闭浮层。"
-        onConfirm={handleConfirm}
-      >
-        <button type="button">Delete</button>
-      </Popconfirm>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popconfirm
+          title="删除当前分组？"
+          description="异步确认完成后再关闭浮层。"
+          onConfirm={handleConfirm}
+        >
+          <button type="button">Delete</button>
+        </Popconfirm>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -143,7 +148,7 @@ describe('Popconfirm', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(findTrigger(container)).toBeTruthy()
@@ -196,7 +201,7 @@ describe('Popconfirm', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(findTrigger(container)).toBeTruthy()
@@ -220,18 +225,20 @@ describe('Popconfirm', () => {
       const openChanges: boolean[] = []
       resetActiveRuntime()
 
-      render(
-        <Popconfirm
-          title="混合触发"
-          description="hover 可预热，click 再明确确认。"
-          trigger={['hover', 'click']}
-          onOpenChange={nextOpen => {
-            openChanges.push(nextOpen)
-          }}
-        >
-          <button type="button">Hover + click</button>
-        </Popconfirm>,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <Popconfirm
+            title="混合触发"
+            description="hover 可预热，click 再明确确认。"
+            trigger={['hover', 'click']}
+            onOpenChange={nextOpen => {
+              openChanges.push(nextOpen)
+            }}
+          >
+            <button type="button">Hover + click</button>
+          </Popconfirm>,
+          container,
+        ),
       )
 
       await waitForContent(() => {
@@ -284,16 +291,22 @@ describe('Popconfirm', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Popconfirm trigger="focus" title="离开输入框前确认？" description="适合补充最后一步确认。">
-          <input type="text" placeholder="Focus trigger" />
-        </Popconfirm>
-        <button type="button" data-testid="outside-focus-target">
-          Outside
-        </button>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Popconfirm
+            trigger="focus"
+            title="离开输入框前确认？"
+            description="适合补充最后一步确认。"
+          >
+            <input type="text" placeholder="Focus trigger" />
+          </Popconfirm>
+          <button type="button" data-testid="outside-focus-target">
+            Outside
+          </button>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

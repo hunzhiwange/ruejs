@@ -78,9 +78,10 @@ fn builds_setup_wrapper_and_binds_nested_names() {
         collected,
     )));
 
-    assert!(rendered.contains(&normalize(
-        r#"const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{"#,
-    )));
+    assert!(
+        rendered
+            .contains(&normalize(r#"const _$useSetup = _$compiledSetup("useSetup:0:0", ()=>{"#,))
+    );
     assert!(rendered.contains(&normalize(
         r#"return {
             foo: foo,
@@ -123,7 +124,7 @@ fn builds_multiple_setup_regions_with_distinct_ids_and_bindings() {
     let rendered = normalize(&emit_stmts(first_region.into_iter().chain(second_region).collect()));
 
     assert!(rendered.contains(&normalize(
-        r#"const _$useSetupRegion0 = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{"#,
+        r#"const _$useSetupRegion0 = _$compiledSetup("useSetup:0:0", ()=>{"#,
     )));
     assert!(
         rendered.contains(&normalize(
@@ -132,7 +133,7 @@ fn builds_multiple_setup_regions_with_distinct_ids_and_bindings() {
     );
     assert!(rendered.contains(&normalize(r#"let { count: count } = _$useSetupRegion0;"#,)));
     assert!(rendered.contains(&normalize(
-        r#"const _$useSetupRegion1 = _$compiledWithHookId("useSetup:0:1", ()=>useSetup(()=>{"#,
+        r#"const _$useSetupRegion1 = _$compiledSetup("useSetup:0:1", ()=>{"#,
     )));
     assert!(rendered.contains(&normalize(r#"return { details: details, format: format };"#,)));
     assert!(rendered.contains(&normalize(
@@ -155,9 +156,10 @@ fn omits_extra_bindings_when_no_names_are_requested() {
     let rendered = normalize(&emit_stmts(stmts.clone()));
 
     assert_eq!(stmts.len(), 1);
-    assert!(rendered.contains(&normalize(
-        r#"const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{"#
-    )));
+    assert!(
+        rendered
+            .contains(&normalize(r#"const _$useSetup = _$compiledSetup("useSetup:0:0", ()=>{"#))
+    );
     assert!(rendered.contains(&normalize("return {};")));
     assert!(!rendered.contains(&normalize("const {")));
     assert!(!rendered.contains(&normalize("let {")));
@@ -249,9 +251,10 @@ fn strips_direct_internal_hook_ids_but_preserves_setup_identity() {
         collected,
     )));
 
-    assert!(rendered.contains(&normalize(
-        r#"const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{"#,
-    )));
+    assert!(
+        rendered
+            .contains(&normalize(r#"const _$useSetup = _$compiledSetup("useSetup:0:0", ()=>{"#,))
+    );
     assert!(
         rendered
             .contains(&normalize("const state = ref(0), doubled = computed(()=>state.value * 2);"))

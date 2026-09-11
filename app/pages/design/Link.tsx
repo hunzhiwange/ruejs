@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Link, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 type DemoColor =
   | 'neutral'
@@ -283,7 +282,7 @@ const LinkDemo: FC = () => {
               </div>
             </div>
           )}
-          code={`import { Link } from '@rue-js/design';
+          code={`import { Link } from '@rue-js/design'
 
 <Link>Click me</Link>
 <Link to="/examples/hello-world">跳转到 Hello World 页</Link>

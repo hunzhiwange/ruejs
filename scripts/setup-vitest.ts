@@ -1,8 +1,7 @@
 // copy from vuejs/core
 // https://github.com/vuejs/core/blob/main/scripts/setup-vitest.ts
 import type { MockInstance } from 'vitest'
-import { afterEach, beforeEach, beforeAll, expect, vi } from 'vitest'
-import { createRue } from '@rue-js/runtime'
+import { afterEach, beforeEach, expect, vi } from 'vitest'
 
 type GlobalStorageTarget = typeof globalThis & {
   window?: Window & typeof globalThis
@@ -180,9 +179,4 @@ afterEach(() => {
   localStorageRef.clear()
   sessionStorageRef.clear()
   document.body.innerHTML = ''
-})
-
-beforeAll(() => {
-  ;(globalThis as any).__rue_active = createRue()
-  ;(globalThis as any).__rue_active.setDOMAdapter((globalThis as any).__rue_dom)
 })

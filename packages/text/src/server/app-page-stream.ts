@@ -20,6 +20,7 @@ type CreateAppPageFontDataOptions = {
 }
 
 export type AppPageSsrHandler = {
+  prepareCompiledReferences?: () => void
   handleSsr: (
     rscStream: ReadableStream<Uint8Array>,
     navigationContext: unknown,

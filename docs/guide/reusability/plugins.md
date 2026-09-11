@@ -27,7 +27,7 @@ const myPlugin = {
 
 插件没有严格定义的范围，但插件有用的常见场景包括：
 
-1. 使用 [`app.component()`](/api/api/application#app-component) 注册一个或多个可通过字符串名称解析的运行时组件。
+1. 导出静态组件工厂，由使用方直接导入，或放入调用点的有限 `<Component registry={{ ... }}>`。
 
 2. 通过导出 [Context](/guide/guide/components/create-context) Provider 和 `useContext()` 封装，让资源在组件树中共享访问。
 

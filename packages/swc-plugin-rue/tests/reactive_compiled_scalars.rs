@@ -68,13 +68,12 @@ export const View: FC = () => {
 "#,
     );
 
-    let vapor_import = output
-        .split(';')
-        .find(|statement| statement.contains("@rue-js/rue/internal/component"))
-        .expect("reactive compiled output must use the internal runtime graph");
-
-    for helper in ["_$compiledRoot", "effect"] {
-        assert!(vapor_import.contains(helper), "missing {helper} from runtime import: {output}");
+    for (helper, entry) in [("_$compiledRoot", "block"), ("effect", "reactive")] {
+        assert!(
+            output.split(';').any(|statement| statement.contains(helper)
+                && statement.contains(&format!("@rue-js/rue/internal/{entry}"))),
+            "missing {helper}: {output}"
+        );
     }
     for read in [
         "plain.value",
@@ -96,7 +95,7 @@ export const View: FC = () => {
     }
     assert!(output.contains("_$compiledRoot("), "{output}");
     assert!(!output.contains("vapor("), "{output}");
-    assert!(!output.contains("_$compiledText"), "{output}");
+    assert!(output.contains("_$compiledText"), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");
 }
 
@@ -124,7 +123,7 @@ export { UnknownMember, Reassigned, UnknownCall, AsyncView };
 "#,
     );
 
-    assert!(output.contains("from \"@rue-js/rue/internal/component\""), "{output}");
+    assert!(output.contains("from \"@rue-js/rue/internal/block\""), "{output}");
     assert!(output.contains("_$compiledRoot("), "{output}");
     assert!(output.contains("effect"), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");

@@ -228,9 +228,7 @@ const staticRows: ApiRow[] = [
   },
 ]
 
-const basicCode = `import { Button, Empty } from '@rue-js/design'
-
-<div className="rounded-[2rem] border border-base-300/70 bg-base-100 p-4 sm:p-6">
+const basicCode = `import { Button, Empty } from '@rue-js/design'<div className="rounded-[2rem] border border-base-300/70 bg-base-100 p-4 sm:p-6">
   <Empty description="当前筛选条件下还没有上线中的条目。你可以放宽条件，或者直接创建新内容。">
     <Button color="primary" size="sm">
       创建条目
@@ -242,9 +240,7 @@ const basicCode = `import { Button, Empty } from '@rue-js/design'
 </div>
 `
 
-const presetCode = `import { Button, Empty } from '@rue-js/design'
-
-<div className="grid gap-4 xl:grid-cols-3">
+const presetCode = `import { Button, Empty } from '@rue-js/design'<div className="grid gap-4 xl:grid-cols-3">
   <Empty size="sm" description="默认插画适合页面主体空态。" />
 
   <Empty
@@ -269,7 +265,6 @@ const presetCode = `import { Button, Empty } from '@rue-js/design'
 `
 
 const customCode = `import { Button, Empty } from '@rue-js/design'
-
 const SVG_NEUTRAL_CLASS = 'text-base-content'
 const SVG_ACCENT_CLASS = 'text-primary'
 
@@ -349,9 +344,7 @@ const SyncRackIllustration = () => (
 </div>
 `
 
-const embeddedCode = `import { Button, Empty } from '@rue-js/design'
-
-<div className="grid gap-4 xl:grid-cols-2">
+const embeddedCode = `import { Button, Empty } from '@rue-js/design'<div className="grid gap-4 xl:grid-cols-2">
   <div className="rounded-[1.75rem] border border-base-300/70 bg-base-100 p-4">
     <div className="mb-3 flex items-center justify-between text-sm text-base-content/65">
       <span>成员视图</span>

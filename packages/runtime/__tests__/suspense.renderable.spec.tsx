@@ -1,19 +1,14 @@
-import { describe, expect, it } from 'vitest'
-import compiledBoundary from '../src/compiler-runtime/builtins/suspense'
-import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
+import { expect, it } from 'vitest'
+import { evaluateComponent } from './compiled-component-test-utils'
 
-describe('compiled async boundary fixture', () => {
-  it('mounts and cleans up a resolved compiled slot', () => {
-    const child: CompiledSlotFactory = (target, _props, owner) => {
-      const node = document.createTextNode('content')
-      target.parent.insertBefore(node, target.before)
-      return createCompiledBlock(target, owner, { first: node, last: node })
-    }
-    const host = document.createElement('div')
-    const handle = compiledBoundary({ children: child })
-    handle.__rue_compiled_mount(host)
-    expect(host.textContent).toBe('content')
-    handle.dispose()
-    expect(host.textContent).toBe('')
-  })
+it('compiled Suspense mounts and disposes the complete resolved child range', () => {
+  const { exports: app } = evaluateComponent(
+    `import { Suspense } from '@rue-js/rue'; export const View = () => <Suspense><b>content</b><i>tail</i></Suspense>;`,
+  )
+  const host = document.createElement('main')
+  const root = app.View()
+  root.__rue_compiled_mount(host)
+  expect(host.textContent).toBe('contenttail')
+  root.dispose()
+  expect(host.childNodes).toHaveLength(0)
 })

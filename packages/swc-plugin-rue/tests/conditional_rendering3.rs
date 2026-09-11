@@ -56,7 +56,7 @@ export default ReactConditionalDemo;
 
     let vapor_import = out
         .split(';')
-        .find(|statement| statement.contains("@rue-js/rue/internal"))
+        .find(|statement| statement.contains("@rue-js/rue/internal/block"))
         .expect("conditional rendering must import the Vapor runtime");
     for helper in ["_$compiledBranch", "_$compiledRoot"] {
         assert!(vapor_import.contains(helper), "missing {helper}: {out}");

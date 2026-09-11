@@ -8,6 +8,7 @@ import {
   type RouteRecordRaw,
 } from '@rue-js/router'
 import { App } from './App'
+export { App }
 
 export const staticRoutes = ['/', '/about', '/counter']
 

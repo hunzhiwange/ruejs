@@ -3,13 +3,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { type FC, render, useApp } from '@rue-js/rue'
-import { createCompiledDynamic } from '@rue-js/runtime/internal'
+import { type FC, render, useApp, computed, nextTick } from '@rue-js/rue'
 
 import { I18nProvider, createI18n, useI18n } from '../src'
 
 const flushRender = async () => {
-  await Promise.resolve()
+  await nextTick()
   await Promise.resolve()
   await new Promise(resolve => setTimeout(resolve, 0))
 }
@@ -40,10 +39,7 @@ describe('rue i18n', () => {
 
     const App: FC = () => {
       const { _ } = useI18n()
-      return createCompiledDynamic('p', {
-        'data-testid': 'reader',
-        children: _('你好，{name}！', { name: 'Rue' }),
-      }) as any
+      return <p data-testid="reader">{String(_('你好，{name}！', { name: 'Rue' }))}</p>
     }
 
     const container = document.createElement('div')
@@ -55,21 +51,46 @@ describe('rue i18n', () => {
     expect(container.querySelector('[data-testid="reader"]')?.textContent).toBe('Hello, Rue!')
   })
 
+  it('isolates installed composers between applications and reacts to locale changes', async () => {
+    const first = createI18n({
+      locale: 'en',
+      messages: { en: { greeting: 'First' }, fr: { greeting: 'Bonjour' } },
+    })
+    const second = createI18n({ locale: 'en', messages: { en: { greeting: 'Second' } } })
+    const App: FC = () => {
+      const composer = useI18n()
+      const greeting = computed(() => composer._('greeting'))
+      return <p>{greeting.value}</p>
+    }
+    const left = document.createElement('div')
+    const right = document.createElement('div')
+    document.body.append(left, right)
+    const a = useApp(App).use(first)
+    const b = useApp(App).use(second)
+    a.mount(left)
+    b.mount(right)
+    expect(left.textContent).toBe('First')
+    expect(right.textContent).toBe('Second')
+    first.global.locale.value = 'fr'
+    await flushRender()
+    expect(left.textContent).toBe('Bonjour')
+    expect(right.textContent).toBe('Second')
+    a.unmount()
+    b.unmount()
+  })
+
   it('provides subtree-specific messages through I18nProvider', async () => {
     const Reader: FC = () => {
       const { _ } = useI18n()
-      return createCompiledDynamic('p', {
-        'data-testid': 'reader',
-        children: _('你好，{name}！', { name: 'Rue' }),
-      }) as any
+      return <p data-testid="reader">{String(_('你好，{name}！', { name: 'Rue' }))}</p>
     }
 
     const App: FC = () => {
-      return createCompiledDynamic(I18nProvider, {
-        locale: 'zh-CN',
-        messages: { 'zh-CN': { '你好，{name}！': '你好，{name}！' } },
-        children: createCompiledDynamic(Reader, {}),
-      }) as any
+      return (
+        <I18nProvider locale="zh-CN" messages={{ 'zh-CN': { '你好，{name}！': '你好，{name}！' } }}>
+          <Reader />
+        </I18nProvider>
+      )
     }
 
     const container = document.createElement('div')
@@ -84,25 +105,17 @@ describe('rue i18n', () => {
   it('keeps nested I18nProvider composers scoped to their own subtrees', async () => {
     const Reader: FC<{ testId: string }> = props => {
       const { _ } = useI18n()
-      return createCompiledDynamic('p', {
-        'data-testid': props.testId,
-        children: _('greeting'),
-      }) as any
+      return <p data-testid={props.testId}>{String(_('greeting'))}</p>
     }
-    const App: FC = () =>
-      createCompiledDynamic(I18nProvider, {
-        locale: 'en',
-        messages: { en: { greeting: 'Outer' } },
-        children: [
-          createCompiledDynamic(Reader, { testId: 'outer-before' }),
-          createCompiledDynamic(I18nProvider, {
-            locale: 'en',
-            messages: { en: { greeting: 'Inner' } },
-            children: createCompiledDynamic(Reader, { testId: 'inner' }),
-          }),
-          createCompiledDynamic(Reader, { testId: 'outer-after' }),
-        ],
-      }) as any
+    const App: FC = () => (
+      <I18nProvider locale="en" messages={{ en: { greeting: 'Outer' } }}>
+        <Reader testId="outer-before" />
+        <I18nProvider locale="en" messages={{ en: { greeting: 'Inner' } }}>
+          <Reader testId="inner" />
+        </I18nProvider>
+        <Reader testId="outer-after" />
+      </I18nProvider>
+    )
     const container = document.createElement('div')
     document.body.appendChild(container)
 
@@ -136,21 +149,26 @@ describe('rue i18n', () => {
       const { _, locale } = composer
       const currentLocale = locale.value
 
-      return createCompiledDynamic('button', {
-        'data-testid': 'reader',
-        onClick: () => {
-          locale.value = locale.value === 'en' ? 'zh-CN' : 'en'
-          switchedLocale = locale.value
-          switchedHello = composer._('你好', undefined, locale.value)
-        },
-        children: `${_('切换语言', undefined, currentLocale)} / ${_('你好', undefined, currentLocale)}`,
-      }) as any
+      return (
+        <button
+          data-testid="reader"
+          onClick={() => {
+            locale.value = locale.value === 'en' ? 'zh-CN' : 'en'
+            switchedLocale = locale.value
+            switchedHello = composer._('你好', undefined, locale.value)
+          }}
+        >
+          {String(
+            `${_('切换语言', undefined, currentLocale)} / ${_('你好', undefined, currentLocale)}`,
+          )}
+        </button>
+      )
     }
 
     const container = document.createElement('div')
     document.body.appendChild(container)
 
-    render(createCompiledDynamic(LocalReader, {}) as any, container)
+    render(<LocalReader />, container)
     await flushRender()
 
     const button = container.querySelector('[data-testid="reader"]') as HTMLButtonElement | null

@@ -2,7 +2,6 @@ import { ref, type FC } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Status, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {

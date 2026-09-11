@@ -7,16 +7,8 @@
  * On click, prevents full page reload and triggers client-side
  * page swap via the router's navigation system.
  */
-import {
-  useRef,
-  useEffect,
-  useCallback,
-  useContext,
-  createContext,
-  useState,
-  useMemo,
-  startTransition,
-} from './hooks-adapter.js'
+import { useCallback, useMemo, startTransition } from './hooks-adapter.js'
+import { useRef, useEffect, useContext, createContext, useState } from '@rue-js/rue'
 import {
   getNavigationRuntime,
   hasAppNavigationRuntime,
@@ -75,11 +67,7 @@ import {
   type RueRef,
   type RueTouchEvent,
 } from './rue-shim-types.js'
-import { createTextCompatElement } from './component-adapter.js'
-import { readContextRuntime } from './context-runtime-global.js'
-import { createTextElement, type TextNode } from '../runtime/render-protocol.js'
-
-void createTextCompatElement
+import { type TextNode } from '../runtime/render-protocol.js'
 
 type NavigateEvent = {
   url: URL
@@ -162,56 +150,6 @@ const __basePath: string = process.env.__TEXT_ROUTER_BASEPATH ?? ''
 /** trailingSlash from text.config.js, injected by the plugin at build time */
 const __trailingSlash: boolean = process.env.__TEXT_TRAILING_SLASH === 'true'
 const linkPrefetchRouteTrieCache = createRouteTrieCache<TextLinkPrefetchRoute>()
-
-type LinkTextHookRuntime = {
-  useEffect?: unknown
-  useRef?: unknown
-  useState?: unknown
-}
-
-const CURRENT_SSR_LINK_RENDERING_KEY = Symbol.for('text.currentSsrLinkRendering')
-
-type CurrentSsrLinkRenderingState = {
-  active: boolean
-}
-
-type CurrentSsrLinkRenderingGlobal = typeof globalThis & {
-  [CURRENT_SSR_LINK_RENDERING_KEY]?: CurrentSsrLinkRenderingState
-}
-
-function getCurrentSsrLinkRenderingState(): CurrentSsrLinkRenderingState {
-  const globalState = globalThis as CurrentSsrLinkRenderingGlobal
-  if (!globalState[CURRENT_SSR_LINK_RENDERING_KEY]) {
-    globalState[CURRENT_SSR_LINK_RENDERING_KEY] = { active: false }
-  }
-  return globalState[CURRENT_SSR_LINK_RENDERING_KEY]
-}
-
-export function beginCurrentSsrLinkRendering(): void {
-  getCurrentSsrLinkRenderingState().active = true
-}
-
-export function clearCurrentSsrLinkRendering(): void {
-  getCurrentSsrLinkRenderingState().active = false
-}
-
-function hasServerLinkHookRuntime(): boolean {
-  const runtime = readContextRuntime<LinkTextHookRuntime>()
-  return (
-    typeof runtime?.useEffect === 'function' &&
-    typeof runtime.useRef === 'function' &&
-    typeof runtime.useState === 'function'
-  )
-}
-
-function shouldRenderStaticServerAnchor(): boolean {
-  if (getCurrentSsrLinkRenderingState().active) return true
-  if (typeof (globalThis as Record<string, unknown>).__rue_is_server_rendering__ === 'number') {
-    return true
-  }
-  if (typeof window !== 'undefined') return false
-  return !hasServerLinkHookRuntime()
-}
 
 function resolveHref(href: LinkProps['href']): string {
   if (typeof href === 'string') return href
@@ -714,19 +652,6 @@ function Link({
     withBasePath(normalizedHref, __basePath),
     __trailingSlash,
   )
-  const { passHref: _serverPassHref, ...serverAnchorProps } = restWithoutLocale
-
-  if (shouldRenderStaticServerAnchor()) {
-    if (isDangerous) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`<Link> blocked dangerous href: ${resolvedHref}`)
-      }
-      return createTextElement('a', serverAnchorProps, children)
-    }
-
-    return createTextElement('a', { href: fullHref, ...serverAnchorProps }, children)
-  }
-
   // Track pending state for useLinkStatus()
   const [pending, setPending] = useState(false)
   const mountedRef = useRef(true)
@@ -959,8 +884,9 @@ function Link({
       if (onClick) onClick(event)
       reportBlockedDangerousNavigation()
     }
-    return (
-      <LinkStatusContext.Provider value={linkStatusValue}>
+    return LinkStatusContext.Provider({
+      value: linkStatusValue,
+      children: () => (
         <a
           ref={setRefs}
           onClick={handleDangerousClick}
@@ -970,12 +896,13 @@ function Link({
         >
           {children}
         </a>
-      </LinkStatusContext.Provider>
-    )
+      ),
+    })
   }
 
-  return (
-    <LinkStatusContext.Provider value={linkStatusValue}>
+  return LinkStatusContext.Provider({
+    value: linkStatusValue,
+    children: () => (
       <a
         ref={setRefs}
         href={fullHref}
@@ -988,8 +915,8 @@ function Link({
       >
         {children}
       </a>
-    </LinkStatusContext.Provider>
-  )
+    ),
+  })
 }
 
 export default Link

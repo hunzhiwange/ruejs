@@ -205,28 +205,9 @@
 
   - `errorCaptured` 钩子可以返回 `false` 来阻止错误进一步传播。这实质上是说"此错误已处理，应忽略"。它将阻止为此错误调用任何额外的 `errorCaptured` 钩子或 `app.config.errorHandler`。
 
-## onRenderTracked() {#onrendertracked}
+## onRenderTracked（已移除） {#onrendertracked}
 
-注册一个调试钩子，在组件的渲染 effect 追踪到响应式依赖时调用。
-
-**此钩子仅在开发模式下可用，不会在服务器端渲染期间调用。**
-
-- **类型**
-
-  ```ts
-  function onRenderTracked(callback: DebuggerHook): void
-
-  type DebuggerHook = (e: DebuggerEvent) => void
-
-  type DebuggerEvent = {
-    effect: ReactiveEffect
-    target: object
-    type: TrackOpTypes /* 'get' | 'has' | 'iterate' */
-    key: any
-  }
-  ```
-
-- **另请参阅** [深入响应式系统](/guide/guide/extras/reactivity-in-depth)
+compiler-only 公共能力面仅保留触发侧调试钩子 `onRenderTriggered()`。
 
 ## onRenderTriggered() {#onrendertriggered}
 

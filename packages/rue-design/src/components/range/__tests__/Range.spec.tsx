@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Range from '..'
@@ -18,7 +19,9 @@ describe('Range', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Range min={0} max={100} value={40} step={5} className="w-xs" />, container)
+    mountTestApp(container, () =>
+      render(<Range min={0} max={100} value={40} step={5} className="w-xs" />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('input.range') as HTMLInputElement
@@ -36,7 +39,7 @@ describe('Range', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Range color="secondary" size="large" />, container)
+    mountTestApp(container, () => render(<Range color="secondary" size="large" />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('input.range') as HTMLInputElement
@@ -50,7 +53,9 @@ describe('Range', () => {
     resetActiveRuntime()
     const handleInput = vi.fn()
 
-    render(<Range disabled={true} data-testid="range" onInput={handleInput} />, container)
+    mountTestApp(container, () =>
+      render(<Range disabled={true} data-testid="range" onInput={handleInput} />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="range"]') as HTMLInputElement
@@ -66,18 +71,20 @@ describe('Range', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Range
-        min={0}
-        max={100}
-        value={50}
-        label="Storage"
-        hint="Sync cache size"
-        helper="Larger cache uses more memory"
-        showValue={{ formatter: value => `${value} GB` }}
-        marks={[0, { value: 50, label: 'Balanced' }, { value: 100, label: 'Max' }]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Range
+          min={0}
+          max={100}
+          value={50}
+          label="Storage"
+          hint="Sync cache size"
+          helper="Larger cache uses more memory"
+          showValue={{ formatter: value => `${value} GB` }}
+          marks={[0, { value: 50, label: 'Balanced' }, { value: 100, label: 'Max' }]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -100,16 +107,18 @@ describe('Range', () => {
     const handleValueChange = vi.fn()
     const handleValueCommit = vi.fn()
 
-    render(
-      <Range
-        min={0}
-        max={100}
-        defaultValue={20}
-        showValue={true}
-        onValueChange={handleValueChange}
-        onValueCommit={handleValueCommit}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Range
+          min={0}
+          max={100}
+          defaultValue={20}
+          showValue={true}
+          onValueChange={handleValueChange}
+          onValueCommit={handleValueCommit}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -154,16 +163,18 @@ describe('Range', () => {
     }
 
     try {
-      render(
-        <Range
-          min={0}
-          max={100}
-          defaultValue={10}
-          showValue={true}
-          onInput={handleInput}
-          onValueChange={handleValueChange}
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <Range
+            min={0}
+            max={100}
+            defaultValue={10}
+            showValue={true}
+            onInput={handleInput}
+            onValueChange={handleValueChange}
+          />,
+          container,
+        ),
       )
 
       await waitForContent(() => {
@@ -226,7 +237,7 @@ describe('Range', () => {
       )
     }
 
-    render(<Preview />, container)
+    mountTestApp(container, () => render(<Preview />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="range-change-only"]') as HTMLInputElement
@@ -312,7 +323,7 @@ describe('Range', () => {
         )
       }
 
-      render(<Preview />, container)
+      mountTestApp(container, () => render(<Preview />, container))
 
       await waitForContent(() => {
         const input = container.querySelector(
@@ -379,7 +390,7 @@ describe('Range', () => {
       )
     }
 
-    render(<Preview />, container)
+    mountTestApp(container, () => render(<Preview />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="range-ref"]') as HTMLInputElement

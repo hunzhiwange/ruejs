@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, ref, setReactiveScheduling } from '@rue-js/rue'
 import InputNumber from '../index'
@@ -29,16 +30,18 @@ describe('InputNumber', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <InputNumber
-        data-testid="price-input"
-        defaultValue={128}
-        prefix="￥"
-        suffix="CNY"
-        status="warning"
-        variant="filled"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <InputNumber
+          data-testid="price-input"
+          defaultValue={128}
+          prefix="￥"
+          suffix="CNY"
+          status="warning"
+          variant="filled"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -62,12 +65,14 @@ describe('InputNumber', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <InputNumber data-testid="plain-input" readOnly={undefined} />
-        <InputNumber data-testid="readonly-input" defaultValue={8} readOnly={true} />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <InputNumber data-testid="plain-input" readOnly={undefined} />
+          <InputNumber data-testid="readonly-input" defaultValue={8} readOnly={true} />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -89,19 +94,21 @@ describe('InputNumber', () => {
     const handleChange = vi.fn()
     const handleStep = vi.fn()
 
-    render(
-      <InputNumber
-        data-testid="step-input"
-        defaultValue={2}
-        min={0}
-        max={3}
-        step={0.5}
-        precision={1}
-        changeOnWheel={true}
-        onChange={handleChange}
-        onStep={handleStep}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <InputNumber
+          data-testid="step-input"
+          defaultValue={2}
+          min={0}
+          max={3}
+          step={0.5}
+          precision={1}
+          changeOnWheel={true}
+          onChange={handleChange}
+          onStep={handleStep}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -164,12 +171,14 @@ describe('InputNumber', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <InputNumber data-testid="amount-input" defaultValue="0.1250" stringMode={true} />
-        <InputNumber data-testid="fee-input" defaultValue="0.0008" stringMode={true} />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <InputNumber data-testid="amount-input" defaultValue="0.1250" stringMode={true} />
+          <InputNumber data-testid="fee-input" defaultValue="0.0008" stringMode={true} />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -230,7 +239,7 @@ describe('InputNumber', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="budget-input"]') as HTMLInputElement
@@ -285,17 +294,19 @@ describe('InputNumber', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <InputNumber
-        data-testid="controlled-lag-input"
-        value={1000}
-        step={500}
-        precision={0}
-        formatter={(value, info) => (info.userTyping ? info.input : `$${value ?? ''}`)}
-        parser={input => input.replace(/\$/g, '')}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <InputNumber
+          data-testid="controlled-lag-input"
+          value={1000}
+          step={500}
+          precision={0}
+          formatter={(value, info) => (info.userTyping ? info.input : `$${value ?? ''}`)}
+          parser={input => input.replace(/\$/g, '')}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -325,18 +336,20 @@ describe('InputNumber', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <InputNumber
-        data-testid="formatted-input"
-        defaultValue="12.50"
-        stringMode={true}
-        max={15}
-        precision={2}
-        formatter={(value, info) => (info.userTyping ? info.input : `${value ?? ''}%`)}
-        parser={input => input.replace(/%/g, '')}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <InputNumber
+          data-testid="formatted-input"
+          defaultValue="12.50"
+          stringMode={true}
+          max={15}
+          precision={2}
+          formatter={(value, info) => (info.userTyping ? info.input : `${value ?? ''}%`)}
+          parser={input => input.replace(/%/g, '')}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -389,7 +402,7 @@ describe('InputNumber', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="manual-input"]') as HTMLInputElement
@@ -413,7 +426,9 @@ describe('InputNumber', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(<InputNumber data-testid="ime-input" onChange={handleChange} />, container)
+    mountTestApp(container, () =>
+      render(<InputNumber data-testid="ime-input" onChange={handleChange} />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="ime-input"]') as HTMLInputElement
@@ -451,9 +466,11 @@ describe('InputNumber', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <InputNumber data-testid="compact-input" size="xs" defaultValue={8} suffix="xs" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <InputNumber data-testid="compact-input" size="xs" defaultValue={8} suffix="xs" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

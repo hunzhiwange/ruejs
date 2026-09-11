@@ -31,6 +31,7 @@ const clientEntryFile = path.resolve(root, 'app/app.tsx')
 const islandClientEntryFile = path.resolve(root, 'app/entry-islands.ts')
 const docsClientEntryFile = path.resolve(root, 'app/entry-docs.ts')
 const serverEntryFile = path.resolve(root, 'app/entry-server.tsx')
+const routerSourceFile = path.resolve(root, 'app/router/index.ts')
 const serverBundleFile = path.resolve(ssrOutDir, 'entry-server.mjs')
 const clientTemplateFile = path.resolve(ssrOutDir, 'client-template.html')
 const routeSnapshotFile = path.resolve(root, 'scripts/app-static-snapshot-route.mjs')
@@ -282,6 +283,28 @@ const renderStaticDocRoute = async (route, routeIndex, docSourcesByDocId, render
     return null
   }
 }
+
+const staticRoutePathRe = /\bpath\s*:\s*(['"])(\/[^'"\r\n]*)\1/g
+
+export const extractStaticAppRouteInfo = source => {
+  const staticRoutes = new Set()
+
+  for (const match of source.matchAll(staticRoutePathRe)) {
+    const route = normalizeRoute(match[2])
+    if (!route || route.includes(':') || route.includes('*') || route.includes('(')) continue
+    staticRoutes.add(route)
+  }
+
+  return {
+    staticRoutes: [...staticRoutes].sort(),
+    // Concrete application pages use the client compiler's snapshot path. Markdown document routes
+    // are added separately and continue through the zero-JS static document renderer.
+    appClientRoutes: new Set(staticRoutes),
+  }
+}
+
+const readStaticAppRouteInfo = async () =>
+  extractStaticAppRouteInfo(await readFile(routerSourceFile, 'utf-8'))
 
 const shouldPrerenderRoute = _route => {
   return true
@@ -739,7 +762,14 @@ const renderRoutes = async (
         docSourcesByDocId,
         routeRenderers.renderStaticDoc,
       )
-      return html ? { html, renderKind: 'static-doc' } : null
+      if (html) return { html, renderKind: 'static-doc' }
+
+      if (appClientRoutes.has(normalizeRoute(route))) {
+        const snapshot = await routeRenderers.snapshotRoute(route, routeIndex)
+        return snapshot ? { html: snapshot, renderKind: 'static-snapshot' } : null
+      }
+
+      return null
     },
     shouldPrerenderRoute: ({ route }) => shouldPrerenderRoute(route),
     renderRoute: ({ route, routeIndex }) => routeRenderers.renderRoute(route, routeIndex),
@@ -839,8 +869,7 @@ const runAppStaticBuild = async () => {
 
     try {
       const serverEntry = await import(`${pathToFileURL(serverBundleFile).href}?t=${Date.now()}`)
-      const staticRoutes = Array.isArray(serverEntry.staticRoutes) ? serverEntry.staticRoutes : []
-      const appClientRoutes = normalizeRouteSet(serverEntry.appClientRoutes)
+      const { staticRoutes, appClientRoutes } = await readStaticAppRouteInfo()
       const docRoutes = await readSearchIndexRoutes()
       const docSourcesByDocId = await loadDocRouteSourceMap()
       const routes = [

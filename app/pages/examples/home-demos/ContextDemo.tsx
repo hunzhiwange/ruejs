@@ -1,4 +1,5 @@
 import { createContext, type FC, ref, useContext } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 
 const CounterContext = createContext({
   count: ref(1),
@@ -30,11 +31,18 @@ const CounterProvider: FC<{ children?: any }> = props => {
     count.value = 1
   }
 
-  return (
-    <CounterContext.Provider value={{ count, increment, decrement, reset }}>
-      {props.children}
-    </CounterContext.Provider>
-  )
+  provideContext(CounterContext, () => ({ count, increment, decrement, reset }))
+
+  return <>{props.children}</>
+}
+
+const ThemeProvider: FC<{ children?: any }> = props => {
+  provideContext(ThemeContext, () => ({
+    label: '暖阳主题（来自 Provider）',
+    toneClassName: 'badge badge-warning',
+    note: '这里被 ThemeProvider 显式包裹。',
+  }))
+  return <>{props.children}</>
 }
 
 const CounterActions: FC = () => {
@@ -121,15 +129,9 @@ const ThemeChip: FC = () => {
 
 const ProvidedThemePreview: FC = () => {
   return (
-    <ThemeContext.Provider
-      value={{
-        label: '暖阳主题（来自 Provider）',
-        toneClassName: 'badge badge-warning',
-        note: '这里被 ThemeContext.Provider 显式包裹。',
-      }}
-    >
+    <ThemeProvider>
       <ThemeChip />
-    </ThemeContext.Provider>
+    </ThemeProvider>
   )
 }
 

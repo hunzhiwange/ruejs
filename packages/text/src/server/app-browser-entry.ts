@@ -1,17 +1,12 @@
 /// <reference types="vite/client" />
 
+import { batch } from '@rue-js/rue'
 import {
-  batch,
-  createContext,
-  mount,
-  onError,
-  render,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from '@rue-js/rue'
-import { _$createComponent } from '@rue-js/rue/internal'
+  hydrateServerFrame,
+  mountDocumentRoot,
+  type ClaimRootHandle,
+  type ServerFrame,
+} from '@rue-js/runtime/internal/hydrate'
 import '@rue-js/rsc/browser'
 import '../client/instrumentation-client.js'
 import { notifyAppRouterTransitionStart } from '../client/instrumentation-client-state.js'
@@ -70,14 +65,10 @@ import {
   type AppBrowserServerActionResult,
 } from './app-browser-action-result.js'
 import {
-  configureAppBrowserRueRuntime,
   consumeInitialFormState,
   createTextRueRootOptions,
-  mountRueRootInTransition,
   readRueThenable,
   runRueTransition,
-  useRueLayoutEffect,
-  useRueState,
 } from './app-browser-hydration.js'
 import {
   AppElementsWire,
@@ -103,12 +94,7 @@ import {
   type OperationLane,
 } from './app-browser-state.js'
 import { createPopstateRestoreHandler } from './app-browser-popstate.js'
-import { DevRecoveryBoundary } from '../shims/error-boundary.js'
-import {
-  beginCurrentSsrAppElements,
-  renderSlotElement,
-  setCurrentSsrAppElements,
-} from '../shims/slot.js'
+import { beginCurrentSsrAppElements, setCurrentSsrAppElements } from '../shims/slot.js'
 import type { RouteManifest } from '../routing/app-route-graph.js'
 import { stripBasePath } from '../utils/base-path.js'
 import { createOnUncaughtError } from './app-browser-error.js'
@@ -152,28 +138,6 @@ import {
 } from './headers.js'
 import { appBrowserPayloadProtocol } from './app-rsc-browser-payload-protocol.js'
 import { appBrowserActionProtocol } from './app-rsc-browser-action-protocol.js'
-import { setContextRuntime } from '../shims/context-runtime-global.js'
-
-configureAppBrowserRueRuntime({
-  batch,
-  mount,
-  onError,
-  render,
-  useEffect,
-  useState,
-})
-setContextRuntime({
-  batch,
-  createContext,
-  createElement,
-  startTransition(action: () => void) {
-    batch(action)
-  },
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-})
 
 type SearchParamInput = ConstructorParameters<typeof URLSearchParams>[0]
 
@@ -892,7 +856,7 @@ function hasAppRenderableEntries(elements: Readonly<Record<string, unknown>>): b
 }
 
 function decodeAppWireElements(elements: AppWireElements): AppElements {
-  return normalizeAppClientReferences(AppElementsWire.decode(elements))
+  return AppElementsWire.decode(elements)
 }
 
 function decodeAppElementsPromise(
@@ -1007,7 +971,7 @@ function inferInitialRouteId(elements: AppElements, routeId: unknown): string {
   throw new Error('[text] Missing __route string in App Router payload')
 }
 
-function BrowserRoot({
+async function BrowserRoot({
   initialElements,
   initialNavigationSnapshot,
 }: {
@@ -1037,98 +1001,87 @@ function BrowserRoot({
     slotBindings: initialMetadata.slotBindings,
     visibleCommitVersion: 0,
   }
-  const [treeStateValue, setTreeStateValue] = useRueState<AppRouterState | Promise<AppRouterState>>(
-    initialRouterState,
-  )
-  const resolvedTreeState =
-    isRouterStatePromise(treeStateValue) && browserRouterStateHasEverCommitted
-      ? readRueThenable(treeStateValue)
-      : treeStateValue
-  const treeState = isUsableRouterState(resolvedTreeState) ? resolvedTreeState : initialRouterState
-  const currentRenderEntryId = resolvePrimaryRenderEntryId(treeState)
-  // Slot rendering reads outside BrowserRoot's state scope; clone the Rue state map first.
-  const renderElementsSource = treeState.elements
-  const renderElements = Object.fromEntries(Object.entries(renderElementsSource)) as AppElements
-  beginCurrentSsrAppElements()
-  setCurrentSsrAppElements(renderElements)
-
-  // Keep the latest router state in a ref so external callers (navigate(),
-  // server actions, HMR) always read the current state. Safe: those readers
-  // run from events/effects, never from Rue render itself.
-  // Note: stateRef.current is written during render, not in an effect, to
-  // avoid a stale-read window between commit and layout effects. This mirrors
-  // the same render-phase ref update pattern used by Text.js's own router.
-  const stateRef = useRef(treeState)
-  stateRef.current = treeState
-
-  // Publish the stable ref object and dispatch during layout commit. This keeps
-  // the module-level escape hatches aligned with Rue's committed tree without
-  // performing module writes during render. The navigation runtime is registered
-  // after the root mount returns; by then this layout effect has already run for
-  // the mount commit, so getBrowserRouterState() never observes a null ref.
-  useRueLayoutEffect(() => {
-    const detach = browserNavigationController.attachBrowserRouterState(setTreeStateValue, stateRef)
-    browserRouterStateHasEverCommitted = true
-    // App Router uses this timestamp as first committed tree readiness: the
-    // browser router state is attached and link/router interactions can safely
-    // observe the committed tree. It is intentionally later than root mount
-    // returning.
-    const hydratedAt = performance.now()
-    window.__TEXT_HYDRATED_AT = hydratedAt
-    window.__TEXT_HYDRATED = true
-    window.__TEXT_HYDRATED_AT = hydratedAt
-    window.__TEXT_HYDRATED_CB?.()
-    return () => {
-      detach()
-      setMountedSlotsHeader(null)
-    }
-  }, [setTreeStateValue])
-
-  useRueLayoutEffect(() => {
-    setMountedSlotsHeader(getMountedSlotIdsHeader(stateRef.current.elements))
-    getNavigationRuntime()?.functions.pingVisibleLinks?.()
-  }, [treeState.elements])
-
-  useRueLayoutEffect(() => {
-    if (treeState.renderId !== 0) {
-      return
-    }
-
-    replaceHistoryStateWithoutNotify(
-      createHistoryStateWithNavigationMetadata(window.history.state, {
-        previousTextUrl: treeState.previousTextUrl,
-        traversalIndex: currentHistoryTraversalIndex,
-      }),
-      '',
-      window.location.href,
-    )
-  }, [treeState.previousTextUrl, treeState.renderId])
-
-  const innerTree = renderSlotElement({ id: currentRenderEntryId, elements: renderElements })
-
-  // In dev, wrap the route tree in a top-level recovery boundary. A render
-  // error (e.g. a slot's RSC reference rejects) is caught here instead of
-  // tearing down BrowserRoot, so HMR can dispatch the text payload —
-  // identified by an incremented renderId, which doubles as the boundary's
-  // reset key — without a full page reload. The dev overlay (a separate
-  // Rue root) shows the error itself.
-  //
-  // onCatch drains the pending pre-paint effect for the failed render so
-  // the URL update bound to that navigation still runs. Without this, a
-  // soft-nav whose target throws would leave the browser on the previous
-  // URL, hiding which route is broken and mis-targeting the text HMR
-  // payload (which fetches RSC for window.location.pathname).
-  //
-  let committedTree = innerTree
-  if (import.meta.env.DEV) {
-    committedTree = _$createComponent(DevRecoveryBoundary, {
-      resetKey: treeState.renderId,
-      onCatch: handleDevRecoveryBoundaryCatch,
-      children: innerTree,
-    })
+  const readFrame = (state: AppRouterState): ServerFrame => {
+    const value = state.elements[resolvePrimaryRenderEntryId(state)] as unknown as ServerFrame
+    if (!value || value.version !== 1 || typeof value.html !== 'string')
+      throw new Error('Text navigation requires a compiled server frame')
+    return value
   }
-
-  return committedTree
+  const resolve = async (key: string, name: string) => {
+    const global = globalThis as BrowserClientReferenceGlobal
+    const loadReference = global.__rue_rsc_client_require__ ?? global.__vite_rsc_client_require__
+    if (!loadReference) throw new Error('Text client reference manifest is unavailable')
+    const module = (await loadReference(key)) as Record<string, any>
+    return module[name]
+  }
+  const documentRoot = document.documentElement
+  let documentErrorRoot: ClaimRootHandle | undefined
+  let documentErrorAbort: AbortController | undefined
+  const globalError = initialRouterState.elements.__globalError
+  const onGlobalError =
+    typeof globalError === 'function'
+      ? (error: unknown) => {
+          documentErrorAbort?.abort()
+          const abort = new AbortController()
+          documentErrorAbort = abort
+          void mountDocumentRoot(globalError as any, {
+            props: { error, reset: () => appRouterInstance.refresh() },
+            signal: abort.signal,
+          })
+            .then(handle => {
+              if (handle.disposed) return
+              documentErrorRoot?.unmount()
+              documentErrorRoot = handle
+            })
+            .catch(devOnUncaughtError)
+        }
+      : undefined
+  const root = await hydrateServerFrame(
+    document.documentElement,
+    readFrame(initialRouterState),
+    resolve,
+    { onError: onGlobalError },
+  )
+  const stateRef = { current: initialRouterState }
+  let value: AppRouterState | Promise<AppRouterState> = initialRouterState
+  let version = 0
+  const setState = (update: any) => {
+    value = typeof update === 'function' ? update(value) : update
+    const ticket = ++version
+    void Promise.resolve(value)
+      .then(async state => {
+        if (ticket !== version) return
+        documentErrorAbort?.abort()
+        await root.update(readFrame(state))
+        if (documentErrorRoot) {
+          document.replaceChild(documentRoot, document.documentElement)
+          documentErrorRoot.unmount()
+          documentErrorRoot = undefined
+        }
+        if (ticket !== version) return
+        stateRef.current = state
+        setMountedSlotsHeader(getMountedSlotIdsHeader(state.elements))
+        browserNavigationController.commitRender(state.renderId)
+        getNavigationRuntime()?.functions.pingVisibleLinks?.()
+      })
+      .catch(devOnUncaughtError)
+  }
+  const detach = browserNavigationController.attachBrowserRouterState(setState, stateRef)
+  browserRouterStateHasEverCommitted = true
+  window.__TEXT_HYDRATED_AT = performance.now()
+  window.__TEXT_HYDRATED = true
+  window.__TEXT_HYDRATED_CB?.()
+  browserNavigationController.commitRender(0)
+  return {
+    unmount() {
+      version++
+      detach()
+      documentErrorAbort?.abort()
+      root.unmount()
+      documentErrorRoot?.unmount()
+      setMountedSlotsHeader(null)
+    },
+  }
 }
 
 function restoreHydrationNavigationContext(
@@ -1522,11 +1475,7 @@ async function bootstrapHydration(rscStream: ReadableStream<Uint8Array>): Promis
         formState,
         onUncaughtError,
       })
-  window.__TEXT_RSC_ROOT__ = mountRueRootInTransition({
-    children: _$createComponent(BrowserRoot, null),
-    container: document,
-    options: rueRootOptions,
-  })
+  window.__TEXT_RSC_ROOT__ = await BrowserRoot({})
 
   const navigateRsc: NavigationRuntimeNavigate = async function navigateRsc(
     href: string,

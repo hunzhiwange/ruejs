@@ -1,5 +1,3 @@
-import { Suspense } from '@rue-js/rue'
-
 export type TextNode =
   | string
   | number
@@ -25,79 +23,4 @@ export type TextPropsWithChildren<P = {}> = P & {
 export type TextElementType<P = {}> = string | TextComponentType<P> | TextClassComponentType<P>
 export type TextElementProps = Record<string, unknown> & {
   children?: TextNode
-}
-
-export const TextFragment = 'fragment' as const
-export const TextSuspense: TextComponentType<{
-  children?: TextNode
-  fallback?: TextNode
-}> = Suspense as never
-
-const TextProtocolElementSymbol = Symbol.for('rue.transitional.element')
-function createTextProtocolElement<P>(
-  type: unknown,
-  props: TextElementProps | null,
-  children: TextNode[],
-): TextElement<P> {
-  const textProps: Record<string, unknown> = {}
-  let key: string | null = null
-
-  if (props) {
-    for (const [propKey, value] of Object.entries(props)) {
-      if (propKey === 'key') {
-        if (value !== undefined && value !== null) key = String(value)
-        continue
-      }
-      if (value !== undefined) textProps[propKey] = value
-    }
-  }
-
-  if (children.length === 1) {
-    textProps.children = children[0]
-  } else if (children.length > 1) {
-    textProps.children = children
-  }
-
-  return {
-    $$typeof: TextProtocolElementSymbol,
-    type,
-    key,
-    props: textProps,
-    _owner: null,
-    ref: null,
-    _store: {},
-  } as TextElement<P>
-}
-
-function isTextClassComponentType<P>(type: unknown): type is TextClassComponentType<P> {
-  return (
-    typeof type === 'function' &&
-    !!(type as { prototype?: { render?: unknown } }).prototype &&
-    typeof (type as { prototype?: { render?: unknown } }).prototype?.render === 'function'
-  )
-}
-
-export function createTextElement<P = {}>(
-  type: TextElementType<P>,
-  props: TextElementProps | null,
-  ...children: TextNode[]
-): TextElement<P> {
-  return createTextProtocolElement<P>(type, props, children)
-}
-
-export function createRueTextElement<P = {}>(
-  type: TextElementType<P>,
-  props: TextElementProps | null,
-  ...children: TextNode[]
-): TextElement<P> {
-  if (isTextClassComponentType<P>(type)) {
-    const ClassComponent = type
-    const FunctionAdapter = (componentProps: P): TextNode => {
-      const instance = new ClassComponent(componentProps)
-      return instance.render()
-    }
-    return createTextProtocolElement<P>(FunctionAdapter, props, children)
-  }
-
-  return createTextProtocolElement<P>(type, props, children)
 }

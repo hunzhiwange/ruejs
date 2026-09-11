@@ -27,20 +27,24 @@ it('updates nested and array paths in Chromium using the built public runtime', 
     await page.evaluate(() => {
       const runtime = (globalThis as any).rue
       runtime.setReactiveScheduling('sync')
-      const state = runtime.signal({ user: { count: 0 }, rows: [{ value: 0 }], stable: 7 })
+      const state = runtime.signal({ user: { count: 0 }, rows: [{ value: 0 }] })
+      const stable = runtime.signal(7)
       let siblingRuns = 0
       const sibling = runtime.effect(() => {
-        state.getPath(['stable'])
+        stable.get()
         siblingRuns++
       })
       const view = runtime.effect(() => {
         document.querySelector('output')!.textContent =
-          `${state.getPath(['user', 'count'])}:${state.getPath(['rows', 0, 'value'])}`
+          `${state.get().user.count}:${state.get().rows[0].value}`
       })
       document.querySelector('button')!.addEventListener('click', () => {
         runtime.batch(() => {
-          state.setPath(['user', 'count'], state.getPath(['user', 'count']) + 1)
-          state.setPath(['rows', 0, 'value'], state.getPath(['rows', 0, 'value']) + 2)
+          const current = state.peek()
+          state.set({
+            user: { count: current.user.count + 1 },
+            rows: [{ value: current.rows[0].value + 2 }],
+          })
         })
       })
       ;(globalThis as any).testState = {
@@ -51,6 +55,7 @@ it('updates nested and array paths in Chromium using the built public runtime', 
           view.dispose()
           sibling.dispose()
           state.dispose()
+          stable.dispose()
         },
       }
     })

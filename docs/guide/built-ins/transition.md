@@ -436,16 +436,15 @@ Rue 支持以下模式：
 `<Transition>` 也可以用于 [动态组件](/guide/guide/essentials/component-basics#dynamic-components) 周围：
 
 ```tsx
-import { useState } from '@rue-js/rue'
-import { Component, Transition } from '@rue-js/rue'
+import { Component, Transition, ref } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
-  const [activeComponent, setActiveComponent] = useState('ComponentA')
+  const activeComponent = ref<'a' | 'b'>('a')
 
   return (
     <Transition name="fade">
-      <Component is={activeComponent} />
+      <Component is={activeComponent.value} registry={{ a: ComponentA, b: ComponentB }} />
     </Transition>
   )
 }

@@ -383,29 +383,30 @@ async function decodeValue(
   }
 
   if ('$rue' in value) {
-    switch (value.$rue) {
+    const token = value as EncodedToken
+    switch (token.$rue) {
       case 'undefined':
         return undefined
       case 'text':
-        return value.value
+        return token.value
       case 'fragment':
         return RUE_FRAGMENT_SYMBOL
       case 'suspense':
         return RUE_SUSPENSE_SYMBOL
       case 'clientReference':
-        return decodeClientReference(value, options)
+        return decodeClientReference(token, options)
       case 'serverAction':
-        return decodeServerReference(value, options)
+        return decodeServerReference(token, options)
       case 'redirect':
       case 'notFound':
       case 'error':
-        return createErrorThrower(value)
+        return createErrorThrower(token)
       case 'element': {
         const [type, props] = await Promise.all([
-          decodeValue(value.type, options),
-          decodeValue(value.props, options),
+          decodeValue(token.type, options),
+          decodeValue(token.props, options),
         ])
-        return createServerProtocolElement(type, isObjectRecord(props) ? props : null, value.key)
+        return createServerProtocolElement(type, isObjectRecord(props) ? props : null, token.key)
       }
     }
   }

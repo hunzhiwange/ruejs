@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { render, setReactiveScheduling } from '@rue-js/rue'
@@ -14,14 +15,16 @@ afterEach(() => {
 describe('TextRotate', () => {
   it('renders with base class and children', async () => {
     const c = mountContainer()
-    render(
-      <TextRotate>
-        <span>
-          <span>{'ONE'}</span>
-          <span>{'TWO'}</span>
-        </span>
-      </TextRotate>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <TextRotate>
+          <span>
+            <span>{'ONE'}</span>
+            <span>{'TWO'}</span>
+          </span>
+        </TextRotate>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -34,13 +37,15 @@ describe('TextRotate', () => {
 
   it('appends custom className', async () => {
     const c = mountContainer()
-    render(
-      <TextRotate className={'text-7xl'}>
-        <span>
-          <span>{'A'}</span>
-        </span>
-      </TextRotate>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <TextRotate className={'text-7xl'}>
+          <span>
+            <span>{'A'}</span>
+          </span>
+        </TextRotate>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -51,16 +56,18 @@ describe('TextRotate', () => {
 
   it('renders items array with inner and item classes', async () => {
     const c = mountContainer()
-    render(
-      <TextRotate
-        innerClassName={'justify-items-center'}
-        items={[
-          { text: 'ONE' },
-          { text: <span className={'font-bold italic px-2'}>{'TWO'}</span> },
-          { text: 'THREE', className: 'text-red-500' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <TextRotate
+          innerClassName={'justify-items-center'}
+          items={[
+            { text: 'ONE' },
+            { text: 'TWO', strong: true, italic: true, className: 'px-2' },
+            { text: 'THREE', className: 'text-red-500' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -79,15 +86,17 @@ describe('TextRotate', () => {
 
   it('renders semantic items via text and link presets', async () => {
     const c = mountContainer()
-    render(
-      <TextRotate
-        items={[
-          { text: 'Secondary', type: 'secondary' },
-          { text: 'Marked', mark: true, strong: true },
-          { text: 'Read docs', href: 'https://rue.dev', type: 'danger' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <TextRotate
+          items={[
+            { text: 'Secondary', type: 'secondary' },
+            { text: 'Marked', mark: true, strong: true },
+            { text: 'Read docs', href: 'https://rue.dev', type: 'danger' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {

@@ -133,9 +133,9 @@ fn vapor_block_children_dispatches_expr_nested_element_and_ignores_spread() {
     let out = compact(&emit_stmts(stmts));
 
     assert!(out.contains("_$createComment(\"rue:children:anchor\")"));
-    assert!(out.contains("effect(()=>{"));
+    assert!(out.contains("_$mountCompiledSlotAt("));
     assert!(out.contains("props.children"));
-    assert!(out.contains("renderAnchor(__slot,root,_list1)"));
+    assert!(!out.contains("renderAnchor"));
     assert!(out.contains("_$createElement(\"span\",root)"));
     assert!(out.contains("_$appendChild(_el1,_$createTextNode(\"child\"));"));
     assert!(!out.contains("extra"));

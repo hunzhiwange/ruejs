@@ -309,7 +309,8 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
 
     expect(code).toContain(HEADER)
     expect(code).not.toContain('new Proxy(')
-    expect(code).toContain('renderAnchor(__slot')
+    expect(code).toContain('_$mountCompiledSlotAt')
+    expect(code).not.toContain('renderAnchor(')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
   })
@@ -329,7 +330,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
 
     expect(code).toContain(HEADER)
     expect(code).not.toContain('new Proxy(')
-    expect(code).toContain('_$createElement("svg"')
+    expect(code).toContain('_$compiledCreateElement("svg"')
     expect(code).toContain('_$setStyle')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
@@ -626,9 +627,9 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const source = await readFile(id, 'utf8')
 
     expect(source.startsWith(HEADER)).toBe(false)
-    expect(source).toContain('render as renderRue')
+    expect(source).not.toContain('render as renderRue')
     expect(source).toContain('useRef')
-    expect(source).toContain('renderDynamicRegion')
+    expect(source).not.toContain('renderDynamicRegion')
     expect(source).not.toMatch(/\bh\s*\(/)
 
     const result = await invokeTransform(source, id)
@@ -638,12 +639,12 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     expect(code).toContain(HEADER)
     expect(code).not.toContain('new Proxy(')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
-    expect(code).toContain('renderRue')
-    expect(code).toContain('renderDynamicRegion')
+    expect(code).not.toContain('renderRue')
+    expect(code).not.toContain('renderDynamicRegion')
     expect(code).not.toContain('_jsxDEV')
     expect(code).toContain('data-rue-file-input-root')
     expect(code).toContain('data-rue-file-input-count')
-    expect(code).toContain('useRef')
+    expect(code).toContain('_$compiledUseRef')
   })
 
   it('deep-compiles the real headerless swap source without legacy DOM sync hooks', async () => {
@@ -725,7 +726,7 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     expect(code).not.toMatch(/\bwatch\s*\(/)
   })
 
-  it('routes opaque helper parameters through renderAnchor instead of textContent', async () => {
+  it('routes opaque helper parameters through compiled slots instead of textContent', async () => {
     const source = `
       import { type FC } from '@rue-js/rue'
 
@@ -750,8 +751,14 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('const __slot = _$compiledPropsSnapshot(title);')
-    expect(code).toContain('const __slot = extra;')
+    expect(code).toContain('_$mountCompiledSlotAt')
+    expect(code).toMatch(
+      /_\$mountCompiledSlotAt\(\s*\{[^{}]*\}\s*,\s*\(\s*\)\s*=>\s*_\$compiledValueFactory\(\s*_\$compiledPropsSnapshot\(\s*title\s*\)\s*\)/,
+    )
+    expect(code).toMatch(
+      /_\$mountCompiledSlotAt\(\s*\{[^{}]*\}\s*,\s*\(\s*\)\s*=>\s*_\$compiledValueFactory\(\s*_\$compiledPropsSnapshot\(\s*extra\s*\)\s*\)/,
+    )
+    expect(code).not.toContain('renderAnchor(')
     expect(code).not.toMatch(/_\$settextContent\([^;]+title\)/)
     expect(code).not.toMatch(/_\$settextContent\([^;]+extra\)/)
   })
@@ -767,7 +774,9 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expect(code).toContain(HEADER)
-    expect(code).toContain('const __slot = extra;')
+    expect(code).toContain('_$mountCompiledSlotAt')
+    expect(code).toContain('_$compiledPropsGet(__rue_props, "extra")')
+    expect(code).not.toContain('renderAnchor(')
     expect(code).not.toMatch(/_\$settextContent\([^;]+extra\)/)
     expect(code).not.toContain('const currentOpenKeys = _$compiledWithHookId("computed:')
     expect(code).not.toContain('currentOpenKeys.get().some')
@@ -786,7 +795,8 @@ describe('vite-plugin-rue rue-design transform header guard', () => {
 
     expect(code).toContain(HEADER)
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
-    expect(code).toContain('const __slot = renderSiderTrigger();')
+    expect(code).toContain('_$mountCompiledSlotAt')
+    expect(code).not.toContain('renderAnchor(')
     expect(code).not.toMatch(/_\$settextContent\([^;]+renderSiderTrigger/)
     expect(code).not.toContain('_$compiledBindUseRef')
   })

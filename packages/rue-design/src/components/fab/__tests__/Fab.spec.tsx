@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Fab from '..'
@@ -18,11 +19,13 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab flower className="absolute">
-        <button>A</button>
-      </Fab>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fab flower className="absolute">
+          <button>A</button>
+        </Fab>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -36,15 +39,17 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab>
-        <Fab.Trigger data-testid="trigger" className="btn btn-circle">
-          F
-        </Fab.Trigger>
-        <Fab.Close data-testid="close">Close</Fab.Close>
-        <Fab.MainAction data-testid="main">Main</Fab.MainAction>
-      </Fab>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fab>
+          <Fab.Trigger data-testid="trigger" className="btn btn-circle">
+            F
+          </Fab.Trigger>
+          <Fab.Close data-testid="close">Close</Fab.Close>
+          <Fab.MainAction data-testid="main">Main</Fab.MainAction>
+        </Fab>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -64,16 +69,18 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab>
-        <Fab.Close data-testid="close-mixed">
-          Close <span data-testid="close-icon">X</span>
-        </Fab.Close>
-        <Fab.MainAction data-testid="main-mixed">
-          Main <button data-testid="main-button">Go</button>
-        </Fab.MainAction>
-      </Fab>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fab>
+          <Fab.Close data-testid="close-mixed">
+            Close <span data-testid="close-icon">X</span>
+          </Fab.Close>
+          <Fab.MainAction data-testid="main-mixed">
+            Main <button data-testid="main-button">Go</button>
+          </Fab.MainAction>
+        </Fab>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -90,17 +97,18 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab
-        className="absolute"
-        type="primary"
-        icon={<span data-testid="enhanced-icon">+</span>}
-        badge={{ count: 3, variant: 'error' }}
-        tooltip="查看待处理消息"
-      >
-        Inbox
-      </Fab>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fab
+          className="absolute"
+          type="primary"
+          icon="+"
+          badge={{ count: 3, variant: 'error' }}
+          tooltip="查看待处理消息"
+          content="Inbox"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -112,7 +120,7 @@ describe('Fab', () => {
       expect(button.classList.contains('btn-circle')).toBe(false)
       expect(button.textContent).toContain('Inbox')
       expect(root.textContent).toContain('3')
-      expect(root.querySelector('[data-testid="enhanced-icon"]')).not.toBeNull()
+      expect(root.querySelector('[data-rue-fab-icon="true"]')).not.toBeNull()
     })
   })
 
@@ -120,14 +128,8 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab
-        className="absolute"
-        type="primary"
-        icon={<span data-testid="icon-only">+</span>}
-        tooltip="新建内容"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(<Fab className="absolute" type="primary" icon="+" tooltip="新建内容" />, container),
     )
 
     await waitForContent(() => {
@@ -135,7 +137,7 @@ describe('Fab', () => {
       const button = root.querySelector('.btn') as HTMLElement
       expect(button.classList.contains('btn-circle')).toBe(true)
       expect(button.className.includes('min-h-20')).toBe(false)
-      expect(root.querySelector('[data-testid="icon-only"]')).not.toBeNull()
+      expect(root.querySelector('[data-rue-fab-icon="true"]')).not.toBeNull()
     })
   })
 
@@ -143,17 +145,19 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab
-        trigger="hover"
-        type="primary"
-        icon={<span>+</span>}
-        items={[
-          { key: 'draft', icon: <span>D</span>, content: 'Draft' },
-          { key: 'share', icon: <span>S</span>, content: 'Share' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fab
+          trigger="hover"
+          type="primary"
+          icon="+"
+          items={[
+            { key: 'draft', icon: 'D', content: 'Draft' },
+            { key: 'share', icon: 'S', content: 'Share' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -168,17 +172,19 @@ describe('Fab', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fab
-        trigger="click"
-        type="primary"
-        icon={<span>+</span>}
-        items={[
-          { key: 'camera', icon: <span>C</span>, tooltip: '拍照' },
-          { key: 'gallery', icon: <span>G</span>, tooltip: '相册' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fab
+          trigger="click"
+          type="primary"
+          icon="+"
+          items={[
+            { key: 'camera', icon: 'C', tooltip: '拍照' },
+            { key: 'gallery', icon: 'G', tooltip: '相册' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

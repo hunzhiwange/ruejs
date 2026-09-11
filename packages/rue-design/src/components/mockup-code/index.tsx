@@ -166,14 +166,21 @@ const createRootProps = ({
 })
 
 /** 渲染数据驱动代码行的内部工具函数。 */
-const renderMockupCodeItem = (
-  item: MockupCodeLineData,
-  index: number,
-  prefix: any,
-  lineNumbers: boolean | undefined,
-  start: number,
-  codeClassName: string | undefined,
-) => {
+const RenderMockupCodeItem = ({
+  arg0: item,
+  arg1: index,
+  arg2: prefix,
+  arg3: lineNumbers,
+  arg4: start,
+  arg5: codeClassName,
+}: {
+  arg0: MockupCodeLineData
+  arg1: number
+  arg2: any
+  arg3: boolean | undefined
+  arg4: number
+  arg5: string | undefined
+}) => {
   return (
     <Line
       key={item.key ?? index}
@@ -235,14 +242,56 @@ const Line: FC<MockupCodeLineProps> = ({
 
   if (typeof as === 'function') {
     const Component = as as any
-    return (
-      <Component {...lineProps()}>
+    return Component === 'div' ? (
+      <div {...lineProps()}>
         {hasChildren() ? (
           children
         ) : hasLineCode() ? (
           <code className={codeClassName}>{lineCode}</code>
         ) : null}
-      </Component>
+      </div>
+    ) : Component === 'span' ? (
+      <span {...lineProps()}>
+        {hasChildren() ? (
+          children
+        ) : hasLineCode() ? (
+          <code className={codeClassName}>{lineCode}</code>
+        ) : null}
+      </span>
+    ) : Component === 'pre' ? (
+      <pre {...lineProps()}>
+        {hasChildren() ? (
+          children
+        ) : hasLineCode() ? (
+          <code className={codeClassName}>{lineCode}</code>
+        ) : null}
+      </pre>
+    ) : Component === 'li' ? (
+      <li {...lineProps()}>
+        {hasChildren() ? (
+          children
+        ) : hasLineCode() ? (
+          <code className={codeClassName}>{lineCode}</code>
+        ) : null}
+      </li>
+    ) : Component === 'section' ? (
+      <section {...lineProps()}>
+        {hasChildren() ? (
+          children
+        ) : hasLineCode() ? (
+          <code className={codeClassName}>{lineCode}</code>
+        ) : null}
+      </section>
+    ) : Component === 'article' ? (
+      <article {...lineProps()}>
+        {hasChildren() ? (
+          children
+        ) : hasLineCode() ? (
+          <code className={codeClassName}>{lineCode}</code>
+        ) : null}
+      </article>
+    ) : (
+      <></>
     )
   }
 
@@ -274,9 +323,16 @@ const Root: FC<MockupCodeProps> = ({
   if (as === 'section') {
     return (
       <section {...rootProps()}>
-        {(items ?? []).map((item, index) =>
-          renderMockupCodeItem(item, index, prefix, lineNumbers, start, codeClassName),
-        )}
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
         {children}
       </section>
     )
@@ -285,9 +341,16 @@ const Root: FC<MockupCodeProps> = ({
   if (as === 'article') {
     return (
       <article {...rootProps()}>
-        {(items ?? []).map((item, index) =>
-          renderMockupCodeItem(item, index, prefix, lineNumbers, start, codeClassName),
-        )}
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
         {children}
       </article>
     )
@@ -295,21 +358,107 @@ const Root: FC<MockupCodeProps> = ({
 
   if (typeof as === 'function') {
     const Component = as as any
-    return (
-      <Component {...rootProps()}>
-        {(items ?? []).map((item, index) =>
-          renderMockupCodeItem(item, index, prefix, lineNumbers, start, codeClassName),
-        )}
+    return Component === 'div' ? (
+      <div {...rootProps()}>
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
         {children}
-      </Component>
+      </div>
+    ) : Component === 'span' ? (
+      <span {...rootProps()}>
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
+        {children}
+      </span>
+    ) : Component === 'pre' ? (
+      <pre {...rootProps()}>
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
+        {children}
+      </pre>
+    ) : Component === 'li' ? (
+      <li {...rootProps()}>
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
+        {children}
+      </li>
+    ) : Component === 'section' ? (
+      <section {...rootProps()}>
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
+        {children}
+      </section>
+    ) : Component === 'article' ? (
+      <article {...rootProps()}>
+        {(items ?? []).map((item, index) => (
+          <RenderMockupCodeItem
+            arg0={item}
+            arg1={index}
+            arg2={prefix}
+            arg3={lineNumbers}
+            arg4={start}
+            arg5={codeClassName}
+          />
+        ))}
+        {children}
+      </article>
+    ) : (
+      <></>
     )
   }
 
   return (
     <div {...rootProps()}>
-      {(items ?? []).map((item, index) =>
-        renderMockupCodeItem(item, index, prefix, lineNumbers, start, codeClassName),
-      )}
+      {(items ?? []).map((item, index) => (
+        <RenderMockupCodeItem
+          arg0={item}
+          arg1={index}
+          arg2={prefix}
+          arg3={lineNumbers}
+          arg4={start}
+          arg5={codeClassName}
+        />
+      ))}
       {children}
     </div>
   )

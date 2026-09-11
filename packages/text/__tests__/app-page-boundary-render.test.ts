@@ -1,3 +1,5 @@
+import { renderAppRscPayloadToReadableStream } from '../src/server/app-rsc-runtime-compat.js'
+import { decodeRuePayloadReadableStream } from '@rue-js/rsc/core/payload'
 import { describe, expect, it, vi } from 'vite-plus/test'
 import {
   renderAppPageErrorBoundary,
@@ -19,7 +21,7 @@ function renderElementToStream(element: TestServerNode | AppElements): ReadableS
 }
 
 function renderWirePayloadToStream(payload: unknown): ReadableStream<Uint8Array> {
-  return createStreamFromMarkup(JSON.stringify(payload))
+  return renderAppRscPayloadToReadableStream(payload)
 }
 
 function createCommonOptions() {
@@ -276,7 +278,7 @@ describe('app page boundary render helpers', () => {
     expect(response?.status).toBe(404)
     expect(response?.headers.get('Content-Type')).toBe('text/x-component')
 
-    const payload = JSON.parse((await response?.text()) ?? '{}') as Record<string, unknown>
+    const payload = await decodeRuePayloadReadableStream<Record<string, unknown>>(response!.body!)
     expect(payload.__route).toBe('route:/posts/missing')
     expect(payload.__layoutIds).toEqual(['layout:/', 'layout:/posts'])
     expect(payload.__rootLayout).toBe('/')
@@ -305,7 +307,7 @@ describe('app page boundary render helpers', () => {
 
     expect(response?.status).toBe(404)
 
-    const payload = JSON.parse((await response?.text()) ?? '{}') as Record<string, unknown>
+    const payload = await decodeRuePayloadReadableStream<Record<string, unknown>>(response!.body!)
     expect(payload.__layoutIds).toEqual(['layout:/'])
     expect(payload.__rootLayout).toBe('/')
     expect(payload['route:/posts/missing']).toBeTruthy()
@@ -333,7 +335,7 @@ describe('app page boundary render helpers', () => {
 
     expect(response?.status).toBe(404)
 
-    const payload = JSON.parse((await response?.text()) ?? '{}') as Record<string, unknown>
+    const payload = await decodeRuePayloadReadableStream<Record<string, unknown>>(response!.body!)
     expect(payload.__layoutIds).toEqual([])
     expect(payload.__rootLayout).toBeNull()
     expect(payload['route:/posts/missing']).toBeTruthy()
@@ -378,7 +380,7 @@ describe('app page boundary render helpers', () => {
 
     expect(response?.status).toBe(404)
 
-    const payload = JSON.parse((await response?.text()) ?? '{}') as Record<string, unknown>
+    const payload = await decodeRuePayloadReadableStream<Record<string, unknown>>(response!.body!)
     expect(payload.__route).toBe('route:/posts/missing')
     expect(payload.__layoutIds).toEqual([])
     expect(payload.__rootLayout).toBeNull()
@@ -518,7 +520,7 @@ describe('app page boundary render helpers', () => {
     expect(response?.status).toBe(200)
     expect(response?.headers.get('Content-Type')).toBe('text/x-component')
 
-    const payload = JSON.parse((await response?.text()) ?? '{}') as Record<string, unknown>
+    const payload = await decodeRuePayloadReadableStream<Record<string, unknown>>(response!.body!)
     expect(payload.__route).toBe('route:/posts/missing')
     expect(payload.__layoutIds).toEqual(['layout:/'])
     expect(payload.__rootLayout).toBe('/')

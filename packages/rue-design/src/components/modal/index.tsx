@@ -79,15 +79,7 @@ export interface ModalProps {
   /** 操作区内容。 */
   actions?: any
   /** 底部区域内容。 */
-  footer?:
-    | any
-    | ((
-        originNode: any,
-        extra: {
-          OkBtn: FC<Record<string, any>>
-          CancelBtn: FC<Record<string, any>>
-        },
-      ) => any)
+  footer?: string | number | null | false | ((originNode?: any) => any)
   /** 根节点附加类名。 */
   className?: string
   /** 根节点附加类名。 */
@@ -167,7 +159,7 @@ export interface ModalProps {
   /** afterOpenChange 配置项。 */
   afterOpenChange?: (open: boolean) => void
   /** modalRender 自定义渲染函数。 */
-  modalRender?: (node: any) => any
+
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
@@ -258,6 +250,8 @@ interface ModalRecord {
 }
 
 interface ModalStore {
+  revision?: { value: number }
+  viewportApp?: { dispose(): void }
   api?: ModalInstance
   records: ModalRecord[]
   holderElement?: HTMLDivElement
@@ -340,18 +334,10 @@ const mergeStyleValue = (...styles: Array<ModalInlineStyle | undefined>) => {
 }
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) return children.flatMap(item => toChildArray(item))
-  if (children == null || children === false) return []
-  return [children]
-}
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any) => toChildArray(value).length > 0
 
 /** 物化 compiled JSX 生成的动态子插槽，避免将 block factory 传入默认渲染路径。 */
-const materializeBlockFactory = (value: any) =>
-  typeof value === 'function' && value.kind === 'block-factory' ? value() : value
 
 /** 解析 Width Style 的内部工具函数。 */
 const resolveWidthStyle = (width?: ModalWidth) => {
@@ -360,7 +346,7 @@ const resolveWidthStyle = (width?: ModalWidth) => {
 }
 
 /** 渲染 Loading Body 的内部工具函数。 */
-const renderLoadingBody = () => {
+const RenderLoadingBody = () => {
   return (
     <div className="space-y-3" data-rue-modal-loading="true">
       <div className="skeleton h-4 w-2/5" />
@@ -475,21 +461,19 @@ const ModalErrorIcon: FC<ModalApiIconProps> = ({ className }) => (
 )
 
 /** render Default Api Icon 的内部工具函数。 */
-const renderDefaultApiIcon = (type: ModalApiType) => {
+const RenderDefaultApiIcon = ({ arg0: type }: { arg0: ModalApiType }) => {
   const className = 'h-5 w-5'
-  switch (type) {
-    case 'info':
-      return <ModalInfoIcon className={className} />
-    case 'success':
-      return <ModalSuccessIcon className={className} />
-    case 'error':
-      return <ModalErrorIcon className={className} />
-    case 'warning':
-    case 'confirm':
-      return <ModalWarningIcon className={className} />
-    default:
-      return null
-  }
+  return type === 'info' ? (
+    <ModalInfoIcon className={className} />
+  ) : type === 'success' ? (
+    <ModalSuccessIcon className={className} />
+  ) : type === 'error' ? (
+    <ModalErrorIcon className={className} />
+  ) : type === 'warning' || type === 'confirm' ? (
+    <ModalWarningIcon className={className} />
+  ) : (
+    <></>
+  )
 }
 
 const apiIconToneMap: Record<ModalApiType, string> = {
@@ -502,11 +486,6 @@ const apiIconToneMap: Record<ModalApiType, string> = {
 }
 
 /** 解析 Api Icon 的内部工具函数。 */
-const resolveApiIcon = (type: ModalApiType, icon?: any) => {
-  if (icon === null || icon === false) return null
-  if (icon !== undefined) return icon
-  return renderDefaultApiIcon(type)
-}
 
 /** 解析 Api Ok Button Props 的内部工具函数。 */
 const resolveApiOkButtonProps = (type: ModalApiType): ModalButtonProps | undefined => {
@@ -528,56 +507,110 @@ const isPromiseLike = (value: any): value is PromiseLike<any> => {
   return value != null && typeof value === 'object' && typeof value.then === 'function'
 }
 
-/** 模态框组件：保留现有 API，并补齐常见的 Modal 交互能力。 */
-const Modal: FC<ModalProps> = ({
-  open,
-  defaultOpen = false,
-  title,
-  children,
-  actions,
-  footer,
-  className,
-  rootClassName,
-  rootStyle,
-  wrapClassName,
-  wrapProps,
-  bodyClassName,
-  headerClassName,
-  footerClassName,
-  maskClassName,
-  classNames,
-  styles,
-  width,
-  style,
-  bodyStyle,
-  maskStyle,
-  centered = false,
-  closable = true,
-  closeIcon,
-  keyboard = true,
-  mask = true,
-  maskClosable = true,
-  forceRender = false,
-  destroyOnClose,
-  destroyOnHidden = true,
-  confirmLoading = false,
-  okText = '确定',
+const ModalActionButtons: FC<{
+  showCancel: boolean
+  showOk: boolean
+  cancelText?: string
+  okText?: string
+  okType?: ModalProps['okType']
+  confirmLoading?: boolean
+  cancelButtonProps?: Record<string, any>
+  okButtonProps?: Record<string, any>
+  onCancel: (event: MouseEvent) => void
+  onOk: (event: MouseEvent) => void
+}> = ({
+  showCancel,
+  showOk,
   cancelText,
-  okType = 'primary',
-  okButtonProps,
+  okText,
+  okType,
+  confirmLoading,
   cancelButtonProps,
-  zIndex,
-  getContainer,
-  loading = false,
-  onOk,
+  okButtonProps,
   onCancel,
-  onClose,
-  onOpenChange,
-  afterClose,
-  afterOpenChange,
-  modalRender,
-  ...rest
-}) => {
+  onOk,
+}) => (
+  <>
+    {showCancel ? (
+      <Button
+        {...cancelButtonProps}
+        onClick={(event: MouseEvent) => {
+          cancelButtonProps?.onClick?.(event)
+          if (!event.defaultPrevented) onCancel(event)
+        }}
+      >
+        {String(cancelText ?? '取消')}
+      </Button>
+    ) : null}
+    {showOk ? (
+      <Button
+        {...okButtonProps}
+        type={okButtonProps?.type ?? okType}
+        loading={okButtonProps?.loading ?? confirmLoading}
+        onClick={(event: MouseEvent) => {
+          okButtonProps?.onClick?.(event)
+          if (!event.defaultPrevented) onOk(event)
+        }}
+      >
+        {String(okText ?? '确定')}
+      </Button>
+    ) : null}
+  </>
+)
+
+/** 模态框组件：保留现有 API，并补齐常见的 Modal 交互能力。 */
+const Modal: FC<ModalProps> = (
+  {
+    open,
+    defaultOpen = false,
+    title,
+    children,
+    actions,
+    footer,
+    className,
+    rootClassName,
+    rootStyle,
+    wrapClassName,
+    wrapProps,
+    bodyClassName,
+    headerClassName,
+    footerClassName,
+    maskClassName,
+    classNames,
+    styles,
+    width,
+    style,
+    bodyStyle,
+    maskStyle,
+    centered = false,
+    closable = true,
+    closeIcon,
+    keyboard = true,
+    mask = true,
+    maskClosable = true,
+    forceRender = false,
+    destroyOnClose,
+    destroyOnHidden = true,
+    confirmLoading = false,
+    okText = '确定',
+    cancelText,
+    okType = 'primary',
+    okButtonProps,
+    cancelButtonProps,
+    zIndex,
+    getContainer,
+    loading = false,
+    onOk,
+    onCancel,
+    onClose,
+    onOpenChange,
+    afterClose,
+    afterOpenChange,
+
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const uncontrolledOpen = ref(defaultOpen)
   const hasOpened = ref(defaultOpen || open === true)
   const locked = ref(false)
@@ -608,13 +641,6 @@ const Modal: FC<ModalProps> = ({
     if (onOk) onOk(event)
   }
 
-  const _handleMaskClick = (event: MouseEvent) => {
-    if (!mask || !maskClosable) return
-    if (event.target === event.currentTarget) {
-      notifyCancel(event)
-    }
-  }
-
   onMounted(() => {
     if (mergedOpen.get()) {
       lockDocumentScroll()
@@ -634,21 +660,24 @@ const Modal: FC<ModalProps> = ({
     })
   })
 
-  watch(mergedOpen, (nextOpen: boolean) => {
-    currentOpen.value = nextOpen
-    if (nextOpen) {
-      hasOpened.value = true
-      if (!locked.value) {
-        lockDocumentScroll()
-        locked.value = true
+  watch(
+    () => !!mergedOpen.value,
+    (nextOpen: boolean) => {
+      currentOpen.value = nextOpen
+      if (nextOpen) {
+        hasOpened.value = true
+        if (!locked.value) {
+          lockDocumentScroll()
+          locked.value = true
+        }
+      } else if (locked.value) {
+        unlockDocumentScroll()
+        locked.value = false
+        if (afterClose) afterClose()
       }
-    } else if (locked.value) {
-      unlockDocumentScroll()
-      locked.value = false
-      if (afterClose) afterClose()
-    }
-    if (afterOpenChange) afterOpenChange(nextOpen)
-  })
+      if (afterOpenChange) afterOpenChange(nextOpen)
+    },
+  )
 
   watch(
     () => keyboard,
@@ -677,7 +706,7 @@ const Modal: FC<ModalProps> = ({
 
   const mergedDestroyOnHidden = destroyOnHidden ?? destroyOnClose ?? true
   const shouldMount = mergedOpen.get() || forceRender || (!mergedDestroyOnHidden && hasOpened.value)
-  if (!shouldMount) return null
+  if (!shouldMount) return <></>
 
   const wrapperProps = wrapProps ?? {}
   const {
@@ -693,64 +722,7 @@ const Modal: FC<ModalProps> = ({
   const showCancelButton =
     showLegacyActionFooter || onCancel != null || onClose != null || showOkButton
 
-  const renderCancelButtonNode = (buttonOverrides?: Record<string, any>) => {
-    const { children: buttonChildren, onClick, ...buttonRest } = buttonOverrides ?? {}
-    const resolvedChildren = materializeBlockFactory(
-      buttonChildren ?? cancelButtonProps?.children ?? defaultCancelText,
-    )
-    return (
-      <Button
-        {...cancelButtonProps}
-        {...buttonRest}
-        onClick={(event: MouseEvent) => {
-          if (onClick) onClick(event)
-          if (event.defaultPrevented) return
-          notifyCancel(event)
-        }}
-        disabled={buttonRest.disabled ?? cancelButtonProps?.disabled}
-        children={resolvedChildren}
-      />
-    )
-  }
-
-  const renderOkButtonNode = (buttonOverrides?: Record<string, any>) => {
-    const { children: buttonChildren, onClick, ...buttonRest } = buttonOverrides ?? {}
-    const resolvedChildren = materializeBlockFactory(
-      buttonChildren ?? okButtonProps?.children ?? okText,
-    )
-    return (
-      <Button
-        {...okButtonProps}
-        {...buttonRest}
-        type={buttonRest.type ?? okButtonProps?.type ?? okType}
-        loading={buttonRest.loading ?? okButtonProps?.loading ?? confirmLoading}
-        onClick={(event: MouseEvent) => {
-          if (onClick) onClick(event)
-          if (event.defaultPrevented) return
-          handleOk(event)
-        }}
-        children={resolvedChildren}
-      />
-    )
-  }
-
-  const CancelBtn: FC<Record<string, any>> = props => renderCancelButtonNode(props)
-  const OkBtn: FC<Record<string, any>> = props => renderOkButtonNode(props)
-
-  const defaultFooter = (
-    <>
-      {showLegacyActionFooter ? actions : null}
-      {showCancelButton ? renderCancelButtonNode() : null}
-      {showOkButton ? renderOkButtonNode() : null}
-    </>
-  )
-
-  const footerContent =
-    loading || footer === null || footer === false
-      ? null
-      : typeof footer === 'function'
-        ? footer(defaultFooter, { OkBtn, CancelBtn })
-        : (footer ?? defaultFooter)
+  const showFooter = !loading && footer !== null && footer !== false
 
   const handleWrapperClick = (event: MouseEvent) => {
     if (wrapperPropsOnClick) wrapperPropsOnClick(event)
@@ -759,7 +731,7 @@ const Modal: FC<ModalProps> = ({
     notifyCancel(event)
   }
 
-  const boxNode = (
+  const ModalBox = () => (
     <div
       {...rest}
       aria-hidden={mergedOpen.get() ? undefined : 'true'}
@@ -858,9 +830,9 @@ const Modal: FC<ModalProps> = ({
               style={mergeStyleValue(styles?.body, bodyStyle)}
               aria-busy={loading ? 'true' : undefined}
             >
-              {loading ? renderLoadingBody() : children}
+              {loading ? <RenderLoadingBody /> : children}
             </div>
-            {footerContent ? (
+            {showFooter ? (
               <div
                 {...{ style: mergeStyleValue(styles?.footer) }}
                 className={mergeClassName(
@@ -868,7 +840,24 @@ const Modal: FC<ModalProps> = ({
                   mergeClassName(footerClassName, classNames?.footer),
                 )}
               >
-                {footerContent}
+                {slots.footer ? (
+                  <>{slots.footer}</>
+                ) : footer != null ? (
+                  <>{String(footer)}</>
+                ) : (
+                  <ModalActionButtons
+                    showCancel={showCancelButton}
+                    showOk={showOkButton}
+                    cancelText={defaultCancelText}
+                    okText={okText}
+                    okType={okType as ButtonType}
+                    confirmLoading={confirmLoading}
+                    cancelButtonProps={cancelButtonProps}
+                    okButtonProps={okButtonProps}
+                    onCancel={notifyCancel}
+                    onOk={handleOk}
+                  />
+                )}
               </div>
             ) : null}
           </div>
@@ -877,78 +866,48 @@ const Modal: FC<ModalProps> = ({
     </div>
   )
 
-  const renderedNode = modalRender ? modalRender(boxNode) : boxNode
   const resolvedContainer = typeof getContainer === 'function' ? getContainer() : getContainer
-
-  if (resolvedContainer === false || resolvedContainer == null) {
-    return renderedNode
-  }
-
-  return <Teleport to={resolvedContainer}>{renderedNode}</Teleport>
-}
-
-/** render Api Body 的内部工具函数。 */
-const renderApiBody = (config: ModalFuncProps, type: ModalApiType) => {
-  const icon = resolveApiIcon(type, config.icon)
-  const content = hasRenderableContent(config.children) ? config.children : config.content
-  const hasIcon = hasRenderableContent(icon)
-  const hasTitle = hasRenderableContent(config.title)
-  const hasContent = hasRenderableContent(content)
-
-  if (!hasIcon && !hasTitle) return <>{content}</>
-
-  return (
-    <div className="flex items-start gap-3">
-      {hasIcon ? (
-        <div
-          className={mergeClassName(
-            'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
-            apiIconToneMap[type],
-          )}
-        >
-          {icon}
-        </div>
-      ) : null}
-      <div className="min-w-0 flex-1">
-        {hasTitle ? (
-          <div className="text-base font-semibold leading-6 text-base-content">{config.title}</div>
-        ) : null}
-        {hasContent ? (
-          <div
-            className={mergeClassName(
-              hasTitle ? 'mt-2 text-sm leading-6 text-base-content/75' : 'text-sm leading-6',
-            )}
-          >
-            {content}
-          </div>
-        ) : null}
-      </div>
-    </div>
+  return resolvedContainer === false || !resolvedContainer ? (
+    <ModalBox />
+  ) : (
+    <Teleport to={resolvedContainer}>
+      <ModalBox />
+    </Teleport>
   )
 }
 
-/** resolve Api Footer 的内部工具函数。 */
-const resolveApiFooter = (config: ModalFuncProps, type: ModalApiType) => {
-  return (
-    _originNode: any,
-    helpers: { OkBtn: FC<Record<string, any>>; CancelBtn: FC<Record<string, any>> },
-  ) => {
-    const showCancel =
-      config.cancelText !== null &&
-      (type === 'confirm' || config.onCancel != null || config.cancelButtonProps != null)
-    const showOk = config.okText !== null
-    const defaultFooter = (
-      <>
-        {showCancel ? <helpers.CancelBtn>{config.cancelText ?? '取消'}</helpers.CancelBtn> : null}
-        {showOk ? <helpers.OkBtn>{config.okText ?? '确定'}</helpers.OkBtn> : null}
-      </>
-    )
-
-    if (config.footer === undefined) return defaultFooter
-    if (typeof config.footer === 'function') return config.footer(defaultFooter, helpers)
-    return config.footer
-  }
-}
+/** render Api Body 的内部工具函数。 */
+const RenderApiBody: FC<{ arg0: ModalFuncProps; arg1: ModalApiType }> = ({
+  arg0: config,
+  arg1: type,
+}) => (
+  <div className="flex items-start gap-3">
+    {config.icon !== null ? (
+      <div
+        className={mergeClassName(
+          'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+          apiIconToneMap[type],
+        )}
+      >
+        {config.icon !== undefined ? (
+          <>{String(config.icon)}</>
+        ) : (
+          <RenderDefaultApiIcon arg0={type} />
+        )}
+      </div>
+    ) : null}
+    <div className="min-w-0 flex-1">
+      {config.title != null ? (
+        <div className="text-base font-semibold leading-6 text-base-content">
+          {String(config.title)}
+        </div>
+      ) : null}
+      {config.content != null ? (
+        <div className="mt-2 text-sm leading-6 text-base-content/75">{String(config.content)}</div>
+      ) : null}
+    </div>
+  </div>
+)
 
 /** resolve Modal Api Config 的内部工具函数。 */
 const resolveModalApiConfig = (record: ModalRecord, options: ModalUseOptions): ModalFuncProps => {
@@ -965,7 +924,7 @@ const ModalApiItem: FC<{
   onDestroy: (key: ModalKey, confirmed?: boolean) => void
   onUpdate: (key: ModalKey, patch: Partial<ModalRecord>) => void
 }> = ({ record, options, onDestroy, onUpdate }) => {
-  const config = resolveModalApiConfig(record, options)
+  const config = computed(() => resolveModalApiConfig(record, options))
   const {
     key: _key,
     content: _content,
@@ -984,7 +943,7 @@ const ModalApiItem: FC<{
     okButtonProps,
     bodyClassName,
     ...modalProps
-  } = config
+  } = config.get()
 
   const closeAsOk = () => onDestroy(record.key, true)
   const closeAsCancel = () => onDestroy(record.key, false)
@@ -1033,29 +992,27 @@ const ModalApiItem: FC<{
 
   return (
     <Modal
-      {...modalProps}
+      {...config.get()}
       open
       title={undefined}
-      width={width ?? 416}
+      width={config.get().width ?? 416}
       closable={closable ?? record.type === 'open'}
       maskClosable={maskClosable ?? record.type === 'open'}
-      confirmLoading={record.confirmLoading || !!confirmLoading}
+      confirmLoading={record.confirmLoading || !!config.get().confirmLoading}
       okButtonProps={mergedOkButtonProps}
       bodyClassName={mergeClassName('py-1', bodyClassName)}
-      footer={resolveApiFooter(config, record.type)}
+      footer={config.get().footer}
       onOk={(event: MouseEvent) => runAction('ok', event)}
       onCancel={(event: MouseEvent | KeyboardEvent) => runAction('cancel', event)}
       data-rue-modal-api-type={record.type}
     >
-      {renderApiBody(config, record.type)}
+      <RenderApiBody arg0={config.get()} arg1={record.type} />
     </Modal>
   )
 }
 
 /** Modal Api Viewport 的内部工具函数。 */
 const ModalApiViewport: FC<ModalApiViewportProps> = ({ records, options, onDestroy, onUpdate }) => {
-  if (records.length === 0) return <div style={{ display: 'contents' }} />
-
   return (
     <>
       {records.map(record => (
@@ -1112,16 +1069,28 @@ const resolveModalRecord = (record: ModalRecord, confirmed: boolean) => {
   record.resolve(confirmed)
 }
 
+const readModalRecords = (store: ModalStore) => {
+  void store.revision?.value
+  return store.records
+}
+const readModalOptions = (store: ModalStore) => {
+  void store.revision?.value
+  return store.options
+}
+
 /** sync Modal Store 的内部工具函数。 */
 const syncModalStore = (store: ModalStore) => {
   if (typeof document === 'undefined') return
   if (store.records.length === 0 && store.viewportElement == null) return
   const viewportElement = ensureModalViewportElement(store)
   if (!viewportElement) return
-  render(
+  store.revision ??= ref(0)
+  store.revision.value += 1
+  if (store.viewportApp) return
+  store.viewportApp = render(
     <ModalApiViewport
-      records={store.records}
-      options={store.options}
+      records={readModalRecords(store)}
+      options={readModalOptions(store)}
       onDestroy={(key: ModalKey, confirmed = false) => destroyModalRecord(store, key, confirmed)}
       onUpdate={(key: ModalKey, patch: Partial<ModalRecord>) => patchModalRecord(store, key, patch)}
     />,
@@ -1295,6 +1264,8 @@ export const useModal = (options: ModalUseOptions = {}) => {
 
   onUnmounted(() => {
     destroyAllModalRecords(store)
+    store.viewportApp?.dispose()
+    store.viewportApp = undefined
     if (store.viewportElement) {
       store.viewportElement.remove()
       store.viewportElement = undefined

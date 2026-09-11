@@ -13,7 +13,7 @@ Rue 当前的组件模型以 JSX / TSX 函数组件为主。公共 API 中出现
 
 - **详情**
 
-  `ComponentInstance` 是 Rue 对组件入口的类型别名。它可用于 `useApp()` 的根组件、`app.component()` 注册的全局组件以及 `<Component>` 动态组件的 `is` 参数。
+  `ComponentInstance` 是 Rue 对静态组件入口的类型别名。它可用于 `useApp()` 的根组件和 `<Component>` 字面量 registry 的值。
 
   组件通过 props 接收外部输入，并返回可渲染内容。状态、生命周期和上下文能力应通过 `ref()`、`useState()`、`onMounted()`、`createContext()` 等组合式 API 表达，而不是依赖公开实例对象上的可变字段。
 

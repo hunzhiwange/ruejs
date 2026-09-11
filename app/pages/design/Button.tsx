@@ -882,7 +882,7 @@ const lastAction = ref('未触发')
 
         <ExampleBlock
           title="按钮组合"
-          summary="提供与常见 ButtonGroup 类似的分组能力，这里统一用 Button.Group。"
+          summary="提供与常见 Button.Group 类似的分组能力，这里统一用 Button.Group。"
           tab={tabGroup}
           preview={() => (
             <div className="card bg-base-100 shadow-sm">

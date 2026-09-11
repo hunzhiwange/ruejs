@@ -107,3 +107,34 @@ describe('App action protocols', () => {
     expect((action as () => unknown)()).toBe('Rue')
   })
 })
+
+it('decodes bound progressive state and excludes protocol fields from user FormData', async () => {
+  const action = vi.fn((state: { count: number }, data: FormData) => ({
+    count: state.count + Number(data.get('step')),
+  }))
+  const protocol = createRueServerActionProtocol(async () => action)
+  const body = new FormData()
+  body.set('$RUE_ACTION_ID_counter#add', '')
+  body.set(
+    '$RUE_ACTION_STATE',
+    JSON.stringify({ version: 1, key: 'counter:0', actionId: 'counter#add', state: { count: 2 } }),
+  )
+  body.set('step', '1')
+  const decoded = (await protocol.decodeProgressiveAction(body)) as () => unknown
+  const result = await decoded()
+  expect(result).toEqual({ count: 3 })
+  expect([...action.mock.calls[0]![1].keys()]).toEqual(['step'])
+  expect(await protocol.decodeFormState(result, body)).toEqual({
+    version: 1,
+    key: 'counter:0',
+    actionId: 'counter#add',
+    state: { count: 3 },
+  })
+  body.set(
+    '$RUE_ACTION_STATE',
+    JSON.stringify({ version: 1, key: 'counter:0', actionId: 'other', state: null }),
+  )
+  await expect(protocol.decodeProgressiveAction(body)).rejects.toThrow(
+    'Invalid Rue action state reference',
+  )
+})

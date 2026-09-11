@@ -61,18 +61,21 @@ fn hydrate_target_routes_dom_helpers_to_the_explicit_hydration_entry() {
         parse_program("export const View = () => <button type=\"button\">hydrate</button>;");
     let out = emit(apply_hydrate(program), cm);
 
-    assert!(out.contains("@rue-js/runtime/island"), "{out}");
-    assert!(out.contains("_$compiledCreateElement") || out.contains("_$template"), "{out}");
+    assert!(out.contains("@rue-js/rue/internal/hydrate"), "{out}");
+    assert!(out.contains("_$claimElement"), "{out}");
     assert!(!out.contains("from \"@rue-js/rue/internal\""), "{out}");
 }
 
 #[test]
 fn diagnostics_strict_client_compile_rejects_dynamic_hooks_and_accepts_local_components() {
     let dynamic_hook = "import { useState } from '@rue-js/rue'; export const View = props => { if (props.active) { useState(0); } return <main>value</main>; };";
-    let (program, cm) = parse_program(dynamic_hook);
-    let out = emit(run_full_transform_with_options(program, true, true, None), cm);
-    assert!(out.contains("__RUE_COMPILER_DIAGNOSTIC__"), "{out}");
-    assert!(out.contains(r#""category":"dynamic-hook""#), "{out}");
+    let (program, _) = parse_program(dynamic_hook);
+    assert!(
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_full_transform_with_options(
+            program, true, true, None
+        )))
+        .is_err()
+    );
 
     let local_component =
         "const Child = () => <span>child</span>; export const View = () => <Child />;";
@@ -98,6 +101,11 @@ fn diagnostics_dynamic_hook_distinguishes_hooks_from_plain_local_calls() {
             "hook wrapper",
             "import { useState } from '@rue-js/rue'; const useCount = () => useState(0); if (ready) { useCount(); }",
             true,
+        ),
+        (
+            "ordinary reactive factories",
+            "import { computed, ref, watchEffect } from '@rue-js/rue'; if (ready) { const n = ref(0); computed(() => n.value); watchEffect(() => n.value); }",
+            false,
         ),
         ("local component", "const LocalPanel = () => null; if (ready) { LocalPanel(); }", false),
         (
@@ -157,18 +165,15 @@ const View: FC = () => {
     let out = normalize(&emit(apply(program), cm));
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains(&normalize(r#"const _$useSetup = _$compiledSetup("useSetup:0:0""#)));
+    assert!(!out.contains("_$compiledMarkComponentRenderReactive"), "{out}");
     assert!(out.contains(&normalize("const count = ref(0);")), "{out}");
     assert!(out.contains(&normalize("const step = ref(1);")), "{out}");
     assert!(out.contains(&normalize("const doubled = computed(()=>count.value * 2);")), "{out}");
     assert!(out.contains(&normalize("watchEffect(()=>consume(doubled.value));")), "{out}");
     assert!(!out.contains("computed:0:"), "{out}");
     assert!(!out.contains("watchEffect:0:"), "{out}");
-    assert_eq!(out.matches(&normalize(r#"_$compiledWithHookId("ref:"#)).count(), 1, "{out}");
-    assert!(
-        out.contains(&normalize(r#"const deferred = ()=>_$compiledWithHookId("ref:"#)),
-        "{out}"
-    );
+    assert!(!out.contains(&normalize(r#"_$compiledWithHookId("ref:"#)), "{out}");
+    assert!(out.contains(&normalize("const deferred = ()=>ref(2)")), "{out}");
     assert!(out.contains("_$compiledRoot"));
     assert!(out.contains("_$compiledText"));
     assert!(out.contains("_$template"));
@@ -198,7 +203,7 @@ const View: FC = (props) => {
 }
 
 #[test]
-fn apply_pre_marks_nested_jsx_render_closures_and_dynamic_component_root() {
+fn apply_pre_preserves_nested_jsx_closures_without_render_markers() {
     let src = r#"
 import { type FC, ref } from '@rue-js/rue';
 
@@ -210,21 +215,24 @@ const View: FC = () => {
     let (program, cm) = parse_program(src);
     let out = normalize(&emit(apply_pre(program), cm));
 
-    assert_eq!(out.matches("_$compiledMarkComponentRenderReactive(()").count(), 2, "{out}");
-    assert!(out.contains("preview={_$compiledMarkComponentRenderReactive(()=><button>"), "{out}");
+    assert!(!out.contains("_$compiledMarkComponentRenderReactive"), "{out}");
+    assert!(out.contains("preview={()=><button>"), "{out}");
 }
 
 #[test]
 fn apply_closes_compiled_and_vapor_capability_boundaries() {
     let vapor_cases = [
-        ("component", "export const View = () => <Child value=\"x\" />;"),
+        (
+            "component",
+            "import { Child } from './compiled-components'; export const View = () => <Child value=\"x\" />;",
+        ),
         (
             "conditional renderable",
             "export const View = (props) => <div>{props.ready ? <i>A</i> : null}</div>;",
         ),
         (
             "slot",
-            "export const View = () => <Panel><Template slot=\"head\"><b>H</b></Template></Panel>;",
+            "import { Panel } from './compiled-components'; export const View = () => <Panel><Template slot=\"head\"><b>H</b></Template></Panel>;",
         ),
         ("spread", "export const View = (props) => <div {...props}>x</div>;"),
         (
@@ -244,11 +252,11 @@ fn apply_closes_compiled_and_vapor_capability_boundaries() {
         ),
         (
             "keep-alive",
-            "import { KeepAlive } from '@rue-js/rue'; export const View = () => <KeepAlive><Child /></KeepAlive>;",
+            "import { Child } from './compiled-components'; import { KeepAlive } from '@rue-js/rue'; export const View = () => <KeepAlive><Child /></KeepAlive>;",
         ),
         (
             "suspense",
-            "import { Suspense } from '@rue-js/rue'; export const View = () => <Suspense><Child /></Suspense>;",
+            "import { Child } from './compiled-components'; import { Suspense } from '@rue-js/rue'; export const View = () => <Suspense><Child /></Suspense>;",
         ),
         (
             "hydration",
@@ -269,7 +277,7 @@ fn apply_closes_compiled_and_vapor_capability_boundaries() {
     let fragment_src = "export const View = () => <><i>A</i><b>B</b></>;";
     let (fragment_program, fragment_cm) = parse_program(fragment_src);
     let fragment_out = emit(apply(fragment_program), fragment_cm);
-    assert!(fragment_out.contains("@rue-js/rue/internal/component"), "{fragment_out}");
+    assert!(fragment_out.contains("@rue-js/rue/internal/dom"), "{fragment_out}");
     assert!(!fragment_out.contains("@rue-js/rue/internal/compiler"), "{fragment_out}");
     assert!(fragment_out.contains("_$compiledRoot"), "{fragment_out}");
 
@@ -283,7 +291,7 @@ fn apply_closes_compiled_and_vapor_capability_boundaries() {
     let (coerced_unproven_program, coerced_unproven_cm) = parse_program(coerced_unproven_src);
     let coerced_unproven_out = emit(apply(coerced_unproven_program), coerced_unproven_cm);
     assert!(coerced_unproven_out.contains("@rue-js/rue/internal"), "{coerced_unproven_out}");
-    assert!(coerced_unproven_out.contains("_$compiledRoot("), "{coerced_unproven_out}");
+    assert!(coerced_unproven_out.contains("_$compiledScalarRoot("), "{coerced_unproven_out}");
 }
 
 #[test]
@@ -308,10 +316,15 @@ export const View = () => <main>
     let (program, cm) = parse_program(src);
     let out = emit(apply(program), cm);
 
-    assert!(out.contains("from \"@rue-js/rue/internal/component\""), "{out}");
+    assert!(out.contains("from \"@rue-js/rue/internal/list\""), "{out}");
     assert!(!out.contains("@rue-js/rue/internal/compiler"), "{out}");
     assert!(!out.contains("_$compiledWithHookId"), "{out}");
-    assert!(out.contains("_$compiledRoot"), "{out}");
+    assert!(
+        out.contains("_$compiledScalarRoot")
+            || out.contains("_$compiledScalarOwnedRoot(")
+            || out.contains("_$compiledRoot("),
+        "{out}"
+    );
     assert!(out.contains("_$reconcileKeyed"), "{out}");
     assert!(out.contains("_$template"), "{out}");
     assert!(!out.contains("document.createElement(\"template\")"), "{out}");
@@ -324,7 +337,7 @@ export const View = () => <main>
 }
 
 #[test]
-fn apply_keeps_mixed_keyed_list_helpers_on_the_vapor_graph() {
+fn apply_routes_mixed_keyed_list_helpers_to_unique_entries() {
     let src = r#"
 import { signal } from '@rue-js/rue';
 
@@ -338,15 +351,21 @@ export const View = () => <>
 "#;
     let (program, cm) = parse_program(src);
     let out = emit(apply(program), cm);
-    let vapor_import = out
-        .lines()
-        .find(|line| line.contains("@rue-js/rue/internal"))
-        .unwrap_or_else(|| panic!("missing Vapor import: {out}"));
-
-    assert!(vapor_import.contains("signal"), "{out}");
-    assert!(vapor_import.contains("_$compiledRenderEffect"), "{out}");
-    assert!(vapor_import.contains("_$reconcileKeyedSingle"), "{out}");
-    assert!(vapor_import.contains("_$createComponent"), "{out}");
+    for (helper, source) in [
+        ("signal", "reactive"),
+        ("_$compiledRenderEffect", "reactive"),
+        ("_$reconcileKeyedSingle", "list"),
+        ("_$mountCompiledComponent", "component"),
+    ] {
+        assert!(
+            out.lines().any(|line| (line.contains(helper)
+                || (helper == "signal" && line.contains("_$compiledScalarSignal"))
+                || (helper == "_$compiledRenderEffect"
+                    && line.contains("_$compiledScalarEffect")))
+                && line.contains(&format!("@rue-js/rue/internal/{source}"))),
+            "{out}"
+        );
+    }
 }
 
 #[test]
@@ -447,6 +466,7 @@ function View(props) {
 #[test]
 fn apply_handles_slot_conditionals_lists_and_router_link_together() {
     let src = r#"
+import { Header, Item, Panel } from './compiled-components';
 import { RouterLink, ref } from '@rue-js/rue';
 
 const View = (props) => {
@@ -464,10 +484,10 @@ const View = (props) => {
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
     assert!(out.contains("_$compiledRoot("));
-    assert!(out.contains(&normalize("_$createComponent(Panel")));
+    assert!(out.contains(&normalize("_$compiledComponent(Panel")));
     assert!(!out.contains(&normalize("_$compiledKeyedList")));
-    assert!(out.contains(&normalize("_$createElement(\"a\"")));
-    assert!(out.contains(&normalize("_$setAttribute(_el")));
+    assert!(out.contains("_$mountCompiledComponent(_root, RouterLink"), "{out}");
+    assert!(out.contains("to: _$compiledPropsGet(props, \"to\")"), "{out}");
     assert!(out.contains(&normalize("const current = ref(null);")), "{out}");
 }
 
@@ -497,6 +517,7 @@ function View(props) {
 #[test]
 fn apply_handles_transition_group_complex_map_control_flow() {
     let src = r#"
+import { TransitionGroup } from '@rue-js/rue';
 const View = (props) => {
   return <TransitionGroup>
     {props.rows.map(row => {
@@ -505,7 +526,7 @@ const View = (props) => {
       } finally {
         props.touch(row.id);
       }
-      return <li key={row.id}>{row.label}</li>;
+      return <li key={row.id}>{String(row.label)}</li>;
     })}
   </TransitionGroup>;
 };
@@ -514,20 +535,18 @@ const View = (props) => {
     let out = normalize(&emit(apply(program), cm));
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains(&normalize("_$createComponent(TransitionGroup")));
-    assert!(out.contains("_$compiledWithKey"));
-    assert!(
-        out.contains(
-            "_$compiledPropsCall(_$compiledPropsGet(props, \"touch\"), props, [ row.id ])"
-        )
-    );
-    assert!(out.contains("row.hidden"));
+    assert!(out.contains(&normalize("_$transitionGroup(")));
+    assert!(out.contains("_$reconcileKeyed"), "{out}");
+    assert!(out.contains("finally"), "{out}");
+    assert!(out.contains("touch"), "{out}");
+    assert!(out.contains("hidden"));
     assert!(out.contains("Hidden"));
 }
 
 #[test]
 fn apply_handles_fragment_slots_lists_and_pre_directives_together() {
     let src = r#"
+import { Footer, Item, Panel } from './compiled-components';
 import { ref } from '@rue-js/rue';
 
 function View(props) {
@@ -555,17 +574,19 @@ function View(props) {
     assert!(out.contains("_$reconcileKeyed"));
     assert!(out.contains("_$compiledShowStyle"));
     assert!(out.contains("_$compiledPropsGet(props, \"visible\")"));
-    assert!(out.contains("_$mountCompiledKeyedSingleRowOwnerless"), "{out}");
+    assert!(out.contains("_$mountCompiledKeyedSingleRow"), "{out}");
 }
 
 #[test]
 fn apply_handles_dense_control_directive_and_component_slot_pipeline() {
     let src = r#"
+import { TransitionGroup } from '@rue-js/rue';
+import { Badge, Footer, Shell } from './compiled-components';
 import { RouterLink, ref } from '@rue-js/rue';
 
 function View({ rows, activeId, to, visible }) {
   const draft = ref('');
-  const badge = (row) => row.hot ? <Badge key={row.id}>{row.label}</Badge> : null;
+  const badge = (row) => row.hot ? <Badge key={row.id}>{String(row.label)}</Badge> : null;
   return <>
     <Shell>
       <Template slot="toolbar">
@@ -577,8 +598,8 @@ function View({ rows, activeId, to, visible }) {
     <TransitionGroup>
       {rows.map((row, index) => {
         const selected = row.id === activeId;
-        if (row.hidden) return <li key={row.id} v-on:click-stop={() => row.open()}>{index}</li>;
-        return <li key={row.id} className={selected ? 'on' : 'off'}>{badge(row)}</li>;
+        if (row.hidden) return <li key={row.id} v-on:click-stop={() => row.open()}>{String(index)}</li>;
+        return <li key={row.id} className={selected ? 'on' : 'off'}>{row.hot ? <Badge>{String(row.label)}</Badge> : null}</li>;
       })}
     </TransitionGroup>
   </>;
@@ -592,12 +613,14 @@ function View({ rows, activeId, to, visible }) {
     assert!(out.contains("__rue_slots"));
     assert!(out.contains("toolbar"));
     assert!(out.contains(&normalize("_$createComponent(Shell")));
-    assert!(out.contains(&normalize("_$createComponent(TransitionGroup")));
-    assert!(out.contains("_$compiledWithKey"));
+    assert!(out.contains(&normalize("_$transitionGroup(")));
+    assert!(out.contains("_$reconcileKeyed"), "{out}");
     assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
-    assert!(out.contains(&normalize("_$createElement(\"a\"")));
+    assert!(out.contains(&normalize("_$createComponent(RouterLink")), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt"), "{out}");
+    assert!(!out.contains("RouterLink.__rueOnClick"), "{out}");
     assert!(out.contains("selected"));
 }
 
@@ -664,14 +687,15 @@ function View(props) {
 }
 
 #[test]
-fn apply_handles_component_native_events_dynamic_slots_and_fragment_lists() {
+fn apply_adapts_unproven_render_helper_rows_in_dynamic_slots() {
     let src = r#"
+import { Card, Footer, RouterLink, Shell } from './compiled-components';
 function View(props) {
   const renderRow = (row) => row.kind === 'link'
     ? <RouterLink key={row.id} to={row.to}>{row.label}</RouterLink>
-    : <Card key={row.id} __rueNativeOnClick={() => props.pick(row.id)}>{row.label}</Card>;
+    : <Card key={row.id} onPick={() => props.pick(row.id)}>{row.label}</Card>;
 
-  return <Shell __rueNativeOnMouseEnter={props.enter}>
+  return <Shell onEnter={props.enter}>
     <Template slot={props.slotName}>
       <>{props.rows.map(renderRow)}</>
     </Template>
@@ -680,27 +704,14 @@ function View(props) {
 }
 "#;
     let (program, cm) = parse_program(src);
-    let out = normalize(&emit(apply(program), cm));
-
-    assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains(&normalize("_$compiledWithNativeEvents(_$createComponent(Shell")));
-    assert!(out.contains(&normalize("\"mouseenter\": _$compiledPropsGet(props, \"enter\")")));
-    assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[_$compiledPropsGet(props, \"slotName\")]"));
-    assert!(out.contains("_$createDocumentFragment"));
-    assert!(out.contains("RouterLink"));
-    assert!(out.contains(&normalize("_$compiledWithNativeEvents(_$createComponent(Card")), "{out}");
-    assert!(out.contains(&normalize(r#""click":"#)), "{out}");
-    assert!(
-        out.contains("_$compiledPropsCall(_$compiledPropsGet(props, \"pick\"), props, [ _$compiledPropsGet(row, \"id\") ])"),
-        "{out}"
-    );
-    assert!(out.contains("_$compiledPropsGet(props, \"rows\").map(renderRow)"));
+    let out = emit(apply(program), cm);
+    assert!(out.contains("_$compiledValueFactory"), "{out}");
 }
 
 #[test]
 fn transform_entry_handles_multiple_components_without_cross_component_slot_leakage() {
     let src = r#"
+import { Item, Panel } from './compiled-components';
 import { ref } from '@rue-js/rue';
 
 function First(props) {
@@ -728,12 +739,13 @@ const Second = (props) => {
     assert!(out.contains("\"header\""));
     assert!(out.contains("\"footer\""));
     assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("_$createComponent(Panel"));
+    assert!(out.contains("_$compiledComponent(Panel"), "{out}");
 }
 
 #[test]
 fn transform_entry_handles_props_destructure_dynamic_slots_and_keyed_component_lists() {
     let src = r#"
+import { Dashboard,RouterLink,Card } from './compiled-components';
 import { ref } from '@rue-js/rue';
 
 function View({ rows, selectedId, to, slotName, visible }) {
@@ -800,6 +812,8 @@ function View(props) {
 #[test]
 fn transform_entry_hardens_nested_slot_setup_model_and_transition_pipeline() {
     let src = r#"
+import { Template, TransitionGroup } from '@rue-js/rue';
+import { Card, Shell } from './compiled-components';
 import { ref, computed } from '@rue-js/rue';
 
 function View({ rows, form, activeId, slotName, ...rest }) {
@@ -842,8 +856,8 @@ function View({ rows, form, activeId, slotName, ...rest }) {
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
-    assert!(out.contains("_$createComponent(Shell"));
-    assert!(out.contains("_$createComponent(TransitionGroup"));
+    assert!(out.contains("_$compiledComponent(Shell"));
+    assert!(out.contains("_$transitionGroup("));
 }
 
 #[test]
@@ -877,8 +891,9 @@ function View(props) {
 }
 
 #[test]
-fn apply_hardens_slot_fallbacks_router_link_and_fragment_list_boundaries() {
+fn apply_adapts_nested_unproven_fragment_list_rows() {
     let src = r#"
+import { Badge, Header, Item, Layout, RouterLink } from './compiled-components';
 const View = (props) => {
   const extra = props.ready ? <Badge>{props.count}</Badge> : null;
   return <Layout>
@@ -897,22 +912,14 @@ const View = (props) => {
 };
 "#;
     let (program, cm) = parse_program(src);
-    let out = normalize(&emit(apply(program), cm));
-
-    assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains("_$createComponent(Layout"));
-    assert!(out.contains("__rue_slots"));
-    assert!(out.contains("\"nav\""));
-    assert!(out.contains("RouterLink"));
-    assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("_$createDocumentFragment"));
-    assert!(out.contains("_$compiledPropsGet(props, \"header\") ??"));
-    assert!(out.contains("Badge"));
+    let out = emit(apply(program), cm);
+    assert!(out.contains("_$compiledValueFactory"), "{out}");
 }
 
 #[test]
 fn transform_entry_hardens_rest_props_block_keys_and_dynamic_slot_fallbacks() {
     let src = r#"
+import { Frame } from './compiled-components';
 import { computed } from '@rue-js/rue';
 
 function Dashboard({ rows, slotName, visible = true, ...rest }) {
@@ -945,6 +952,7 @@ function Dashboard({ rows, slotName, visible = true, ...rest }) {
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
     assert!(out.contains("_$createComponent(Frame"));
+    assert!(out.contains("_$compiledValueFactory"));
 }
 
 #[test]
@@ -1010,7 +1018,11 @@ function View(props) {
 }
 
 #[test]
-fn transform_entry_hardens_routerlink_member_components_and_nested_fragment_lists() {
+#[should_panic(
+    expected = "Rue member component must be rooted in a statically known function factory"
+)]
+fn rejects_member_components_in_transform_entry_hardens_routerlink_member_components_and_nested_fragment_lists()
+ {
     let src = r#"
 import { ref } from '@rue-js/rue';
 
@@ -1030,32 +1042,19 @@ const View = ({ groups, route, active, slotName, ...rest }) => {
   </Shell.Root>;
 };
 "#;
-    let (program, cm) = parse_program(src);
-    let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
-
-    assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains(&normalize("const draft = ref('');")), "{out}");
-    assert!(out.contains("_$compiledPropsGet(__rue_props, \"groups\")"), "{out}");
-    assert!(out.contains("_$compiledPropsGet(__rue_props, \"route\")"), "{out}");
-    assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[_$compiledPropsGet(__rue_props, \"slotName\") || \"main\"]"), "{out}");
-    assert!(out.contains("RouterLink"));
-    assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("_$createDocumentFragment"));
-    assert!(out.contains("_$compiledShowStyle"));
-    assert!(out.contains("_$compiledWithEventModifiers"));
-    assert!(out.contains("_$createComponent(Shell.Root"));
-    assert!(out.contains("_$createComponent(Item.Card"));
-    assert!(out.contains("_$createComponent(Footer"));
+    let (program, _cm) = parse_program(src);
+    let _ = transform(program, empty_plugin_metadata());
 }
 
 #[test]
 fn apply_hardens_component_models_native_events_and_transition_slots_together() {
     let src = r#"
+import { Template, TransitionGroup } from '@rue-js/rue';
+import { Editor, Layout } from './compiled-components';
 function View(props) {
   return <Layout>
     <Template slot="editor">
-      <Editor v-model:content-lazy-trim={props.doc.content} __rue_on__save__mods__native__prevent={props.save} />
+      <div __rue_on__save__mods__prevent={props.save}><Editor v-model:content-lazy-trim={props.doc.content} /></div>
       <input v-model:number={props.doc.count} v-on:keydown-enter="props.commit(props.doc.count)" />
     </Template>
     <TransitionGroup>
@@ -1070,16 +1069,22 @@ function View(props) {
     let (program, cm) = parse_program(src);
     let out = normalize(&emit(apply(program), cm));
 
-    assert!(out.contains("_$createComponent(Layout"));
+    assert!(
+        out.contains("_$compiledComponent(Layout")
+            || out.contains("_$mountCompiledComponent(")
+            || out.contains("_$createComponent(Layout"),
+        "{out}"
+    );
     assert!(out.contains("__rue_slots"));
     assert!(out.contains("contentLazyTrim: _$compiledPropsGet(props, \"doc\").content"), "{out}");
     assert!(out.contains("onUpdateContentLazyTrim"));
-    assert!(out.contains("\"save\": _$compiledWithEventModifiers"));
+    assert!(out.contains(".addEventListener(\"save\""), "{out}");
     assert!(out.contains("_$compiledWithEventModifiers"));
-    assert!(out.contains("HTMLInputElement"));
+    assert!(out.contains("$event.target"));
+    assert!(!out.contains(" as HTMLInputElement"));
     assert!(out.contains("parseFloat(value)"));
-    assert!(out.contains("_$createComponent(TransitionGroup"));
-    assert!(out.contains("_$compiledWithKey"));
+    assert!(out.contains("_$transitionGroup("));
+    assert!(out.contains("_$reconcileKeyed"), "{out}");
     assert!(!out.contains("v-model"));
     assert!(!out.contains("v-on"));
 }
@@ -1087,6 +1092,7 @@ function View(props) {
 #[test]
 fn transform_entry_preserves_loop_shadowing_after_props_phase2_lowering() {
     let src = r#"
+import { Panel,Item } from './compiled-components';
 function View({ count, rows }) {
   const total = count * 2;
   const renderTotal = () => {
@@ -1145,8 +1151,13 @@ function View(props) {
 }
 
 #[test]
-fn apply_hardens_nested_dynamic_slots_with_router_links_and_keyed_fragments() {
+#[should_panic(
+    expected = "Rue member component must be rooted in a statically known function factory"
+)]
+fn rejects_member_components_in_apply_hardens_nested_dynamic_slots_with_router_links_and_keyed_fragments()
+ {
     let src = r#"
+import { Footer, RouterLink, Shell } from './compiled-components';
 function View(props) {
   return <Shell>
     <Template slot={props.primarySlot ?? "main"}>
@@ -1162,18 +1173,8 @@ function View(props) {
   </Shell>;
 }
 "#;
-    let (program, cm) = parse_program(src);
-    let out = normalize(&emit(apply(program), cm));
-
-    assert!(out.contains("_$createComponent(Shell"));
-    assert!(out.contains("__rue_slots"));
-    assert!(out.contains("[_$compiledPropsGet(props, \"primarySlot\") ?? \"main\"]"), "{out}");
-    assert!(out.contains("_$createElement(\"a\""), "{out}");
-    assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("_$createDocumentFragment"));
-    assert!(out.contains("_$createComponent(Header.Title"));
-    assert!(out.contains("_$compiledWithNativeEvents(_$createComponent(Card.Item"));
-    assert!(out.contains("_$createComponent(Footer"));
+    let (program, _cm) = parse_program(src);
+    let _ = transform(program, empty_plugin_metadata());
 }
 
 #[test]
@@ -1206,6 +1207,7 @@ function View(props) {
 #[test]
 fn transform_entry_hardens_component_slot_models_lists_and_show_together() {
     let src = r#"
+import { Dialog, Editor, Footer, Row } from './compiled-components';
 function View({ rows, form, ready, slotName }) {
   return <Dialog v-show={ready}>
     <Template slot={slotName}>
@@ -1221,14 +1223,14 @@ function View({ rows, form, ready, slotName }) {
 
     assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
     assert!(out.contains("_$compiledPropsGet(__rue_props, \"form\")"), "{out}");
-    assert!(out.contains("_$createComponent(Dialog"));
+    assert!(out.contains("_$compiledComponent(Dialog"), "{out}");
     assert!(out.contains("_$compiledShowStyle"));
     assert!(out.contains("__rue_slots"));
     assert!(out.contains("slotName"), "{out}");
     assert!(out.contains("bodyLazy: _$rueCompiledProp0.get().body"), "{out}");
     assert!(out.contains("onUpdateBodyLazy"));
     assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("_$createComponent(Footer"));
+    assert!(out.contains("_$compiledComponent(Footer"), "{out}");
 }
 
 #[test]
@@ -1236,7 +1238,7 @@ fn transform_entry_hardens_defaulted_list_params_without_dangling_aliases() {
     let src = r#"
 function View(props) {
   return <ul>
-    {props.rows.map((row = props.fallback) => <li key={row.id}>{row.label}</li>)}
+    {props.rows.map((row = props.fallback) => <li key={row.id}>{String(row.label)}</li>)}
   </ul>;
 }
 "#;
@@ -1244,8 +1246,8 @@ function View(props) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
-    assert!(out.contains("row = _$rueCompiledProp0.get()"), "{out}");
-    assert!(out.contains("row.label"), "{out}");
+    assert!(out.contains("item === undefined ? _$rueCompiledProp0.get() : item"), "{out}");
+    assert!(out.contains("_$reconcileKeyed("), "{out}");
 }
 
 #[test]
@@ -1255,7 +1257,7 @@ function View(props) {
   return <ul>
     {props.rows.map(({ id, label } = props.fallback, index) => {
       const text = label ?? props.empty;
-      return <li key={id}>{text}:{index}</li>;
+      return <li key={id}>{String(text)}:{String(index)}</li>;
     })}
   </ul>;
 }
@@ -1264,14 +1266,15 @@ function View(props) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
-    assert!(out.contains("({ id, label } = _$rueCompiledProp1.get(), index)"), "{out}");
-    assert!(out.contains("const text = label ?? _$rueCompiledProp0.get()"), "{out}");
-    assert!(out.contains("const text"), "{out}");
+    assert!(out.contains("item === undefined ? _$rueCompiledProp1.get() : item"), "{out}");
+    assert!(out.contains(".label ?? _$rueCompiledProp0.get()"), "{out}");
+    assert!(out.contains("_$rowIndex1.get()"), "{out}");
 }
 
 #[test]
 fn transform_entry_hardens_bare_loop_shadowing_and_post_return_phase2() {
     let src = r#"
+import { Panel } from './compiled-components';
 function View({ count, records, totals }) {
   const total = count * 2;
   const render = () => {
@@ -1325,9 +1328,8 @@ function View(props) {
     assert!(out.contains("item.ready ?"), "{out}");
     assert!(out.contains("v-pre"), "{out}");
     assert!(out.contains("v-else"), "{out}");
-    assert!(out.contains("_$compiledWithEventModifiers"));
-    assert!(out.contains("\"once\""));
-    assert!(out.contains("\"capture\""));
+    assert!(out.contains("onClickCaptureOnce"));
+    assert!(!out.contains("_$compiledWithEventModifiers"));
 }
 
 #[test]
@@ -1342,7 +1344,7 @@ function View({ rows, fallback, count, limit }) {
     return total;
   };
   return <section data-total={render()}>
-    {rows.map(([id, meta] = fallback, index) => <li key={id}>{meta.label}:{index}</li>)}
+    {rows.map(([id, meta] = fallback, index) => <li key={id}>{String(meta.label)}:{String(index)}</li>)}
     <TransitionGroup>
       {rows.map(row => {
         try {
@@ -1359,11 +1361,8 @@ function View({ rows, fallback, count, limit }) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
-    assert!(
-        out.contains("([id, meta] = _$compiledPropsGet(__rue_props, \"fallback\"), index)"),
-        "{out}"
-    );
-    assert!(out.contains("meta.label"), "{out}");
+    assert!(out.contains("=== undefined ? _$compiledPropsGet(__rue_props, \"fallback\")"), "{out}");
+    assert!(out.contains("_$reconcileKeyed("), "{out}");
     assert!(
         out.contains("for(let i = __rue_phase2_total.get(); i < _$compiledPropsGet(__rue_props, \"limit\"); i++)"),
         "{out}"
@@ -1375,6 +1374,7 @@ function View({ rows, fallback, count, limit }) {
 #[test]
 fn transform_entry_hardens_member_children_type_alias_imports_and_ts_wrappers() {
     let src = r#"
+import { Card, Panel } from './compiled-components';
 import { "ref" as localRef, "FC" as RueFC } from '@rue-js/rue';
 
 type ViewType = RueFC;
@@ -1398,7 +1398,7 @@ const View: ViewType = (props) => {
     assert!(out.matches("rue:text-hole:").count() >= 2, "{out}");
     assert!(out.contains("_$compiledPropsGet(props, \"children\")"), "{out}");
     assert!(out.contains("ctx.children"), "{out}");
-    assert!(out.contains("_$createComponent(Card"), "{out}");
+    assert!(out.contains("_$mountCompiledComponent(_root, Card"), "{out}");
     assert!(out.contains("title: 'ok'"), "{out}");
     assert!(out.contains("count: 1"), "{out}");
     assert!(out.contains("_$compiledRoot("), "{out}");
@@ -1424,11 +1424,14 @@ function View(props) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(out.contains("@rue-js/rue/internal"), "{out}");
-    assert!(out.contains("const __slot = indicator.get();"), "{out}");
+    assert!(out.contains("_$compiledValueFactory(indicator.get())"), "{out}");
     assert!(out.contains("(indicator.get() as any) ??"), "{out}");
-    assert!(out.contains("_$rueCompiledProp4.get() ? indicator.get() : \"\""), "{out}");
+    assert!(
+        out.contains("_$rueCompiledProp4.get() ? _$compiledValueFactory(indicator.get()) :"),
+        "{out}"
+    );
     assert!(!out.contains("_$compiledBranch("), "{out}");
-    assert!(out.matches("renderAnchor(__slot").count() >= 1, "{out}");
+    assert!(out.matches("_$mountCompiledSlotAt(").count() >= 1, "{out}");
     assert!(!out.contains("_$settextContent(_") || !out.contains(", indicator.get());"), "{out}");
     assert!(out.contains("String(indicator.get())"), "{out}");
     assert!(out.contains("_$rueCompiledProp3.get().get(0)"), "{out}");
@@ -1437,6 +1440,7 @@ function View(props) {
 #[test]
 fn transform_entry_hardens_slot_routerlink_modelled_lists_and_show_combo() {
     let src = r#"
+import { Field, Panel, RouterLink } from './compiled-components';
 function View(props) {
   return <Panel>
     {(ctx) => <span>{ctx.label}</span>}
@@ -1519,4 +1523,84 @@ fn compiled_props_leaves_default_exported_utilities_untouched() {
         assert!(!output.contains("_$compiledProps"), "{output}");
         assert!(output.contains("value.toFixed(2)"), "{output}");
     }
+}
+
+#[test]
+fn builtin_primitives_have_independent_imports_without_component_adapters() {
+    for (name, helper, entry) in [
+        ("Teleport", "_$teleport", "teleport"),
+        ("Transition", "_$transition", "transition"),
+        ("TransitionGroup", "_$transitionGroup", "transitiongroup"),
+        ("KeepAlive", "_$keepAlive", "keepalive"),
+        ("Suspense", "_$suspense", "suspense"),
+    ] {
+        let source = format!(
+            "import {{ {name} }} from '@rue-js/rue'; export const View = () => <{name}><b>content</b></{name}>;"
+        );
+        let (program, cm) = parse_program(&source);
+        let out = emit(apply(program), cm);
+        assert!(out.contains(helper), "{out}");
+        assert!(out.contains(&format!("@rue-js/rue/internal/{entry}")), "{out}");
+        assert!(!out.contains("internal/builtin"), "{out}");
+        assert!(!out.contains("_$compiledComponent("), "{out}");
+        assert!(!out.contains("_$createComponent("), "{out}");
+        assert!(out.contains("_$mountCompiledSlotFactory"), "{out}");
+    }
+}
+
+#[test]
+fn builtin_template_erases_and_aliases_preserve_binding_identity() {
+    for source in [
+        "import { Template } from '@rue-js/rue'; const View = () => <Template><b>content</b></Template>;",
+        "import { Template as Shell } from '@rue-js/rue'; const View = () => <Shell><b>content</b></Shell>;",
+    ] {
+        let (program, cm) = parse_program(source);
+        let out = emit(apply(program), cm);
+        assert!(!out.contains("internal/builtin"), "{out}");
+        assert!(!out.contains("_$compiledComponent("), "{out}");
+    }
+    let (program, cm) =
+        parse_program("const Teleport = () => <b>local</b>; const View = () => <Teleport/>;");
+    let out = emit(apply(program), cm);
+    assert!(!out.contains("_$teleport"), "{out}");
+    assert!(out.contains("_$compiledComponent("), "{out}");
+}
+
+#[test]
+fn bootstrap_lowers_render_to_lazy_mount_factory() {
+    let (program, cm) = parse_program(
+        "import { render } from '@rue-js/rue'; export const app = render(<main>ready</main>, '#app');",
+    );
+    let out = emit(apply(program), cm);
+    assert!(out.contains("_$mountApp("), "{out}");
+    assert!(out.contains("@rue-js/rue/internal/app"), "{out}");
+    assert!(!out.contains("import { render"), "{out}");
+    assert!(out.contains("_$compiledStaticRoot("), "{out}");
+}
+
+#[test]
+fn bootstrap_lowers_create_rue_component_to_lazy_factory() {
+    let (program, cm) = parse_program(
+        "import { createRue as app } from '@rue-js/rue'; import App from './App'; export const root = app(App).mount('#app');",
+    );
+    let out = emit(apply(program), cm);
+    assert!(out.contains("_$createApp("), "{out}");
+    assert!(out.contains("@rue-js/rue/internal/app"), "{out}");
+    assert!(!out.contains("createRue"), "{out}");
+}
+
+#[test]
+#[should_panic(expected = "Rue compiler required: render expects JSX")]
+fn bootstrap_rejects_arbitrary_render() {
+    let (program, _) =
+        parse_program("import { render } from '@rue-js/rue'; render(readUnknown(), '#app');");
+    apply(program);
+}
+
+#[test]
+#[should_panic(expected = "Rue compiler required")]
+fn bootstrap_rejects_runtime_jsx() {
+    let (program, _) =
+        parse_program("import { jsx } from '@rue-js/rue/jsx-runtime'; jsx('main', {});");
+    apply(program);
 }

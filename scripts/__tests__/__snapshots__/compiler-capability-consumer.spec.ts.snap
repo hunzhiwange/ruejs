@@ -1,0 +1,62 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`published compiler capability consumer: 'builtin' 1`] = `
+[
+  "import { _$template, _$createDocumentFragment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$teleport } from "@rue-js/rue/internal/teleport";",
+]
+`;
+
+exports[`published compiler capability consumer: 'component' 1`] = `
+[
+  "import { _$template, _$compiledText } from "@rue-js/rue/internal/dom";",
+  "import { signal, setReactiveScheduling, _$compiledBatch, _$compiledSignal } from "@rue-js/rue/internal/reactive";",
+  "import { _$compiledRoot } from "@rue-js/rue/internal/block";",
+  "import { _$compiledComponent, _$compiledPropsGet, _$compiledPropsSnapshot, _$withCompiledPropsUpdater } from "@rue-js/rue/internal/component";",
+]
+`;
+
+exports[`published compiler capability consumer: 'event' 1`] = `
+[
+  "import { _$template } from "@rue-js/rue/internal/dom";",
+  "import { onOwnerCleanup } from "@rue-js/rue/internal/reactive";",
+  "import { _$compiledRoot } from "@rue-js/rue/internal/block";",
+  "import { _$compiledDelegateEvent } from "@rue-js/rue/internal/events";",
+]
+`;
+
+exports[`published compiler capability consumer: 'hooks' 1`] = `
+[
+  "import { _$template, _$compiledText, _$compiledCreateComment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { batch, onOwnerCleanup, watch, useState, useEffect, computed, setReactiveScheduling, _$compiledUseEffect, _$compiledUseState } from "@rue-js/rue/internal/reactive";",
+  "import { _$compiledRoot } from "@rue-js/rue/internal/block";",
+  "import { _$withCompiledHookScope } from "@rue-js/rue/internal/component";",
+  "import { _$compiledDelegateEvent } from "@rue-js/rue/internal/events";",
+]
+`;
+
+exports[`published compiler capability consumer: 'keyed list' 1`] = `
+[
+  "import { _$template } from "@rue-js/rue/internal/dom";",
+  "import { onOwnerCleanup, ref, setReactiveScheduling, _$compiledRenderEffect } from "@rue-js/rue/internal/reactive";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$disposeCompiledKeyedRows, _$mountCompiledKeyedSingleRow, _$reconcileKeyedSingle } from "@rue-js/rue/internal/list";",
+]
+`;
+
+exports[`published compiler capability consumer: 'state text' 1`] = `
+[
+  "import { _$template, _$compiledText, _$compiledCreateComment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { onOwnerCleanup, ref, setReactiveScheduling } from "@rue-js/rue/internal/reactive";",
+  "import { _$compiledRoot } from "@rue-js/rue/internal/block";",
+  "import { _$compiledDelegateEvent } from "@rue-js/rue/internal/events";",
+]
+`;
+
+exports[`published compiler capability consumer: 'static DOM' 1`] = `
+[
+  "import { _$compiledAppendChild, _$compiledCreateElement, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot } from "@rue-js/rue/internal/block";",
+]
+`;

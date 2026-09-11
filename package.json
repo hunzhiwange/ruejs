@@ -43,6 +43,7 @@
     "size-runtime": "node scripts/runtime-size-audit.js",
     "size:tree-shaking": "node scripts/tree-shaking-audit.js",
     "size:tree-shaking:check": "node scripts/tree-shaking-audit.js --check",
+    "check:compiler-runtime-target": "pnpm run check:compiler-runtime-boundary --compiler-only-target",
     "check:compiler-runtime-boundary": "node scripts/check-compiler-runtime-boundary.js",
     "check": "tsc --incremental --noEmit && pnpm run check:compiler-runtime-boundary",
     "check:text": "pnpm --dir packages/text check",

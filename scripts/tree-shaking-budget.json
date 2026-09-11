@@ -24,32 +24,10 @@
         "packages/runtime/dist/island",
         "packages/runtime/dist/custom-elements",
         "packages/runtime/dist/components/",
-        "packages/runtime/dist/compiler-runtime/",
         "packages/runtime/dist/compiled-",
         "packages/runtime/dist/dom.js",
         "packages/runtime/dist/runtime-core/js-reactive/facade.js",
         "packages/runtime/dist/runtime-core/js-reactive/hooks/"
-      ]
-    },
-    "public-create-rue": {
-      "max": { "minified": 129000, "gzip": 37450, "brotli": 33050 },
-      "forbidModules": [
-        "packages/runtime/dist/server",
-        "packages/server-renderer/",
-        "packages/runtime/dist/island",
-        "packages/runtime/dist/custom-elements",
-        "packages/runtime/dist/components/",
-        "packages/runtime/dist/compiler-runtime/builtins/"
-      ]
-    },
-    "public-render": {
-      "max": { "minified": 158950, "gzip": 46300, "brotli": 40650 },
-      "forbidModules": [
-        "packages/runtime/dist/server",
-        "packages/server-renderer/",
-        "packages/runtime/dist/island.js",
-        "packages/runtime/dist/custom-elements",
-        "packages/runtime/dist/compiler-runtime/builtins/"
       ]
     },
     "public-transition": {
@@ -80,16 +58,6 @@
         "packages/runtime/dist/components/",
         "packages/runtime/dist/runtime-core/js-reactive/",
         "packages/runtime/dist/dom.js"
-      ]
-    },
-    "internal": {
-      "max": { "minified": 89500, "gzip": 25700, "brotli": 23050 },
-      "forbidModules": [
-        "packages/runtime/dist/server",
-        "packages/server-renderer/",
-        "packages/runtime/dist/island.js",
-        "packages/runtime/dist/custom-elements",
-        "packages/runtime/dist/compiler-runtime/builtins/"
       ]
     }
   }

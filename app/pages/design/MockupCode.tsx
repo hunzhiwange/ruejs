@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { MockupCode, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -19,11 +18,6 @@ interface ApiRow {
   description: string
   type: string
   defaultValue: string
-}
-
-const PreviewRenderer: FC<{ preview: ExampleBlockProps['preview'] }> = ({ preview }) => {
-  const PreviewComponent = preview
-  return <PreviewComponent />
 }
 
 const ExampleBlock: FC<ExampleBlockProps> = ({ title, summary, tab, preview, code }) => {
@@ -45,11 +39,7 @@ const ExampleBlock: FC<ExampleBlockProps> = ({ title, summary, tab, preview, cod
         onChange={key => (tab.value = key as TabMode)}
         className="mb-3 mt-4"
       />
-      {tab.value === 'preview' ? (
-        <PreviewRenderer preview={preview} />
-      ) : (
-        <Code className="mt-2" lang="tsx" code={code} />
-      )}
+      {tab.value === 'preview' ? preview({}) : <Code className="mt-2" lang="tsx" code={code} />}
     </div>
   )
 }

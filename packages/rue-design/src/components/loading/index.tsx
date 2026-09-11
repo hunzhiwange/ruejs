@@ -84,11 +84,11 @@ export interface LoadingProps {
   /** delay 配置项。 */
   delay?: number
   /** indicator 配置项。 */
-  indicator?: any | ((props: LoadingIndicatorRenderProps) => any)
+  indicator?: string | object | ((props: LoadingIndicatorRenderProps) => any)
   /** 描述内容。 */
-  description?: any
+  description?: string
   /** tip 配置项。 */
-  tip?: any
+  tip?: string
   /** fullscreen 配置项。 */
   fullscreen?: boolean
   /** percent 配置项。 */
@@ -110,7 +110,7 @@ export interface LoadingProps {
 }
 
 type LoadingComponent = FC<LoadingProps> & {
-  setDefaultIndicator: (indicator: any) => void
+  setDefaultIndicator: (indicator: string | undefined) => void
 }
 
 /** LOADING_STYLES 内部常量。 */
@@ -118,7 +118,7 @@ const LOADING_STYLES: LoadingStyle[] = ['spinner', 'dots', 'ring', 'ball', 'bars
 /** DEFAULT_PERCENT_LABEL 内部常量。 */
 const DEFAULT_PERCENT_LABEL = 'Loading'
 
-let defaultIndicator: any
+let defaultIndicator: string | undefined
 
 /** merge Class Names 的内部工具函数。 */
 const mergeClassNames = (...parts: Array<string | false | null | undefined>) => {
@@ -196,12 +196,6 @@ const getDelayHiddenClass = (spinning: boolean, delay: number | undefined, ready
 }
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  return children == null || typeof children === 'boolean' ? [] : [children]
-}
 
 /** 提取原生透传属性的内部工具函数。 */
 const getRestProps = (props: LoadingProps) => {
@@ -268,7 +262,7 @@ const buildIndicatorClassName = (
 }
 
 /** Loading Root 的内部工具函数。 */
-const LoadingRoot: FC<LoadingProps> = props => {
+const LoadingRoot: FC<LoadingProps> = (props, slots: Record<string, any> = {}) => {
   const {
     as,
     style,
@@ -293,11 +287,11 @@ const LoadingRoot: FC<LoadingProps> = props => {
   const normalizedSize = normalizeSize(size)
   const rootStyle = resolveRootStyle(style)
   const descriptionNode = description ?? tip
-  const childNodes = toChildArray(children)
-  const hasChildren = childNodes.length > 0
+  const hasChildren = children != null
   const hasDescription = descriptionNode != null
   const hasPercent = percent !== undefined
-  const hasCustomIndicator = indicator != null || defaultIndicator != null
+  const hasCustomIndicator =
+    slots.indicator != null || indicator != null || defaultIndicator != null
   const isEnhancedStandalone = hasDescription || hasPercent || hasCustomIndicator
   const isNested = hasChildren || fullscreen
   const visible = ref(readCurrentSpinning(props))
@@ -309,19 +303,6 @@ const LoadingRoot: FC<LoadingProps> = props => {
     if (delayTimer != null) {
       clearTimeout(delayTimer)
       delayTimer = null
-    }
-  }
-
-  const revealDelayTarget = () => {
-    if (delayTargetElement?.classList) {
-      delayTargetElement.classList.remove('opacity-0')
-    }
-  }
-
-  const setDelayTarget = (element: HTMLElement | null) => {
-    delayTargetElement = element
-    if (delayReady.value) {
-      revealDelayTarget()
     }
   }
 
@@ -343,13 +324,11 @@ const LoadingRoot: FC<LoadingProps> = props => {
       delayTimer = setTimeout(() => {
         delayTimer = null
         delayReady.value = true
-        revealDelayTarget()
       }, currentDelay)
       return
     }
 
     delayReady.value = true
-    revealDelayTarget()
   }
 
   onMounted(() => {
@@ -372,36 +351,20 @@ const LoadingRoot: FC<LoadingProps> = props => {
     normalizedSize,
     mergeClassNames(classNames?.indicator, styles?.indicator ? 'inline-flex' : undefined),
   )
-  const indicatorNode = hasCustomIndicator ? (
-    typeof (indicator ?? defaultIndicator) === 'function' ? (
-      (indicator ?? defaultIndicator)({
-        percent: mergedPercent,
-        size: normalizedSize,
-        style: resolvedStyle,
-        spinning: visible.value,
-      })
+  const ProgressNodeView = () =>
+    hasPercent ? (
+      <div
+        className="flex w-full min-w-24 flex-col items-center gap-1.5"
+        data-rue-loading-percent="true"
+      >
+        <progress className="progress progress-primary h-1 w-24" max="100" value={progressValue} />
+        <span className="text-[0.68rem] leading-none tabular-nums opacity-70">
+          {String(percent === 'auto' ? DEFAULT_PERCENT_LABEL : `${progressValue ?? 0}%`)}
+        </span>
+      </div>
     ) : (
-      (indicator ?? defaultIndicator)
+      <></>
     )
-  ) : (
-    <span
-      className={indicatorClassName}
-      style={styles?.indicator}
-      aria-hidden={hasDescription || hasPercent ? 'true' : undefined}
-    />
-  )
-
-  const progressNode = hasPercent ? (
-    <div
-      className="flex w-full min-w-24 flex-col items-center gap-1.5"
-      data-rue-loading-percent="true"
-    >
-      <progress className="progress progress-primary h-1 w-24" max="100" value={progressValue} />
-      <span className="text-[0.68rem] leading-none tabular-nums opacity-70">
-        {percent === 'auto' ? DEFAULT_PERCENT_LABEL : `${progressValue ?? 0}%`}
-      </span>
-    </div>
-  ) : null
 
   const sectionClassName = mergeClassNames(
     fullscreen
@@ -438,7 +401,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
   )
   const rootStyleValue = typeof rootStyle === 'string' ? rootStyle : mergedRootStyle
 
-  const sectionContent = (
+  const SectionContentView = () => (
     <>
       {hasCustomIndicator ? (
         <span
@@ -448,57 +411,66 @@ const LoadingRoot: FC<LoadingProps> = props => {
           )}
           style={styles?.indicator}
         >
-          {indicatorNode}
+          {slots.indicator ? (
+            slots.indicator
+          ) : (
+            <span>{String(indicator ?? defaultIndicator ?? '')}</span>
+          )}
         </span>
       ) : (
-        indicatorNode
+        <span
+          className={indicatorClassName}
+          style={styles?.indicator}
+          aria-hidden={hasDescription || hasPercent ? 'true' : undefined}
+        />
       )}
       {hasDescription ? (
         <div className={descriptionClassName} style={styles?.description}>
-          {descriptionNode}
+          {String(descriptionNode ?? '')}
         </div>
       ) : null}
-      {progressNode}
+      <ProgressNodeView />
     </>
   )
-  const sectionNode = visible.value ? (
-    !fullscreen && !isNested ? (
-      <span
-        ref={setDelayTarget}
-        className={mergeClassNames(
-          sectionClassName,
-          getDelayHiddenClass(
-            readCurrentSpinning(props),
-            readCurrentDelay(props),
-            delayReady.value,
-          ),
-        )}
-        style={styles?.section}
-        data-rue-loading-section="true"
-      >
-        {sectionContent}
-      </span>
+  const SectionNodeView = () =>
+    visible.value ? (
+      !fullscreen && !isNested ? (
+        <span
+          className={mergeClassNames(
+            sectionClassName,
+            getDelayHiddenClass(
+              readCurrentSpinning(props),
+              readCurrentDelay(props),
+              delayReady.value,
+            ),
+          )}
+          style={styles?.section}
+          data-rue-loading-section="true"
+        >
+          <SectionContentView />
+        </span>
+      ) : (
+        <div
+          className={mergeClassNames(
+            sectionClassName,
+            getDelayHiddenClass(
+              readCurrentSpinning(props),
+              readCurrentDelay(props),
+              delayReady.value,
+            ),
+          )}
+          style={styles?.section}
+          data-rue-loading-section="true"
+        >
+          <SectionContentView />
+        </div>
+      )
     ) : (
-      <div
-        ref={setDelayTarget}
-        className={mergeClassNames(
-          sectionClassName,
-          getDelayHiddenClass(
-            readCurrentSpinning(props),
-            readCurrentDelay(props),
-            delayReady.value,
-          ),
-        )}
-        style={styles?.section}
-        data-rue-loading-section="true"
-      >
-        {sectionContent}
-      </div>
+      <></>
     )
-  ) : null
 
   if (fullscreen) {
-    if (!visible.value) return null
+    if (!visible.value) return <></>
     return (
       <div
         {...rest}
@@ -508,22 +480,22 @@ const LoadingRoot: FC<LoadingProps> = props => {
         aria-live={rest['aria-live'] ?? 'polite'}
         aria-busy="true"
       >
-        {sectionNode}
+        <SectionNodeView />
       </div>
     )
   }
 
   if (hasChildren) {
     const rootTag = as ?? 'div'
-    const nestedContent = (
+    const NestedContentView = () => (
       <>
-        {sectionNode}
+        <SectionNodeView />
         <div
           className={containerClassName}
           style={styles?.container}
           data-rue-loading-container="true"
         >
-          {childNodes}
+          {children}
         </div>
       </>
     )
@@ -538,7 +510,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
           aria-live={rest['aria-live'] ?? 'polite'}
           aria-busy={visible.value ? 'true' : 'false'}
         >
-          {nestedContent}
+          <NestedContentView />
         </span>
       )
     }
@@ -553,7 +525,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
           aria-live={rest['aria-live'] ?? 'polite'}
           aria-busy={visible.value ? 'true' : 'false'}
         >
-          {nestedContent}
+          <NestedContentView />
         </section>
       )
     }
@@ -568,7 +540,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
           aria-live={rest['aria-live'] ?? 'polite'}
           aria-busy={visible.value ? 'true' : 'false'}
         >
-          {nestedContent}
+          <NestedContentView />
         </article>
       )
     }
@@ -583,7 +555,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
           aria-live={rest['aria-live'] ?? 'polite'}
           aria-busy={visible.value ? 'true' : 'false'}
         >
-          {nestedContent}
+          <NestedContentView />
         </main>
       )
     }
@@ -597,12 +569,12 @@ const LoadingRoot: FC<LoadingProps> = props => {
         aria-live={rest['aria-live'] ?? 'polite'}
         aria-busy={visible.value ? 'true' : 'false'}
       >
-        {nestedContent}
+        <NestedContentView />
       </div>
     )
   }
 
-  if (!visible.value) return null
+  if (!visible.value) return <></>
 
   if (!isEnhancedStandalone) {
     const rootTag = as ?? 'span'
@@ -614,7 +586,6 @@ const LoadingRoot: FC<LoadingProps> = props => {
       return (
         <div
           {...rest}
-          ref={setDelayTarget}
           className={mergeClassNames(
             indicatorClassName,
             getDelayHiddenClass(
@@ -638,7 +609,6 @@ const LoadingRoot: FC<LoadingProps> = props => {
       return (
         <section
           {...rest}
-          ref={setDelayTarget}
           className={mergeClassNames(
             indicatorClassName,
             getDelayHiddenClass(
@@ -662,7 +632,6 @@ const LoadingRoot: FC<LoadingProps> = props => {
       return (
         <article
           {...rest}
-          ref={setDelayTarget}
           className={mergeClassNames(
             indicatorClassName,
             getDelayHiddenClass(
@@ -686,7 +655,6 @@ const LoadingRoot: FC<LoadingProps> = props => {
       return (
         <main
           {...rest}
-          ref={setDelayTarget}
           className={mergeClassNames(
             indicatorClassName,
             getDelayHiddenClass(
@@ -709,7 +677,6 @@ const LoadingRoot: FC<LoadingProps> = props => {
     return (
       <span
         {...rest}
-        ref={setDelayTarget}
         className={mergeClassNames(
           indicatorClassName,
           getDelayHiddenClass(
@@ -740,7 +707,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
         aria-live={rest['aria-live'] ?? 'polite'}
         aria-busy="true"
       >
-        {sectionNode}
+        <SectionNodeView />
       </div>
     )
   }
@@ -755,7 +722,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
         aria-live={rest['aria-live'] ?? 'polite'}
         aria-busy="true"
       >
-        {sectionNode}
+        <SectionNodeView />
       </section>
     )
   }
@@ -770,7 +737,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
         aria-live={rest['aria-live'] ?? 'polite'}
         aria-busy="true"
       >
-        {sectionNode}
+        <SectionNodeView />
       </article>
     )
   }
@@ -785,7 +752,7 @@ const LoadingRoot: FC<LoadingProps> = props => {
         aria-live={rest['aria-live'] ?? 'polite'}
         aria-busy="true"
       >
-        {sectionNode}
+        <SectionNodeView />
       </main>
     )
   }
@@ -799,14 +766,14 @@ const LoadingRoot: FC<LoadingProps> = props => {
       aria-live={rest['aria-live'] ?? 'polite'}
       aria-busy="true"
     >
-      {sectionNode}
+      <SectionNodeView />
     </span>
   )
 }
 
 const Loading = LoadingRoot as LoadingComponent
 
-Loading.setDefaultIndicator = (indicator: any) => {
+Loading.setDefaultIndicator = (indicator: string | undefined) => {
   defaultIndicator = indicator
 }
 

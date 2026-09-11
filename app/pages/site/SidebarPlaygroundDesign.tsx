@@ -2,10 +2,7 @@ import { type FC, onUnmounted, useRef } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import { extend } from '@rue-js/shared'
 import { resolveStaticRenderPath, useStaticRenderContext } from '../../staticRenderContext'
-import {
-  type SidebarSection,
-  createPersistentSidebarPlayground,
-} from './persistentSidebarPlayground'
+import { type SidebarSection, PersistentSidebarPlayground } from './persistentSidebarPlayground'
 
 const readCurrentHashPath = (): string => {
   const hash = globalThis.location?.hash || ''
@@ -506,16 +503,26 @@ export const SECTIONS_BY_TYPE: Record<'design', SidebarSection[]> = {
   ]),
 }
 
-const BaseSidebarPlayground = createPersistentSidebarPlayground({
-  sections: SECTIONS_BY_TYPE.design,
-  showCounts: true,
-  fallbackToRoute: false,
-})
+const BaseSidebarPlayground: FC<{ currentPath?: string }> = props => (
+  <PersistentSidebarPlayground
+    sections={SECTIONS_BY_TYPE.design}
+    showCounts
+    fallbackToRoute={false}
+    currentPath={props.currentPath}
+  >
+    {props.children}
+  </PersistentSidebarPlayground>
+)
 
-const RouteSidebarPlayground = createPersistentSidebarPlayground({
-  sections: SECTIONS_BY_TYPE.design,
-  showCounts: true,
-})
+const RouteSidebarPlayground: FC<{ currentPath?: string }> = props => (
+  <PersistentSidebarPlayground
+    sections={SECTIONS_BY_TYPE.design}
+    showCounts
+    currentPath={props.currentPath}
+  >
+    {props.children}
+  </PersistentSidebarPlayground>
+)
 
 let activeDesignRouteLayoutCount = 0
 

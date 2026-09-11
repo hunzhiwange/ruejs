@@ -242,9 +242,7 @@ const instanceApiRows: ApiRow[] = [
   },
 ]
 
-const stackedCode = `import { Notification, Stack } from '@rue-js/design'
-
-<Stack className="h-56 w-full max-w-lg" reverse>
+const stackedCode = `import { Notification, Stack } from '@rue-js/design'<Stack className="h-56 w-full max-w-lg" reverse>
   <div className="h-full">
     <Notification.Item
       className="h-full"
@@ -269,9 +267,7 @@ const stackedCode = `import { Notification, Stack } from '@rue-js/design'
   </div>
 </Stack>`
 
-const richCode = `import { Notification } from '@rue-js/design'
-
-<div className="grid gap-4">
+const richCode = `import { Notification } from '@rue-js/design'<div className="grid gap-4">
   <Notification.Item
     type="info"
     message="Workspace synced"
@@ -292,9 +288,7 @@ const richCode = `import { Notification } from '@rue-js/design'
   />
 </div>`
 
-const placementCode = `import { Notification } from '@rue-js/design'
-
-<Notification inline placement="bottomRight" top={12} bottom={12}>
+const placementCode = `import { Notification } from '@rue-js/design'<Notification inline placement="bottomRight" top={12} bottom={12}>
   <Notification.Item
     type="success"
     title="bottomRight"
@@ -304,7 +298,6 @@ const placementCode = `import { Notification } from '@rue-js/design'
 </Notification>`
 
 const hookCode = `import { Notification } from '@rue-js/design'
-
 const [notificationApi, contextHolder] = Notification.useNotification({
   getContainer: false,
   placement: 'topRight',
@@ -343,9 +336,7 @@ const [notificationApi, contextHolder] = Notification.useNotification({
   </button>
 </div>`
 
-const staticCode = `import { Notification } from '@rue-js/design'
-
-Notification.config({
+const staticCode = `import { Notification } from '@rue-js/design'Notification.config({
   placement: 'topRight',
   maxCount: 3,
   top: 88,

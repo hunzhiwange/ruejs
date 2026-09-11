@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import PreviewBlock, { type PreviewTabMode } from './PreviewBlock'
 import { Badge, Fieldset, Input, Kbd } from '@rue-js/design'
-
 interface ApiRow {
   prop: string
   description: string

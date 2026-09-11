@@ -6,9 +6,8 @@ Slot 组件概述
 */
 
 import { getCurrentInstance } from '../reactivity'
-import type { FC, PropsWithChildren, RenderOutput } from '../rue'
+import type { FC, PropsWithChildren, RenderOutput } from '../runtime-types'
 import type { CompiledRootHandle } from '../compiled-root'
-import { _$compiledValue } from '../compiled-render-anchor'
 import { _$compiledBranch, _$withCompiledPropsUpdater } from '../compiled-component'
 import { signal } from '../internal-reactive'
 
@@ -48,7 +47,14 @@ const isEmptySlotValue = (value: unknown) =>
   value == null || (Array.isArray(value) && value.length === 0)
 
 const createSlotValueHandle = (value: unknown): CompiledRootHandle => {
-  return _$compiledValue(isEmptySlotValue(value) ? null : value)
+  if (
+    !isEmptySlotValue(value) &&
+    typeof value === 'object' &&
+    value != null &&
+    '__rue_compiled_mount' in value
+  )
+    return value as CompiledRootHandle
+  throw new Error('[rue] slots must be compiled to closed block factories')
 }
 
 const resolveSlotSource = (source?: Record<string, unknown> | null) => {
@@ -123,15 +129,19 @@ const SlotImpl: FC<SlotProps> = initialProps => {
     const resolved = resolveSlotValue(source, name)
 
     if (!resolved.found || isMissingSlotValue(resolved.value)) {
-      return createSlotValueHandle(props.children)
+      return {
+        __rue_compiled_branch_key: props.children,
+        create: () => createSlotValueHandle(props.children),
+      }
     }
 
     const value = resolved.value
     if (isScopedSlot(value)) {
-      return createSlotValueHandle(value(props.props ?? {}))
+      const rendered = value(props.props ?? {})
+      return { __rue_compiled_branch_key: rendered, create: () => createSlotValueHandle(rendered) }
     }
 
-    return createSlotValueHandle(value)
+    return { __rue_compiled_branch_key: value, create: () => createSlotValueHandle(value) }
   })
   return _$withCompiledPropsUpdater<SlotProps>(root, next => propsState.set(next))
 }

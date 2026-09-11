@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -18,11 +19,13 @@ describe('Navbar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Navbar className="bg-base-100 shadow-sm" data-testid="navbar-root">
-        <button className="btn btn-ghost text-xl">daisyUI</button>
-      </Navbar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Navbar className="bg-base-100 shadow-sm" data-testid="navbar-root">
+          <button className="btn btn-ghost text-xl">daisyUI</button>
+        </Navbar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -37,21 +40,23 @@ describe('Navbar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Navbar
-        as="header"
-        className="bg-base-100"
-        bordered
-        wrap
-        sticky
-        brand={<button>Rue</button>}
-        center={<button>Docs</button>}
-        actions={<button>Sign in</button>}
-        startProps={{ className: 'gap-2' }}
-        endProps={{ className: 'gap-3' }}
-        data-testid="navbar-slots"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Navbar
+          as="header"
+          className="bg-base-100"
+          bordered
+          wrap
+          sticky
+          brand="Rue"
+          center="Docs"
+          actions="Sign in"
+          startProps={{ className: 'gap-2' }}
+          endProps={{ className: 'gap-3' }}
+          data-testid="navbar-slots"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -75,19 +80,21 @@ describe('Navbar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Navbar>
-        <Navbar.Start data-testid="navbar-start" className="pl-2">
-          <button>Menu</button>
-        </Navbar.Start>
-        <Navbar.Center data-testid="navbar-center">
-          <button>Title</button>
-        </Navbar.Center>
-        <Navbar.End data-testid="navbar-end" className="gap-2">
-          <button>Profile</button>
-        </Navbar.End>
-      </Navbar>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Navbar>
+          <Navbar.Start data-testid="navbar-start" className="pl-2">
+            <button>Menu</button>
+          </Navbar.Start>
+          <Navbar.Center data-testid="navbar-center">
+            <button>Title</button>
+          </Navbar.Center>
+          <Navbar.End data-testid="navbar-end" className="gap-2">
+            <button>Profile</button>
+          </Navbar.End>
+        </Navbar>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -106,28 +113,30 @@ describe('Navbar', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Navbar
-        brand={<button>Workspace</button>}
-        items={[
-          {
-            key: 'overview',
-            placement: 'center',
-            content: <button>Overview</button>,
-          },
-          {
-            key: 'status',
-            placement: 'end',
-            content: <span>Status</span>,
-            className: 'text-success',
-          },
-        ]}
-        actions={<button>Invite</button>}
-        centerProps={{ className: 'hidden md:flex' }}
-        endProps={{ className: 'gap-2' }}
-        data-testid="navbar-items"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Navbar
+          brand="Workspace"
+          items={[
+            {
+              key: 'overview',
+              placement: 'center',
+              content: 'Overview',
+            },
+            {
+              key: 'status',
+              placement: 'end',
+              content: 'Status',
+              className: 'text-success',
+            },
+          ]}
+          actions="Invite"
+          centerProps={{ className: 'hidden md:flex' }}
+          endProps={{ className: 'gap-2' }}
+          data-testid="navbar-items"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

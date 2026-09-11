@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from '@rue-js/rue'
+import { useEffect, useState } from '@rue-js/rue'
 
 export function ThrowingComponent() {
   const [shouldThrow, setShouldThrow] = useState(false)
 
-  if (shouldThrow) {
-    throw new Error('Test error from client component')
-  }
+  useEffect(() => {
+    if (shouldThrow) throw new Error('Test error from client component')
+  }, [shouldThrow])
 
   return (
     <button data-testid="trigger-error" onClick={() => setShouldThrow(true)}>

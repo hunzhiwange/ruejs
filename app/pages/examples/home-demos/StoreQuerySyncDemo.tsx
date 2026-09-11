@@ -66,7 +66,7 @@ const DEMO_ITEMS: DemoItem[] = [
   },
   {
     id: 'runtime-render',
-    title: 'renderAnchor 更新链路',
+    title: '编译锚点更新链路',
     tab: 'runtime',
     teaser: '观察 block/renderable 在局部更新时的最小 DOM 变更。',
     badge: '渲染',

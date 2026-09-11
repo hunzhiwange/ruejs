@@ -3,7 +3,8 @@
 import { type TextCompatNode } from './component-adapter.js'
 import { markAppSsrPassthroughComponent } from '../server/app-ssr-passthrough-protocol.js'
 import { decodeHashFragment } from './hash-scroll.js'
-import { useEffect } from './hooks-adapter.js'
+
+import { useEffect } from '@rue-js/rue'
 import {
   consumeAppRouterScrollIntent,
   getPendingAppRouterScrollIntent,
@@ -119,7 +120,7 @@ export function AppRouterScrollTarget({ children }: { children: TextCompatNode }
     handlePotentialScroll()
   })
 
-  return children
+  return <>{children}</>
 }
 
 markAppSsrPassthroughComponent(AppRouterScrollTarget)

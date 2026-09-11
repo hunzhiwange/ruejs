@@ -1,6 +1,4 @@
 import { readFile as readFileFromFs } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
 
 type ReadPackageJson = (path: string) => Promise<string>
@@ -294,20 +292,6 @@ const DEDUP_FILTER = new RegExp('^' + DEDUP_PREFIX)
 const PROXY_MARKER = 'virtual:vite-rsc/client-in-server-package-proxy/'
 const TEXT_CLIENT_REFERENCES_MARKER = 'virtual:text-rsc/client-references'
 const VITE_CLIENT_REFERENCES_MARKER = 'virtual:vite-rsc/client-references'
-const RUE_IMPORT_RE = /\bfrom\s*(['"])@rue-js\/rue\1/g
-
-function hasUseClientDirective(code: string): boolean {
-  return /^\s*(['"])use client\1\s*;?/.test(code)
-}
-
-function resolveRueSsrCompatShimPath(): string {
-  for (const relativePath of ['../shims/rue-ssr-compat.ts', '../shims/rue-ssr-compat.js']) {
-    const absolutePath = fileURLToPath(new URL(relativePath, import.meta.url))
-    if (existsSync(absolutePath)) return absolutePath
-  }
-  return fileURLToPath(new URL('../shims/rue-ssr-compat.js', import.meta.url))
-}
-
 function isSupportedClientReferenceImporter(environmentName: string | undefined, importer: string) {
   if (environmentName === 'client') {
     return (
@@ -337,7 +321,6 @@ function isSupportedClientReferenceImporter(environmentName: string | undefined,
 export function clientReferenceDedupPlugin(options: ClientReferenceDedupOptions = {}): Plugin {
   let excludeSet = new Set<string>()
   let root = ''
-  let rueSsrCompatShimPath = ''
   const readPackageJson = options.readFile ?? defaultReadPackageJson
   const packageImportCache = new Map<string, Promise<PackageImportSpecifier | null>>()
 
@@ -348,7 +331,6 @@ export function clientReferenceDedupPlugin(options: ClientReferenceDedupOptions 
 
     configResolved(config) {
       root = config.root
-      rueSsrCompatShimPath = resolveRueSsrCompatShimPath()
       // Capture client environment's optimizeDeps.exclude so we don't
       // redirect packages the user explicitly opted out of pre-bundling.
       const clientExclude =
@@ -401,26 +383,6 @@ export function clientReferenceDedupPlugin(options: ClientReferenceDedupOptions 
           `import * as __all__ from ${JSON.stringify(pkgName)};`,
           `export default __all__.default;`,
         ].join('\n')
-      },
-    },
-
-    transform: {
-      filter: {
-        id: /\.[cm]?[jt]sx?(?:$|[?$]|\$\$cache=)/,
-        code: '@rue-js/rue',
-      },
-      handler(code) {
-        if (this.environment?.name !== 'ssr' && this.environment?.name !== 'rsc') return null
-        if (!hasUseClientDirective(code)) return null
-        if (!code.includes('@rue-js/rue')) return null
-
-        const textCode = code.replace(RUE_IMPORT_RE, `from ${JSON.stringify(rueSsrCompatShimPath)}`)
-        if (textCode === code) return null
-
-        return {
-          code: textCode,
-          map: null,
-        }
       },
     },
   }

@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { MockupBrowser } from '@rue-js/design'
+import MockupBrowser from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,11 +19,13 @@ describe('MockupBrowser', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupBrowser className="w-full border border-base-300" data-testid="browser-root">
-        <div>Hello</div>
-      </MockupBrowser>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupBrowser className="w-full border border-base-300" data-testid="browser-root">
+          <div>Hello</div>
+        </MockupBrowser>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -37,13 +40,15 @@ describe('MockupBrowser', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupBrowser>
-        <MockupBrowser.Toolbar data-testid="toolbar" className="text-sm">
-          <div className="input">https://daisyui.com</div>
-        </MockupBrowser.Toolbar>
-      </MockupBrowser>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupBrowser>
+          <MockupBrowser.Toolbar data-testid="toolbar" className="text-sm">
+            <div className="input">https://daisyui.com</div>
+          </MockupBrowser.Toolbar>
+        </MockupBrowser>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -58,20 +63,22 @@ describe('MockupBrowser', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupBrowser
-        bordered
-        background
-        url="https://app.ruejs.org"
-        toolbarEnd={<span data-testid="toolbar-end">LIVE</span>}
-        contentClassName="min-h-32"
-        contentBackground
-        contentPadding="md"
-        data-testid="browser-root"
-      >
-        <div data-testid="browser-content">Overview</div>
-      </MockupBrowser>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupBrowser
+          bordered
+          background
+          url="https://app.ruejs.org"
+          toolbarEnd="LIVE"
+          contentClassName="min-h-32"
+          contentBackground
+          contentPadding="md"
+          data-testid="browser-root"
+        >
+          <div data-testid="browser-content">Overview</div>
+        </MockupBrowser>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -98,21 +105,23 @@ describe('MockupBrowser', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupBrowser bordered>
-        <MockupBrowser.Toolbar start={<span data-testid="toolbar-start">Docs</span>}>
-          <MockupBrowser.AddressBar
-            href="https://ruejs.org/docs"
-            status="success"
-            prefix={<span data-testid="prefix">200</span>}
-            suffix={<span data-testid="suffix">OK</span>}
-          />
-        </MockupBrowser.Toolbar>
-        <MockupBrowser.Content background padding="lg" data-testid="content">
-          <div>Ready</div>
-        </MockupBrowser.Content>
-      </MockupBrowser>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupBrowser bordered>
+          <MockupBrowser.Toolbar start="Docs">
+            <MockupBrowser.AddressBar
+              href="https://ruejs.org/docs"
+              status="success"
+              prefix="200"
+              suffix="OK"
+            />
+          </MockupBrowser.Toolbar>
+          <MockupBrowser.Content background padding="lg" data-testid="content">
+            <div>Ready</div>
+          </MockupBrowser.Content>
+        </MockupBrowser>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

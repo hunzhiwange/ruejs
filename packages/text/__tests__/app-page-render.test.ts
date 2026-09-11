@@ -16,10 +16,8 @@ import {
 } from '../src/server/artifact-compatibility.js'
 import { AppRscServerClientReferenceSymbol } from '../src/server/app-rsc-client-reference-protocol-core.js'
 import { setAppClientReferenceResolver } from '../src/server/app-client-reference-resolver.js'
-import {
-  createAppServerElement as createElement,
-  type AppServerRenderable as TextRenderable,
-} from '../src/server/app-server-tree.js'
+import { type AppServerRenderable as TextRenderable } from '../src/server/app-server-tree.js'
+import { createElement } from './rue-ssr-test-utils.js'
 import type { LayoutClassificationOptions } from '../src/server/app-page-execution.js'
 import { renderAppPageLifecycle } from '../src/server/app-page-render.js'
 import type { CachedAppPageValue } from '../src/shims/cache.js'
@@ -838,7 +836,7 @@ describe('layoutFlags injection into RSC payload', () => {
       isrRscKey: (p: string) => `rsc:${p}`,
       isrSet: vi.fn().mockResolvedValue(undefined),
       layoutCount: overrides.layoutCount ?? 0,
-      loadSsrHandler: vi.fn(),
+      loadSsrHandler: vi.fn(async () => ({})),
       middlewareContext: { headers: null, status: null },
       params: {},
       probeLayoutAt: overrides.probeLayoutAt ?? (() => null),
@@ -876,11 +874,7 @@ describe('layoutFlags injection into RSC payload', () => {
       return null
     }
     const resolver = vi.fn(() => ResolvedLikeButton)
-    const clientReferenceHandle = {
-      __rue_component_type: clientReference,
-      props: { initialLikes: 16 },
-      __rue_repeatable_mount_factory__: () => clientReferenceHandle,
-    } as unknown as TextRenderable
+    const clientReferenceHandle = createElement(clientReference, { initialLikes: 16 })
     const { options, getCapturedElement } = createRscOptions({
       element: {
         [pageId]: clientReferenceHandle,
@@ -894,12 +888,7 @@ describe('layoutFlags injection into RSC payload', () => {
       setAppClientReferenceResolver(null)
     }
 
-    const page = getCapturedElement()[pageId] as {
-      props?: Record<string, unknown>
-      type?: unknown
-    }
-    expect(page.type).toBe(clientReference)
-    expect(page.props).toMatchObject({ initialLikes: 16 })
+    expect(getCapturedElement()[pageId]).toBe(clientReferenceHandle)
     expect(resolver).not.toHaveBeenCalled()
   })
 

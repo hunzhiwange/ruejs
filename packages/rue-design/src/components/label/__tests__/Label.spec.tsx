@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Label from '../index'
@@ -18,12 +19,14 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label className="w-full" data-testid="root">
-        <Label.Text data-testid="text">https://</Label.Text>
-        <input type="text" placeholder="URL" />
-      </Label>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label className="w-full" data-testid="root">
+          <Label.Text data-testid="text">https://</Label.Text>
+          <input type="text" placeholder="URL" />
+        </Label>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -43,11 +46,13 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label as="div" label="Plain wrapper" data-testid="div-root">
-        <input type="text" placeholder="Plain" />
-      </Label>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label as="div" label="Plain wrapper" data-testid="div-root">
+          <input type="text" placeholder="Plain" />
+        </Label>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -63,14 +68,16 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label control="select" data-testid="select-root">
-        <Label.Text>Type</Label.Text>
-        <select>
-          <option>Personal</option>
-        </select>
-      </Label>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label control="select" data-testid="select-root">
+          <Label.Text>Type</Label.Text>
+          <select>
+            <option>Personal</option>
+          </select>
+        </Label>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -84,12 +91,14 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label.Floating className="max-w-xs" data-testid="floating-root">
-        <input type="email" className="input input-md" placeholder="mail@site.com" />
-        <Label.FloatingText data-testid="floating-text">Your Email</Label.FloatingText>
-      </Label.Floating>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label.Floating className="max-w-xs" data-testid="floating-root">
+          <input type="email" className="input input-md" placeholder="mail@site.com" />
+          <Label.FloatingText data-testid="floating-text">Your Email</Label.FloatingText>
+        </Label.Floating>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -106,24 +115,26 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label
-        label="Workspace URL"
-        description="Use the public slug shown in team settings."
-        help="Only lowercase letters and dashes."
-        required
-        optional="Required"
-        status="warning"
-        size="large"
-        variant="filled"
-        prefix="rue.dev/"
-        suffix=".app"
-        rootClassName="field-shell"
-        data-testid="workspace-field"
-      >
-        <input type="text" placeholder="acme" />
-      </Label>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label
+          label="Workspace URL"
+          description="Use the public slug shown in team settings."
+          help="Only lowercase letters and dashes."
+          required
+          optional="Required"
+          status="warning"
+          size="large"
+          variant="filled"
+          prefix="rue.dev/"
+          suffix=".app"
+          rootClassName="field-shell"
+          data-testid="workspace-field"
+        >
+          <input type="text" placeholder="acme" />
+        </Label>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -148,17 +159,19 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label
-        control="textarea"
-        label="Release notes"
-        error="Release notes are required."
-        block
-        data-testid="notes-field"
-      >
-        <textarea placeholder="What changed?" />
-      </Label>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label
+          control="textarea"
+          label="Release notes"
+          error="Release notes are required."
+          block
+          data-testid="notes-field"
+        >
+          <textarea placeholder="What changed?" />
+        </Label>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -176,17 +189,19 @@ describe('Label', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Label.Floating
-        caption="Contact"
-        text="Email"
-        error="Use a company email."
-        required
-        data-testid="floating-shortcut"
-      >
-        <input type="email" className="input input-md" placeholder="mail@site.com" />
-      </Label.Floating>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Label.Floating
+          caption="Contact"
+          text="Email"
+          error="Use a company email."
+          required
+          data-testid="floating-shortcut"
+        >
+          <input type="email" className="input input-md" placeholder="mail@site.com" />
+        </Label.Floating>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

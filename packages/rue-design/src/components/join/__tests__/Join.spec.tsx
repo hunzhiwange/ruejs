@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -18,12 +19,14 @@ describe('Join', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Join className="bg-base-100">
-        <Join.Item>One</Join.Item>
-        <Join.Item>Two</Join.Item>
-      </Join>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Join className="bg-base-100">
+          <Join.Item>One</Join.Item>
+          <Join.Item>Two</Join.Item>
+        </Join>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -40,11 +43,13 @@ describe('Join', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Join as="section" direction="vertical" wrap block data-testid="join-root">
-        <Join.Item>A</Join.Item>
-      </Join>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Join as="section" direction="vertical" wrap block data-testid="join-root">
+          <Join.Item>A</Join.Item>
+        </Join>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -62,14 +67,16 @@ describe('Join', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Join>
-        <Join.Item tag="input" className="input" placeholder="Search" data-testid="join-input" />
-        <Join.Item tag="select" className="select" data-testid="join-select">
-          <option>Filter</option>
-        </Join.Item>
-      </Join>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Join>
+          <Join.Item tag="input" className="input" placeholder="Search" data-testid="join-input" />
+          <Join.Item tag="select" className="select" data-testid="join-select">
+            <option>Filter</option>
+          </Join.Item>
+        </Join>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -89,16 +96,18 @@ describe('Join', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Join
-        itemClassName="btn btn-sm"
-        items={[
-          { key: 'back', label: 'Back' },
-          { key: 'publish', label: 'Publish', className: 'btn-primary' },
-        ]}
-        data-testid="join-items"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Join
+          itemClassName="btn btn-sm"
+          items={[
+            { key: 'back', label: 'Back' },
+            { key: 'publish', label: 'Publish', className: 'btn-primary' },
+          ]}
+          data-testid="join-items"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -116,25 +125,27 @@ describe('Join', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Join>
-        <Join.Item active className="btn" data-testid="join-active">
-          Active
-        </Join.Item>
-        <Join.Item
-          as="a"
-          href="#disabled"
-          disabled
-          className="btn"
-          data-testid="join-disabled-link"
-        >
-          Disabled link
-        </Join.Item>
-        <Join.Item disabled data-testid="join-disabled-button">
-          Disabled button
-        </Join.Item>
-      </Join>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Join>
+          <Join.Item active className="btn" data-testid="join-active">
+            Active
+          </Join.Item>
+          <Join.Item
+            as="a"
+            href="#disabled"
+            disabled
+            className="btn"
+            data-testid="join-disabled-link"
+          >
+            Disabled link
+          </Join.Item>
+          <Join.Item disabled data-testid="join-disabled-button">
+            Disabled button
+          </Join.Item>
+        </Join>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

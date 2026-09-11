@@ -48,6 +48,7 @@ import {
   useTextCompatContext,
   type TextCompatContext,
 } from './context-adapter.js'
+import { getCurrentOwner, getOwnerParent, onOwnerCleanup } from '@rue-js/runtime/internal/reactive'
 
 // ─── Layout segment context ───────────────────────────────────────────────────
 // Stores the child segments below the current layout. Each layout wraps its
@@ -74,6 +75,7 @@ export type SegmentMap = Readonly<Record<string, string[]>> & { readonly childre
 type CurrentSsrLayoutSegmentMapState = {
   active: boolean
   segmentMap: SegmentMap | null
+  ownerMaps: Map<number, SegmentMap>
 }
 
 type CurrentSsrLayoutSegmentMapGlobal = typeof globalThis & {
@@ -86,9 +88,12 @@ function getCurrentSsrLayoutSegmentMapState(): CurrentSsrLayoutSegmentMapState {
     globalState[_CURRENT_SSR_LAYOUT_SEGMENT_MAP_KEY] = {
       active: false,
       segmentMap: null,
+      ownerMaps: new Map(),
     }
   }
-  return globalState[_CURRENT_SSR_LAYOUT_SEGMENT_MAP_KEY]
+  const state = globalState[_CURRENT_SSR_LAYOUT_SEGMENT_MAP_KEY]
+  state.ownerMaps ??= new Map()
+  return state
 }
 
 export function beginCurrentSsrLayoutSegmentMap(): void {
@@ -99,6 +104,11 @@ export function beginCurrentSsrLayoutSegmentMap(): void {
 
 export function setCurrentSsrLayoutSegmentMap(segmentMap: SegmentMap): void {
   const state = getCurrentSsrLayoutSegmentMapState()
+  const owner = getCurrentOwner()
+  if (owner !== undefined) {
+    state.ownerMaps.set(owner, segmentMap)
+    onOwnerCleanup(() => state.ownerMaps.delete(owner))
+  }
   if (!state.active) return
   state.segmentMap = segmentMap
 }
@@ -152,6 +162,12 @@ export function getLayoutSegmentContext(): TextCompatContext<SegmentMap> | null 
 /* oxlint-disable eslint-plugin-rue-hooks/rules-of-hooks */
 function useChildSegments(parallelRoutesKey: string = 'children'): string[] {
   const currentSsrLayoutSegmentMapState = getCurrentSsrLayoutSegmentMapState()
+  let owner = getCurrentOwner()
+  while (owner !== undefined) {
+    const ownerMap = currentSsrLayoutSegmentMapState.ownerMaps.get(owner)
+    if (ownerMap) return ownerMap[parallelRoutesKey] ?? []
+    owner = getOwnerParent(owner)
+  }
   if (currentSsrLayoutSegmentMapState.active && currentSsrLayoutSegmentMapState.segmentMap) {
     return currentSsrLayoutSegmentMapState.segmentMap[parallelRoutesKey] ?? []
   }
@@ -1162,6 +1178,9 @@ export function usePathname(): string {
     return _getPagesNavigationContext()?.pathname ?? '/'
   }
   const renderSnapshot = useClientNavigationRenderSnapshot()
+  if (renderSnapshot && (getClientNavigationState()?.navigationSnapshotActiveCount ?? 0) > 0) {
+    return renderSnapshot.pathname
+  }
   // Client-side: use the hook system for reactivity
   const pathname = useSyncExternalStore(
     subscribeToNavigation,
@@ -1172,9 +1191,6 @@ export function usePathname(): string {
   // hooks return the pending URL, not the stale committed one. After commit,
   // fall through to useSyncExternalStore so user pushState/replaceState
   // calls are immediately reflected.
-  if (renderSnapshot && (getClientNavigationState()?.navigationSnapshotActiveCount ?? 0) > 0) {
-    return renderSnapshot.pathname
-  }
   return pathname
 }
 /* oxlint-enable eslint-plugin-rue-hooks/rules-of-hooks */
@@ -1193,14 +1209,14 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     return getServerSearchParamsSnapshot()
   }
   const renderSnapshot = useClientNavigationRenderSnapshot()
+  if (renderSnapshot && (getClientNavigationState()?.navigationSnapshotActiveCount ?? 0) > 0) {
+    return renderSnapshot.searchParams
+  }
   const searchParams = useSyncExternalStore(
     subscribeToNavigation,
     getSearchParamsSnapshot,
     getServerSearchParamsSnapshot,
   )
-  if (renderSnapshot && (getClientNavigationState()?.navigationSnapshotActiveCount ?? 0) > 0) {
-    return renderSnapshot.searchParams
-  }
   return searchParams
 }
 /* oxlint-enable eslint-plugin-rue-hooks/rules-of-hooks */
@@ -1221,14 +1237,14 @@ export function useParams<
     return getServerParamsSnapshot() as T
   }
   const renderSnapshot = useClientNavigationRenderSnapshot()
+  if (renderSnapshot && (getClientNavigationState()?.navigationSnapshotActiveCount ?? 0) > 0) {
+    return renderSnapshot.params as T
+  }
   const params = useSyncExternalStore(
     subscribeToNavigation,
     getClientParamsSnapshot as () => T,
     getServerParamsSnapshot as () => T,
   )
-  if (renderSnapshot && (getClientNavigationState()?.navigationSnapshotActiveCount ?? 0) > 0) {
-    return renderSnapshot.params as T
-  }
   return params
 }
 /* oxlint-enable eslint-plugin-rue-hooks/rules-of-hooks */

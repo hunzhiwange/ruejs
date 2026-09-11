@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@rue-js/design'
 import type { FC } from '@rue-js/rue'
 import { computed, ref } from '@rue-js/rue'
 import {
@@ -107,13 +108,13 @@ const buildScopedThemeCode = () => {
     '  const runtime = ThemeController.useToken(themeConfig)',
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      {...themeConfig}',
     '      className="rounded-[2rem] border border-base-300 bg-base-100 p-6"',
     '    >',
     '      <Button color="primary">Publish</Button>',
     '      <span>{runtime.token.colors.primary}</span>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -148,7 +149,7 @@ const buildProviderRenderCode = () => {
     '',
     'export default function ProviderRenderDemo() {',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme="retro"',
     '      render={(runtime) => (',
     '        <div>',
@@ -193,12 +194,12 @@ const buildComponentTokensCode = () => {
     "  const buttonToken = ThemeController.getComponentDesignToken('Button', config)",
     '',
     '  return (',
-    '    <ThemeController.Provider {...config}>',
+    '    <ThemeProvider {...config}>',
     '      <Button color="primary">Only Button uses orange</Button>',
     '      <div className="card bg-base-100">Card reads Card token</div>',
     '      <input className="input input-bordered" />',
     '      <span>{buttonToken.colors.primary}</span>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -210,11 +211,11 @@ const buildNestedComponentTokenCode = () => {
     '',
     'export default function NestedComponentThemeDemo() {',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme="garden"',
     '      components={{ Button: { colors: { primary: "#16a34a" } } }}',
     '    >',
-    '      <ThemeController.Provider',
+    '      <ThemeProvider',
     '        token={{ colors: { base100: "#111827", baseContent: "#f8fafc" } }}',
     '        components={{',
     '          Button: { colors: { primary: "#38bdf8", primaryContent: "#04161a" } },',
@@ -223,8 +224,8 @@ const buildNestedComponentTokenCode = () => {
     '      >',
     '        <Button color="primary">Nested Button</Button>',
     '        <div className="alert alert-info">Nested alert</div>',
-    '      </ThemeController.Provider>',
-    '    </ThemeController.Provider>',
+    '      </ThemeProvider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -248,7 +249,7 @@ const buildHashTokenCode = () => {
     '        <div className={hashId}>hashed scope</div>',
     '      </ConfigProvider>',
     '',
-    '      <ThemeController.Provider',
+    '      <ThemeProvider',
     '        hashed={false}',
     '        render={(scopedRuntime) => (',
     '          <div>',
@@ -290,14 +291,14 @@ const buildCssVarExtractionCode = () => {
     '  })',
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      {...config}',
     '      zeroRuntime',
     '      className="brand-alpha-theme"',
     '    >',
     '      <Button color="primary">Static-ready Button</Button>',
     '      <pre>{css}</pre>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -312,7 +313,7 @@ const buildToggleCode = () => {
     '  const enabled = ref(false)',
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme={enabled.value ? "synthwave" : "default"}',
     '      className="rounded-box border border-base-300 bg-base-100 p-4 text-base-content"',
     '    >',
@@ -328,7 +329,7 @@ const buildToggleCode = () => {
     '        />',
     '        <span>Synthwave</span>',
     '      </label>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -343,7 +344,7 @@ const buildCheckboxCode = () => {
     '  const enabled = ref(false)',
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme={enabled.value ? "synthwave" : "default"}',
     '      className="rounded-box border border-base-300 bg-base-100 p-4 text-base-content"',
     '    >',
@@ -358,7 +359,7 @@ const buildCheckboxCode = () => {
     '        />',
     '        <span>Synthwave</span>',
     '      </label>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -373,7 +374,7 @@ const buildSwapCode = () => {
     '  const enabled = ref(false)',
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme={enabled.value ? "synthwave" : "default"}',
     '      className="rounded-box border border-base-300 bg-base-100 p-4 text-base-content"',
     '    >',
@@ -388,7 +389,7 @@ const buildSwapCode = () => {
     '        <span className="swap-off">Light</span>',
     '        <span className="swap-on">Dark</span>',
     '      </label>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -405,7 +406,7 @@ const buildRadioCode = () => {
     "  const selectedTheme = ref<(typeof radioThemes)[number]>('default')",
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme={selectedTheme.value}',
     '      className="rounded-box border border-base-300 bg-base-100 p-4 text-base-content"',
     '    >',
@@ -426,7 +427,7 @@ const buildRadioCode = () => {
     '          </label>',
     '        ))}',
     '      </fieldset>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -443,7 +444,7 @@ const buildButtonGroupCode = () => {
     "  const selectedTheme = ref<(typeof buttonThemes)[number]>('default')",
     '',
     '  return (',
-    '    <ThemeController.Provider',
+    '    <ThemeProvider',
     '      theme={selectedTheme.value}',
     '      className="rounded-box border border-base-300 bg-base-100 p-4 text-base-content"',
     '    >',
@@ -463,7 +464,7 @@ const buildButtonGroupCode = () => {
     '          />',
     '        ))}',
     '      </div>',
-    '    </ThemeController.Provider>',
+    '    </ThemeProvider>',
     '  )',
     '}',
   ].join('\n')
@@ -940,7 +941,7 @@ const ThemeWorkbenchPreview: FC = () => {
       </div>
 
       <div className="grid gap-4">
-        <ThemeController.Provider
+        <ThemeProvider
           theme={activeTheme.value}
           algorithm={resolveAlgorithms(algorithmMode.value)}
           token={{
@@ -1133,7 +1134,7 @@ const ThemePresetGalleryPreview: FC = () => {
 
 const ThemeProviderRenderPreview: FC = () => {
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       theme="retro"
       token={{
         colors: {
@@ -1262,7 +1263,7 @@ const ThemeComponentTokensPreview: FC = () => {
       </div>
 
       <div className="grid gap-4">
-        <ThemeController.Provider
+        <ThemeProvider
           theme="night"
           algorithm={[ThemeController.darkAlgorithm, ThemeController.compactAlgorithm]}
           components={componentConfig.get()}
@@ -1341,7 +1342,7 @@ const ThemeComponentTokensPreview: FC = () => {
 
 const ThemeNestedComponentTokensPreview: FC = () => {
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       theme="garden"
       components={{
         Button: {
@@ -1367,7 +1368,7 @@ const ThemeNestedComponentTokensPreview: FC = () => {
           </div>
         </div>
 
-        <ThemeController.Provider
+        <ThemeProvider
           as="section"
           token={{
             colors: {
@@ -1418,7 +1419,7 @@ const ThemeNestedComponentTokensPreview: FC = () => {
           )}
         />
       </div>
-    </ThemeController.Provider>
+    </ThemeProvider>
   )
 }
 
@@ -1464,7 +1465,7 @@ const ThemeHashTokenPreview: FC = () => {
         )}
       />
 
-      <ThemeController.Provider
+      <ThemeProvider
         hashed={false}
         className="rounded-[2rem] border border-base-300 bg-base-100 p-5 shadow-sm"
         render={scopedRuntime => (
@@ -1528,7 +1529,7 @@ const ThemeCssVarExtractionPreview: FC = () => {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <ThemeController.Provider
+      <ThemeProvider
         {...config}
         zeroRuntime={true}
         className="brand-alpha-theme rounded-[2rem] border border-base-300 bg-base-100 p-5 text-base-content shadow-sm"
@@ -1586,7 +1587,7 @@ const ThemeTogglePreview: FC<ControllerPreviewProps> = ({ activeDemo, activeThem
   const previewTheme = computed(() => (isChecked.get() ? 'synthwave' : 'default'))
 
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       data-testid="theme-toggle-scope"
       theme={previewTheme.get()}
       className="w-full max-w-md rounded-[1.5rem] border border-base-300 bg-base-100 p-4 text-base-content shadow-sm transition-colors"
@@ -1629,7 +1630,7 @@ const ThemeCheckboxPreview: FC<ControllerPreviewProps> = ({ activeDemo, activeTh
   const previewTheme = computed(() => (isChecked.get() ? 'synthwave' : 'default'))
 
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       data-testid="theme-checkbox-scope"
       theme={previewTheme.get()}
       className="w-full max-w-md rounded-[1.5rem] border border-base-300 bg-base-100 p-4 text-base-content shadow-sm transition-colors"
@@ -1668,7 +1669,7 @@ const ThemeSwapPreview: FC<ControllerPreviewProps> = ({ activeDemo, activeTheme 
   const previewTheme = computed(() => (isChecked.get() ? 'synthwave' : 'default'))
 
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       data-testid="theme-swap-scope"
       theme={previewTheme.get()}
       className="w-full max-w-md rounded-[1.5rem] border border-base-300 bg-base-100 p-4 text-base-content shadow-sm transition-colors"
@@ -1714,7 +1715,7 @@ const ThemeRadioPreview: FC<ControllerPreviewProps> = ({ activeDemo, activeTheme
   const previewTheme = computed(() => selectedTheme.get() ?? 'default')
 
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       data-testid="theme-radio-scope"
       theme={previewTheme.get()}
       className="w-full max-w-md rounded-[1.5rem] border border-base-300 bg-base-100 p-4 text-base-content shadow-sm transition-colors"
@@ -1762,7 +1763,7 @@ const ThemeButtonGroupPreview: FC<ControllerPreviewProps> = ({ activeDemo, activ
   const previewTheme = computed(() => selectedTheme.get() ?? 'default')
 
   return (
-    <ThemeController.Provider
+    <ThemeProvider
       data-testid="theme-buttons-scope"
       theme={previewTheme.get()}
       className="w-full max-w-xl rounded-[1.5rem] border border-base-300 bg-base-100 p-4 text-base-content shadow-sm transition-colors"

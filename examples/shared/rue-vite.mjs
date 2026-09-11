@@ -5,7 +5,37 @@ import VitePluginRue from '../../packages/vite-plugin-rue/index.mjs'
 const sharedDir = path.dirname(fileURLToPath(import.meta.url))
 export const repoRoot = path.resolve(sharedDir, '../..')
 
+const compilerRuntimeEntries = [
+  'app',
+  'block',
+  'builtin',
+  'component',
+  'dom',
+  'events',
+  'hydrate',
+  'keepalive',
+  'list',
+  'reactive',
+  'ssr',
+  'suspense',
+  'teleport',
+  'transition',
+  'transitiongroup',
+]
+
 export const createRueExampleAliases = () => ({
+  ...Object.fromEntries(
+    compilerRuntimeEntries.map(entry => [
+      `@rue-js/rue/internal/${entry}`,
+      path.resolve(repoRoot, `packages/rue/src/compiler-runtime/entries/${entry}.ts`),
+    ]),
+  ),
+  ...Object.fromEntries(
+    compilerRuntimeEntries.map(entry => [
+      `@rue-js/runtime/internal/${entry}`,
+      path.resolve(repoRoot, `packages/runtime/src/compiler-runtime/entries/${entry}.ts`),
+    ]),
+  ),
   '@rue-js/rue': path.resolve(repoRoot, 'packages/rue/src'),
   '@rue-js/router': path.resolve(repoRoot, 'packages/router/src'),
   '@rue-js/runtime': path.resolve(repoRoot, 'packages/runtime/src'),
@@ -30,6 +60,6 @@ export const createRueExampleDefine = ({ dev = true, ssr = false } = {}) => ({
   __FEATURE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
 })
 
-export const createRueExamplePlugins = ({ transformTimeoutMs = 60000 } = {}) => [
-  VitePluginRue({ transformTimeoutMs }),
+export const createRueExamplePlugins = ({ transformTimeoutMs = 60000, target } = {}) => [
+  VitePluginRue({ transformTimeoutMs, target }),
 ]

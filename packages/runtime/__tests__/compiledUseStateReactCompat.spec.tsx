@@ -7,8 +7,7 @@ import swc from '@swc/core'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import * as runtimeRoot from '../src'
-import * as componentRuntime from '../src/component-internal'
-import * as compiledRuntime from '../src/internal'
+import { compilerCapabilities, resolveCompilerCapability } from './compiler-capability-test-runtime'
 
 const pluginPath = resolve(process.cwd(), 'packages/swc-plugin-rue/swc-plugin-rue.wasm')
 
@@ -32,7 +31,7 @@ export function App() {
   const readLatest = () => count
 
   return <main>
-    <output data-testid="direct">{count}|{({ count }).count}|{readLatest()}|{model.label}|{format(count)}</output>
+    <output data-testid="direct">{count}|{String(({ count }).count)}|{String(readLatest())}|{model.label}|{String(format(count))}</output>
     <button data-testid="updaters" onClick={() => {
       setCount(previous => previous + 1)
       setCount(previous => previous + 1)
@@ -47,8 +46,9 @@ export function App() {
 function CustomCounter() {
   trace.customRenders += 1
   const counter = useCounter()
+  const independent = useCounter()
   return <section>
-    <output data-testid="custom">{counter.count}</output>
+    <output data-testid="custom">{String(counter.count)}|{String(independent.count)}</output>
     <button data-testid="custom-increment" onClick={() => counter.setCount(previous => previous + 1)}>custom</button>
   </section>
 }
@@ -87,9 +87,8 @@ const evaluate = (code: string): CompiledModule => {
   const module = { exports: {} as Record<string, unknown> }
   new Function('require', 'module', 'exports', code)(
     (id: string) => {
-      if (id === '@rue-js/rue/internal/compiler') return compiledRuntime
-      if (id === '@rue-js/rue/internal/component') return componentRuntime
-      if (id === '@rue-js/rue/internal') return compiledRuntime
+      const capability = resolveCompilerCapability(id)
+      if (capability) return capability
       if (id === '@rue-js/rue') return runtimeRoot
       throw new Error(`Unexpected generated import: ${id}`)
     },
@@ -112,7 +111,7 @@ const flush = async (): Promise<void> => {
 }
 
 afterEach(() => {
-  compiledRuntime.setReactiveScheduling('frame')
+  compilerCapabilities.reactive.setReactiveScheduling('frame')
   document.body.innerHTML = ''
 })
 
@@ -123,25 +122,37 @@ describe('real compiled useState React compatibility', () => {
     const code = compile()
 
     expect(code).toContain('_$compiledUseState')
-    expect(code).toMatch(/\[_\$state\d*, setCount\] = \(0, _component\._\$compiledUseState\)/)
+    expect(code).toMatch(/\[_\$state\d*, setCount\] = \(0, _reactive\._\$compiledUseState\)/)
     expect(code).toMatch(/_\$state\d*\.get\(\)/)
-    expect(code).toMatch(/_\$compiledMarkComponentRenderReactive\)\(CustomCounter\)/)
+    expect(code).not.toContain('_$compiledMarkComponentRenderReactive')
+    expect(code).not.toContain('_$compiledWithHookId')
     expect(code).not.toContain('count.get()')
     expect(code).not.toContain('count.value')
   })
 
   it('updates direct and custom Hook state through real compiled DOM events', async () => {
-    compiledRuntime.setReactiveScheduling('sync')
+    compilerCapabilities.reactive.setReactiveScheduling('sync')
     const compiled = evaluate(compile())
     const host = document.createElement('div')
     document.body.appendChild(host)
-    const app = runtimeRoot.useApp(compiled.App as never)
+    const owner = compilerCapabilities.reactive.createOwner()
+    const root = compilerCapabilities.reactive.runWithOwner(owner, () =>
+      compiled.App(),
+    ) as import('../src/compiler-runtime/block').BlockRecord
+    const app = {
+      mount: (target: HTMLElement) =>
+        compilerCapabilities.reactive.runWithOwner(owner, () => root.__rue_compiled_mount(target)),
+      unmount: () => {
+        root.dispose()
+        compilerCapabilities.reactive.disposeOwner(owner)
+      },
+    }
 
     app.mount(host)
     await flush()
     expect(host.querySelector('[data-testid="direct"]')?.textContent).toBe('0|0|0|first|initial:0')
-    expect(host.querySelector('[data-testid="custom"]')?.textContent).toBe('10')
-    expect(compiled.trace.lazyInitializations).toBe(1)
+    expect(host.querySelector('[data-testid="custom"]')?.textContent).toBe('10|10')
+    expect(compiled.trace.lazyInitializations).toBe(2)
 
     click(host, 'updaters')
     await flush()
@@ -156,12 +167,34 @@ describe('real compiled useState React compatibility', () => {
     await flush()
 
     expect(host.querySelector('[data-testid="direct"]')?.textContent).toBe('4|4|4|first!|next:4')
-    expect(host.querySelector('[data-testid="custom"]')?.textContent).toBe('12')
-    expect(compiled.trace.lazyInitializations).toBe(1)
-    expect(compiled.trace.customRenders).toBeGreaterThan(1)
+    expect(host.querySelector('[data-testid="custom"]')?.textContent).toBe('12|10')
+    expect(compiled.trace.lazyInitializations).toBe(2)
+    expect(compiled.trace.customRenders).toBe(1)
 
     app.unmount()
     await flush()
     expect(host.childNodes).toHaveLength(0)
   })
+})
+
+it('rejects dynamically selected Hook functions during compilation', () => {
+  expect(() =>
+    swc.transformSync(
+      `
+    import { useState } from '@rue-js/rue'
+    export function View() {
+      const hook = Math.random() ? useState : (() => [0])
+      const [value] = hook(0)
+      return <span>{String(value)}</span>
+    }
+  `,
+      {
+        filename: 'dynamic-hook.tsx',
+        jsc: {
+          parser: { syntax: 'typescript', tsx: true },
+          experimental: { plugins: [[pluginPath, {}]] },
+        },
+      },
+    ),
+  ).toThrow()
 })

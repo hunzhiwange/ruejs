@@ -56,6 +56,17 @@ const CARDS = [
   },
 ]
 
+const TransitionCard: FC<{ card: (typeof CARDS)[number] }> = props => (
+  <section
+    key={props.card.id}
+    className={`mode-card bg-gradient-to-br ${props.card.tone} p-6 text-white shadow-lg`}
+  >
+    <p className="text-sm uppercase tracking-wide opacity-80">state</p>
+    <h2 className="mt-2 text-3xl font-semibold">{props.card.title}</h2>
+    <p className="mt-3 max-w-md text-sm leading-6 opacity-90">{props.card.summary}</p>
+  </section>
+)
+
 const transitionModeStyles = `
 .mode-stage {
   position: relative;
@@ -245,16 +256,7 @@ const TransitionModeExample: FC = () => {
                   type="transition"
                   duration={TRANSITION_MS}
                 >
-                  <section
-                    key={current().id}
-                    className={`mode-card bg-gradient-to-br ${current().tone} p-6 text-white shadow-lg`}
-                  >
-                    <p className="text-sm uppercase tracking-wide opacity-80">state</p>
-                    <h2 className="mt-2 text-3xl font-semibold">{current().title}</h2>
-                    <p className="mt-3 max-w-md text-sm leading-6 opacity-90">
-                      {current().summary}
-                    </p>
-                  </section>
+                  <TransitionCard card={current()} />
                 </Transition>
               </div>
             </div>

@@ -7,12 +7,12 @@ use crate::vapor::VaporTransform;
 
 /*
 元素与组件统一构建入口：
-- 组件：插入占位注释并以 renderAnchor 渲染；可能携带 children（按需编译/保留）；
+- 组件：插入占位注释并以 compiled slot ABI 挂载；可能携带 children（按需编译/保留）；
 - 原生元素：创建节点、设置属性、处理子节点；遇 dangerouslySetInnerHTML 时跳过 children；
 - 动机：集中处理两类分支，避免分散到多个调用点导致逻辑重复与策略不一致。
 */
 /// 根据 JSX 元素构造 Vapor DOM 代码；
-/// - 组件：插入占位注释并使用 `renderAnchor` 动态渲染
+/// - 组件：插入占位注释并使用 compiled slot ABI 动态挂载
 /// - 原生元素：创建节点、设置属性、处理子节点
 ///   生成样例（参考 `tests/lists_and_keys.rs`）：
 /// - 原生元素：`const _el1 = _$createElement("ul"); _$appendChild(_root, _el1);`
@@ -49,11 +49,6 @@ fn build_element_with_anchor(
     log::debug("elements: build_element");
     if crate::vapor::template::emit_marked_template_child(vt, jsx_el, parent, stmts) {
         log::debug("elements: static html template branch");
-        return;
-    }
-    if let Some(router_link_el) = crate::router_link::rewrite_router_link_fast_path(jsx_el) {
-        log::debug("elements: RouterLink fast path -> native anchor");
-        build_element_with_anchor(vt, &router_link_el, parent, anchor, stmts);
         return;
     }
     if is_component(&jsx_el.opening.name) {

@@ -16,6 +16,7 @@ import {
   fetchHtml,
   RSC_ENTRIES,
   startFixtureServer,
+  stripRueSsrMarkers,
 } from './helpers.js'
 import {
   RSC_RUE_CLIENT_OPTIMIZE_INCLUDE,
@@ -27,6 +28,7 @@ const PRODUCTION_SETUP_TIMEOUT_MS = 120_000
 
 function decodeHtmlText(text: string): string {
   return text
+    .replace(/<!--\/?r:[\s\S]*?-->/g, '')
     .replaceAll('&quot;', '"')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
@@ -156,7 +158,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/about`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
     expect(html).toContain('This is the about page.')
   })
@@ -167,7 +169,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/async-modules-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('<div id="app-value">hello</div>')
     expect(html).toContain('<div id="page-value">42</div>')
   })
@@ -207,7 +209,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/blog/hello-world`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Blog Post')
     expect(html).toContain('hello-world')
   })
@@ -295,7 +297,7 @@ describe('App Router integration', () => {
   it('renders pages-router page when both app/ and pages/ directories exist', async () => {
     const res = await fetch(`${baseUrl}/old-school`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Old School Pages Directory')
   })
 
@@ -329,7 +331,7 @@ describe('App Router integration', () => {
 
   it('wraps pages in the root layout', async () => {
     const res = await fetch(`${baseUrl}/about`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // Should have the <html> tag from root layout
     expect(html).toContain('<html lang="en">')
@@ -341,7 +343,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/interactive`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Server-side renders the client component with initial state
     expect(html).toContain('Interactive Page')
     expect(html).toContain('Count:')
@@ -425,7 +427,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/client-nav-test?q=hello`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The "use client" component should render the pathname and search params
     // during SSR via the nav context propagation from RSC to SSR environment
     expect(html).toContain('client-nav-info')
@@ -445,7 +447,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should have both root layout and dashboard layout
     expect(html).toContain('<html lang="en">')
     expect(html).toContain('id="dashboard-layout"')
@@ -457,7 +459,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard/settings`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Dashboard layout should also wrap the settings page
     expect(html).toContain('id="dashboard-layout"')
     expect(html).toContain('Dashboard Nav')
@@ -469,7 +471,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Dashboard layout should render the main children
     expect(html).toContain('Welcome to your dashboard.')
     // Parallel slot @team should be rendered
@@ -484,7 +486,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The layout wraps team/analytics in data-testid panels
     expect(html).toContain('data-testid="team-panel"')
     expect(html).toContain('data-testid="analytics-panel"')
@@ -499,7 +501,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard/settings`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Dashboard layout should be present
     expect(html).toContain('id="dashboard-layout"')
     expect(html).toContain('Dashboard Nav')
@@ -521,7 +523,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // @team has a layout.tsx — the slot layout should wrap the slot page
     expect(html).toContain('data-testid="team-slot-layout"')
     expect(html).toContain('data-testid="team-slot-nav"')
@@ -537,7 +539,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard/settings`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // @team slot layout should still wrap the default.tsx content
     expect(html).toContain('data-testid="team-slot-layout"')
     expect(html).toContain('data-testid="team-slot-nav"')
@@ -550,7 +552,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/slot-collision/child`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('data-testid="slot-collision-parent-layout"')
     expect(html).toContain('data-testid="slot-collision-child-layout"')
     expect(html).toContain('data-testid="slot-collision-parent-default"')
@@ -577,7 +579,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard/members`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Dashboard layout should be present
     expect(html).toContain('id="dashboard-layout"')
     // Children slot should show default.tsx content
@@ -595,7 +597,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard/members`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('data-testid="team-slot-layout"')
     expect(html).toContain('data-testid="team-members-page"')
   })
@@ -607,7 +609,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/parallel-nested/home/nested`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Parent layout should be present
     expect(html).toContain('data-testid="home-layout"')
     // @parallelB slot should show the nested sub-page
@@ -634,7 +636,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/parallel-group-catchall`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('data-testid="group-b-layout"')
     expect(html).toContain('data-testid="group-b-home"')
     expect(html).toContain('Group B Home')
@@ -647,7 +649,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/parallel-group-catchall/foo`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('data-testid="group-b-layout"')
     expect(html).toContain('data-testid="group-b-foo"')
     expect(html).toContain('Foo Page')
@@ -661,7 +663,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/parallel-group-catchall/bar`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('data-testid="group-a-layout"')
     expect(html).toContain('data-testid="group-a-parallel-slot"')
     expect(html).toContain('data-testid="parallel-catcher"')
@@ -675,7 +677,7 @@ describe('App Router integration', () => {
     // It should show segments relative to the dashboard layout: ["settings"]
     const res = await fetch(`${baseUrl}/dashboard/settings`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // Verify it returns ["settings"], not ["dashboard", "settings"]
     expect(JSON.parse(textContentByTestId(html, 'segments'))).toEqual(['settings'])
@@ -684,7 +686,7 @@ describe('App Router integration', () => {
   it('useSelectedLayoutSegment returns first segment relative to dashboard layout', async () => {
     const res = await fetch(`${baseUrl}/dashboard/settings`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(textContentByTestId(html, 'segment')).toBe('settings')
   })
@@ -693,7 +695,7 @@ describe('App Router integration', () => {
     // At /dashboard, the dashboard layout's segments should be empty (it IS the page)
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(JSON.parse(textContentByTestId(html, 'segments'))).toEqual([])
   })
@@ -701,7 +703,7 @@ describe('App Router integration', () => {
   it('useSelectedLayoutSegment returns null at leaf route', async () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(textContentByTestId(html, 'segment')).toBe('null')
   })
@@ -714,7 +716,7 @@ describe('App Router integration', () => {
     // On /dashboard, @team/page.tsx is active — page at slot root means no child segments
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(JSON.parse(textContentByTestId(html, 'team-segments'))).toEqual([])
     expect(textContentByTestId(html, 'team-segment')).toBe('null')
@@ -723,7 +725,7 @@ describe('App Router integration', () => {
   it("useSelectedLayoutSegments('analytics') returns [] when slot page is at root", async () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(JSON.parse(textContentByTestId(html, 'analytics-segments'))).toEqual([])
   })
@@ -733,7 +735,7 @@ describe('App Router integration', () => {
     // useSelectedLayoutSegments("team") should return ["members"]
     const res = await fetch(`${baseUrl}/dashboard/members`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(JSON.parse(textContentByTestId(html, 'team-segments'))).toEqual(['members'])
     expect(textContentByTestId(html, 'team-segment')).toBe('members')
@@ -745,7 +747,7 @@ describe('App Router integration', () => {
     // while useSelectedLayoutSegment("team") should return "profile".
     const res = await fetch(`${baseUrl}/dashboard/members/profile`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain('data-testid="team-member-profile-page"')
     expect(JSON.parse(textContentByTestId(html, 'team-segments'))).toEqual(['members', 'profile'])
@@ -757,7 +759,7 @@ describe('App Router integration', () => {
     // useSelectedLayoutSegments("analytics") should return [] (fallback)
     const res = await fetch(`${baseUrl}/dashboard/members`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(JSON.parse(textContentByTestId(html, 'analytics-segments'))).toEqual([])
   })
@@ -765,7 +767,7 @@ describe('App Router integration', () => {
   it('useSelectedLayoutSegments() (default children) still returns correct segments after migration', async () => {
     const res = await fetch(`${baseUrl}/dashboard/settings`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // children segments below the dashboard layout should include "settings"
     expect(JSON.parse(textContentByTestId(html, 'segments'))).toEqual(['settings'])
@@ -777,7 +779,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/photos/42`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Direct navigation renders the full photo page, not the modal
     // Rue SSR inserts <!-- --> between text and expressions
     expect(html).toMatch(/Photo\s*(<!--\s*-->)?\s*42/)
@@ -791,7 +793,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/feed`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Photo Feed')
     expect(html).toContain('data-testid="feed-page"')
     // Modal slot should render default (null), so no modal content
@@ -832,7 +834,7 @@ describe('App Router integration', () => {
 
   it('renders members page on direct SSR navigation', async () => {
     const res = await fetch(`${baseUrl}/team/42/members`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     if (res.status !== 200) {
       throw new Error(`Expected 200, got ${res.status}. Body: ${html.slice(0, 2000)}`)
     }
@@ -842,7 +844,7 @@ describe('App Router integration', () => {
 
   it('renders settings page on direct SSR navigation', async () => {
     const res = await fetch(`${baseUrl}/team/42/settings`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     if (res.status !== 200) {
       throw new Error(`Expected 200, got ${res.status}. Body: ${html.slice(0, 2000)}`)
     }
@@ -1066,7 +1068,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/does-not-exist`)
     expect(res.status).toBe(404)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render our custom not-found page within the root layout
     expect(html).toContain('404 - Page Not Found')
     expect(html).toContain('does not exist')
@@ -1084,7 +1086,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dashboard/missing`)
     expect(res.status).toBe(404)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render the dashboard-specific not-found page
     expect(html).toContain('Dashboard: Page Not Found')
     expect(html).toContain('dashboard-not-found')
@@ -1097,7 +1099,7 @@ describe('App Router integration', () => {
   it('forbidden() from Server Component returns 403 with forbidden.tsx', async () => {
     const res = await fetch(`${baseUrl}/forbidden-test`)
     expect(res.status).toBe(403)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('403 - Forbidden')
     expect(html).toContain('do not have permission')
     // Should be wrapped in the root layout
@@ -1110,7 +1112,7 @@ describe('App Router integration', () => {
   it('unauthorized() from Server Component returns 401 with unauthorized.tsx', async () => {
     const res = await fetch(`${baseUrl}/unauthorized-test`)
     expect(res.status).toBe(401)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('401 - Unauthorized')
     expect(html).toContain('must be logged in')
     // Should be wrapped in the root layout
@@ -1130,7 +1132,7 @@ describe('App Router integration', () => {
     // when the record is missing.
     const res = await fetch(`${baseUrl}/notfound-loading`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('404 - Page Not Found')
   })
 
@@ -1141,7 +1143,7 @@ describe('App Router integration', () => {
     // to 404, and renders the root forbidden.tsx boundary.
     const res = await fetch(`${baseUrl}/forbidden-loading`)
     expect(res.status).toBe(403)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('403 - Forbidden')
   })
 
@@ -1151,7 +1153,7 @@ describe('App Router integration', () => {
     // and renders the root unauthorized.tsx boundary.
     const res = await fetch(`${baseUrl}/unauthorized-loading`)
     expect(res.status).toBe(401)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('401 - Unauthorized')
   })
 
@@ -1160,7 +1162,7 @@ describe('App Router integration', () => {
     // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/forbidden/basic/forbidden-basic.test.ts
     const res = await fetch(`${baseUrl}/textjs-compat/layout-forbidden-boundary`)
     expect(res.status).toBe(403)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('403 - Forbidden')
     expect(html).not.toContain('404 - Page Not Found')
   })
@@ -1170,7 +1172,7 @@ describe('App Router integration', () => {
     // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/unauthorized/basic/unauthorized-basic.test.ts
     const res = await fetch(`${baseUrl}/textjs-compat/layout-unauthorized-boundary`)
     expect(res.status).toBe(401)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('401 - Unauthorized')
     expect(html).not.toContain('404 - Page Not Found')
   })
@@ -1304,7 +1306,7 @@ describe('App Router integration', () => {
     // 404 but only by luck of error boundary handling, not the probe path.
     const res = await fetch(`${baseUrl}/probe-async-params/invalid-id`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render root not-found boundary, not the page content
     expect(html).not.toContain('probe-async-params-page')
   })
@@ -1376,7 +1378,7 @@ describe('App Router integration', () => {
     // Rue doesn't emit a $RX replacement — instead the redirect digest is
     // embedded in the RSC payload for client-side handling.
     const res = await fetch(`${baseUrl}/suspense-redirect-test`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(res.status).toBe(200)
     // The RSC payload embedded in the HTML should contain the redirect digest
     // This allows the client-side router to detect and perform the redirect
@@ -1390,7 +1392,7 @@ describe('App Router integration', () => {
     // not-found UI. Without an onError callback, the digest is empty ("") and
     // the NotFoundBoundary can't identify it as a not-found error.
     const res = await fetch(`${baseUrl}/suspense-notfound-test`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The response status is 200 because headers were sent before notFound()
     expect(res.status).toBe(200)
     // The compat dev renderer can surface the digest in different equivalent places:
@@ -1407,7 +1409,7 @@ describe('App Router integration', () => {
     // "Invalid hook call" / null dispatcher errors while SSR consumes an RSC
     // stream that includes an error chunk.
     const res = await fetch(`${baseUrl}/rue19-dev-rsc-error`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(res.status).toBe(200)
     // Depending on whether the dev SSR shell sees the async throw before or
@@ -1425,7 +1427,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/error-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The page should render normally (error boundary is in the tree but inactive)
     expect(html).toContain('Error Test Page')
     expect(html).toContain('This page has an error boundary')
@@ -1435,7 +1437,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/slow`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The Suspense boundary markers should be present
     expect(html).toContain('Slow Page')
     // Content should render (not the loading fallback, since nothing is async)
@@ -1446,14 +1448,14 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/features`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Features')
     expect(html).toContain('route group')
   })
 
   it('renders text/link as <a> tags with correct hrefs', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // Links should be rendered as <a> tags
     expect(html).toMatch(/<a\s[^>]*href="\/about"[^>]*>Go to About<\/a>/)
@@ -1465,7 +1467,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/blog/my-post`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Title from generateMetadata should use the dynamic slug
     expect(html).toContain('<title>Blog: my-post</title>')
     expect(html).toMatch(/name="description".*content="Read about my-post"/)
@@ -1480,7 +1482,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/layout-metadata-search?tab=settings`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Layout falls back to "home" because it never receives searchParams.
     expect(html).toContain('<title>Layout Section: home</title>')
   })
@@ -1489,7 +1491,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/docs/getting-started/install`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Documentation')
     expect(html).toContain('getting-started/install')
     // Rue SSR inserts <!-- --> between text and expressions
@@ -1500,7 +1502,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/optional`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Optional Catch-All')
     expect(html).toContain('(root)')
     expect(html).toMatch(/Segments:.*0/)
@@ -1510,7 +1512,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/optional/x/y`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('x/y')
     expect(html).toMatch(/Segments:.*2/)
   })
@@ -1521,7 +1523,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/sign-in`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Sign In')
     expect(html).toContain('data-testid="sign-in-page"')
     expect(html).toMatch(/Segments:.*0/)
@@ -1532,7 +1534,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/sign-in/sso/callback`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Sign In')
     expect(html).toMatch(/Segments:.*2/)
     expect(html).toContain('sso/callback')
@@ -1542,7 +1544,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/auth/google`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Auth Method')
     expect(html).toContain('data-testid="auth-method-page"')
     expect(html).toContain('google')
@@ -1552,7 +1554,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/metadata-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Metadata Test')
     // Title from metadata should be rendered
     expect(html).toContain('<title>Metadata Test Page</title>')
@@ -1569,7 +1571,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/metadata-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Viewport meta tag with configured properties
     expect(html).toMatch(/name="viewport".*content="[^"]*width=device-width/)
     expect(html).toMatch(/name="viewport".*content="[^"]*initial-scale=1/)
@@ -1653,7 +1655,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/blog/any-arbitrary-slug`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Blog Post')
     expect(html).toContain('any-arbitrary-slug')
   })
@@ -1662,7 +1664,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/actions`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Server Actions')
     expect(html).toContain('Like Button')
     expect(html).toContain('Message Form')
@@ -1702,7 +1704,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/dynamic-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Force Dynamic Page')
     expect(html).toContain('data-testid="dynamic-test-page"')
 
@@ -1713,14 +1715,14 @@ describe('App Router integration', () => {
 
   it('force-dynamic pages get fresh content on each request', async () => {
     const res1 = await fetch(`${baseUrl}/dynamic-test`)
-    const html1 = await res1.text()
+    const html1 = stripRueSsrMarkers(await res1.text())
     const ts1 = html1.match(/data-testid="timestamp">(<!-- -->)?(\d+)/)
 
     // Small delay to ensure different timestamp
     await new Promise(r => setTimeout(r, 5))
 
     const res2 = await fetch(`${baseUrl}/dynamic-test`)
-    const html2 = await res2.text()
+    const html2 = stripRueSsrMarkers(await res2.text())
     const ts2 = html2.match(/data-testid="timestamp">(<!-- -->)?(\d+)/)
 
     expect(ts1).toBeTruthy()
@@ -1741,7 +1743,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/static-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Force Static Page')
     expect(html).toContain('data-testid="static-test-page"')
 
@@ -1758,14 +1760,14 @@ describe('App Router integration', () => {
       headers: { cookie: 'session=abc123' },
     })
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Force Static Page')
   })
 
   it("export const dynamic = 'error' renders when no dynamic APIs are used", async () => {
     const res = await fetch(`${baseUrl}/error-dynamic-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Error Dynamic Page')
     expect(html).toContain('data-testid="error-dynamic-page"')
     // Should be treated as static — long-lived cache
@@ -1777,7 +1779,7 @@ describe('App Router integration', () => {
   it('pages with fetchCache, maxDuration, preferredRegion, runtime exports render fine', async () => {
     const res = await fetch(`${baseUrl}/config-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Config Test Page')
     expect(html).toContain('data-testid="config-test-page"')
   })
@@ -1785,7 +1787,7 @@ describe('App Router integration', () => {
   it('dynamicParams = false allows known params from generateStaticParams', async () => {
     const res = await fetch(`${baseUrl}/products/1`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('data-testid="product-page"')
     expect(html).toMatch(/Product\s*(<!--\s*-->)?\s*1/)
   })
@@ -1799,7 +1801,7 @@ describe('App Router integration', () => {
     // Blog has generateStaticParams but no dynamicParams=false
     const res = await fetch(`${baseUrl}/blog/any-random-slug`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('any-random-slug')
   })
 
@@ -1854,7 +1856,7 @@ describe('App Router integration', () => {
     // /shop/[category]/[item] — the item page's generateStaticParams receives { category }
     const res = await fetch(`${baseUrl}/shop/electronics/phone`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue SSR inserts <!-- --> comments between text and expressions
     expect(html).toMatch(
       /Item:\s*(<!--\s*-->)?\s*phone\s*(<!--\s*-->)?\s*in\s*(<!--\s*-->)?\s*electronics/,
@@ -1865,14 +1867,14 @@ describe('App Router integration', () => {
     // Test multiple combinations from parent params
     const res1 = await fetch(`${baseUrl}/shop/clothing/shirt`)
     expect(res1.status).toBe(200)
-    const html1 = await res1.text()
+    const html1 = stripRueSsrMarkers(await res1.text())
     expect(html1).toMatch(
       /Item:\s*(<!--\s*-->)?\s*shirt\s*(<!--\s*-->)?\s*in\s*(<!--\s*-->)?\s*clothing/,
     )
 
     const res2 = await fetch(`${baseUrl}/shop/electronics/laptop`)
     expect(res2.status).toBe(200)
-    const html2 = await res2.text()
+    const html2 = stripRueSsrMarkers(await res2.text())
     expect(html2).toMatch(
       /Item:\s*(<!--\s*-->)?\s*laptop\s*(<!--\s*-->)?\s*in\s*(<!--\s*-->)?\s*electronics/,
     )
@@ -1882,7 +1884,7 @@ describe('App Router integration', () => {
     const res = await fetch(`${baseUrl}/revalidate-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('ISR Revalidate Page')
     expect(html).toContain('data-testid="revalidate-test-page"')
 
@@ -1912,7 +1914,7 @@ describe('App Router integration', () => {
   it('search page renders Form component with SSR', async () => {
     const res = await fetch(`${baseUrl}/search`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Search')
     expect(html).toContain('Enter a search term')
     // Form should render as a <form> element with action="/search"
@@ -1924,7 +1926,7 @@ describe('App Router integration', () => {
   it('search page renders query results when searchParams provided', async () => {
     const res = await fetch(`${baseUrl}/search?q=hello`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue SSR may insert comment nodes between static text and dynamic values
     expect(html).toMatch(/Results for:.*hello/)
     expect(html).not.toContain('Enter a search term')
@@ -2400,7 +2402,7 @@ describe('App Router Production server (startProdServer)', () => {
     const res = await fetch(`${baseUrl}/`)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/html')
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Welcome to App Router')
     expect(html).toContain('<script')
   })
@@ -2449,7 +2451,7 @@ describe('App Router Production server (startProdServer)', () => {
     })
 
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Pages Header Override Delete')
     expect(html).toContain('<p id="authorization"></p>')
     expect(html).toContain('<p id="cookie"></p>')
@@ -2472,14 +2474,14 @@ describe('App Router Production server (startProdServer)', () => {
   it('serves dynamic routes', async () => {
     const res = await fetch(`${baseUrl}/blog/test-post`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('test-post')
   })
 
   it('serves nested layouts', async () => {
     const res = await fetch(`${baseUrl}/dashboard`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('dashboard-layout')
   })
 
@@ -2631,7 +2633,7 @@ describe('App Router Production server (startProdServer)', () => {
     const res = await fetch(`${baseUrl}/`)
     expect(res.status).toBe(200)
     // Verify we can read the body as text (proves streaming works)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html.length).toBeGreaterThan(0)
   })
 
@@ -3024,7 +3026,7 @@ describe('App Router Production server (startProdServer)', () => {
     })
 
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('id="authorization">null<')
     expect(html).toContain('id="cookie">null<')
     expect(html).toContain('id="middleware-header">hello-from-middleware<')
@@ -3262,7 +3264,7 @@ describe('App Router Production server self-hosted text/font/google headers', ()
 
   it('emits served URLs in the body <link rel=preload> tags', async () => {
     const res = await fetch(`${fontBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(
       /<link rel="preload"[^>]*href="\/_text\/static\/_text_fonts\/[^"]+\.woff2"[^>]*as="font"/,
     )
@@ -3276,7 +3278,7 @@ describe('App Router Production server self-hosted text/font/google headers', ()
     // regression here would reproduce the bug across all three emission
     // paths at once.
     const res = await fetch(`${fontBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const styleMatch = html.match(/<style data-text-fonts[^>]*>([\s\S]*?)<\/style>/)
     expect(styleMatch).not.toBeNull()
     const styleContent = styleMatch![1]
@@ -3290,7 +3292,7 @@ describe('App Router Production server self-hosted text/font/google headers', ()
     // rewritten URLs would be syntactically correct but 404 at request
     // time because the font files never leave `<root>/.text/fonts/`.
     const res = await fetch(`${fontBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/\/_text\/static\/_text_fonts\/[^"]+\.woff2/)
     expect(match).not.toBeNull()
     const fontPath = match![0]
@@ -3632,7 +3634,7 @@ describe('metadata routes integration (App Router)', () => {
     // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/metadata-static-file/metadata-static-file-static-route.test.ts
     const res = await fetch(`${baseUrl}/metadata-static`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toMatch(/<link[^>]+rel="icon"[^>]+href="[^"]*\/favicon\.ico(?:\?[^"]+)?"[^>]*>/)
     expect(html).toMatch(
@@ -3661,7 +3663,7 @@ describe('metadata routes integration (App Router)', () => {
     // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/metadata-svg-icon/metadata-svg-icon.test.ts
     const res = await fetch(`${baseUrl}/metadata-svg-icon`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toMatch(
       /<link[^>]+rel="icon"[^>]+href="[^"]*\/metadata-svg-icon\/icon\.svg(?:\?[^"]+)?"[^>]+sizes="any"[^>]+type="image\/svg\+xml"[^>]*>/,
@@ -3671,7 +3673,7 @@ describe('metadata routes integration (App Router)', () => {
   it('renders icons.icon descriptor object metadata without crashing', async () => {
     const res = await fetch(`${baseUrl}/metadata-icons-object`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toMatch(
       /<link[^>]+rel="icon"[^>]+href="[^"]*\/metadata-icons-object\/object-icon\.png"[^>]+sizes="96x96"[^>]+type="image\/png"[^>]*>/,
@@ -3710,7 +3712,7 @@ describe('metadata routes integration (App Router)', () => {
     // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/metadata-dynamic-routes/index.test.ts
     const res = await fetch(`${baseUrl}/metadata-multi-image/big`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toMatch(
       /<link[^>]+rel="icon"[^>]+href="[^"]*\/metadata-multi-image\/big\/icon\/big-small(?:\?[^"]+)?"[^>]+sizes="48x48"[^>]+type="image\/png"[^>]*>/,
@@ -3725,7 +3727,7 @@ describe('metadata routes integration (App Router)', () => {
     // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/metadata-static-file/metadata-static-file-dynamic-route.test.ts
     const res = await fetch(`${baseUrl}/metadata-dynamic-static/hello-world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toMatch(
       /<link[^>]+rel="apple-touch-icon"[^>]+href="[^"]*\/metadata-dynamic-static\/-\/apple-icon\.png(?:\?[^"]+)?"[^>]*>/,
@@ -3860,7 +3862,7 @@ describe('metadata routes integration (App Router)', () => {
   it('injects file-based metadata into not-found fallback pages', async () => {
     const res = await fetch(`${baseUrl}/missing-metadata-page`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/<link[^>]+rel="icon"[^>]+href="[^"]*\/favicon\.ico(?:\?[^"]+)?"[^>]*>/)
     expect(html).toMatch(/<link[^>]+rel="icon"[^>]+href="[^"]*\/icon(?:\?[^"]+)?"[^>]*>/)
     expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="[^"]*\/manifest\.webmanifest"[^>]*>/)
@@ -3945,14 +3947,14 @@ describe('App Router text.config.js features (dev server integration)', () => {
   it('applies beforeFiles rewrites from text.config.js', async () => {
     const res = await fetch(`${baseUrl}/rewrite-about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('applies rewrites with repeated dynamic params in the destination', async () => {
     const res = await fetch(`${baseUrl}/repeat-rewrite/hello`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('hello/hello')
     expect(html).toMatch(/Segments:.*2/)
   })
@@ -3960,7 +3962,7 @@ describe('App Router text.config.js features (dev server integration)', () => {
   it('applies afterFiles rewrites from text.config.js', async () => {
     const res = await fetch(`${baseUrl}/after-rewrite-about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
@@ -4054,7 +4056,7 @@ describe('App Router text.config.js features (dev server integration)', () => {
     // /rewrite-%61bout decodes to /rewrite-about → /about (beforeFiles rewrite)
     const res = await fetch(`${baseUrl}/rewrite-%61bout`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 })
@@ -4227,7 +4229,7 @@ describe('App Router text.config.js features (generateRscEntry)', () => {
     expect(code).toContain('configRedirects: __configRedirects')
     expect(code).toContain('dispatchMatchedPage({')
     expect(code).toContain('    rootParams,\n    request,')
-    expect(code).toContain('      rootParams,\n      probeLayoutAt')
+    expect(code).toContain('      probeLayoutAt() { return null; },')
     expect(code).toContain('dispatchMatchedRouteHandler({')
     expect(code).toContain('matchRoute,')
   })
@@ -4542,7 +4544,7 @@ describe('App Router middleware with TextRequest', () => {
   it('middleware can rewrite using TextRequest', async () => {
     const res = await fetch(`${baseUrl}/middleware-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render the / page content (the rewrite destination)
     expect(html).toContain('Welcome to App Router')
   })
@@ -4617,7 +4619,7 @@ describe('App Router middleware with TextRequest', () => {
     // The rewrite URL's query string must be visible to the target page.
     const res = await fetch(`${baseUrl}/middleware-rewrite-query`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The /search-query page renders searchParams from props
     expect(html).toContain('from-rewrite')
   })
@@ -4836,7 +4838,7 @@ describe('RSC plugin auto-registration', () => {
   it('renders dynamic routes without explicit RSC plugin', async () => {
     const res = await fetch(`${baseUrl}/blog/auto-rsc-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Blog Post')
     expect(html).toContain('auto-rsc-test')
   })

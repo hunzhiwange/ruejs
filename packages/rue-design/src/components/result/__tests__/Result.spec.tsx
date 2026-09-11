@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 import Result from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -18,14 +19,16 @@ describe('Result', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Result
-        status="success"
-        title="发布完成"
-        subTitle="最新产物已经同步到边缘节点。"
-        data-testid="result-success"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Result
+          status="success"
+          title="发布完成"
+          subTitle="最新产物已经同步到边缘节点。"
+          data-testid="result-success"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -43,7 +46,9 @@ describe('Result', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Result status={404} data-testid="result-404" />, container)
+    mountTestApp(container, () =>
+      render(<Result status={404} data-testid="result-404" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="result-404"]') as HTMLElement
@@ -59,15 +64,18 @@ describe('Result', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Result
-        status="info"
-        icon={<span id="custom-icon">自定义图标</span>}
-        title="处理完毕"
-        extra={<button id="open-panel">查看面板</button>}
-        data-testid="result-custom"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Result status="info" title="处理完毕" data-testid="result-custom">
+          <Template slot="icon">
+            <span id="custom-icon">自定义图标</span>
+          </Template>
+          <Template slot="extra">
+            <button id="open-panel">查看面板</button>
+          </Template>
+        </Result>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -83,16 +91,18 @@ describe('Result', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Result
-        status="warning"
-        align="start"
-        variant="outline"
-        title="待人工确认"
-        children={<div id="detail">审批流已经挂起，请在 30 分钟内处理。</div>}
-        data-testid="result-body"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Result
+          status="warning"
+          align="start"
+          variant="outline"
+          title="待人工确认"
+          children={<div id="detail">审批流已经挂起，请在 30 分钟内处理。</div>}
+          data-testid="result-body"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -107,12 +117,14 @@ describe('Result', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Result data-testid="result-empty-boolean">{false}</Result>
-        <Result data-testid="result-empty-array">{[]}</Result>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Result data-testid="result-empty-boolean">{false}</Result>
+          <Result data-testid="result-empty-array"></Result>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -131,12 +143,14 @@ describe('Result', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div data-testid="images">
-        <Result.PRESENTED_IMAGE_403 size="sm" />
-        <Result.PRESENTED_IMAGE_500 size="sm" />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div data-testid="images">
+          <Result.PRESENTED_IMAGE_403 size="sm" />
+          <Result.PRESENTED_IMAGE_500 size="sm" />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

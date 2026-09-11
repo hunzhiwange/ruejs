@@ -8,8 +8,8 @@ const createReactiveCounterState = (): ReactiveCounterState => {
   const count = ref(0)
 
   watch(
-    count,
-    (newValue: number, oldValue: number) => {
+    () => count.value,
+    (newValue: number, oldValue: number | undefined) => {
       console.info(`watch计数从 ${oldValue} 变为 ${newValue}`)
     },
     { immediate: true },

@@ -108,7 +108,7 @@ export interface QRCodeProps {
   /** onRefresh 事件回调。 */
   onRefresh?: () => void
   /** statusRender 自定义渲染函数。 */
-  statusRender?: (info: QRCodeStatusRenderInfo) => any
+  statusRender?: (info: { locale: QRCodeLocale; onRefresh: () => void }) => any
   /** 根节点附加类名。 */
   className?: string
   /** 根节点附加类名。 */
@@ -364,40 +364,34 @@ const DefaultStatusContent: FC<QRCodeStatusRenderInfo> = ({ status, locale, onRe
   )
 }
 
-/** Custom Status Content 的内部工具函数。 */
-const CustomStatusContent: FC<{
-  render: NonNullable<QRCodeProps['statusRender']>
-  info: QRCodeStatusRenderInfo
-}> = ({ render, info }) => {
-  return render(info)
-}
-
 /** QRCode 的内部工具函数。 */
-const QRCode: FC<QRCodeProps> = ({
-  value,
-  type = 'canvas',
-  icon,
-  size = 160,
-  iconSize,
-  color = '#111827',
-  errorLevel = 'M',
-  status = 'active',
-  bordered = true,
-  onRefresh,
-  style,
-  className,
-  rootClassName,
-  bgColor = '#ffffff',
-  marginSize = 4,
-  statusRender,
-  locale,
-  classNames,
-  styles,
-  boostLevel = true,
-  ...rest
-}) => {
+const QRCode: FC<QRCodeProps> = (
+  {
+    value,
+    type = 'canvas',
+    icon,
+    size = 160,
+    iconSize,
+    color = '#111827',
+    errorLevel = 'M',
+    status = 'active',
+    bordered = true,
+    onRefresh,
+    style,
+    className,
+    rootClassName,
+    bgColor = '#ffffff',
+    marginSize = 4,
+    locale,
+    classNames,
+    styles,
+    boostLevel = true,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   if (value == null || value === '') {
-    return null
+    return <></>
   }
 
   const mergedLocale = { ...DEFAULT_LOCALE, ...locale }
@@ -674,10 +668,8 @@ const QRCode: FC<QRCodeProps> = ({
             style={{ ...styles?.status }}
           >
             {error ? <OverflowState locale={mergedLocale} message={error.message} /> : null}
-            {!error && statusInfo && statusRender ? (
-              <CustomStatusContent render={statusRender} info={statusInfo} />
-            ) : null}
-            {!error && statusInfo && !statusRender ? (
+            {!error && statusInfo && slots.status ? <>{slots.status}</> : null}
+            {!error && statusInfo && !slots.status ? (
               <DefaultStatusContent {...statusInfo} />
             ) : null}
           </div>

@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -41,32 +41,32 @@ describe('text/router SSR guard (issue #1353)', () => {
   })
 
   it("Router.push throws the documented 'no router instance' error during SSR (no ReferenceError)", async () => {
-    const Router = (await import('../src/shims/router.js')).default
+    const Router = (await import('../src/shims/router.js?text-ssr')).default
     expect(() => Router.push('/a')).toThrow(/No router instance found/)
   })
 
   it("Router.replace throws the documented 'no router instance' error during SSR", async () => {
-    const Router = (await import('../src/shims/router.js')).default
+    const Router = (await import('../src/shims/router.js?text-ssr')).default
     expect(() => Router.replace('/a')).toThrow(/No router instance found/)
   })
 
   it('Router.back throws during SSR instead of touching window.history', async () => {
-    const Router = (await import('../src/shims/router.js')).default
+    const Router = (await import('../src/shims/router.js?text-ssr')).default
     expect(() => Router.back()).toThrow(/No router instance found/)
   })
 
   it('Router.reload throws during SSR instead of touching window.location', async () => {
-    const Router = (await import('../src/shims/router.js')).default
+    const Router = (await import('../src/shims/router.js?text-ssr')).default
     expect(() => Router.reload()).toThrow(/No router instance found/)
   })
 
   it('Router.prefetch throws during SSR instead of touching document', async () => {
-    const Router = (await import('../src/shims/router.js')).default
+    const Router = (await import('../src/shims/router.js?text-ssr')).default
     expect(() => Router.prefetch('/a')).toThrow(/No router instance found/)
   })
 
   it('Router.beforePopState throws during SSR', async () => {
-    const Router = (await import('../src/shims/router.js')).default
+    const Router = (await import('../src/shims/router.js?text-ssr')).default
     expect(() => Router.beforePopState(() => true)).toThrow(/No router instance found/)
   })
 
@@ -76,7 +76,7 @@ describe('text/router SSR guard (issue #1353)', () => {
   // from `performNavigation`. After the fix the render throws the documented
   // "No router instance found" error, which is what Text.js does too.
   it('withRouter component that calls router.push() during SSR throws a render error, not a ReferenceError', async () => {
-    const { withRouter, wrapWithRouterContext } = await import('../src/shims/router.js')
+    const { withRouter, wrapWithRouterContext } = await import('../src/shims/router.js?text-ssr')
 
     const RouterMethodSSR = ({ router }: { router: TextRouter }) => {
       // Mirrors Text.js's `router-method-ssr.js` fixture, which calls
@@ -91,7 +91,7 @@ describe('text/router SSR guard (issue #1353)', () => {
 
     let caught: unknown = null
     try {
-      renderAppServerElementToHtml(wrapWithRouterContext(createElement(Wrapped as never)))
+      await renderAppServerElementToHtml(wrapWithRouterContext(createElement(Wrapped as never)))
     } catch (err) {
       caught = err
     }

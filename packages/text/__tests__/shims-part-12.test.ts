@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -558,18 +558,18 @@ describe('open redirect prevention in catch-all redirects', () => {
 
 describe('text/form shim', () => {
   it('exports default Form component', async () => {
-    const mod = await import('../src/shims/form.js')
+    const mod = await import('../src/shims/form.js?text-ssr')
     expect(mod.default).toBeDefined()
     expect(typeof mod.default).toBe('function')
   })
 
   it('re-exports useActionState from Rue', async () => {
-    const mod = await import('../src/shims/form.js')
+    const mod = await import('../src/shims/form.js?text-ssr')
     expect(typeof mod.useActionState).toBe('function')
   })
 
   it('renders a form element with string action in SSR', async () => {
-    const { default: Form } = await import('../src/shims/form.js')
+    const { default: Form } = await import('../src/shims/form.js?text-ssr')
 
     const html = await renderRueToString(() =>
       createRueElement(
@@ -586,7 +586,7 @@ describe('text/form shim', () => {
   })
 
   it('renders a form with method prop', async () => {
-    const { default: Form } = await import('../src/shims/form.js')
+    const { default: Form } = await import('../src/shims/form.js?text-ssr')
 
     const html = await renderRueToString(() =>
       createRueElement(
@@ -600,7 +600,7 @@ describe('text/form shim', () => {
   })
 
   it('renders children inside the form', async () => {
-    const { default: Form } = await import('../src/shims/form.js')
+    const { default: Form } = await import('../src/shims/form.js?text-ssr')
 
     const html = await renderRueToString(() =>
       createRueElement(
@@ -617,7 +617,7 @@ describe('text/form shim', () => {
   })
 
   it('passes className and id through to form element', async () => {
-    const { default: Form } = await import('../src/shims/form.js')
+    const { default: Form } = await import('../src/shims/form.js?text-ssr')
 
     const html = await renderRueToString(() =>
       createRueElement(Form, { action: '/search', className: 'search-form', id: 'main-search' }),
@@ -639,68 +639,22 @@ describe('Rue hook compatibility adapter', () => {
     expect(typeof adapter.startTransition).toBe('function')
   })
 
-  it('forwards the React useState contract to the active Rue runtime', async () => {
-    const { deleteContextRuntime, readContextRuntime, setContextRuntime } =
-      await import('../src/shims/context-runtime-global.js')
-    const previousRuntime = readContextRuntime()
+  it('rejects ownerless useState without evaluating the initializer', async () => {
+    const adapter = await import('../src/shims/hooks-adapter.js')
     const initializer = vi.fn(() => 2)
-    let currentState = 2
-    const runtimeSetter = vi.fn((update: number | ((previous: number) => number)) => {
-      currentState = typeof update === 'function' ? update(currentState) : update
-    })
-    const runtimeUseState = vi.fn((initial: number | (() => number)) => [
-      typeof initial === 'function' ? initial() : initial,
-      runtimeSetter,
-    ])
-
-    setContextRuntime({
-      createContext: vi.fn(),
-      createElement: vi.fn(),
-      startTransition: (callback: () => void) => callback(),
-      useCallback: <T extends (...args: never[]) => unknown>(callback: T) => callback,
-      useContext: vi.fn(),
-      useEffect: vi.fn(),
-      useMemo: <T>(factory: () => T) => factory(),
-      useRef: <T>(initialValue: T) => ({ current: initialValue }),
-      useState: runtimeUseState,
-    })
-
-    try {
-      const adapter = await import('../src/shims/hooks-adapter.js')
-      const [state, setState] = adapter.useState(initializer)
-      let updaterPrevious: number | undefined
-      const updater = (previous: number) => {
-        updaterPrevious = previous
-        return previous + 1
-      }
-
-      expect(runtimeUseState).toHaveBeenCalledWith(initializer)
-      expect(initializer).toHaveBeenCalledTimes(1)
-      expect(state).toBe(2)
-      expect(setState).toBe(runtimeSetter)
-
-      setState(updater)
-      expect(updaterPrevious).toBe(2)
-      expect(currentState).toBe(3)
-    } finally {
-      if (previousRuntime === undefined) deleteContextRuntime()
-      else setContextRuntime(previousRuntime)
-    }
+    expect(() => adapter.useState(initializer)).toThrow('requires compilation to an owner slot')
+    expect(initializer).not.toHaveBeenCalled()
   })
 })
 
-describe('Rue SSR compatibility facade', () => {
-  it('returns primitive state values for client component SSR', async () => {
-    const { useState } = await import('../src/shims/rue-ssr-compat.js')
-
-    const [flag, setFlag] = useState(false)
-    expect(flag).toBe(false)
-
-    const [count, setCount] = useState(() => 0)
-    setCount(previous => previous + 1)
-
-    expect(count).toBe(0)
-    expect(typeof setFlag).toBe('function')
+describe('compiled client component SSR', () => {
+  it('reads initialized state through the writer compilation', async () => {
+    const { compileNodePlan } = await import('../../runtime/__tests__/node-plan-test-utils')
+    const server = compileNodePlan(
+      `import {useState} from '@rue-js/rue'; export const View=()=>{const [count]=useState(()=>3); return <p>{count}</p>}`,
+      'server',
+    )
+    expect(await server.renderToString(server.View)).toContain('>3<!--')
   })
 })
 

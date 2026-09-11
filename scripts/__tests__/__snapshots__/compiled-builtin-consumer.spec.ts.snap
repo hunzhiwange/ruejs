@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`KeepAlive compiles to an independent primitive with no component adapter 1`] = `
+[
+  "import { _$template, _$createDocumentFragment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$keepAlive } from "@rue-js/rue/internal/keepalive";",
+]
+`;
+
+exports[`Suspense compiles to an independent primitive with no component adapter 1`] = `
+[
+  "import { _$template, _$createDocumentFragment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$suspense } from "@rue-js/rue/internal/suspense";",
+]
+`;
+
+exports[`Teleport compiles to an independent primitive with no component adapter 1`] = `
+[
+  "import { _$template, _$createDocumentFragment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$teleport } from "@rue-js/rue/internal/teleport";",
+]
+`;
+
+exports[`Transition compiles to an independent primitive with no component adapter 1`] = `
+[
+  "import { _$template, _$createDocumentFragment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$transition } from "@rue-js/rue/internal/transition";",
+]
+`;
+
+exports[`TransitionGroup compiles to an independent primitive with no component adapter 1`] = `
+[
+  "import { _$template, _$createDocumentFragment, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";",
+  "import { _$compiledRoot, _$mountCompiledSlotFactory } from "@rue-js/rue/internal/block";",
+  "import { _$transitionGroup } from "@rue-js/rue/internal/transitiongroup";",
+]
+`;

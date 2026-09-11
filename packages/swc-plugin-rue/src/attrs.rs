@@ -235,6 +235,8 @@ pub(crate) enum DomBindingClass {
 struct CompiledEventSpec {
     name: String,
     capture: bool,
+    once: bool,
+    passive: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -243,6 +245,7 @@ enum CompiledDomBinding {
     Style,
     StyleProperty { name: String, set_property: bool },
     Value,
+    SelectValue,
     BooleanProperty(String),
     Attribute(String),
 }
@@ -339,13 +342,22 @@ fn normalized_boolean(value: Expr) -> Expr {
     call_ident("Boolean", vec![value])
 }
 
+fn boolean_property_name(name: &str) -> &str {
+    match name {
+        "autoFocus" => "autofocus",
+        "autoPlay" => "autoplay",
+        "allowFullScreen" => "allowFullscreen",
+        _ => name,
+    }
+}
+
 fn attr_binding_kind(name: &str) -> CompiledDomBinding {
     match name {
         "className" => CompiledDomBinding::ClassName,
         "style" => CompiledDomBinding::Style,
         "value" => CompiledDomBinding::Value,
-        "checked" | "disabled" | "multiple" => {
-            CompiledDomBinding::BooleanProperty(name.to_string())
+        name if crate::vapor::template::is_boolean_attr(name) => {
+            CompiledDomBinding::BooleanProperty(boolean_property_name(name).to_string())
         }
         _ => CompiledDomBinding::Attribute(name.to_string()),
     }
@@ -382,22 +394,58 @@ fn compiled_style_record(
 }
 
 fn compiled_event_spec(name: &str) -> Option<CompiledEventSpec> {
-    let suffix = name.strip_prefix("on")?;
-    if !suffix.chars().next().is_some_and(|character| character.is_uppercase()) {
+    let mut event = name.strip_prefix("on")?;
+    if !event.chars().next()?.is_ascii_uppercase() {
         return None;
     }
+    let mut capture = false;
+    let mut once = false;
+    let mut passive = false;
+    loop {
+        if event.ends_with("Capture")
+            && !matches!(event, "GotPointerCapture" | "LostPointerCapture")
+        {
+            capture = true;
+            event = event.strip_suffix("Capture")?;
+        } else if let Some(base) = event.strip_suffix("Once") {
+            once = true;
+            event = base;
+        } else if let Some(base) = event.strip_suffix("Passive") {
+            passive = true;
+            event = base;
+        } else {
+            break;
+        }
+    }
+    (!event.is_empty()).then(|| CompiledEventSpec {
+        name: event.to_ascii_lowercase(),
+        capture,
+        once,
+        passive,
+    })
+}
 
-    // `onXCapture` is a compile-time-known listener option. Pointer-capture event names
-    // themselves keep their full browser event name.
-    let capture = suffix.ends_with("Capture")
-        && !matches!(suffix, "GotPointerCapture" | "LostPointerCapture");
-    let event = if capture { suffix.strip_suffix("Capture")? } else { suffix };
-    (!event.is_empty()).then(|| CompiledEventSpec { name: event.to_ascii_lowercase(), capture })
+fn compiled_event_options(spec: &CompiledEventSpec) -> Expr {
+    Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props: [("capture", spec.capture), ("once", spec.once), ("passive", spec.passive)]
+            .into_iter()
+            .filter(|(_, enabled)| *enabled)
+            .map(|(name, _)| {
+                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(ident_name(name)),
+                    value: Box::new(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true }))),
+                })))
+            })
+            .collect(),
+    })
 }
 
 fn is_compiled_event_handler_expr(expr: &Expr) -> bool {
     matches!(unwrap_expr(expr), Expr::Ident(_) | Expr::Member(_) | Expr::Arrow(_) | Expr::Fn(_))
-        || matches!(unwrap_expr(expr), Expr::Call(call) if crate::compiled_component::is_static_prop_get_call(call))
+        || matches!(unwrap_expr(expr), Expr::Call(call) if
+            crate::compiled_component::is_static_prop_get_call(call) ||
+            matches!(&call.callee, Callee::Expr(callee) if matches!(callee.as_ref(), Expr::Ident(id) if id.sym == *"_$compiledWithEventModifiers")))
 }
 
 fn is_delegated_bubbling_event(name: &str) -> bool {
@@ -449,11 +497,7 @@ fn is_delegated_bubbling_event(name: &str) -> bool {
 
 pub(crate) fn is_compiled_delegated_event(attr_name: &str, handler: &Expr) -> bool {
     let Some(spec) = compiled_event_spec(attr_name) else { return false };
-    if spec.capture
-        || attr_name.ends_with("Once")
-        || attr_name.ends_with("Passive")
-        || !is_delegated_bubbling_event(&spec.name)
-    {
+    if spec.capture || spec.once || spec.passive || !is_delegated_bubbling_event(&spec.name) {
         return false;
     }
     matches!(
@@ -543,7 +587,7 @@ fn classify_dom_attr_with_shadows(
             let inner = unwrap_expr(expr.as_ref());
             let is_static = if name == "style" {
                 get_static_style_expr(inner).is_some()
-            } else if name == "disabled" || name == "checked" || name == "multiple" {
+            } else if crate::vapor::template::is_boolean_attr(name) {
                 get_static_truthy_bool(inner).is_some()
             } else if name == "value" {
                 get_static_literal_value_expr(inner).is_some()
@@ -642,18 +686,9 @@ fn emit_compiled_event(
         ),
     ));
 
-    let options = spec.capture.then(|| {
+    let options = (spec.capture || spec.once || spec.passive).then(|| {
         let options = ident(&format!("{}_options", listener.sym));
-        stmts.push(const_decl(
-            options.clone(),
-            Expr::Object(ObjectLit {
-                span: DUMMY_SP,
-                props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(ident_name("capture")),
-                    value: Box::new(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true }))),
-                })))],
-            }),
-        ));
+        stmts.push(const_decl(options.clone(), compiled_event_options(&spec)));
         options
     });
 
@@ -715,18 +750,9 @@ fn emit_vapor_event(
         ),
     ));
 
-    let options = spec.capture.then(|| {
+    let options = (spec.capture || spec.once || spec.passive).then(|| {
         let options = ident(&format!("{}_options", listener.sym));
-        stmts.push(const_decl(
-            options.clone(),
-            Expr::Object(ObjectLit {
-                span: DUMMY_SP,
-                props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(ident_name("capture")),
-                    value: Box::new(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true }))),
-                })))],
-            }),
-        ));
+        stmts.push(const_decl(options.clone(), compiled_event_options(&spec)));
         options
     });
     let listener_args = || {
@@ -848,11 +874,9 @@ fn emit_direct_static_attr(
 ) {
     match value {
         Some(JSXAttrValue::Str(value)) => match name {
-            "className" => stmts.push(compiled_assign_member(
-                Expr::Ident(target.clone()),
-                "className",
-                Expr::Lit(Lit::Str(value.clone())),
-            )),
+            "className" => {
+                emit_direct_attribute(stmts, target, "class", Expr::Lit(Lit::Str(value.clone())))
+            }
             "style" => stmts.push(compiled_assign_member(
                 compiled_member(Expr::Ident(target.clone()), "style"),
                 "cssText",
@@ -863,11 +887,13 @@ fn emit_direct_static_attr(
                 "value",
                 Expr::Lit(Lit::Str(value.clone())),
             )),
-            "checked" | "disabled" | "multiple" => stmts.push(compiled_assign_member(
-                Expr::Ident(target.clone()),
-                name,
-                Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })),
-            )),
+            name if crate::vapor::template::is_boolean_attr(name) => {
+                stmts.push(compiled_assign_member(
+                    Expr::Ident(target.clone()),
+                    boolean_property_name(name),
+                    Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })),
+                ))
+            }
             _ => emit_direct_attribute(stmts, target, name, Expr::Lit(Lit::Str(value.clone()))),
         },
         Some(JSXAttrValue::JSXExprContainer(container)) => {
@@ -880,7 +906,15 @@ fn emit_direct_static_attr(
                     let Some(style) = get_static_style_expr(inner) else {
                         return;
                     };
-                    if matches!(style, Expr::Object(_)) {
+                    if matches!(&style, Expr::Object(object) if object.props.iter().any(|prop|
+                        matches!(prop, PropOrSpread::Prop(prop) if matches!(prop.as_ref(), Prop::KeyValue(kv) if matches!(&kv.key, PropName::Str(key) if key.value.as_str().is_some_and(|name| name.starts_with("--")))))
+                    )) {
+                        stmts.push(compiled_assign_member(
+                            compiled_member(Expr::Ident(target.clone()), "style"),
+                            "cssText",
+                            call_ident("_$compiledStyleValue", vec![style]),
+                        ));
+                    } else if matches!(style, Expr::Object(_)) {
                         push_expr_stmt(
                             stmts,
                             compiled_call_member(
@@ -899,11 +933,7 @@ fn emit_direct_static_attr(
                 }
                 "className" => {
                     if let Some(value) = get_static_stringified_expr(inner) {
-                        stmts.push(compiled_assign_member(
-                            Expr::Ident(target.clone()),
-                            "className",
-                            value,
-                        ));
+                        emit_direct_attribute(stmts, target, "class", value);
                     }
                 }
                 "value" => {
@@ -915,11 +945,11 @@ fn emit_direct_static_attr(
                         ));
                     }
                 }
-                "checked" | "disabled" | "multiple" => {
+                name if crate::vapor::template::is_boolean_attr(name) => {
                     if let Some(value) = get_static_truthy_bool(inner) {
                         stmts.push(compiled_assign_member(
                             Expr::Ident(target.clone()),
-                            name,
+                            boolean_property_name(name),
                             Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value })),
                         ));
                     }
@@ -932,11 +962,13 @@ fn emit_direct_static_attr(
             }
         }
         None => match name {
-            "checked" | "disabled" | "multiple" => stmts.push(compiled_assign_member(
-                Expr::Ident(target.clone()),
-                name,
-                Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })),
-            )),
+            name if crate::vapor::template::is_boolean_attr(name) => {
+                stmts.push(compiled_assign_member(
+                    Expr::Ident(target.clone()),
+                    boolean_property_name(name),
+                    Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })),
+                ))
+            }
             name if is_string_boolean_attr(name) => {
                 emit_direct_attribute(stmts, target, name, string_expr("true"));
             }
@@ -959,12 +991,32 @@ fn emit_compiled_binding_effect(
     stmts.push(compiled_let_decl(binding.clone()));
 
     let next_expr = match &binding_kind {
-        CompiledDomBinding::ClassName
-        | CompiledDomBinding::StyleProperty { .. }
-        | CompiledDomBinding::Value => normalized_string(Expr::Ident(raw.clone())),
-        CompiledDomBinding::Style => Expr::Ident(raw.clone()),
+        CompiledDomBinding::ClassName | CompiledDomBinding::StyleProperty { .. } => {
+            Expr::Cond(CondExpr {
+                span: DUMMY_SP,
+                test: Box::new(Expr::Bin(BinExpr {
+                    span: DUMMY_SP,
+                    op: BinaryOp::EqEqEq,
+                    left: Box::new(Expr::Ident(raw.clone())),
+                    right: Box::new(Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: false }))),
+                })),
+                cons: Box::new(string_expr("")),
+                alt: Box::new(normalized_string(Expr::Ident(raw.clone()))),
+            })
+        }
+        CompiledDomBinding::Value => normalized_string(Expr::Ident(raw.clone())),
+        CompiledDomBinding::Style => {
+            if matches!(unwrap_expr(inner), Expr::Call(call) if matches!(&call.callee, Callee::Expr(callee) if matches!(callee.as_ref(), Expr::Ident(id) if id.sym == *"String")))
+            {
+                normalized_string(Expr::Ident(raw.clone()))
+            } else {
+                call_ident("_$compiledStyleValue", vec![Expr::Ident(raw.clone())])
+            }
+        }
         CompiledDomBinding::BooleanProperty(_) => normalized_boolean(Expr::Ident(raw.clone())),
-        CompiledDomBinding::Attribute(_) => Expr::Ident(raw.clone()),
+        CompiledDomBinding::Attribute(_) | CompiledDomBinding::SelectValue => {
+            Expr::Ident(raw.clone())
+        }
     };
     let changed = Expr::Unary(UnaryExpr {
         span: DUMMY_SP,
@@ -977,18 +1029,19 @@ fn emit_compiled_binding_effect(
     });
 
     let write = match &binding_kind {
-        CompiledDomBinding::ClassName => compiled_assign_member(
-            Expr::Ident(target.clone()),
-            "className",
-            Expr::Ident(next.clone()),
-        ),
-        CompiledDomBinding::Style => Stmt::Expr(ExprStmt {
+        CompiledDomBinding::ClassName => Stmt::Expr(ExprStmt {
             span: DUMMY_SP,
-            expr: Box::new(call_ident(
-                "_$setStyle",
-                vec![Expr::Ident(target.clone()), Expr::Ident(next.clone())],
+            expr: Box::new(compiled_call_member(
+                Expr::Ident(target.clone()),
+                "setAttribute",
+                vec![string_expr("class"), Expr::Ident(next.clone())],
             )),
         }),
+        CompiledDomBinding::Style => compiled_assign_member(
+            compiled_member(Expr::Ident(target.clone()), "style"),
+            "cssText",
+            Expr::Ident(next.clone()),
+        ),
         CompiledDomBinding::StyleProperty { name, set_property } => {
             let style = compiled_member(Expr::Ident(target.clone()), "style");
             if *set_property {
@@ -1004,10 +1057,13 @@ fn emit_compiled_binding_effect(
                 compiled_assign_member(style, name, Expr::Ident(next.clone()))
             }
         }
-        CompiledDomBinding::Value => Stmt::Expr(ExprStmt {
+        CompiledDomBinding::Value => {
+            compiled_assign_member(Expr::Ident(target.clone()), "value", Expr::Ident(next.clone()))
+        }
+        CompiledDomBinding::SelectValue => Stmt::Expr(ExprStmt {
             span: DUMMY_SP,
             expr: Box::new(call_ident(
-                "_$setValue",
+                "_$compiledSelectValue",
                 vec![Expr::Ident(target.clone()), Expr::Ident(next.clone())],
             )),
         }),
@@ -1043,7 +1099,11 @@ fn emit_compiled_binding_effect(
                     span: DUMMY_SP,
                     op: BinaryOp::LogicalOr,
                     left: Box::new(is_nullish(Expr::Ident(next.clone()))),
-                    right: Box::new(false_value),
+                    right: Box::new(if is_string_boolean_attr(name) {
+                        Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: false }))
+                    } else {
+                        false_value
+                    }),
                 })),
                 cons: Box::new(remove),
                 alt: Some(Box::new(set)),
@@ -1087,6 +1147,46 @@ pub(crate) fn emit_compiled_attrs_for(
     target: &Ident,
     opening: &JSXOpeningElement,
 ) {
+    let mut expanded = opening.clone();
+    expanded.attrs = opening
+        .attrs
+        .iter()
+        .flat_map(|attr| {
+            let JSXAttrOrSpread::SpreadElement(spread) = attr else { return vec![attr.clone()] };
+            let Expr::Object(object) = unwrap_expr(&spread.expr) else { return vec![attr.clone()] };
+            let attributes: Option<Vec<_>> = object
+                .props
+                .iter()
+                .map(|prop| {
+                    let PropOrSpread::Prop(prop) = prop else { return None };
+                    let (name, value) = match prop.as_ref() {
+                        Prop::KeyValue(kv) => {
+                            let name = match &kv.key {
+                                PropName::Ident(id) => id.sym.to_string(),
+                                PropName::Str(name) => name.value.as_str()?.to_string(),
+                                _ => return None,
+                            };
+                            (name, kv.value.clone())
+                        }
+                        Prop::Shorthand(id) => {
+                            (id.sym.to_string(), Box::new(Expr::Ident(id.clone())))
+                        }
+                        _ => return None,
+                    };
+                    Some(JSXAttrOrSpread::JSXAttr(JSXAttr {
+                        span: DUMMY_SP,
+                        name: JSXAttrName::Ident(ident_name(&name)),
+                        value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                            span: DUMMY_SP,
+                            expr: JSXExpr::Expr(value),
+                        })),
+                    }))
+                })
+                .collect();
+            attributes.unwrap_or_else(|| vec![attr.clone()])
+        })
+        .collect();
+    let opening = &expanded;
     let shadowed_names = vt.current_scalar_constructor_shadows();
     for (attr_index, attr) in opening.attrs.iter().enumerate() {
         if let JSXAttrOrSpread::SpreadElement(spread) = attr {
@@ -1144,7 +1244,13 @@ pub(crate) fn emit_compiled_attrs_for(
                     stmts,
                     target,
                     unwrap_expr(expr.as_ref()),
-                    attr_binding_kind(name),
+                    if name == "value"
+                        && matches!(&opening.name, JSXElementName::Ident(tag) if tag.sym == *"select")
+                    {
+                        CompiledDomBinding::SelectValue
+                    } else {
+                        attr_binding_kind(name)
+                    },
                 );
             }
             DomBindingClass::CompiledStyleRecord => {

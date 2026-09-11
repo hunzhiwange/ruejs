@@ -1,100 +1,88 @@
-/**
- * onErrorCaptured 运行时测试。
- *
- * 覆盖子组件 render 抛错时的父级捕获、阻止全局传播和继续冒泡行为。
- */
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { onError, onErrorCaptured, render, setReactiveScheduling, type FC } from '../src'
-import { retainRootMountError } from '../src/error-capture'
-import { shouldRetainRootMountError } from '../src/root-mount-error'
-import { _$createDynamic } from './legacy-test-render'
-
-const createTestRenderable = (
-  type: string | FC,
-  props: Record<string, unknown> | null,
-  ...children: unknown[]
-) => _$createDynamic(type, children.length > 0 ? { ...props, children } : props)
-setReactiveScheduling('sync')
+import { evaluateComponent } from './compiled-component-test-utils'
+import { _$createComponent } from '../src/compiled-component-call'
+import {
+  setReactiveScheduling,
+  __rueGetCompiledReactiveDebugState,
+} from '../src/runtime-core/compiled'
 
 afterEach(() => {
   document.body.innerHTML = ''
+  setReactiveScheduling('frame')
   vi.restoreAllMocks()
 })
-
-describe('onErrorCaptured', () => {
-  it('retains root mount failures by object identity without accepting primitive values', () => {
-    const objectError = new Error('object failure')
-    const sameMessage = new Error('object failure')
-    const functionError = () => 'function failure'
-
-    retainRootMountError(objectError)
-    retainRootMountError(functionError)
-    retainRootMountError('primitive failure')
-    retainRootMountError(1)
-    retainRootMountError(null)
-
-    expect(shouldRetainRootMountError(objectError)).toBe(true)
-    expect(shouldRetainRootMountError(objectError)).toBe(true)
-    expect(shouldRetainRootMountError(sameMessage)).toBe(false)
-    expect(shouldRetainRootMountError(functionError)).toBe(true)
-    expect(shouldRetainRootMountError(() => 'function failure')).toBe(false)
-    expect(shouldRetainRootMountError('primitive failure')).toBe(false)
-    expect(shouldRetainRootMountError(1)).toBe(false)
-    expect(shouldRetainRootMountError(null)).toBe(false)
+describe('closed component owner errors', () => {
+  it.each([true, false])('propagates descendant errors along owners (stop=%s)', stop => {
+    const output = vi.spyOn(console, 'error').mockImplementation(() => {})
+    setReactiveScheduling('sync')
+    const { exports: app } = evaluateComponent(`
+      import {onErrorCaptured,onError,onUnmounted} from '@rue-js/rue';
+      export const captured=[], globalErrors=[], disposed=[];
+      export const stopGlobal=onError(error=>globalErrors.push(error.message));
+      const Child=()=>{onUnmounted(()=>disposed.push('child'));throw Error('child failure');return <i/>};
+      const Parent=()=>{onErrorCaptured(error=>{captured.push(error.message);return ${stop ? 'false' : 'undefined'}});return <section><Child/></section>};
+      export const View=()=> <main><Parent/></main>;
+    `)
+    const baseline = __rueGetCompiledReactiveDebugState()
+    const root = _$createComponent(app.View, {})
+    try {
+      if (stop) root.__rue_compiled_mount(document.body)
+      else expect(() => root.__rue_compiled_mount(document.body)).toThrow('child failure')
+      expect(app.captured).toEqual(['child failure'])
+      expect(app.globalErrors).toEqual(stop ? [] : ['child failure'])
+      expect(output).toHaveBeenCalledTimes(stop ? 0 : 1)
+    } finally {
+      root.dispose()
+      app.stopGlobal()
+    }
+    expect(app.disposed).toEqual(['child'])
+    expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
+    expect(document.body.childNodes.length).toBe(0)
   })
 
-  it('captures descendant component render errors and can stop global propagation', () => {
-    const container = document.createElement('div')
-    const captured: string[] = []
-    const globalError = vi.fn()
-    const stopGlobalError = onError(globalError)
-
-    const Child: FC = () => {
-      throw new Error('planned child failure')
-    }
-
-    const Parent: FC = () => {
-      onErrorCaptured(error => {
-        captured.push(error.message)
-        return false
-      })
-      return createTestRenderable('section', null, createTestRenderable(Child, null))
-    }
-
-    render(createTestRenderable(Parent, null), container)
-
-    expect(captured).toEqual(['planned child failure'])
-    expect(globalError).not.toHaveBeenCalled()
-
-    stopGlobalError?.()
+  it('does not catch a component failure with its own boundary', () => {
+    const { exports: app } = evaluateComponent(`
+      import {onErrorCaptured} from '@rue-js/rue';
+      export const calls=[];
+      export const View=()=>{onErrorCaptured(()=>{calls.push('own');return false});throw Error('own failure');return <i/>};
+    `)
+    const root = _$createComponent(app.View, {})
+    expect(() => root.__rue_compiled_mount(document.body)).toThrow('own failure')
+    expect(app.calls).toEqual([])
+    root.dispose()
   })
+})
 
-  it('continues to global error handlers when capture does not stop propagation', () => {
-    const container = document.createElement('div')
-    const captured: string[] = []
-    const globalError = vi.fn()
-    const stopGlobalError = onError(globalError)
+it('captures errors from a descendant owned effect after mount', () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import {signal,effect,onErrorCaptured} from '@rue-js/rue';
+    export const fail=signal(false), errors=[];
+    const Child=()=>{effect(()=>{if(fail.get())throw Error('effect failure')});return <i>stable</i>};
+    export const View=()=>{onErrorCaptured(error=>{errors.push(error.message);return false});return <main><Child/></main>};
+  `)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(() => app.fail.set(true)).not.toThrow()
+    expect(app.errors).toEqual(['effect failure'])
+    expect(document.querySelector('i')?.textContent).toBe('stable')
+  } finally {
+    root.dispose()
+    app.fail.dispose()
+  }
+})
 
-    const Child: FC = () => {
-      throw new Error('bubble child failure')
-    }
-
-    const Parent: FC = () => {
-      onErrorCaptured(error => {
-        captured.push(error.message)
-      })
-      return createTestRenderable(Child, null)
-    }
-
-    expect(() => render(createTestRenderable(Parent, null), container)).toThrow(
-      'bubble child failure',
-    )
-
-    expect(captured).toEqual(['bubble child failure'])
-    expect(globalError).toHaveBeenCalledTimes(1)
-    expect(globalError.mock.calls[0]?.[0]?.message).toBe('bubble child failure')
-
-    stopGlobalError?.()
-  })
+import { retainRootMountError, shouldRetainRootMountError } from '../src/root-mount-error'
+it('retains root mount errors by identity without retaining primitives', () => {
+  const error = Error('failure')
+  const callback = () => 'failure'
+  retainRootMountError(error)
+  retainRootMountError(callback)
+  retainRootMountError('failure')
+  expect(shouldRetainRootMountError(error)).toBe(true)
+  expect(shouldRetainRootMountError(callback)).toBe(true)
+  expect(shouldRetainRootMountError(Error('failure'))).toBe(false)
+  expect(shouldRetainRootMountError('failure')).toBe(false)
 })

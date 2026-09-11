@@ -96,7 +96,7 @@ fn treats_any_member_children_as_children_slots_inside_fragments() {
     let out = compile_fragment_children("<>{ctx.children}{panel.children}</>");
 
     assert_eq!(out.matches("rue:children:anchor").count(), 2, "{out}");
-    assert_eq!(out.matches("renderAnchor(").count(), 2, "{out}");
+    assert_eq!(out.matches("_$mountCompiledSlotAt(").count(), 2, "{out}");
     assert!(out.contains("panel.children"));
     assert!(!out.contains("rue:slot:anchor"));
 }
@@ -125,5 +125,5 @@ fn falls_back_to_slot_rendering_for_non_map_call_expr_children() {
 
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains(&normalize(r#"renderChild(value)"#)));
-    assert!(out.contains(&normalize(r#"renderAnchor(__slot, parent"#)));
+    assert!(out.contains(&normalize(r#"_$mountCompiledSlotAt("#)));
 }

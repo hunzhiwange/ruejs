@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vite-plus/test'
-import { useSelectedLayoutSegments } from '../src/shims/navigation.js'
+import { describe, expect, it, vi } from 'vite-plus/test'
+import { useSelectedLayoutSegments } from '../src/shims/navigation.js?text-ssr'
 import {
   APP_PREFETCH_LOADING_SHELL_MARKER_KEY,
   APP_SLOT_BINDINGS_KEY,
@@ -13,13 +13,13 @@ import {
   buildAppPageElements,
   createAppPageLayoutEntries,
   resolveAppPageChildSegments,
-} from '../src/server/app-page-route-wiring.js'
+} from '../src/server/app-page-route-wiring.js?text-ssr'
 import {
   APP_RSC_RENDER_MODE_PREFETCH_LOADING_SHELL,
   APP_RSC_RENDER_MODE_REFRESH_PRESERVE_UI,
 } from '../src/server/app-rsc-render-mode.js'
-import { buildPageElements as buildResolvedPageElements } from '../src/server/app-page-element-builder.js'
-import { AppServerSuspense, isAppServerProtocolElement } from '../src/server/app-server-tree.js'
+import { buildPageElements as buildResolvedPageElements } from '../src/server/app-page-element-builder.js?text-ssr'
+import { AppServerSuspense } from '../src/server/app-server-tree.js?text-ssr'
 import {
   Fragment,
   createElement,
@@ -27,30 +27,36 @@ import {
   type TestServerNode,
 } from './app-server-protocol-test-utils.js'
 
+// Record factory composition while returning the real compiled plans unchanged.
+// These assertions cover identity/reset wiring without a second UI renderer.
+const composition = vi.hoisted(
+  () => new WeakMap<Function, { type: unknown; key?: unknown; props: Record<string, unknown> }>(),
+)
+vi.mock('../src/server/app-server-tree.js?text-ssr', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/server/app-server-tree.js')>()
+  return {
+    ...actual,
+    createAppServerElement(component: any, props: any, ...children: any[]) {
+      const plan = actual.createAppServerElement(component, props, ...children)
+      composition.set(plan, {
+        type: component,
+        key: props?.key,
+        props: { ...props, ...(children.length ? { children } : {}) },
+      })
+      return plan
+    },
+  }
+})
+function inspectComposition(value: unknown) {
+  return typeof value === 'function' ? composition.get(value) : undefined
+}
+
 function readNode(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
 function readChildren(value: unknown): TestServerNode {
-  if (
-    value === null ||
-    value === undefined ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
-    return value
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(item => readChildren(item))
-  }
-
-  if (isAppServerProtocolElement(value)) {
-    return value
-  }
-
-  return null
+  return value as TestServerNode
 }
 
 function containsElementType(node: unknown, type: unknown): boolean {
@@ -58,10 +64,13 @@ function containsElementType(node: unknown, type: unknown): boolean {
     return node.some(child => containsElementType(child, type))
   }
 
-  if (!isAppServerProtocolElement(node)) {
+  if (!inspectComposition(node)) {
     return false
   }
-  const element = node as InspectableElement<{ children?: unknown; fallback?: unknown }>
+  const element = inspectComposition(node) as InspectableElement<{
+    children?: unknown
+    fallback?: unknown
+  }>
 
   return (
     element.type === type ||
@@ -106,10 +115,10 @@ function findElement(
     return null
   }
 
-  if (!isAppServerProtocolElement(node)) {
+  if (!inspectComposition(node)) {
     return null
   }
-  const element = node as InspectableElement<InspectableElementProps>
+  const element = inspectComposition(node) as InspectableElement<InspectableElementProps>
 
   if (predicate(element)) return element
 
@@ -153,8 +162,9 @@ function findSuspenseWithFallback(
     }
     const fallback = element.props.fallback
     return (
-      isAppServerProtocolElement(fallback) &&
-      getElementTypeName((fallback as InspectableElement).type) === fallbackTypeName
+      inspectComposition(fallback) &&
+      getElementTypeName((inspectComposition(fallback) as InspectableElement).type) ===
+        fallbackTypeName
     )
   })
   return match as InspectableElement<Record<string, unknown>> | null
@@ -165,7 +175,7 @@ function renderHtml(node: TestServerNode): Promise<string> {
 }
 
 async function renderRouteEntry(elements: AppElements, routeId: string): Promise<string> {
-  const { ElementsContext, Slot } = await import('../src/shims/slot.js')
+  const { ElementsContext, Slot } = await import('../src/shims/slot.js?text-ssr')
   return renderHtml(
     createElement(
       ElementsContext.Provider,
@@ -1220,8 +1230,8 @@ describe('app page route wiring helpers', () => {
     })
 
     function walkDepth(node: unknown, depth: number, found: Map<string, number>): void {
-      if (!isAppServerProtocolElement(node)) return
-      const element = node as InspectableElement<Record<string, unknown>>
+      if (!inspectComposition(node)) return
+      const element = inspectComposition(node) as InspectableElement<Record<string, unknown>>
 
       if (typeof element.props.id === 'string' && element.props.id.startsWith('template:')) {
         found.set(`template:${element.props.id}`, depth)

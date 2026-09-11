@@ -66,10 +66,10 @@ describe('App SSR wire payload protocol', () => {
       [AppElementsWire.keys.interceptionContext]: null,
       [AppElementsWire.keys.rootLayout]: '/',
       [AppElementsWire.keys.route]: AppElementsWire.encodeRouteId('/', null),
-      [AppElementsWire.encodePageId('/', null)]: createAppServerElement('div', null, 'home'),
+      [AppElementsWire.encodePageId('/', null)]: createAppServerElement(() => () => {}),
     } as unknown as AppWireElements
 
-    expect(() => encodeAppSsrWirePayload(payload)).toThrow('symbol values are not supported')
+    expect(() => encodeAppSsrWirePayload(payload)).toThrow('function values are not supported')
   })
 
   it('rejects invalid JSON streams with a protocol-specific error', async () => {

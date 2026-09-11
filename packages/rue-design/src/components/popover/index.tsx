@@ -5,14 +5,7 @@ Popover 组件概述
 - 实现保持为原生 TSX 源文件，交给 Rue 编译器参与优化，而不是预先写入变换结果。
 */
 import type { FC } from '@rue-js/rue'
-import {
-  Component as DynamicComponent,
-  onMounted,
-  onUnmounted,
-  ref,
-  useRef,
-  watch,
-} from '@rue-js/rue'
+import { onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
 
 /** PopoverPlacement 位置或方向类型。 */
 export type PopoverPlacement =
@@ -79,9 +72,9 @@ export interface PopoverProps {
   /** 自定义渲染的宿主元素。 */
   as?: string
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** 主体内容。 */
-  content?: any
+  content?: string | number
   /** overlay 配置项。 */
   overlay?: any
   /** 弹出层或内容展示位置。 */
@@ -183,14 +176,9 @@ const callHandler = (handler: ((event: any) => void) | undefined, event: any) =>
 }
 
 /** 解析 Renderable 的内部工具函数。 */
-const resolveRenderable = (value: any) => {
-  return typeof value === 'function' ? value() : value
-}
 
 /** 判断 Renderable 的内部工具函数。 */
-const isRenderable = (value: any) => {
-  return value !== undefined && value !== null && value !== false
-}
+const isRenderable = (value: any) => value != null && value !== false && value !== ''
 
 /** 解析 Placement Layout 的内部工具函数。 */
 const resolvePlacementLayout = (placement: PopoverPlacement): PlacementLayout => {
@@ -324,129 +312,9 @@ const resolveArrowClassName = (placement: PopoverPlacement, pointAtCenter: boole
 }
 
 /** 渲染 Root 的内部工具函数。 */
-const renderRoot = (
-  Component: any,
-  domProps: Record<string, any>,
-  className: string,
-  style: string | undefined,
-  setRootElement: (element: HTMLElement | null) => void,
-  handleRootMouseEnter: (event: any) => void,
-  handleRootMouseLeave: (event: any) => void,
-  handleRootFocus: (event: any) => void,
-  handleRootBlur: (event: any) => void,
-  triggerNode: any,
-  overlayNode: any,
-) => {
-  if (Component === 'span') {
-    return (
-      <span
-        {...domProps}
-        className={className}
-        style={style}
-        ref={setRootElement}
-        onMouseEnter={handleRootMouseEnter}
-        onMouseLeave={handleRootMouseLeave}
-        onFocus={handleRootFocus}
-        onBlur={handleRootBlur}
-      >
-        {triggerNode}
-        {overlayNode}
-      </span>
-    )
-  }
-
-  if (Component === 'section') {
-    return (
-      <section
-        {...domProps}
-        className={className}
-        style={style}
-        ref={setRootElement}
-        onMouseEnter={handleRootMouseEnter}
-        onMouseLeave={handleRootMouseLeave}
-        onFocus={handleRootFocus}
-        onBlur={handleRootBlur}
-      >
-        {triggerNode}
-        {overlayNode}
-      </section>
-    )
-  }
-
-  if (Component === 'article') {
-    return (
-      <article
-        {...domProps}
-        className={className}
-        style={style}
-        ref={setRootElement}
-        onMouseEnter={handleRootMouseEnter}
-        onMouseLeave={handleRootMouseLeave}
-        onFocus={handleRootFocus}
-        onBlur={handleRootBlur}
-      >
-        {triggerNode}
-        {overlayNode}
-      </article>
-    )
-  }
-
-  if (Component === 'label') {
-    return (
-      <label
-        {...domProps}
-        className={className}
-        style={style}
-        ref={setRootElement}
-        onMouseEnter={handleRootMouseEnter}
-        onMouseLeave={handleRootMouseLeave}
-        onFocus={handleRootFocus}
-        onBlur={handleRootBlur}
-      >
-        {triggerNode}
-        {overlayNode}
-      </label>
-    )
-  }
-
-  if (Component === 'div') {
-    return (
-      <div
-        {...domProps}
-        className={className}
-        style={style}
-        ref={setRootElement}
-        onMouseEnter={handleRootMouseEnter}
-        onMouseLeave={handleRootMouseLeave}
-        onFocus={handleRootFocus}
-        onBlur={handleRootBlur}
-      >
-        {triggerNode}
-        {overlayNode}
-      </div>
-    )
-  }
-
-  return (
-    <DynamicComponent
-      is={Component}
-      {...domProps}
-      className={className}
-      style={style}
-      ref={setRootElement}
-      onMouseEnter={handleRootMouseEnter}
-      onMouseLeave={handleRootMouseLeave}
-      onFocus={handleRootFocus}
-      onBlur={handleRootBlur}
-    >
-      {triggerNode}
-      {overlayNode}
-    </DynamicComponent>
-  )
-}
 
 /** Root 的内部工具函数。 */
-const Root: FC<PopoverProps> = props => {
+const Root: FC<PopoverProps> = (props, slots: Record<string, any> = {}) => {
   const {
     as = 'div',
     title,
@@ -488,27 +356,10 @@ const Root: FC<PopoverProps> = props => {
   let openTimer: ReturnType<typeof setTimeout> | null = null
   let closeTimer: ReturnType<typeof setTimeout> | null = null
 
-  const syncPopoverDom = (nextOpen: boolean) => {
-    if (triggerElement) {
-      triggerElement.setAttribute('aria-expanded', String(nextOpen))
-    }
-    if (!overlayElement) return
-    overlayElement.setAttribute('aria-hidden', nextOpen ? 'false' : 'true')
-    overlayElement.classList.toggle('pointer-events-auto', nextOpen)
-    overlayElement.classList.toggle('visible', nextOpen)
-    overlayElement.classList.toggle('opacity-100', nextOpen)
-    overlayElement.classList.toggle('scale-100', nextOpen)
-    overlayElement.classList.toggle('pointer-events-none', !nextOpen)
-    overlayElement.classList.toggle('invisible', !nextOpen)
-    overlayElement.classList.toggle('opacity-0', !nextOpen)
-    overlayElement.classList.toggle('scale-95', !nextOpen)
-  }
-
   watch(
     () => props.open,
     nextOpen => {
       currentOpen.value = typeof nextOpen === 'boolean' ? nextOpen : uncontrolledOpen.value
-      syncPopoverDom(currentOpen.value)
     },
     { immediate: true },
   )
@@ -527,7 +378,6 @@ const Root: FC<PopoverProps> = props => {
       if (!isControlled) {
         uncontrolledOpen.value = !!nextDefaultOpen
         currentOpen.value = !!nextDefaultOpen
-        syncPopoverDom(currentOpen.value)
       }
     },
     { immediate: true },
@@ -544,21 +394,13 @@ const Root: FC<PopoverProps> = props => {
     }
   }
 
-  const getCurrentOpen = () =>
-    triggerElement?.getAttribute('aria-expanded') === 'true' || currentOpen.value
+  const getCurrentOpen = () => currentOpen.value
 
   const updateOpen = (nextOpen: boolean) => {
     if (disabled || !hasOverlay) return
     if (nextOpen === getCurrentOpen()) return
-    // Trigger-driven changes are synchronized directly to the mounted nodes.
-    // Avoid invalidating and recreating this component before the next native
-    // event can observe the updated state; controlled changes still flow
-    // through the prop watcher above.
-    syncPopoverDom(nextOpen)
-    if (!nextOpen && destroyOnHidden) {
-      overlayElement?.remove()
-      overlayElement = null
-    }
+    currentOpen.value = nextOpen
+    if (!isControlled) uncontrolledOpen.value = nextOpen
     if (typeof onOpenChange === 'function') {
       onOpenChange(nextOpen)
     }
@@ -628,7 +470,6 @@ const Root: FC<PopoverProps> = props => {
     window.addEventListener('keydown', handleWindowKeyDown)
     rootElement?.addEventListener('focusin', handleNativeFocusIn)
     rootElement?.addEventListener('focusout', handleNativeFocusOut)
-    syncPopoverDom(currentOpen.value)
   })
 
   onUnmounted(() => {
@@ -640,9 +481,9 @@ const Root: FC<PopoverProps> = props => {
     window.removeEventListener('keydown', handleWindowKeyDown)
   })
 
-  const resolvedTitle = resolveRenderable(title)
-  const resolvedContent = resolveRenderable(content)
-  const resolvedOverlay = overlay !== undefined ? resolveRenderable(overlay) : undefined
+  const resolvedTitle = title
+  const resolvedContent = content
+  const resolvedOverlay = slots.overlay
   const hasStructuredOverlay = isRenderable(resolvedTitle) || isRenderable(resolvedContent)
   const hasOverlay = isRenderable(resolvedOverlay) || hasStructuredOverlay
   const allowHover = currentTriggers.value.includes('hover')
@@ -709,23 +550,27 @@ const Root: FC<PopoverProps> = props => {
   const titleStyleValue = serializeStyle(styles?.title) || undefined
   const contentStyleValue = serializeStyle(styles?.content) || undefined
 
-  const overlayNode = !showOverlay ? null : isRenderable(resolvedOverlay) ? (
-    resolvedOverlay
-  ) : (
-    <div className={panelClassName} style={panelStyleValue} role="dialog" aria-modal="false">
-      {isRenderable(resolvedTitle) ? (
-        <div className={headerClassName} style={headerStyleValue}>
-          <div className={titleClassName} style={titleStyleValue}>
-            {resolvedTitle}
-          </div>
+  const OverlayContentView = () => (
+    <>
+      {slots.overlay ? (
+        slots.overlay
+      ) : (
+        <div className={panelClassName} style={panelStyleValue} role="dialog" aria-modal="false">
+          {isRenderable(resolvedTitle) ? (
+            <div className={headerClassName} style={headerStyleValue}>
+              <div className={titleClassName} style={titleStyleValue}>
+                {String(resolvedTitle)}
+              </div>
+            </div>
+          ) : null}
+          {isRenderable(resolvedContent) ? (
+            <div className={contentClassName} style={contentStyleValue}>
+              {String(resolvedContent)}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      {isRenderable(resolvedContent) ? (
-        <div className={contentClassName} style={contentStyleValue}>
-          {resolvedContent}
-        </div>
-      ) : null}
-    </div>
+      )}
+    </>
   )
 
   const setRootElement = (element: HTMLElement | null) => {
@@ -750,7 +595,7 @@ const Root: FC<PopoverProps> = props => {
     callHandler(onBlur, event)
   }
 
-  const triggerNode = (
+  const TriggerView = () => (
     <div
       className={triggerClass}
       style={triggerStyleValue}
@@ -779,32 +624,51 @@ const Root: FC<PopoverProps> = props => {
     </div>
   )
 
-  const overlayRoot = showOverlay ? (
-    <div
-      className={overlayClasses}
-      style={overlayStyleValue}
-      ref={(element: HTMLElement | null) => {
-        overlayElement = element
-      }}
-      aria-hidden={currentOpen.value ? 'false' : 'true'}
-    >
-      {showArrow ? <span className={arrowClassName} style={arrowStyleValue} /> : null}
-      {overlayNode}
-    </div>
-  ) : null
+  const OverlayRootView = () =>
+    showOverlay ? (
+      <div
+        className={overlayClasses}
+        style={overlayStyleValue}
+        ref={(element: HTMLElement | null) => {
+          overlayElement = element
+        }}
+        aria-hidden={currentOpen.value ? 'false' : 'true'}
+      >
+        {showArrow ? <span className={arrowClassName} style={arrowStyleValue} /> : null}
+        <OverlayContentView />
+      </div>
+    ) : (
+      <></>
+    )
 
-  return renderRoot(
-    Component,
-    domProps,
-    rootClassName,
-    rootStyle,
-    setRootElement,
-    handleRootMouseEnter,
-    handleRootMouseLeave,
-    handleRootFocus,
-    handleRootBlur,
-    triggerNode,
-    overlayRoot,
+  return as === 'span' ? (
+    <span
+      {...domProps}
+      className={rootClassName}
+      style={rootStyle}
+      ref={setRootElement}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onFocus={handleRootFocus}
+      onBlur={handleRootBlur}
+    >
+      <TriggerView />
+      <OverlayRootView />
+    </span>
+  ) : (
+    <div
+      {...domProps}
+      className={rootClassName}
+      style={rootStyle}
+      ref={setRootElement}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onFocus={handleRootFocus}
+      onBlur={handleRootBlur}
+    >
+      <TriggerView />
+      <OverlayRootView />
+    </div>
   )
 }
 

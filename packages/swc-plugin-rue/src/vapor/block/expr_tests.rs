@@ -147,34 +147,34 @@ fn vapor_block_expr_rewrites_conditional_and_logical_slots() {
         &mut cond_vt,
         &parse_expr("ok ? <span /> : null", true),
     )));
-    assert!(cond_out.contains("ok?_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(cond_out.contains("ok?_$compiledRoot((__rue_parent_context)=>{"));
     assert!(cond_out.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
     assert!(cond_out.contains(":\"\";") || cond_out.contains(":\"\""));
 
     let mut and_vt = new_vt();
     let and_out =
         compact(&emit_expr(build_slot_expr(&mut and_vt, &parse_expr("ok && <span />", true))));
-    assert!(and_out.contains("ok?_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(and_out.contains("ok?_$compiledRoot((__rue_parent_context)=>{"));
     assert!(and_out.contains(":\"\""));
 
     let mut or_vt = new_vt();
     let or_out =
         compact(&emit_expr(build_slot_expr(&mut or_vt, &parse_expr("left || <span />", true))));
-    assert!(or_out.contains("left||_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(or_out.contains("left||_$compiledRoot((__rue_parent_context)=>{"));
 
     let mut nullish_vt = new_vt();
     let nullish_out = compact(&emit_expr(build_slot_expr(
         &mut nullish_vt,
         &parse_expr("left ?? <span />", true),
     )));
-    assert!(nullish_out.contains("left??_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(nullish_out.contains("left??_$compiledRoot((__rue_parent_context)=>{"));
 
     let mut nested_cond_vt = new_vt();
     let nested_cond_out = compact(&emit_expr(build_slot_expr(
         &mut nested_cond_vt,
         &parse_expr("ok ? (alt ? <span /> : null) : <></>", true),
     )));
-    assert!(nested_cond_out.contains("alt?_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(nested_cond_out.contains("alt?_$compiledRoot((__rue_parent_context)=>{"));
     assert!(nested_cond_out.contains("_$createDocumentFragment()"));
 
     let mut and_number_vt = new_vt();
@@ -187,9 +187,7 @@ fn vapor_block_expr_rewrites_conditional_and_logical_slots() {
         &mut or_nested_vt,
         &parse_expr("left || (ok && <span />)", true),
     )));
-    assert!(
-        or_nested_out.contains("left||ok?_$compiledRoot(Object.assign((__rue_parent_context)=>{")
-    );
+    assert!(or_nested_out.contains("left||ok?_$compiledRoot((__rue_parent_context)=>{"));
 }
 
 #[test]
@@ -199,9 +197,9 @@ fn vapor_block_expr_rewrites_calls_for_slot_values() {
         &mut memo_vt,
         &parse_expr("_$compiledMemo('memo', () => <span />, [])", true),
     )));
-    assert!(memo_out.contains(
-        "_$compiledMemo('memo',()=>_$compiledRoot(Object.assign((__rue_parent_context)=>{"
-    ));
+    assert!(
+        memo_out.contains("_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
+    );
     assert!(memo_out.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
 
     let mut hook_vt = new_vt();
@@ -210,7 +208,7 @@ fn vapor_block_expr_rewrites_calls_for_slot_values() {
         &parse_expr("_$compiledWithHookId(\"memo:0:0\", () => <span />)", true),
     )));
     assert!(hook_out.contains(
-        "_$compiledWithHookId(\"memo:0:0\",()=>_$compiledRoot(Object.assign((__rue_parent_context)=>{"
+        "_$compiledWithHookId(\"memo:0:0\",()=>_$compiledRoot((__rue_parent_context)=>{"
     ));
 
     let mut map_vt = new_vt();
@@ -260,11 +258,11 @@ fn vapor_block_expr_flattens_once_slot_builds_for_elements_and_fragments() {
         once_fragment_vt.with_once_context(|vt| jsx_fragment_to_slot_value_expr(vt, &frag));
     let once_fragment_out = compact(&emit_expr(once_fragment_expr));
 
-    assert!(
-        normal_fragment_out.contains("effect(()") || normal_fragment_out.contains("effect(()=>{")
-    );
+    assert!(!normal_fragment_out.contains("effect("));
+    assert!(normal_fragment_out.contains("_$mountCompiledSlotAt("));
     assert!(!once_fragment_out.contains("watchEffect("));
-    assert!(once_fragment_out.contains("renderAnchor("));
+    assert!(once_fragment_out.contains("_$mountCompiledSlotAt("));
+    assert!(!once_fragment_out.contains("renderAnchor"));
 }
 
 #[test]
@@ -273,7 +271,7 @@ fn vapor_block_expr_covers_nested_plain_branches_and_simple_values() {
 
     let direct_fragment =
         compact(&emit_expr(build_slot_expr(&mut vt, &parse_expr("<>frag</>", true))));
-    assert!(direct_fragment.contains("_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(direct_fragment.contains("_$compiledRoot((__rue_parent_context)=>{"));
     assert!(direct_fragment.contains("_$createDocumentFragment()"));
 
     let nested_plain_cond = compact(&emit_expr(build_slot_expr(
@@ -281,18 +279,18 @@ fn vapor_block_expr_covers_nested_plain_branches_and_simple_values() {
         &parse_expr("ok ? (alt ? value : null) : <span />", true),
     )));
     assert!(nested_plain_cond.contains("ok?alt?value:\"\""));
-    assert!(nested_plain_cond.contains(":_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(nested_plain_cond.contains(":_$compiledRoot((__rue_parent_context)=>{"));
 
     let nested_alt_cond = compact(&emit_expr(build_slot_expr(
         &mut vt,
         &parse_expr("ok ? <span /> : (alt ? value : null)", true),
     )));
-    assert!(nested_alt_cond.contains("ok?_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(nested_alt_cond.contains("ok?_$compiledRoot((__rue_parent_context)=>{"));
     assert!(nested_alt_cond.contains(":alt?value:\"\""));
 
     let left_jsx_or =
         compact(&emit_expr(build_slot_expr(&mut vt, &parse_expr("<span /> || fallback", true))));
-    assert!(left_jsx_or.contains("_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(left_jsx_or.contains("_$compiledRoot((__rue_parent_context)=>{"));
     assert!(left_jsx_or.contains("||fallback"));
 
     let right_nested_or = compact(&emit_expr(build_slot_expr(
@@ -381,34 +379,27 @@ fn vapor_block_expr_covers_false_edges_and_nested_slot_branches() {
 
     let empty_cons =
         compact(&emit_expr(build_slot_expr(&mut vt, &parse_expr("ok ? null : <span />", true))));
-    assert!(empty_cons.contains("ok?\"\":_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
+    assert!(empty_cons.contains("ok?\"\":_$compiledRoot((__rue_parent_context)=>{"));
 
     let nested_renderable_alt = compact(&emit_expr(build_slot_expr(
         &mut vt,
         &parse_expr("ok ? value : (alt ? <span /> : null)", true),
     )));
     assert!(
-        nested_renderable_alt
-            .contains("ok?value:alt?_$compiledRoot(Object.assign((__rue_parent_context)=>{")
+        nested_renderable_alt.contains("ok?value:alt?_$compiledRoot((__rue_parent_context)=>{")
     );
 
     let nested_renderable_and = compact(&emit_expr(build_slot_expr(
         &mut vt,
         &parse_expr("ok && (alt ? <span /> : null)", true),
     )));
-    assert!(
-        nested_renderable_and
-            .contains("ok?alt?_$compiledRoot(Object.assign((__rue_parent_context)=>{")
-    );
+    assert!(nested_renderable_and.contains("ok?alt?_$compiledRoot((__rue_parent_context)=>{"));
 
     let nested_renderable_left_or = compact(&emit_expr(build_slot_expr(
         &mut vt,
         &parse_expr("(ok ? <span /> : null) || fallback", true),
     )));
-    assert!(
-        nested_renderable_left_or
-            .contains("ok?_$compiledRoot(Object.assign((__rue_parent_context)=>{")
-    );
+    assert!(nested_renderable_left_or.contains("ok?_$compiledRoot((__rue_parent_context)=>{"));
     assert!(nested_renderable_left_or.contains("||fallback"));
 
     assert!(

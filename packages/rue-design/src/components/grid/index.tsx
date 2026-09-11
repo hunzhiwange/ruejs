@@ -378,13 +378,8 @@ const buildRowStyle = (
 
   const horizontalHalf = resolveHalfSize(gutterX, true)
   const verticalHalf = resolveHalfSize(gutterY, true)
-  if (horizontalHalf) {
-    merged.marginLeft = horizontalHalf
-    merged.marginRight = horizontalHalf
-  }
-  if (verticalHalf) {
-    merged.marginTop = verticalHalf
-    merged.marginBottom = verticalHalf
+  if (horizontalHalf || verticalHalf) {
+    merged.margin = `${verticalHalf ?? '0px'} ${horizontalHalf ?? '0px'}`
   }
 
   return merged
@@ -395,10 +390,7 @@ const buildColStyle = (config: GridColConfig) => {
   const merged: Record<string, any> = {
     boxSizing: 'border-box',
     minWidth: 0,
-    paddingLeft: 'calc(var(--rue-grid-gutter-x, 0px) / 2)',
-    paddingRight: 'calc(var(--rue-grid-gutter-x, 0px) / 2)',
-    paddingTop: 'calc(var(--rue-grid-gutter-y, 0px) / 2)',
-    paddingBottom: 'calc(var(--rue-grid-gutter-y, 0px) / 2)',
+    padding: 'calc(var(--rue-grid-gutter-y, 0px) / 2) calc(var(--rue-grid-gutter-x, 0px) / 2)',
   }
 
   if (config.order !== undefined) {

@@ -52,9 +52,9 @@ const Demo: FC = () => (
 
     let out = compile(src, "list_block_scope");
 
-    assert!(out.contains("].map((step)=>{"), "{out}");
+    assert!(out.contains("(step, idx)=>{"), "{out}");
     assert!(out.contains("const y = cPad.t + plotH - step * plotH;"), "{out}");
-    assert!(out.contains("_$setAttribute(_el1, \"y1\", String((y)))"), "{out}");
+    assert!(out.contains("_el3.setAttribute(\"y1\", String(__child2_next))"), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
 }
 

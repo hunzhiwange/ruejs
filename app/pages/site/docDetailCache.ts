@@ -2,15 +2,7 @@ import type { FC } from '@rue-js/rue'
 import { mdToHtml } from './docMarkdown'
 import { loadDocMdxComponent, readDocMdxComponent } from './docMdxModules'
 
-export type DocDetailContent =
-  | {
-      type: 'html'
-      html: string
-    }
-  | {
-      type: 'mdx'
-      Component: FC
-    }
+export type DocDetailContent = { type: 'html'; html: string } | { type: 'mdx'; Component: FC }
 
 const emptyDocContent: DocDetailContent = {
   type: 'html',
@@ -40,14 +32,10 @@ const normalizeStaticDocRoute = (route: string) => {
 
 const toDocIdFromRoute = (route: string) => {
   const normalized = normalizeStaticDocRoute(route)
-  if (normalized.startsWith('/guide/')) {
-    return decodeURIComponent(normalized.slice('/guide/'.length))
-  }
-  if (normalized.startsWith('/api/')) {
-    return decodeURIComponent(normalized.slice('/api/'.length))
-  }
-  if (normalized.startsWith('/page/')) {
-    return decodeURIComponent(normalized.slice('/page/'.length))
+  for (const prefix of ['/guide/', '/api/', '/page/']) {
+    if (normalized.startsWith(prefix)) {
+      return decodeURIComponent(normalized.slice(prefix.length))
+    }
   }
   return ''
 }
@@ -61,11 +49,8 @@ export const readStaticDocHtmlByRoute = (route: string) => {
 }
 
 export const readStaticDocContentByRoute = (route: string): DocDetailContent => {
-  const docId = toDocIdFromRoute(route)
-  const MdxComponent = readDocMdxComponent(docId)
-  if (MdxComponent) {
-    return createMdxDocContent(MdxComponent)
-  }
+  const MdxComponent = readDocMdxComponent(toDocIdFromRoute(route))
+  if (MdxComponent) return createMdxDocContent(MdxComponent)
 
   const html = readStaticDocHtmlByRoute(route)
   return html ? createHtmlDocContent(html) : emptyDocContent

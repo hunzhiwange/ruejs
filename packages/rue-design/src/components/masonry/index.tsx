@@ -4,7 +4,7 @@ Masonry 组件概述
 - 布局底层采用 CSS multi-column，保持实现轻量，同时通过 break-inside 包装层避免单卡片被拆列。
 - columns 支持响应式断点；minColumnWidth 配合容器测量可自动推导列数，适合内容卡片墙和混合信息流。
 */
-import { onMounted, onUnmounted, type FC } from '@rue-js/rue'
+import { computed, onMounted, onUnmounted, type FC } from '@rue-js/rue'
 
 /** MasonryBreakpoint 类型。 */
 export type MasonryBreakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
@@ -22,7 +22,16 @@ export type MasonryGap = MasonryResponsiveSpace | [MasonryResponsiveSpace, Mason
 export type MasonryStyle = string | Record<string, any>
 
 /** MasonryProps 组件属性。 */
-export interface MasonryProps<T = any> {
+export interface MasonryDataItem {
+  key?: string | number
+  title?: string
+  description?: string
+  content?: string | number
+  className?: string
+  style?: Record<string, any>
+  [key: string]: unknown
+}
+export interface MasonryProps<T extends MasonryDataItem = MasonryDataItem> {
   /** 自定义渲染的宿主元素。 */
   as?: any
   /** columns 配置项。 */
@@ -96,12 +105,6 @@ const mergeClassNames = (...classNames: Array<string | undefined | false>) => {
 }
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  return children == null || typeof children === 'boolean' ? [] : [children]
-}
 
 /** 判断 Responsive Map 的内部工具函数。 */
 const isResponsiveMap = <T,>(value: unknown): value is MasonryResponsiveValue<T> => {
@@ -313,7 +316,11 @@ const resolveGapPair = (
 }
 
 /** 解析 Item Key 的内部工具函数。 */
-const resolveItemKey = <T,>(item: T, index: number, itemKey?: MasonryProps<T>['itemKey']) => {
+const resolveItemKey = <T extends MasonryDataItem>(
+  item: T,
+  index: number,
+  itemKey?: MasonryProps<T>['itemKey'],
+) => {
   if (typeof itemKey === 'function') return itemKey(item, index)
   if (itemKey && item && typeof item === 'object' && itemKey in (item as Record<string, any>)) {
     return (item as Record<string, any>)[itemKey as string]
@@ -390,6 +397,55 @@ const resolveColumnCount = ({
 /**
  * Masonry 根容器负责列数解析和容器测量；子项统一包一层 wrapper，保证 break-inside 和垂直间距稳定。
  */
+export const MasonryItem: FC<{
+  as?: 'div' | 'span' | 'article'
+  index?: number
+  className?: string
+  style?: Record<string, any>
+  children?: any
+}> = ({ as = 'div', index, className, style, children }) => {
+  const itemStyle = mergeItemStyle(
+    {
+      display: 'inline-block',
+      width: '100%',
+      verticalAlign: 'top',
+      breakInside: 'avoid',
+      WebkitColumnBreakInside: 'avoid',
+      pageBreakInside: 'avoid',
+      marginBottom: 'var(--rue-masonry-row-gap, 16px)',
+    },
+    style,
+  )
+  return as === 'article' ? (
+    <article
+      data-rue-masonry-item=""
+      data-rue-masonry-index={index}
+      className={mergeClassNames('rue-masonry-item', className)}
+      style={itemStyle}
+    >
+      {children}
+    </article>
+  ) : as === 'span' ? (
+    <span
+      data-rue-masonry-item=""
+      data-rue-masonry-index={index}
+      className={mergeClassNames('rue-masonry-item', className)}
+      style={itemStyle}
+    >
+      {children}
+    </span>
+  ) : (
+    <div
+      data-rue-masonry-item=""
+      data-rue-masonry-index={index}
+      className={mergeClassNames('rue-masonry-item', className)}
+      style={itemStyle}
+    >
+      {children}
+    </div>
+  )
+}
+
 const Masonry: FC<MasonryProps<any>> = ({
   as = 'div',
   columns,
@@ -401,7 +457,6 @@ const Masonry: FC<MasonryProps<any>> = ({
   minColumns,
   maxColumns,
   items,
-  renderItem,
   itemKey,
   itemAs = 'div',
   itemClassName,
@@ -413,7 +468,6 @@ const Masonry: FC<MasonryProps<any>> = ({
   ...rest
 }) => {
   const Component = as as any
-  const ItemComponent = itemAs as any
   const forwardedRef = rest.ref
   let rootElement: HTMLElement | undefined
   let resizeObserver: ResizeObserver | undefined
@@ -518,58 +572,76 @@ const Masonry: FC<MasonryProps<any>> = ({
     })
   }
 
-  const contentItems = items
-    ? items.map((item, index) => ({
-        key: resolveItemKey(item, index, itemKey),
-        content: renderItem ? renderItem(item, index) : item,
-        className: typeof itemClassName === 'function' ? itemClassName(item, index) : itemClassName,
-        style: typeof itemStyle === 'function' ? itemStyle(item, index) : itemStyle,
-      }))
-    : toChildArray(children).map((child, index) => ({
-        key: child?.key ?? child?.props?.key ?? index,
-        content: child,
-        className:
-          typeof itemClassName === 'function' ? itemClassName(child, index) : itemClassName,
-        style: typeof itemStyle === 'function' ? itemStyle(child, index) : itemStyle,
-      }))
+  const contentItems = computed(() =>
+    (items ?? []).map((item, index) => ({
+      key: resolveItemKey(item, index, itemKey),
+      title: item.title,
+      description: item.description,
+      content: item.content,
+      className:
+        typeof itemClassName === 'function'
+          ? itemClassName(item, index)
+          : (itemClassName ?? item.className),
+      style: typeof itemStyle === 'function' ? itemStyle(item, index) : (itemStyle ?? item.style),
+    })),
+  )
 
-  const renderedChildren =
-    contentItems.length > 0
-      ? contentItems.map((entry, index) => (
-          <ItemComponent
-            key={entry.key}
-            data-rue-masonry-item
-            data-rue-masonry-index={index}
-            className={mergeClassNames('rue-masonry-item', entry.className)}
-            style={mergeItemStyle(
-              {
-                display: 'inline-block',
-                width: '100%',
-                verticalAlign: 'top',
-                breakInside: 'avoid',
-                WebkitColumnBreakInside: 'avoid',
-                pageBreakInside: 'avoid',
-                marginBottom: 'var(--rue-masonry-row-gap, 16px)',
-              },
-              entry.style,
-            )}
-          >
-            {entry.content}
-          </ItemComponent>
-        ))
-      : empty != null
-        ? [empty]
-        : []
-
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       ref={applyRef}
       className={mergeClassNames('rue-masonry', className)}
       data-rue-masonry=""
     >
-      {renderedChildren}
-    </Component>
+      {items ? (
+        <>
+          {contentItems.get().map((item, index) => (
+            <MasonryItem
+              key={item.key}
+              as={itemAs}
+              index={index}
+              className={item.className}
+              style={item.style}
+            >
+              {item.title != null ? <h3>{String(item.title)}</h3> : null}
+              {item.description != null ? <p>{String(item.description)}</p> : null}
+              {String(item.content ?? '')}
+            </MasonryItem>
+          ))}
+        </>
+      ) : (
+        <>{children}</>
+      )}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      ref={applyRef}
+      className={mergeClassNames('rue-masonry', className)}
+      data-rue-masonry=""
+    >
+      {items ? (
+        <>
+          {contentItems.get().map((item, index) => (
+            <MasonryItem
+              key={item.key}
+              as={itemAs}
+              index={index}
+              className={item.className}
+              style={item.style}
+            >
+              {item.title != null ? <h3>{String(item.title)}</h3> : null}
+              {item.description != null ? <p>{String(item.description)}</p> : null}
+              {String(item.content ?? '')}
+            </MasonryItem>
+          ))}
+        </>
+      ) : (
+        <>{children}</>
+      )}
+    </span>
+  ) : (
+    <></>
   )
 }
 

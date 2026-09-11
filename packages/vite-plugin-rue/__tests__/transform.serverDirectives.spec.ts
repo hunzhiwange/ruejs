@@ -30,7 +30,7 @@ const transform = async (source: string, ssr: boolean) => {
 }
 
 describe('vite-plugin-rue server:defer', () => {
-  it('lowers direct imports to server descriptors and a server-only registry', async () => {
+  it('lowers direct imports to writer factories and a server-only registry', async () => {
     const { plugin, code } = await transform(
       `
         import Report from './Report'
@@ -46,12 +46,12 @@ describe('vite-plugin-rue server:defer', () => {
     )
 
     expect(code).not.toContain('server:defer')
-    expect(code).toContain('createRueServerIslandDescriptor as __rueCreateServerIslandDescriptor')
-    expect(code).toContain('__rueCreateServerIslandDescriptor({')
+    expect(code).toContain('CompiledServerIsland as RueCompiledServerIsland')
+    expect(code).toMatch(/_\$writeComponent\(_\$ctx, "\d+", RueCompiledServerIsland/)
     expect(code).toContain('id: "rue-server-')
     expect(code).toContain('props: {')
     expect(code).toContain('"accountId": "a-1"')
-    expect(code).toContain('fallback: _$serverElement("p"')
+    expect(code).toMatch(/_\$writeElement\(_\$ctx, "\d+", "p"/)
     expect(code).not.toContain('<p>Loading report</p>')
     expect(code).not.toMatch(/component:\s*(?:Report|RevenueChart)/)
 

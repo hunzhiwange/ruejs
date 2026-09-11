@@ -75,11 +75,11 @@ export interface PopconfirmButtonProps {
   /** 原生 button type 属性。 */
   htmlType?: 'button' | 'submit' | 'reset'
   /** 图标内容。 */
-  icon?: any
+  icon?: string | number | false
   /** iconPlacement 配置项。 */
   iconPlacement?: 'start' | 'end'
   /** 是否展示加载态。 */
-  loading?: boolean | { delay?: number; icon?: any }
+  loading?: boolean | { delay?: number; icon?: string | number | false }
   /** 点击时触发的回调。 */
   onClick?: (event: MouseEvent) => void
 }
@@ -143,9 +143,9 @@ export interface PopconfirmStyles {
 /** PopconfirmProps 组件属性。 */
 export interface PopconfirmProps {
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** 描述内容。 */
-  description?: any
+  description?: string | number
   /** 是否禁用交互。 */
   disabled?: boolean
   /** 弹出层或内容展示位置。 */
@@ -159,7 +159,7 @@ export interface PopconfirmProps {
   /** 非受控初始打开状态。 */
   defaultOpen?: boolean
   /** 图标内容。 */
-  icon?: any
+  icon?: string | number | false
   /** okText 文本内容。 */
   okText?: any
   /** cancelText 文本内容。 */
@@ -236,14 +236,9 @@ const serializeStyle = (style?: string | Record<string, any>) => {
 }
 
 /** 判断 Renderable 的内部工具函数。 */
-const isRenderable = (value: any) => {
-  return value !== undefined && value !== null && value !== false && value !== ''
-}
+const isRenderable = (value: any) => value != null && value !== false && value !== ''
 
 /** 解析 Node 的内部工具函数。 */
-const resolveNode = (value: any) => {
-  return typeof value === 'function' ? value() : value
-}
 
 /** 判断 Promise Like 的内部工具函数。 */
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
@@ -491,27 +486,31 @@ const resolveButtonLoading = (loading?: PopconfirmButtonProps['loading']) => {
 }
 
 /** 渲染 Button Content 的内部工具函数。 */
-const renderButtonContent = (
-  props: PopconfirmButtonProps | undefined,
-  fallbackLabel: any,
-  loading?: boolean,
-) => {
+const RenderButtonContent = ({
+  arg0: props,
+  arg1: fallbackLabel,
+  arg2: loading,
+}: {
+  arg0: PopconfirmButtonProps | undefined
+  arg1: any
+  arg2?: boolean
+}) => {
   const hasChildren = isRenderable(props?.children)
   const loadingConfig = resolveButtonLoading(props?.loading)
   const shouldShowIcon = !!loading || !!props?.icon
-  const renderIconContent = () =>
-    loading
-      ? (loadingConfig.icon ?? (
-          <span aria-hidden="true" className="loading loading-spinner loading-xs" />
-        ))
-      : props?.icon
 
   if (props?.iconPlacement === 'end') {
     return (
       <>
-        <span>{hasChildren ? props?.children : fallbackLabel}</span>
+        <span>{String(hasChildren ? props?.children : fallbackLabel)}</span>
         {shouldShowIcon ? (
-          <span className="inline-flex items-center justify-center">{renderIconContent()}</span>
+          <span className="inline-flex items-center justify-center">
+            {loading ? (
+              <span aria-hidden="true" className="loading loading-spinner loading-xs" />
+            ) : (
+              <span>{String(props?.icon ?? '')}</span>
+            )}
+          </span>
         ) : null}
       </>
     )
@@ -520,9 +519,15 @@ const renderButtonContent = (
   return (
     <>
       {shouldShowIcon ? (
-        <span className="inline-flex items-center justify-center">{renderIconContent()}</span>
+        <span className="inline-flex items-center justify-center">
+          {loading ? (
+            <span aria-hidden="true" className="loading loading-spinner loading-xs" />
+          ) : (
+            <span>{String(props?.icon ?? '')}</span>
+          )}
+        </span>
       ) : null}
-      <span>{hasChildren ? props?.children : fallbackLabel}</span>
+      <span>{String(hasChildren ? props?.children : fallbackLabel)}</span>
     </>
   )
 }
@@ -564,9 +569,9 @@ const Popconfirm: FC<PopconfirmProps> = ({
   const titleId = ref(`rue-popconfirm-title-${popconfirmIdSeed++}`)
   const descriptionId = ref(`rue-popconfirm-desc-${popconfirmIdSeed++}`)
   const isControlled = open !== undefined
-  const resolvedTitle = resolveNode(title)
-  const resolvedDescription = resolveNode(description)
-  const resolvedIcon = icon === undefined ? undefined : resolveNode(icon)
+  const resolvedTitle = title
+  const resolvedDescription = description
+  const resolvedIcon = icon
   const okPreset = resolveOkButtonPreset(okType)
   const pointAtCenter = typeof arrow === 'object' && !!arrow.pointAtCenter
   const showArrow = arrow !== false
@@ -837,7 +842,7 @@ const Popconfirm: FC<PopconfirmProps> = ({
                 className={mergeClassNames('mt-0.5 shrink-0', classNames?.icon)}
                 style={serializeStyle(styles?.icon)}
               >
-                {resolvedIcon}
+                {String(resolvedIcon)}
               </div>
             ) : icon === undefined ? (
               <div
@@ -876,7 +881,7 @@ const Popconfirm: FC<PopconfirmProps> = ({
                   )}
                   style={serializeStyle(styles?.title)}
                 >
-                  {resolvedTitle}
+                  {String(resolvedTitle)}
                 </div>
               ) : null}
               {isRenderable(resolvedDescription) ? (
@@ -888,7 +893,7 @@ const Popconfirm: FC<PopconfirmProps> = ({
                   )}
                   style={serializeStyle(styles?.description)}
                 >
-                  {resolvedDescription}
+                  {String(resolvedDescription)}
                 </div>
               ) : null}
             </div>
@@ -919,7 +924,7 @@ const Popconfirm: FC<PopconfirmProps> = ({
                 aria-disabled={String(!!cancelButtonProps?.disabled)}
                 onClick={handleCancel}
               >
-                {renderButtonContent(cancelButtonProps, cancelText)}
+                <RenderButtonContent arg0={cancelButtonProps} arg1={cancelText} />
               </button>
             ) : null}
 
@@ -941,7 +946,7 @@ const Popconfirm: FC<PopconfirmProps> = ({
               aria-busy={String(isOkLoading())}
               onClick={handleConfirm}
             >
-              {renderButtonContent(okButtonProps, okText, isOkLoading())}
+              <RenderButtonContent arg0={okButtonProps} arg1={okText} arg2={isOkLoading()} />
             </button>
           </div>
         </div>

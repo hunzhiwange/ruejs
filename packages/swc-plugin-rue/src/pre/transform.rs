@@ -4,7 +4,7 @@ use swc_core::atoms::Atom;
 // SWC 常量与上下文：
 // - DUMMY_SP：稳定的占位 span
 // - SyntaxContext：语义上下文（统一 empty）
-use swc_core::common::{DUMMY_SP, Span, Spanned, SyntaxContext, comments::Comments};
+use swc_core::common::{DUMMY_SP, SyntaxContext};
 // SWC ECMAScript AST 节点类型集合（Module/JSXElement/CallExpr 等）
 use swc_core::ecma::ast::*;
 // SWC 可变访问器与驱动接口
@@ -13,14 +13,11 @@ use swc_core::plugin::proxies::PluginCommentsProxy;
 
 use super::for_directive;
 use super::helpers::{
-    arrow_has_reactive_render_control, block_has_component_render_reactive_marker,
-    block_has_custom_composable_call, block_has_reactive_render_control,
-    block_requires_custom_composable_render_effect, collect_param_idents,
+    arrow_has_reactive_render_control, block_has_custom_composable_call, collect_param_idents,
     has_component_render_return_in_block, is_fc_pat, is_untyped_arrow_component_decl,
     lower_props_derived_consts_in_arrow_with_inputs,
-    lower_props_derived_consts_in_function_with_inputs, mark_component_render_reactive,
-    mark_component_render_reactive_factory, mark_nested_jsx_render_closure, process_fn_decl,
-    process_function, process_var_decl, rewrite_component_props_destructure_in_arrow,
+    lower_props_derived_consts_in_function_with_inputs, process_fn_decl, process_function,
+    process_var_decl, rewrite_component_props_destructure_in_arrow,
     rewrite_component_props_destructure_in_function, should_transform_fn_decl,
 };
 use super::if_directive;
@@ -74,19 +71,14 @@ pub struct PreTransform {
     compiled_runtime_bindings: HashSet<String>,
     compiled_component_names: HashSet<String>,
     in_compiled_component: bool,
-    comments: Option<PluginCommentsProxy>,
 }
 
 impl PreTransform {
     pub fn with_compiled_components(
-        comments: Option<PluginCommentsProxy>,
+        _comments: Option<PluginCommentsProxy>,
         compiled_component_names: HashSet<String>,
     ) -> Self {
-        Self { comments, compiled_component_names, ..Self::default() }
-    }
-
-    fn mark_pure(&self, span: Span) {
-        self.comments.as_ref().map(|comments| comments.add_pure_comment(span.lo));
+        Self { compiled_component_names, ..Self::default() }
     }
 }
 
@@ -137,7 +129,10 @@ impl VisitMut for PreTransform {
             .iter()
             .filter_map(|item| match item {
                 ModuleItem::ModuleDecl(ModuleDecl::Import(import))
-                    if import.src.value.as_str() == Some("@rue-js/rue/internal") =>
+                    if import.src.value.as_str().is_some_and(|source| {
+                        source == "@rue-js/rue/internal"
+                            || source.starts_with("@rue-js/rue/internal/")
+                    }) =>
                 {
                     Some(&import.specifiers)
                 }
@@ -169,55 +164,6 @@ impl VisitMut for PreTransform {
                 }
             }
         }
-        // Mark top-level function factories before their first invocation so the runtime can
-        // enter the render effect directly instead of mounting and replacing an untracked tree.
-        let mut body = Vec::with_capacity(m.body.len());
-        for item in std::mem::take(&mut m.body) {
-            let reactive_function = match &item {
-                ModuleItem::Stmt(Stmt::Decl(Decl::Fn(decl)))
-                    if should_transform_fn_decl(decl)
-                        && !self.compiled_component_names.contains(decl.ident.sym.as_ref())
-                        && decl
-                            .function
-                            .body
-                            .as_ref()
-                            .is_some_and(block_has_reactive_render_control) =>
-                {
-                    Some(decl.ident.clone())
-                }
-                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    decl: Decl::Fn(decl),
-                    ..
-                })) if should_transform_fn_decl(decl)
-                    && !self.compiled_component_names.contains(decl.ident.sym.as_ref())
-                    && decl
-                        .function
-                        .body
-                        .as_ref()
-                        .is_some_and(block_has_reactive_render_control) =>
-                {
-                    Some(decl.ident.clone())
-                }
-                _ => None,
-            };
-            body.push(item);
-            if let Some(ident) = reactive_function {
-                let span = ident.span;
-                let mut call = crate::emit::call_ident(
-                    "_$compiledMarkComponentRenderReactive",
-                    vec![Expr::Ident(ident)],
-                );
-                if let Expr::Call(call_expr) = &mut call {
-                    call_expr.span = span;
-                }
-                self.mark_pure(span);
-                body.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    span: DUMMY_SP,
-                    expr: Box::new(call),
-                })));
-            }
-        }
-        m.body = body;
         // 统一为同模块内重复的 hook id 追加稳定后缀，避免跨组件槽位碰撞。
         m.visit_mut_with(&mut HookIdDeduper::default());
         // 合并确保运行时导入（例如 _$compiledWithHookId/_$compiledShowStyle/useSetup 等）
@@ -231,20 +177,6 @@ impl VisitMut for PreTransform {
         model_directive::transform_opening(opening);
         // v-show/r-show → 样式驱动显示控制
         show_directive::transform_opening(opening);
-        if self.in_component {
-            for attr in &mut opening.attrs {
-                let JSXAttrOrSpread::JSXAttr(attr) = attr else {
-                    continue;
-                };
-                let Some(JSXAttrValue::JSXExprContainer(container)) = &mut attr.value else {
-                    continue;
-                };
-                let JSXExpr::Expr(expr) = &mut container.expr else {
-                    continue;
-                };
-                mark_nested_jsx_render_closure(expr);
-            }
-        }
     }
 
     fn visit_mut_jsx_element(&mut self, el: &mut JSXElement) {
@@ -270,19 +202,6 @@ impl VisitMut for PreTransform {
             *expr = memo_expr;
             return;
         }
-        let marked_inline_factory = matches!(
-            expr,
-            Expr::Arrow(arrow)
-                if matches!(arrow.body.as_ref(), BlockStmtOrExpr::BlockStmt(block)
-                    if block_has_component_render_reactive_marker(block))
-        );
-        if marked_inline_factory {
-            let span = expr.span();
-            let mut wrapped = Box::new(expr.clone());
-            mark_component_render_reactive_factory(&mut wrapped);
-            *expr = *wrapped;
-            self.mark_pure(span);
-        }
     }
 
     fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
@@ -295,12 +214,6 @@ impl VisitMut for PreTransform {
             let reactive_prop_aliases = collect_param_idents(&arrow.params);
             rewrite_component_props_destructure_in_arrow(arrow);
             lower_props_derived_consts_in_arrow_with_inputs(arrow, reactive_prop_aliases);
-            // Component variable declarations are marked at the factory after process_var_decl
-            // has extracted one-time setup. An eager body marker would make process_var_decl bail
-            // out and rerun setup statements inside the component render effect.
-            if let BlockStmtOrExpr::BlockStmt(block) = arrow.body.as_mut() {
-                mark_component_render_reactive(block);
-            }
         }
     }
 
@@ -346,19 +259,9 @@ impl VisitMut for PreTransform {
         if !is_comp {
             return;
         }
-        let requires_render_effect = f.function.body.as_ref().is_some_and(|block| {
-            block_has_reactive_render_control(block)
-                || block_requires_custom_composable_render_effect(block)
-        });
         // 组件函数声明：执行 useSetup 注入
         if !is_compiled {
             process_fn_decl(f);
-        }
-        if !is_compiled
-            && requires_render_effect
-            && let Some(block) = &mut f.function.body
-        {
-            mark_component_render_reactive(block);
         }
     }
 
@@ -414,34 +317,6 @@ impl VisitMut for PreTransform {
         self.in_compiled_component = prev_compiled;
         if compiled_decl.is_none() {
             process_var_decl(v);
-        }
-        for decl in &mut v.decls {
-            let is_decl_comp = is_fc_pat(&decl.name) || is_untyped_arrow_component_decl(decl);
-            if !is_decl_comp {
-                continue;
-            }
-            let Some(Expr::Arrow(arrow)) = decl.init.as_mut().map(|expr| expr.as_mut()) else {
-                continue;
-            };
-            let is_decl_compiled = matches!(
-                &decl.name,
-                Pat::Ident(binding)
-                    if self.compiled_component_names.contains(binding.id.sym.as_ref())
-            );
-            let requires_custom_composable_render_effect = matches!(
-                arrow.body.as_ref(),
-                BlockStmtOrExpr::BlockStmt(block)
-                    if block_requires_custom_composable_render_effect(block)
-            );
-            if !is_decl_compiled
-                && (arrow_has_reactive_render_control(arrow)
-                    || requires_custom_composable_render_effect)
-            {
-                if let Some(init) = &mut decl.init {
-                    mark_component_render_reactive_factory(init);
-                    self.mark_pure(init.span());
-                }
-            }
         }
     }
 

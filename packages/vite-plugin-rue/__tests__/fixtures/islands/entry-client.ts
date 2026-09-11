@@ -2,4 +2,3 @@
 import { startRueIslands } from 'virtual:rue-island-client'
 
 export const startFixtureIslands = startRueIslands
-export const stopFixtureIslands = startRueIslands()

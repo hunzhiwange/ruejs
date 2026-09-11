@@ -99,7 +99,7 @@ export default Refs;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/refs.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("@rue-js/rue/internal/component"), "{normalized}");
+    assert!(normalized.contains("@rue-js/rue/internal/reactive"), "{normalized}");
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
     assert!(normalized.contains("__ref1.current = _el1"), "{normalized}");
     assert!(normalized.contains("__ref1.current = null"), "{normalized}");

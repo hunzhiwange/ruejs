@@ -46,7 +46,7 @@ export interface RangeFormatterInfo {
 /** RangeValueDisplayConfig 配置对象。 */
 export interface RangeValueDisplayConfig {
   /** formatter 配置项。 */
-  formatter?: (value: number, info: RangeFormatterInfo) => any
+  formatter?: (value: number, info: RangeFormatterInfo) => string | number
   /** 弹出层或内容展示位置。 */
   placement?: 'inline' | 'below'
   /** 根节点附加类名。 */
@@ -98,7 +98,7 @@ export interface RangeProps {
   /** showValue 值。 */
   showValue?: boolean | RangeValueDisplayConfig
   /** formatter 配置项。 */
-  formatter?: (value: number, info: RangeFormatterInfo) => any
+  formatter?: (value: number, info: RangeFormatterInfo) => string | number
   /** marks 配置项。 */
   marks?: Array<RangeMark | RangeValue>
   /** 是否禁用交互。 */
@@ -126,7 +126,7 @@ interface NormalizedValueDisplayConfig {
   visible: boolean
   placement: 'inline' | 'below'
   className?: string
-  formatter?: (value: number, info: RangeFormatterInfo) => any
+  formatter?: (value: number, info: RangeFormatterInfo) => string | number
 }
 
 type ScheduledValueFlush =
@@ -179,7 +179,13 @@ const clamp = (value: number, min: number, max: number) => {
 /** 解析 MaybeRef 的内部工具函数。 */
 const resolveMaybeRef = <T,>(value: RangeMaybeRef<T> | undefined): T | undefined => {
   if (value === undefined) return undefined
-  return toValue(value as T | (() => T) | { value?: T; get?: () => T })
+  if (typeof value === 'function') return (value as () => T)()
+  if (value && typeof value === 'object') {
+    const source = value as { get?: () => T; value?: T }
+    if (typeof source.get === 'function') return source.get()
+    if ('value' in source) return source.value
+  }
+  return value as T
 }
 
 /** 解析 Bounds 的内部工具函数。 */
@@ -267,7 +273,7 @@ const normalizeMarks = (
 /** format Range Value 的内部工具函数。 */
 const formatRangeValue = (
   value: number,
-  formatter: ((value: number, info: RangeFormatterInfo) => any) | undefined,
+  formatter: ((value: number, info: RangeFormatterInfo) => string | number) | undefined,
   info: RangeFormatterInfo,
 ) => {
   if (typeof formatter === 'function') {
@@ -339,6 +345,25 @@ const Range: FC<RangeProps> = ({
   onValueCommit,
   ...rest
 }) => {
+  const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+    const mark = rowArg0
+
+    const active = presentedValue.get() >= mark.value
+    return (
+      <span
+        key={mark.key}
+        className={appendClassName(
+          `absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1 text-[11px] ${active ? 'font-medium text-base-content' : 'text-base-content/55'}`,
+        )}
+        style={{ left: `${mark.percent}%` }}
+        data-rue-range-mark={String(mark.value)}
+      >
+        <span className={`h-2 w-px ${active ? 'bg-base-content/80' : 'bg-base-content/25'}`} />
+        {mark.label != null ? <span className="whitespace-nowrap">{mark.label}</span> : null}
+      </span>
+    )
+  }
+
   const generatedId = `rue-range-${rangeIdSeed++}`
   const bounds = computed(() => resolveBounds(resolveMaybeRef(min), resolveMaybeRef(max)))
   const rangeStep = computed(() => resolveStep(resolveMaybeRef(step)))
@@ -456,8 +481,6 @@ const Range: FC<RangeProps> = ({
     lastEmittedValue = next.value
     interactionHasEmittedValue = true
     onValueChange?.(next.value, next.event)
-    const input = rootRef.current?.querySelector('input[type="range"]') as HTMLInputElement | null
-    if (input) syncPresentedDom(input, next.value)
   }
 
   const scheduleValueChange = (nextValue: number, event: Event) => {
@@ -468,42 +491,6 @@ const Range: FC<RangeProps> = ({
     }
 
     valueChangeFlush = scheduleValueFlush(flushValueChange)
-  }
-
-  const syncPresentedDom = (target: HTMLInputElement, nextValue: number) => {
-    const currentBounds = bounds.get()
-    const currentDisplayValue = formatRangeValue(nextValue, displayFormatter.get(), {
-      min: currentBounds.min,
-      max: currentBounds.max,
-      percent: resolvePercent(nextValue, currentBounds.min, currentBounds.max),
-    })
-
-    target.value = String(nextValue)
-    target.setAttribute('aria-valuenow', String(nextValue))
-    if (typeof currentDisplayValue === 'string' || typeof currentDisplayValue === 'number') {
-      const displayText = String(currentDisplayValue)
-      target.setAttribute('aria-valuetext', displayText)
-      const root = target.closest('[data-rue-range-root="true"]')
-      const output = root?.getElementsByTagName('output')[0]
-      if (output?.dataset.rueRangeOutput === 'true') output.textContent = displayText
-    } else {
-      target.removeAttribute('aria-valuetext')
-    }
-
-    const root = target.closest('[data-rue-range-root="true"]')
-    if (root) {
-      Array.from(root.getElementsByTagName('span')).forEach(markElement => {
-        const rawMarkValue = markElement.dataset.rueRangeMark
-        if (rawMarkValue === undefined) return
-        const markValue = Number(rawMarkValue)
-        const active = Number.isFinite(markValue) && nextValue >= markValue
-        markElement.className = `absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1 text-[11px] ${active ? 'font-medium text-base-content' : 'text-base-content/55'}`
-        const tick = markElement.firstElementChild
-        if (tick) {
-          tick.className = `h-2 w-px ${active ? 'bg-base-content/80' : 'bg-base-content/25'}`
-        }
-      })
-    }
   }
 
   onScopeDispose(() => {
@@ -524,25 +511,6 @@ const Range: FC<RangeProps> = ({
       presentedValue.get(),
     )
     startInteraction(nextValue)
-    if (target) {
-      syncPresentedDom(target, nextValue)
-      queueMicrotask(() => {
-        if (interacting.value && interactionValue.value === nextValue) {
-          syncPresentedDom(target, nextValue)
-        }
-      })
-      setTimeout(() => {
-        if (interacting.value && interactionValue.value === nextValue) {
-          const testId = target.getAttribute('data-testid')
-          const liveTarget = testId
-            ? Array.from(target.ownerDocument.getElementsByTagName('input')).find(
-                input => input.getAttribute('data-testid') === testId,
-              )
-            : target
-          if (liveTarget) syncPresentedDom(liveTarget, nextValue)
-        }
-      }, 0)
-    }
     onInput?.(event)
     if (!controlled.get() || onValueChange) {
       scheduleValueChange(nextValue, event)
@@ -692,26 +660,9 @@ const Range: FC<RangeProps> = ({
           className={appendClassName('relative h-10', marksClassName)}
           data-rue-range-marks="true"
         >
-          {normalizedMarks.get().map(mark => {
-            const active = presentedValue.get() >= mark.value
-            return (
-              <span
-                key={mark.key}
-                className={appendClassName(
-                  `absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1 text-[11px] ${active ? 'font-medium text-base-content' : 'text-base-content/55'}`,
-                )}
-                style={{ left: `${mark.percent}%` }}
-                data-rue-range-mark={String(mark.value)}
-              >
-                <span
-                  className={`h-2 w-px ${active ? 'bg-base-content/80' : 'bg-base-content/25'}`}
-                />
-                {mark.label != null ? (
-                  <span className="whitespace-nowrap">{mark.label}</span>
-                ) : null}
-              </span>
-            )
-          })}
+          {normalizedMarks.get().map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow1 rowArg0={rowArg0} />
+          ))}
         </div>
       ) : null}
 

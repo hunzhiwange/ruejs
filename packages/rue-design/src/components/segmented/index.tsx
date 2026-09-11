@@ -4,7 +4,7 @@ Segmented 模块概述
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
 import type { FC } from '@rue-js/rue'
-import { onMounted, onUnmounted, onUpdated, ref, renderAnchor, useRef, watch } from '@rue-js/rue'
+import { computed, onMounted, onUnmounted, onUpdated, ref, useRef, watch } from '@rue-js/rue'
 
 let segmentedNameSeed = 0
 /** SEGMENTED_THUMB_TRANSITION_MS 内部常量。 */
@@ -40,9 +40,9 @@ export interface SegmentedSemanticStyles {
   /** item 区域配置。 */
   item?: any
   /** 图标内容。 */
-  icon?: any
+  icon?: string
   /** 展示标签。 */
-  label?: any
+  label?: string | number
 }
 
 /** SegmentedLabeledOption 选项配置。 */
@@ -50,9 +50,9 @@ export interface SegmentedLabeledOption<ValueType = SegmentedValue> {
   /** 受控值。 */
   value: ValueType
   /** 展示标签。 */
-  label?: any
+  label?: string | number
   /** 图标内容。 */
-  icon?: any
+  icon?: string
   /** 是否禁用交互。 */
   disabled?: boolean
   /** 根节点附加类名。 */
@@ -64,6 +64,7 @@ export interface SegmentedLabeledOption<ValueType = SegmentedValue> {
   /** tooltip 配置项。 */
   tooltip?: string | { title?: any }
   /** ariaLabel 标签内容。 */
+  wrapLabel?: boolean
   ariaLabel?: string
 }
 
@@ -112,13 +113,14 @@ export interface SegmentedProps<ValueType = SegmentedValue> {
 
 interface NormalizedSegmentedOption<ValueType = SegmentedValue> {
   value: ValueType
-  label: any
-  icon?: any
+  label: string | number | null
+  icon?: string
   disabled: boolean
   className?: string
   style?: any
   title?: string
   tooltip?: string | { title?: any }
+  wrapLabel?: boolean
   ariaLabel?: string
 }
 
@@ -133,43 +135,6 @@ const mergeStyles = (...styles: any[]) => {
   const resolved = styles.filter(Boolean)
   if (!resolved.length) return undefined
   return Object.assign({}, ...resolved)
-}
-
-/** sync Managed Renderable Host 的内部工具函数。 */
-const syncManagedRenderableHost = (
-  host: HTMLElement,
-  nextContent: unknown,
-  cache: WeakMap<HTMLElement, unknown>,
-  anchors: WeakMap<HTMLElement, Comment>,
-) => {
-  if (cache.get(host) === nextContent) return host
-
-  let anchor = anchors.get(host)
-  if (!anchor) {
-    anchor = (host.ownerDocument ?? document).createComment('rue-segmented-managed-anchor')
-    host.appendChild(anchor)
-    anchors.set(host, anchor)
-  }
-
-  renderAnchor(nextContent == null ? null : <>{nextContent}</>, host, anchor as any)
-  cache.set(host, nextContent)
-  return host
-}
-
-/** clear Managed Renderable Host 的内部工具函数。 */
-const clearManagedRenderableHost = (
-  host: HTMLElement,
-  cache: WeakMap<HTMLElement, unknown>,
-  anchors: WeakMap<HTMLElement, Comment>,
-) => {
-  if (!cache.has(host)) return
-
-  const anchor = anchors.get(host)
-  if (anchor) {
-    renderAnchor(null, host, anchor as any)
-  }
-
-  cache.delete(host)
 }
 
 /** serialize Value 的内部工具函数。 */
@@ -256,7 +221,7 @@ const normalizeOptions = <ValueType,>(options?: SegmentedOptions<ValueType>) => 
     if (!isOptionObject<ValueType>(option)) {
       return {
         value: option,
-        label: option,
+        label: String(option),
         disabled: false,
       }
     }
@@ -265,7 +230,11 @@ const normalizeOptions = <ValueType,>(options?: SegmentedOptions<ValueType>) => 
 
     return {
       value: option.value,
-      label: hasExplicitLabel ? option.label : option.icon != null ? null : option.value,
+      label: hasExplicitLabel
+        ? (option.label ?? null)
+        : option.icon != null
+          ? null
+          : String(option.value),
       icon: option.icon,
       disabled: !!option.disabled,
       className: option.className,
@@ -273,6 +242,7 @@ const normalizeOptions = <ValueType,>(options?: SegmentedOptions<ValueType>) => 
       title: option.title,
       tooltip: option.tooltip,
       ariaLabel: option.ariaLabel,
+      wrapLabel: option.wrapLabel,
     }
   })
 }
@@ -327,6 +297,109 @@ const resolveAccessibleLabel = <ValueType,>(option: NormalizedSegmentedOption<Va
 
 /** Segmented 的内部工具函数。 */
 const Segmented: FC<SegmentedProps<any>> = props => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const option = rowArg0
+    const index = rowArg1
+
+    const checked = computed(
+      () => serializeValue(option.value) === serializeValue(uncontrolledValueRef.value),
+    )
+    const optionDisabled = disabled || option.disabled
+    const tooltipTitle = resolveTooltipTitle(option.tooltip) ?? option.title
+    const fallbackLabel = option.label ?? String(option.value)
+    const hasVisibleLabel = option.label != null
+    const isIconOnly = option.icon != null && !hasVisibleLabel
+
+    let itemClassName = appendClassName(
+      'relative z-[1] inline-flex w-full select-none items-center justify-center gap-2 overflow-hidden border font-medium leading-tight transition duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/25',
+      sizeConfig.itemClassName,
+    )
+
+    itemClassName = appendClassName(itemClassName, shapeConfig.item)
+    itemClassName = appendClassName(
+      itemClassName,
+      mergedOrientation === 'vertical' ? 'justify-start text-left' : 'text-center',
+    )
+    itemClassName = appendClassName(itemClassName, isIconOnly ? 'gap-0' : undefined)
+    itemClassName = appendClassName(
+      itemClassName,
+      block || mergedOrientation === 'vertical' ? 'w-full' : 'min-w-[3.5rem]',
+    )
+    if (block && mergedOrientation !== 'vertical') {
+      itemClassName = appendClassName(itemClassName, 'flex-1')
+    }
+    itemClassName = appendClassName(
+      itemClassName,
+      'data-[state=checked]:border-base-100/90 data-[state=checked]:bg-base-100 data-[state=checked]:text-base-content data-[state=checked]:shadow-[0_14px_30px_-22px_rgba(15,23,42,0.7),0_1px_0_rgba(255,255,255,0.75)_inset] data-[state=unchecked]:border-transparent data-[state=unchecked]:text-base-content/70 data-[state=unchecked]:hover:border-base-100/70 data-[state=unchecked]:hover:bg-base-100/65 data-[state=unchecked]:hover:text-base-content',
+    )
+    itemClassName = appendClassName(
+      itemClassName,
+      'data-[disabled=false]:cursor-pointer data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-40',
+    )
+    itemClassName = appendClassName(itemClassName, semanticClassNames.item)
+    itemClassName = appendClassName(itemClassName, option.className)
+
+    const iconClassName = appendClassName(
+      'inline-flex shrink-0 items-center justify-center opacity-85',
+      sizeConfig.iconClassName,
+    )
+    const plainTextLabel = typeof option.label === 'string' || typeof option.label === 'number'
+    let labelClassName = appendClassName(
+      mergedOrientation === 'vertical' || option.icon == null ? 'min-w-0 flex-1' : 'min-w-0',
+      mergedOrientation === 'vertical' ? 'text-left' : 'text-center',
+    )
+    labelClassName = appendClassName(
+      labelClassName,
+      !option.wrapLabel && plainTextLabel && mergedOrientation !== 'vertical'
+        ? 'whitespace-nowrap'
+        : 'whitespace-normal',
+    )
+
+    return (
+      <button
+        key={serializeValue(option.value) || `segmented-option-${index}`}
+        type="button"
+        role="radio"
+        aria-checked={checked.get() ? 'true' : 'false'}
+        aria-disabled={optionDisabled ? 'true' : undefined}
+        aria-label={resolveAccessibleLabel(option)}
+        title={tooltipTitle}
+        className={itemClassName}
+        style={mergeStyles(semanticStyles.item, option.style)}
+        data-state={checked.get() ? 'checked' : 'unchecked'}
+        data-disabled={optionDisabled ? 'true' : 'false'}
+        data-rue-segmented-value={serializeValue(option.value)}
+        data-rue-segmented-option-disabled={option.disabled ? 'true' : 'false'}
+        onClick={() => {
+          handleSelect(option.value, optionDisabled)
+        }}
+      >
+        {option.icon != null ? (
+          <span
+            className={appendClassName(iconClassName, semanticClassNames.icon)}
+            style={semanticStyles.icon}
+            data-rue-segmented-icon-host="true"
+            data-rue-segmented-managed-kind="icon"
+          >
+            {String(option.icon)}
+          </span>
+        ) : null}
+        {hasVisibleLabel ? (
+          <span
+            className={appendClassName(labelClassName, semanticClassNames.label)}
+            style={semanticStyles.label}
+            data-rue-segmented-label-host="true"
+            data-rue-segmented-managed-kind="label"
+          >
+            {String(option.label)}
+          </span>
+        ) : (
+          <span className="sr-only">{String(fallbackLabel)}</span>
+        )}
+      </button>
+    )
+  }
+
   const {
     options = [],
     value,
@@ -351,10 +424,6 @@ const Segmented: FC<SegmentedProps<any>> = props => {
   const resizeObserverRef = useRef<ResizeObserver>()
   const thumbHideTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const thumbFrameRef = useRef<number>()
-  const managedHostsRef = useRef<Set<HTMLElement>>()
-  const iconHostCacheRef = useRef<WeakMap<HTMLElement, unknown>>()
-  const labelHostCacheRef = useRef<WeakMap<HTMLElement, unknown>>()
-  const hostAnchorsRef = useRef<WeakMap<HTMLElement, Comment>>()
   const normalizedOptions = normalizeOptions(options)
   const normalizedOptionsRef = ref(normalizedOptions)
   const uncontrolledValueRef = ref<any>(
@@ -371,22 +440,9 @@ const Segmented: FC<SegmentedProps<any>> = props => {
   const shapeConfig = resolveShapeClassName(shape)
   const mergedOrientation = resolveOrientation(orientation, vertical)
 
-  const activeValue = uncontrolledValueRef.value
-  const activeSerializedValue = serializeValue(activeValue)
+  const activeValue = computed(() => uncontrolledValueRef.value)
+  const activeSerializedValue = serializeValue(activeValue.get())
   const mergedName = name ?? generatedNameRef.value
-
-  if (!managedHostsRef.current) {
-    managedHostsRef.current = /*#__PURE__*/ new Set()
-  }
-  if (!iconHostCacheRef.current) {
-    iconHostCacheRef.current = /*#__PURE__*/ new WeakMap()
-  }
-  if (!labelHostCacheRef.current) {
-    labelHostCacheRef.current = /*#__PURE__*/ new WeakMap()
-  }
-  if (!hostAnchorsRef.current) {
-    hostAnchorsRef.current = /*#__PURE__*/ new WeakMap()
-  }
 
   const setRootRef = (element: HTMLDivElement | null) => {
     if (element) {
@@ -406,54 +462,7 @@ const Segmented: FC<SegmentedProps<any>> = props => {
     }
   }
 
-  const syncManagedContent = () => {
-    const root = rootRef.current
-
-    if (!root) return
-
-    const nextHosts = /*#__PURE__*/ new Set<HTMLElement>()
-    const iconCache = iconHostCacheRef.current!
-    const labelCache = labelHostCacheRef.current!
-    const hostAnchors = hostAnchorsRef.current!
-
-    normalizedOptionsRef.value.forEach(option => {
-      const item = root.querySelector(
-        `button[data-rue-segmented-value="${serializeValue(option.value)}"]`,
-      ) as HTMLButtonElement | null
-
-      if (!item) return
-
-      const iconHost = item.querySelector(
-        '[data-rue-segmented-icon-host="true"]',
-      ) as HTMLElement | null
-      const labelHost = item.querySelector(
-        '[data-rue-segmented-label-host="true"]',
-      ) as HTMLElement | null
-
-      if (iconHost) {
-        nextHosts.add(syncManagedRenderableHost(iconHost, option.icon, iconCache, hostAnchors))
-      }
-
-      if (labelHost) {
-        nextHosts.add(syncManagedRenderableHost(labelHost, option.label, labelCache, hostAnchors))
-      }
-    })
-
-    managedHostsRef.current!.forEach(host => {
-      if (nextHosts.has(host)) return
-
-      if (host.dataset.rueSegmentedManagedKind === 'icon') {
-        clearManagedRenderableHost(host, iconCache, hostAnchors)
-      } else {
-        clearManagedRenderableHost(host, labelCache, hostAnchors)
-      }
-    })
-
-    managedHostsRef.current = nextHosts
-  }
-
   const flushManagedDomSync = () => {
-    syncManagedContent()
     syncDom()
   }
 
@@ -526,40 +535,11 @@ const Segmented: FC<SegmentedProps<any>> = props => {
 
     if (!root) return
 
-    const currentDisabled = !!props.disabled
-    const currentName = props.name ?? generatedNameRef.value
     const selectedSerializedValue = serializeValue(uncontrolledValueRef.value)
-    const hiddenInput = root.querySelector(
-      'input[data-rue-segmented-hidden="true"]',
-    ) as HTMLInputElement | null
-
-    if (hiddenInput) {
-      hiddenInput.name = currentName
-      hiddenInput.value =
-        uncontrolledValueRef.value == null ? '' : String(uncontrolledValueRef.value)
-      hiddenInput.disabled = currentDisabled
-    }
-
-    const items = Array.from(
-      root.querySelectorAll<HTMLButtonElement>('button[data-rue-segmented-value]'),
-    )
-    let checkedItem: HTMLButtonElement | null = null
-
-    items.forEach(item => {
-      const checked = item.dataset.rueSegmentedValue === selectedSerializedValue
-      const optionDisabled = currentDisabled || item.dataset.rueSegmentedOptionDisabled === 'true'
-
-      if (checked) checkedItem = item
-
-      item.dataset.state = checked ? 'checked' : 'unchecked'
-      item.dataset.disabled = optionDisabled ? 'true' : 'false'
-      item.setAttribute('aria-checked', checked ? 'true' : 'false')
-
-      if (optionDisabled) item.setAttribute('aria-disabled', 'true')
-      else item.removeAttribute('aria-disabled')
-
-      item.disabled = optionDisabled
-    })
+    const checkedItem =
+      Array.from(root.querySelectorAll<HTMLButtonElement>('button[data-rue-segmented-value]')).find(
+        item => item.dataset.rueSegmentedValue === selectedSerializedValue,
+      ) ?? null
 
     if (!thumbVisibleRef.value) {
       syncThumbFromElement(null)
@@ -583,14 +563,6 @@ const Segmented: FC<SegmentedProps<any>> = props => {
 
   onUnmounted(() => {
     clearThumbMotion()
-    managedHostsRef.current?.forEach(host => {
-      if (host.dataset.rueSegmentedManagedKind === 'icon') {
-        clearManagedRenderableHost(host, iconHostCacheRef.current!, hostAnchorsRef.current!)
-      } else {
-        clearManagedRenderableHost(host, labelHostCacheRef.current!, hostAnchorsRef.current!)
-      }
-    })
-    managedHostsRef.current?.clear()
     resizeObserverRef.current?.disconnect()
     resizeObserverRef.current = undefined
     rootRef.current = undefined
@@ -749,104 +721,14 @@ const Segmented: FC<SegmentedProps<any>> = props => {
         <input
           type="hidden"
           name={mergedName}
-          value={activeValue == null ? '' : String(activeValue)}
+          value={activeValue.get() == null ? '' : String(activeValue.get())}
           disabled={disabled}
           data-rue-segmented-hidden="true"
         />
       ) : null}
-      {normalizedOptions.map((option, index) => {
-        const checked = serializeValue(option.value) === activeSerializedValue
-        const optionDisabled = disabled || option.disabled
-        const tooltipTitle = resolveTooltipTitle(option.tooltip) ?? option.title
-        const fallbackLabel = option.label ?? String(option.value)
-        const hasVisibleLabel = option.label != null
-        const isIconOnly = option.icon != null && !hasVisibleLabel
-
-        let itemClassName = appendClassName(
-          'relative z-[1] inline-flex w-full select-none items-center justify-center gap-2 overflow-hidden border font-medium leading-tight transition duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/25',
-          sizeConfig.itemClassName,
-        )
-
-        itemClassName = appendClassName(itemClassName, shapeConfig.item)
-        itemClassName = appendClassName(
-          itemClassName,
-          mergedOrientation === 'vertical' ? 'justify-start text-left' : 'text-center',
-        )
-        itemClassName = appendClassName(itemClassName, isIconOnly ? 'gap-0' : undefined)
-        itemClassName = appendClassName(
-          itemClassName,
-          block || mergedOrientation === 'vertical' ? 'w-full' : 'min-w-[3.5rem]',
-        )
-        if (block && mergedOrientation !== 'vertical') {
-          itemClassName = appendClassName(itemClassName, 'flex-1')
-        }
-        itemClassName = appendClassName(
-          itemClassName,
-          'data-[state=checked]:border-base-100/90 data-[state=checked]:bg-base-100 data-[state=checked]:text-base-content data-[state=checked]:shadow-[0_14px_30px_-22px_rgba(15,23,42,0.7),0_1px_0_rgba(255,255,255,0.75)_inset] data-[state=unchecked]:border-transparent data-[state=unchecked]:text-base-content/70 data-[state=unchecked]:hover:border-base-100/70 data-[state=unchecked]:hover:bg-base-100/65 data-[state=unchecked]:hover:text-base-content',
-        )
-        itemClassName = appendClassName(
-          itemClassName,
-          'data-[disabled=false]:cursor-pointer data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-40',
-        )
-        itemClassName = appendClassName(itemClassName, semanticClassNames.item)
-        itemClassName = appendClassName(itemClassName, option.className)
-
-        const iconClassName = appendClassName(
-          'inline-flex shrink-0 items-center justify-center opacity-85',
-          sizeConfig.iconClassName,
-        )
-        const plainTextLabel = typeof option.label === 'string' || typeof option.label === 'number'
-        let labelClassName = appendClassName(
-          mergedOrientation === 'vertical' || option.icon == null ? 'min-w-0 flex-1' : 'min-w-0',
-          mergedOrientation === 'vertical' ? 'text-left' : 'text-center',
-        )
-        labelClassName = appendClassName(
-          labelClassName,
-          plainTextLabel && mergedOrientation !== 'vertical'
-            ? 'whitespace-nowrap'
-            : 'whitespace-normal',
-        )
-
-        return (
-          <button
-            key={serializeValue(option.value) || `segmented-option-${index}`}
-            type="button"
-            role="radio"
-            aria-checked={checked ? 'true' : 'false'}
-            aria-disabled={optionDisabled ? 'true' : undefined}
-            aria-label={resolveAccessibleLabel(option)}
-            title={tooltipTitle}
-            className={itemClassName}
-            style={mergeStyles(semanticStyles.item, option.style)}
-            data-state={checked ? 'checked' : 'unchecked'}
-            data-disabled={optionDisabled ? 'true' : 'false'}
-            data-rue-segmented-value={serializeValue(option.value)}
-            data-rue-segmented-option-disabled={option.disabled ? 'true' : 'false'}
-            onClick={() => {
-              handleSelect(option.value, optionDisabled)
-            }}
-          >
-            {option.icon != null ? (
-              <span
-                className={appendClassName(iconClassName, semanticClassNames.icon)}
-                style={semanticStyles.icon}
-                data-rue-segmented-icon-host="true"
-                data-rue-segmented-managed-kind="icon"
-              />
-            ) : null}
-            {hasVisibleLabel ? (
-              <span
-                className={appendClassName(labelClassName, semanticClassNames.label)}
-                style={semanticStyles.label}
-                data-rue-segmented-label-host="true"
-                data-rue-segmented-managed-kind="label"
-              />
-            ) : (
-              <span className="sr-only">{fallbackLabel}</span>
-            )}
-          </button>
-        )
-      })}
+      {normalizedOptions.map((rowArg0: any, rowArg1: number) => (
+        <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+      ))}
     </div>
   )
 }

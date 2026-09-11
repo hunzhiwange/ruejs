@@ -196,9 +196,7 @@ const Demo: FC = () => {
     assert!(out.contains("items.get().map"), "{out}");
     assert!(out.contains(&utils::normalize("const label = item.label.toUpperCase();")));
     assert!(out.contains("_$compiledRoot("), "{out}");
-    assert!(
-        out.contains(&utils::normalize(": _$compiledRoot(Object.assign((__rue_parent_context)=>{"))
-    );
+    assert!(out.contains(&utils::normalize(": _$compiledRoot((__rue_parent_context)=>{")));
     assert!(
         out.contains(&utils::normalize("_$compiledCreateElement(\"span\", __rue_parent_context)"))
     );

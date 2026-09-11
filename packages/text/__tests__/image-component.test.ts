@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vite-plus/test'
 import { createElement, renderToString } from './rue-ssr-test-utils.js'
-import Image from '../src/shims/image.js'
+import Image from '../src/shims/image.js?text-ssr'
 
 // ─── Issue #1513 reproduction ───────────────────────────────────────────
 //
@@ -19,7 +19,7 @@ import Image from '../src/shims/image.js'
 
 describe('default loader emits /_text/image URLs (issue #1513)', () => {
   it('imageOptimizationUrl uses /_text/image prefix', async () => {
-    const { imageOptimizationUrl } = await import('../src/shims/image.js')
+    const { imageOptimizationUrl } = await import('../src/shims/image.js?text-ssr')
     const url = imageOptimizationUrl('/photo.png', 828, 85)
     expect(url.startsWith('/_text/image?')).toBe(true)
     expect(url).toContain('url=%2Fphoto.png')

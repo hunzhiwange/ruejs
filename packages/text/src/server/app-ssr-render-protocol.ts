@@ -20,7 +20,7 @@ export const appSsrRenderProtocol = createAppSsrRenderProtocol({
   },
 })
 
-export function renderAppSsrNodeToStaticMarkup(node: TextCompatNode): string {
+export function renderAppSsrNodeToStaticMarkup(node: TextCompatNode): Promise<string> {
   return appSsrRenderProtocol.renderToStaticMarkup(node)
 }
 

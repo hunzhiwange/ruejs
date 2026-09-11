@@ -2,6 +2,13 @@ use swc_plugin_rue::apply;
 
 mod utils;
 
+fn import_for<'a>(output: &'a str, capability: &str) -> &'a str {
+    output
+        .lines()
+        .find(|line| line.contains(&format!("@rue-js/rue/internal/{capability}\"")))
+        .unwrap_or_else(|| panic!("missing {capability} import: {output}"))
+}
+
 #[test]
 fn does_not_auto_inject_signal_user_api() {
     let src = r##"
@@ -51,7 +58,7 @@ const Demo: FC = () => <div id="safe">hello</div>;
     let out = utils::strip_marker(&utils::emit(program, cm));
     let normalized = utils::normalize(&out);
 
-    assert!(out.contains("@rue-js/rue/internal/compiler"));
+    assert!(out.contains("@rue-js/rue/internal/dom"));
     assert!(!out.contains("from \"@rue-js/rue/internal/component\""));
     assert!(!out.contains(concat!("@rue-js", "/jsx-runtime")));
     assert!(!out.contains(concat!("@rue-js", "/jsx-dev-runtime")));
@@ -72,7 +79,7 @@ const Demo: FC = () => <><h1>safe</h1><span>ready</span></>;
     let (program, cm) = utils::parse(src, "safe-fragment-boundary.tsx");
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
 
-    assert!(out.contains("@rue-js/rue/internal/component"), "{out}");
+    assert!(out.contains("@rue-js/rue/internal/dom"), "{out}");
     assert!(!out.contains("from \"@rue-js/rue/internal/compiler\""), "{out}");
     assert!(out.contains("_$compiledRoot"), "{out}");
     assert!(!utils::normalize(&out).contains(&utils::normalize("vapor(")), "{out}");
@@ -114,7 +121,7 @@ async function loadView() {
 }
 
 #[test]
-fn mixed_fragment_module_keeps_compiled_owner_on_vapor_graph() {
+fn mixed_fragment_module_keeps_its_block_entry() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
 const Child: FC = () => <i />;
@@ -126,7 +133,7 @@ const Mixed: FC = () => <Child />;
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
     let vapor_import = out
         .lines()
-        .find(|line| line.contains("from \"@rue-js/rue/internal/component\""))
+        .find(|line| line.contains("from \"@rue-js/rue/internal/block\""))
         .unwrap_or_default();
 
     assert!(vapor_import.contains("_$compiledRoot"), "{out}");
@@ -134,7 +141,7 @@ const Mixed: FC = () => <Child />;
 }
 
 #[test]
-fn rewrites_safe_value_imports_to_vapor_entry() {
+fn rewrites_safe_value_imports_to_reactive_entry() {
     let src = r##"
 import { type FC, ref, useState } from '@rue-js/rue';
 
@@ -149,9 +156,9 @@ const Demo: FC = () => {
     let program = apply(program);
     let out = utils::strip_marker(&utils::emit(program, cm));
     let normalized = utils::normalize(&out);
-    let first_line = out.lines().next().unwrap_or_default();
+    let first_line = import_for(&out, "reactive");
 
-    assert!(first_line.contains("from \"@rue-js/rue/internal/component\""), "{out}");
+    assert!(first_line.contains("from \"@rue-js/rue/internal/reactive\""), "{out}");
     assert!(first_line.contains("ref"));
     assert!(first_line.contains("useState"));
     assert!(normalized.contains(&utils::normalize("import { type FC } from '@rue-js/rue';")));
@@ -162,7 +169,7 @@ const Demo: FC = () => {
 }
 
 #[test]
-fn rewrites_use_app_to_vapor_entry() {
+fn rewrites_use_app_to_reactive_entry() {
     let src = r##"
 import { type FC, ref, useApp } from '@rue-js/rue';
 
@@ -176,9 +183,9 @@ useApp(App).mount('#app');
     let program = apply(program);
     let out = utils::strip_marker(&utils::emit(program, cm));
     let normalized = utils::normalize(&out);
-    let first_line = out.lines().next().unwrap_or_default();
+    let first_line = import_for(&out, "reactive");
 
-    assert!(first_line.contains("from \"@rue-js/rue/internal/component\""), "{out}");
+    assert!(first_line.contains("from \"@rue-js/rue/internal/reactive\""), "{out}");
     assert!(first_line.contains("ref"));
     assert!(first_line.contains("useApp"));
     assert!(normalized.contains(&utils::normalize("import { type FC } from '@rue-js/rue';")));
@@ -189,7 +196,7 @@ useApp(App).mount('#app');
 }
 
 #[test]
-fn routes_component_and_reactive_values_to_vapor() {
+fn routes_component_and_reactive_values_to_unique_entries() {
     let src = r##"
 import { type FC, TransitionGroup, ref } from '@rue-js/rue';
 
@@ -204,11 +211,11 @@ const Demo: FC = () => {
     let out = utils::strip_marker(&utils::emit(program, cm));
     let normalized = utils::normalize(&out);
     let internal_import = out.lines().find(|line| {
-        line.contains("from \"@rue-js/rue/internal/component\"")
+        line.contains("from \"@rue-js/rue/internal/reactive\"")
             && !line.contains("@rue-js/rue/internal/compiler")
     });
     let builtins_import =
-        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/builtins\""));
+        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/builtin\""));
 
     assert!(internal_import.is_some_and(|line| line.contains("ref")), "{out}");
     assert!(builtins_import.is_some_and(|line| line.contains("TransitionGroup")), "{out}");
@@ -219,7 +226,7 @@ const Demo: FC = () => {
 }
 
 #[test]
-fn rewrites_transition_import_to_vapor_entry() {
+fn rewrites_transition_import_to_unique_entries_entry() {
     let src = r##"
 import { type FC, Transition, ref } from '@rue-js/rue';
 
@@ -238,11 +245,11 @@ const Demo: FC = () => {
     let out = utils::strip_marker(&utils::emit(program, cm));
     let normalized = utils::normalize(&out);
     let internal_import = out.lines().find(|line| {
-        line.contains("from \"@rue-js/rue/internal/component\"")
+        line.contains("from \"@rue-js/rue/internal/reactive\"")
             && !line.contains("@rue-js/rue/internal/compiler")
     });
     let builtins_import =
-        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/builtins\""));
+        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/builtin\""));
 
     assert!(internal_import.is_some_and(|line| line.contains("ref")), "{out}");
     assert!(builtins_import.is_some_and(|line| line.contains("Transition")), "{out}");
@@ -255,7 +262,7 @@ const Demo: FC = () => {
 }
 
 #[test]
-fn reactive_compiled_bindings_keep_helpers_on_one_vapor_graph() {
+fn reactive_compiled_bindings_have_unique_helper_entries() {
     let src = r##"
 import { type FC, ref } from '@rue-js/rue';
 const message = ref('ready');
@@ -264,13 +271,13 @@ const Demo: FC = () => <div title={message.value}>{message.value}</div>;
 
     let (program, cm) = utils::parse(src, "reactive-compiled-import.tsx");
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
-    let vapor_import = out
-        .lines()
-        .find(|line| line.contains("@rue-js/rue/internal/component"))
-        .expect("component runtime import");
-
-    for helper in ["ref", "_$compiledRoot", "_$compiledText", "effect"] {
-        assert!(vapor_import.contains(helper), "missing {helper}: {out}");
+    for (helper, entry) in [
+        ("ref", "reactive"),
+        ("_$compiledRoot", "block"),
+        ("_$compiledText", "dom"),
+        ("effect", "reactive"),
+    ] {
+        assert!(import_for(&out, entry).contains(helper), "missing {helper}: {out}");
     }
     assert!(!out.contains("from \"@rue-js/rue/internal/compiler\""), "{out}");
 }
@@ -287,12 +294,12 @@ export const Demo = () => <div>{message.get()}</div>;
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
     let compiled_import = out
         .lines()
-        .find(|line| line.contains("@rue-js/rue/internal/compiler"))
+        .find(|line| line.contains("@rue-js/rue/internal/reactive"))
         .expect("compiled runtime import");
 
     assert!(compiled_import.contains("signal"), "{out}");
-    assert!(compiled_import.contains("_$compiledRoot"), "{out}");
-    assert!(compiled_import.contains("_$compiledText"), "{out}");
+    assert!(import_for(&out, "block").contains("_$compiledRoot"), "{out}");
+    assert!(import_for(&out, "dom").contains("_$compiledText"), "{out}");
     assert!(!out.contains("from \"@rue-js/rue/internal/component\""), "{out}");
 }
 
@@ -308,18 +315,18 @@ export const Demo = () => <div>{message.get()}</div>;
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
     let compiled_import = out
         .lines()
-        .find(|line| line.contains("@rue-js/rue/internal/compiler"))
+        .find(|line| line.contains("@rue-js/rue/internal/reactive"))
         .expect("compiled runtime import");
 
     assert!(compiled_import.contains("signal"), "{out}");
-    assert!(compiled_import.contains("_$compiledRoot"), "{out}");
-    assert!(compiled_import.contains("_$compiledText"), "{out}");
+    assert!(import_for(&out, "block").contains("_$compiledRoot"), "{out}");
+    assert!(import_for(&out, "dom").contains("_$compiledText"), "{out}");
     assert!(!out.contains("from \"@rue-js/rue\""), "{out}");
     assert!(!out.contains("from \"@rue-js/rue/internal/component\""), "{out}");
 }
 
 #[test]
-fn public_signal_joins_the_vapor_graph_in_a_mixed_module() {
+fn public_signal_keeps_its_reactive_entry_in_a_mixed_module() {
     let src = r##"
 import { signal } from '@rue-js/rue';
 const message = signal('ready');
@@ -329,17 +336,11 @@ export const Demo = () => <Child>{message.get()}</Child>;
 
     let (program, cm) = utils::parse(src, "public-signal-mixed-vapor.tsx");
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
-    let vapor_import = out
-        .lines()
-        .find(|line| {
-            line.contains("from \"@rue-js/rue/internal/component\"")
-                && !line.contains("@rue-js/rue/internal/compiler")
-        })
-        .expect("vapor runtime import");
-
-    assert!(vapor_import.contains("signal"), "{out}");
-    assert!(vapor_import.contains("_$compiledRoot"), "{out}");
-    assert!(vapor_import.contains("_$createComponent"), "{out}");
+    for (helper, entry) in
+        [("signal", "reactive"), ("_$compiledRoot", "block"), ("_$createComponent", "component")]
+    {
+        assert!(import_for(&out, entry).contains(helper), "missing {helper}: {out}");
+    }
     assert!(!out.contains("@rue-js/rue/internal/compiler"), "{out}");
 }
 
@@ -356,7 +357,7 @@ export const Demo = () => <div>{message.get()}</div>;
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
     let compiled_import = out
         .lines()
-        .find(|line| line.contains("@rue-js/rue/internal/compiler"))
+        .find(|line| line.contains("@rue-js/rue/internal/reactive"))
         .unwrap_or_else(|| panic!("compiled runtime import: {out}"));
     let normalized = utils::normalize(&out);
 

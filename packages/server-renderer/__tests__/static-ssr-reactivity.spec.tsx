@@ -1,30 +1,19 @@
 // @vitest-environment jsdom
+import { expect, it } from 'vitest'
+import { compileNodePlan } from '../../runtime/__tests__/node-plan-test-utils'
 
-import { afterEach, expect, it } from 'vitest'
-
-import LocalTodoListDemo from '../../../app/pages/examples/home-demos/LocalTodoListDemo'
-import { setReactiveScheduling } from '@rue-js/rue'
-import { _$createDynamic } from '@rue-js/rue/internal'
-import { renderToString } from '@rue-js/server-renderer'
-import { runWithStaticRenderDom } from '@rue-js/server-renderer/static'
-
-afterEach(() => {
-  setReactiveScheduling('sync')
-})
-
-it('drains reactive SSR work before releasing the static DOM environment', async () => {
-  setReactiveScheduling('frame')
+it('writes reactive SSR instructions without a DOM environment and releases the owner', async () => {
+  const compiled = compileNodePlan(
+    `import { signal, onCleanup } from '@rue-js/rue'; export let cleaned = 0; export const View = () => { const count = signal(3); onCleanup(() => cleaned++); return <p>总计: {count.get()}</p>; };`,
+    'server',
+  )
   const testDocument = globalThis.document
   Reflect.deleteProperty(globalThis, 'document')
-
   try {
-    const html = await runWithStaticRenderDom('/examples/local-todo-list', () =>
-      renderToString(_$createDynamic(LocalTodoListDemo, null)),
-    )
-
-    expect(html).toContain('总计: 3 | 已完成: 1')
-    await Promise.resolve()
-    await Promise.resolve()
+    const html = await compiled.renderToString(compiled.View)
+    expect(html).toContain('总计: ')
+    expect(html).toContain('>3<!--')
+    expect(compiled.cleaned).toBe(1)
   } finally {
     globalThis.document = testDocument
   }

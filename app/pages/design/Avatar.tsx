@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Avatar, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -360,9 +359,7 @@ const AvatarDemo: FC = () => {
               </Avatar>
             </div>
           )}
-          code={`import { Avatar } from '@rue-js/design'
-
-<div className="flex flex-wrap items-end gap-4">
+          code={`import { Avatar } from '@rue-js/design'<div className="flex flex-wrap items-end gap-4">
   <Avatar src="${photos.batperson}" alt="Bat Person" size={72} />
   <Avatar size="lg" color="primary" icon={<UserIcon />} />
   <Avatar size="lg" color="secondary">JS</Avatar>

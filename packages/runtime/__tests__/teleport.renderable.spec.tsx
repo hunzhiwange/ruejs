@@ -1,51 +1,39 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { Teleport } from '../src/compiler-runtime/builtins'
-import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
+import { afterEach, expect, it } from 'vitest'
+import { evaluateComponent } from './compiled-component-test-utils'
+import { setReactiveScheduling } from '../src/runtime-core/compiled'
 
 afterEach(() => {
   document.body.innerHTML = ''
+  setReactiveScheduling('frame')
 })
-const textSlot =
-  (text: string): CompiledSlotFactory =>
-  (target, _props, owner) => {
-    const node = document.createTextNode(text)
-    target.parent.insertBefore(node, target.before)
-    return createCompiledBlock(target, owner, { first: node, last: node })
-  }
-const flush = async () => {
+it('compiled Teleport moves the same range, disables, defers and disposes it', async () => {
+  setReactiveScheduling('sync')
+  document.body.innerHTML = '<main></main><aside id="a"></aside><aside id="b"></aside>'
+  const { exports: app } = evaluateComponent(`
+    import { Teleport, signal } from '@rue-js/rue';
+    export const target = signal('#a'); export const disabled = signal(false); export const defer = signal(false);
+    export const View = () => <Teleport to={target.get()} disabled={disabled.get()} defer={defer.get()}><input value="initial"/><b>owned</b></Teleport>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.querySelector('main'))
+  const input = document.querySelector('#a input') as HTMLInputElement
+  expect(input).not.toBeNull()
+  input.value = 'edited'
+  app.target.set('#b')
+  expect(document.querySelector('#b input')).toBe(input)
+  expect(input.value).toBe('edited')
+  app.disabled.set(true)
+  expect(document.querySelector('main input')).toBe(input)
+  app.defer.set(true)
+  app.disabled.set(false)
+  app.target.set('#a')
+  app.target.set('#b')
   await Promise.resolve()
+  expect(document.querySelector('#a')!.textContent).toBe('')
+  expect(document.querySelector('#b input')).toBe(input)
+  root.dispose()
+  expect(document.querySelectorAll('input')).toHaveLength(0)
+  app.target.set('#a')
   await Promise.resolve()
-}
-
-describe('compiled Teleport', () => {
-  it('mounts, moves, disables and cleans up an owned compiled slot', () => {
-    const host = document.createElement('div')
-    const first = document.createElement('div')
-    const second = document.createElement('div')
-    const handle = Teleport({ to: first, children: textSlot('owned') })
-    handle.__rue_compiled_mount(host)
-    expect(first.textContent).toBe('owned')
-    handle.__rue_compiled_update_props__({ to: second, children: textSlot('owned') })
-    expect(first.textContent).toBe('')
-    expect(second.textContent).toBe('owned')
-    handle.__rue_compiled_update_props__({
-      to: second,
-      disabled: true,
-      children: textSlot('owned'),
-    })
-    expect(host.textContent).toBe('owned')
-    handle.dispose()
-    expect(host.textContent).toBe('')
-  })
-
-  it('cancels stale deferred target work', async () => {
-    const first = document.createElement('div')
-    const second = document.createElement('div')
-    const handle = Teleport({ to: first, defer: true, children: textSlot('latest') })
-    handle.__rue_compiled_mount(document.createElement('div'))
-    handle.__rue_compiled_update_props__({ to: second, defer: true, children: textSlot('latest') })
-    await flush()
-    expect(first.textContent).toBe('')
-    expect(second.textContent).toBe('latest')
-  })
+  expect(document.querySelectorAll('input')).toHaveLength(0)
 })

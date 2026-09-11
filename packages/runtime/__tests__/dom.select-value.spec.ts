@@ -1,26 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
-import { appendChild, setValue } from '../src/dom'
+import { appendChild } from '../src/compiler-runtime/dom.browser'
+import { setDOMProperty, setDOMValue } from '../src/dom/props'
 
 describe('DOM select value sync', () => {
   it('keeps a controlled select value when options mount after the value assignment', () => {
     const select = document.createElement('select')
 
-    setValue(select as any, 'luxury')
+    setDOMValue(select, 'luxury')
 
     const light = document.createElement('option')
     appendChild(select as any, light as any)
-    setValue(light as any, 'light')
+    setDOMValue(light, 'light')
     light.textContent = 'light'
 
     const luxury = document.createElement('option')
     appendChild(select as any, luxury as any)
-    setValue(luxury as any, 'luxury')
+    setDOMValue(luxury, 'luxury')
     luxury.textContent = 'luxury'
 
     const acid = document.createElement('option')
     appendChild(select as any, acid as any)
-    setValue(acid as any, 'acid')
+    setDOMValue(acid, 'acid')
     acid.textContent = 'acid'
 
     expect(select.value).toBe('luxury')
@@ -31,19 +32,19 @@ describe('DOM select value sync', () => {
     const select = document.createElement('select')
     select.multiple = true
 
-    setValue(select as any, ['dark', 'luxury'])
+    setDOMValue(select, ['dark', 'luxury'])
 
     const light = document.createElement('option')
     appendChild(select as any, light as any)
-    setValue(light as any, 'light')
+    setDOMValue(light, 'light')
 
     const dark = document.createElement('option')
     appendChild(select as any, dark as any)
-    setValue(dark as any, 'dark')
+    setDOMValue(dark, 'dark')
 
     const luxury = document.createElement('option')
     appendChild(select as any, luxury as any)
-    setValue(luxury as any, 'luxury')
+    setDOMValue(luxury, 'luxury')
 
     expect(light.selected).toBe(false)
     expect(dark.selected).toBe(true)
@@ -61,7 +62,7 @@ describe('DOM select value sync', () => {
       select.appendChild(option)
     }
 
-    setValue(select as any, ['A'])
+    setDOMValue(select, ['A'])
     const emittedEvents: string[] = []
     select.addEventListener('input', () => emittedEvents.push('input'))
     select.addEventListener('change', () => emittedEvents.push('change'))
@@ -82,5 +83,25 @@ describe('DOM select value sync', () => {
 
     ordinaryClick('A')
     expect(Array.from(select.selectedOptions, option => option.value)).toEqual(['B', 'C'])
+  })
+
+  it('replays a pending array when multiple is enabled and options mount later', () => {
+    const select = document.createElement('select')
+    for (const value of ['light', 'dark']) {
+      const option = document.createElement('option')
+      option.value = value
+      select.appendChild(option)
+    }
+
+    setDOMValue(select, ['dark', 'luxury'])
+    setDOMProperty(select, 'multiple', true)
+
+    expect(Array.from(select.selectedOptions, option => option.value)).toEqual(['dark'])
+
+    const luxury = document.createElement('option')
+    appendChild(select as any, luxury as any)
+    setDOMValue(luxury, 'luxury')
+
+    expect(Array.from(select.selectedOptions, option => option.value)).toEqual(['dark', 'luxury'])
   })
 })

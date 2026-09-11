@@ -8,14 +8,10 @@ mod utils;
 #[test]
 fn transforms_spec45() {
     let src = r##"
-import { type FC, installBrowserErrorBridge, installErrorConsole, installDevErrorOverlay, useApp } from '@rue-js/rue'
+import { type FC, useApp } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
 import SiteLayout from './pages/site/components/Layout'
-
-installBrowserErrorBridge()
-installErrorConsole()
-installDevErrorOverlay()
 
 const RootApp: FC = () => {
   return (
@@ -33,13 +29,10 @@ useApp(RootApp).use(router).mount('#app')
 
     let _expected_fragment = r##"
 import { useApp, _$createComponent } from "@rue-js/rue/internal";
-import { type FC, installBrowserErrorBridge, installErrorConsole, installDevErrorOverlay } from '@rue-js/rue';
+import { type FC } from '@rue-js/rue';
 import { RouterView } from '@rue-js/router';
 import router from './router';
 import SiteLayout from './pages/site/components/Layout';
-installBrowserErrorBridge();
-installErrorConsole();
-installDevErrorOverlay();
 const RootApp: FC = ()=>{
     return (()=>{
         const __child1 = _$createComponent(RouterView, {});
@@ -65,5 +58,10 @@ useApp(RootApp).use(router).mount('#app');
         "{normalized}"
     );
     assert!(normalized.contains("_$createDocumentFragment()"), "{normalized}");
-    assert!(normalized.contains("useApp(RootApp).use(router).mount('#app')"), "{normalized}");
+    assert!(
+        normalized.contains(
+            "_$createApp(()=>_$compiledComponent(RootApp, ()=>({}))).use(router).mount('#app')"
+        ),
+        "{normalized}"
+    );
 }

@@ -19,7 +19,7 @@ describe('compileRueStatic', () => {
     )
 
     expect(code).toContain('/* RUE_TRANSFORMED */')
-    expect(code).toContain('@rue-js/rue/internal/compiler')
+    expect(code).toContain('@rue-js/rue/internal/dom')
     expect(code).not.toMatch(/from\s+["']@rue-js\/rue\/internal["']/)
     expect(code).toContain('_$compiledCreateElement("main"')
     expect(code).not.toContain('@rue-js/runtime-vapor')
@@ -40,7 +40,7 @@ describe('compileRueStatic', () => {
     )
 
     expect(code).toContain('@rue-js/rue/internal/component')
-    expect(code).toContain('@rue-js/rue/internal/builtins')
+    expect(code).toContain('@rue-js/rue/internal/keepalive')
     expect(code).not.toMatch(/from\s+["']@rue-js\/rue\/internal["']/)
   })
 
@@ -56,20 +56,20 @@ describe('compileRueStatic', () => {
     )
 
     expect(code).toContain('@rue-js/rue/internal/component')
-    expect(code).not.toContain('@rue-js/rue/internal/builtins')
+    expect(code).not.toContain('@rue-js/rue/internal/keepalive')
     expect(code).not.toMatch(/from\s+["']@rue-js\/rue\/internal["']/)
   })
 
-  it('compiles client directives through the shared island descriptor helper', async () => {
+  it('compiles server graph client directives through the island writer factory', async () => {
     const code = await compileRueStatic(
       `
         import Counter from './Counter'
         export const App = () => <Counter client:load count={1} />
       `,
-      { id: '/virtual/static-island.tsx', production: false },
+      { id: '/virtual/static-island.tsx', production: false, target: 'server' },
     )
 
-    expect(code).toContain('createRueIslandDescriptor')
+    expect(code).toContain('CompiledIsland')
     expect(code).toContain('component: Counter')
     expect(code).not.toContain('client:load')
   })

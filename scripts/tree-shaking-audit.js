@@ -39,16 +39,6 @@ export const TREE_SHAKING_SCENARIOS = Object.freeze([
     imports: Object.freeze(['ref', 'computed']),
   }),
   Object.freeze({
-    name: 'public-create-rue',
-    entry: '@rue-js/rue',
-    imports: Object.freeze(['createRue']),
-  }),
-  Object.freeze({
-    name: 'public-render',
-    entry: '@rue-js/rue',
-    imports: Object.freeze(['render']),
-  }),
-  Object.freeze({
     name: 'public-transition',
     entry: '@rue-js/rue',
     imports: Object.freeze(['Transition']),
@@ -62,11 +52,6 @@ export const TREE_SHAKING_SCENARIOS = Object.freeze([
     name: 'compiler-internal',
     entry: '@rue-js/rue/internal/compiler',
     imports: Object.freeze(['_$compiledRoot']),
-  }),
-  Object.freeze({
-    name: 'internal',
-    entry: '@rue-js/rue/internal',
-    imports: Object.freeze(['_$compiledComponent']),
   }),
 ])
 

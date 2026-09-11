@@ -1,603 +1,111 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
-import { Suspense } from '@rue-js/rue'
+import { createCompiledClientReference } from '@rue-js/runtime/internal/ssr'
 import {
-  AppServerSuspense,
-  adaptAppServerRenderableForHtmlSsr,
-  adaptAppServerRenderableForSsr,
   createAppServerElement,
+  isAppServerPlan,
+  scopeAppServerPlan,
+  startAppServerPlan,
 } from '../src/server/app-server-tree.js'
 import { setAppClientReferenceResolver } from '../src/server/app-client-reference-resolver.js'
-import {
-  AppRscServerClientReferenceSymbol,
-  CompatRueRscServerClientReferenceSymbol,
-  createAppRscClientReferenceProtocol,
-  isAppRscServerClientReference,
-} from '../src/server/app-rsc-client-reference-protocol.js'
-import { markAppSsrPassthroughComponent } from '../src/server/app-ssr-passthrough-protocol.js'
-import { ServerProtocolElementSymbol } from '../src/server/element-protocol.js'
+import { compileServerFixture } from './rue-ssr-test-utils.js'
 
-vi.mock('@rue-js/server-renderer', () => ({
-  renderToString: vi.fn(async () => '<main>rue html</main>'),
-}))
+async function read(stream: ReadableStream<Uint8Array>) {
+  return new Response(stream).text()
+}
+afterEach(() => setAppClientReferenceResolver(null))
 
-describe('createAppServerElement', () => {
-  afterEach(() => {
-    setAppClientReferenceResolver(null)
-    delete (globalThis as Record<string, unknown>).__TEXT_RUE_RENDER_TO_STRING__
+describe('compiled App server plans', () => {
+  it('requires compiled factories and explicitly brands composed plans', () => {
+    expect(() => createAppServerElement('div' as never)).toThrow('compiled component factory')
+    expect(isAppServerPlan(() => {})).toBe(false)
+    expect(isAppServerPlan(createAppServerElement(() => () => {}))).toBe(true)
   })
-
-  it('maps Rue Suspense to the App Server Suspense protocol without executing DOM runtime code', () => {
-    const element = createAppServerElement(
-      Suspense,
-      { fallback: createAppServerElement('p', null, 'loading') },
-      createAppServerElement('span', null, 'child'),
-    ) as { type: unknown }
-
-    expect(element.type).toBe(AppServerSuspense)
-  })
-
-  it('normalizes Rue Suspense before HTML SSR adaptation can execute the DOM runtime component', async () => {
-    const element = {
-      $$typeof: ServerProtocolElementSymbol,
-      type: Suspense,
-      key: null,
-      props: {
-        fallback: createAppServerElement('p', null, 'loading'),
-        children: createAppServerElement('span', null, 'child'),
-      },
-      _owner: null,
-      _store: {},
-      ref: null,
-    }
-
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element as never)) as {
-      type: unknown
-    }
-
-    expect(adapted.type).toBe(AppServerSuspense)
-  })
-
-  it('adapts portable Rue Vapor component results before the SSR renderer consumes them as children', async () => {
-    const portableVapor = {
-      __rue_compiled_mount() {},
-      __rue_cleanup_bucket: [],
-    }
-    function VaporPage() {
-      return portableVapor
-    }
-
-    const element = createAppServerElement(VaporPage, { answer: 42 }) as {
-      props: { answer: number }
-      type: (props: { answer: number }) => Promise<unknown>
-    }
-    const rendered = (await element.type(element.props)) as {
-      props: {
-        'data-text-rue-html': string
-        dangerouslySetInnerHTML: { __html: string }
-      }
-      type: string
-    }
-    const { renderToString } = await import('@rue-js/server-renderer')
-
-    expect(renderToString).toHaveBeenCalledWith(portableVapor)
-    expect(rendered.type).toBe('text-rue-html')
-    expect(rendered.props['data-text-rue-html']).toBe('')
-    expect(rendered.props.dangerouslySetInnerHTML.__html).toBe('<main>rue html</main>')
-  })
-
-  it('uses the injected Rue SSR renderer when the RSC graph adapts portable Rue output', async () => {
-    const portableVapor = {
-      __rue_compiled_mount() {},
-      __rue_cleanup_bucket: [],
-    }
-    const injectedRenderToString = vi.fn(async () => '<article>injected rue html</article>')
-    ;(globalThis as Record<string, unknown>).__TEXT_RUE_RENDER_TO_STRING__ = injectedRenderToString
-
-    const rendered = (await adaptAppServerRenderableForHtmlSsr(portableVapor as never)) as {
-      props: {
-        'data-text-rue-html': string
-        dangerouslySetInnerHTML: { __html: string }
-      }
-      type: string
-    }
-
-    expect(injectedRenderToString).toHaveBeenCalledWith(portableVapor)
-    expect(rendered.type).toBe('text-rue-html')
-    expect(rendered.props.dangerouslySetInnerHTML.__html).toBe(
-      '<article>injected rue html</article>',
+  it('shares one execution between HTML and the transport frame', async () => {
+    const module = await compileServerFixture(
+      'export let calls=0;export const Page=props=>{calls++;return <main>{props.label}</main>}',
     )
+    const plan = createAppServerElement(module.Page, { label: 'hello' })
+    const first = startAppServerPlan(plan)
+    expect(startAppServerPlan(plan)).toBe(first)
+    const result = await first
+    const html = await read(result.stream)
+    expect((await result.frame).html).toBe(html)
+    expect(html).toContain('hello')
+    expect(module.calls).toBe(1)
   })
-
-  it('adapts portable Rue Vapor children before they cross client references', async () => {
-    const portableVapor = {
-      __rue_compiled_mount() {},
-      __rue_cleanup_bucket: [],
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      { $$typeof: AppRscServerClientReferenceSymbol },
+  it('composes asynchronous compiled slots without inspecting their output', async () => {
+    const module = await compileServerFixture(
+      'export const Layout=props=><main>{props.children}</main>;export const Page=async()=> <p>async child</p>',
     )
-
-    const element = createAppServerElement(clientReference, null, portableVapor) as {
-      props: {
-        children: Promise<unknown>
-      }
-    }
-    const rendered = (await element.props.children) as {
-      props: {
-        'data-text-rue-html': string
-        dangerouslySetInnerHTML: { __html: string }
-      }
-      type: string
-    }
-    const { renderToString } = await import('@rue-js/server-renderer')
-
-    expect(renderToString).toHaveBeenCalledWith(portableVapor)
-    expect(rendered.type).toBe('text-rue-html')
-    expect(rendered.props['data-text-rue-html']).toBe('')
-    expect(rendered.props.dangerouslySetInnerHTML.__html).toBe('<main>rue html</main>')
-  })
-
-  it('keeps server client references unwrapped', () => {
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      { $$typeof: AppRscServerClientReferenceSymbol },
+    const result = await startAppServerPlan(
+      createAppServerElement(module.Layout, null, createAppServerElement(module.Page)),
     )
-
-    const element = createAppServerElement(clientReference, null) as { type: unknown }
-
-    expect(element.type).toBe(clientReference)
+    expect(await read(result.stream)).toContain('async child')
+    expect((await result.frame).references).toEqual([])
   })
-
-  it('keeps client references in server component results during RSC adaptation', async () => {
-    const resolver = vi.fn(() => {
-      function ResolvedClientComponent() {
-        return createAppServerElement('button', null, 'resolved')
-      }
-      return ResolvedClientComponent
-    })
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: AppRscServerClientReferenceSymbol,
-        $$id: '/src/like-button.tsx#default',
-      },
+  it('resolves client exports through the manifest and retains boundary data', async () => {
+    const module = await compileServerFixture(
+      'export const Button=props=><button>{props.label}</button>',
     )
-    function Page() {
-      return createAppServerElement(clientReference, { initialLikes: 16 })
-    }
-    setAppClientReferenceResolver(resolver)
-
-    const element = createAppServerElement(Page, null) as {
-      props: Record<string, unknown>
-      type: (props: Record<string, unknown>) => Promise<{
-        props: { initialLikes: number }
-        type: unknown
-      }>
-    }
-    const rendered = await element.type(element.props)
-
-    expect(resolver).not.toHaveBeenCalled()
-    expect(rendered.type).toBe(clientReference)
-    expect(rendered.props.initialLikes).toBe(16)
-  })
-
-  it('treats Rue client references as compatibility tags, not the native tag', () => {
-    const nativeReference = { $$typeof: AppRscServerClientReferenceSymbol }
-    const textCompatReference = { $$typeof: Symbol.for('text.client.reference') }
-    const rueCompatReference = { $$typeof: CompatRueRscServerClientReferenceSymbol }
-    const nativeProtocol = createAppRscClientReferenceProtocol()
-
-    expect(AppRscServerClientReferenceSymbol).toBe(Symbol.for('rue.client.reference'))
-    expect(isAppRscServerClientReference(nativeReference)).toBe(true)
-    expect(isAppRscServerClientReference(textCompatReference)).toBe(false)
-    expect(isAppRscServerClientReference(rueCompatReference)).toBe(true)
-    expect(nativeProtocol.isServerClientReference(nativeReference)).toBe(true)
-    expect(nativeProtocol.isServerClientReference(textCompatReference)).toBe(false)
-    expect(nativeProtocol.isServerClientReference(rueCompatReference)).toBe(false)
-  })
-
-  it('keeps Rue compatibility client references unwrapped', () => {
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      { $$typeof: CompatRueRscServerClientReferenceSymbol },
+    const resolve = vi.fn(async () => module.Button)
+    setAppClientReferenceResolver(resolve)
+    const reference = createCompiledClientReference('/button.tsx', 'Button')
+    const result = await startAppServerPlan(
+      createAppServerElement(reference, { label: 'client SSR' }),
     )
-
-    const element = createAppServerElement(clientReference, null) as { type: unknown }
-
-    expect(element.type).toBe(clientReference)
+    expect(await read(result.stream)).toContain('client SSR')
+    expect((await result.frame).references).toMatchObject([
+      { referenceKey: '/button.tsx', exportName: 'Button', props: { label: 'client SSR' } },
+    ])
+    expect(resolve).toHaveBeenCalledWith('/button.tsx', 'Button')
   })
-
-  it('renders marked passthrough client references as children during HTML SSR', async () => {
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      { $$typeof: CompatRueRscServerClientReferenceSymbol },
+  it('keeps server children in a distinct client boundary slot frame', async () => {
+    const module = await compileServerFixture(
+      'export const Shell=props=><section>{props.children}</section>;export const Child=()=> <p>server child</p>',
     )
-    markAppSsrPassthroughComponent(clientReference)
-
-    const element = createAppServerElement(clientReference, null, 'server child') as never
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element)) as {
-      props: { children: string }
-      type: (props: { children: string }) => string
-    }
-
-    expect(adapted.type).not.toBe(clientReference)
-    expect(adapted.type(adapted.props)).toBe('server child')
-  })
-
-  it('resolves Rue compatibility client references for inline SSR adaptation', async () => {
-    function ResolvedClientComponent(props: { children?: unknown }) {
-      return createAppServerElement('button', null, props.children)
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/client-button.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/client-button.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const element = createAppServerElement(clientReference, null, 'Click') as never
-    const adapted = (await adaptAppServerRenderableForSsr(element)) as {
-      type: typeof ResolvedClientComponent
-      props: { children: string }
-    }
-
-    expect(adapted.type).toBe(ResolvedClientComponent)
-    expect(adapted.props.children).toBe('Click')
-  })
-
-  it('resolves async client references during HTML SSR when no server-renderable children exist', async () => {
-    function ResolvedClientComponent() {
-      return createAppServerElement('span', null, 'Client')
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/no-children-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/no-children-client.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const element = createAppServerElement(clientReference, null) as never
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element)) as {
-      props: Record<string, unknown>
-      type: (props: Record<string, unknown>) => PromiseLike<{ type: string }>
-    }
-    const rendered = await adapted.type(adapted.props)
-
-    expect(rendered.type).toBe('span')
-  })
-
-  it('preserves childless client references when HTML SSR resolves back to a server stub', async () => {
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: AppRscServerClientReferenceSymbol,
-        $$id: '/src/unresolved-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver((referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/unresolved-client.tsx')
-      expect(exportName).toBe('default')
-      return clientReference
-    })
-
-    const element = createAppServerElement(clientReference, null) as never
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element)) as {
-      props: Record<string, unknown>
-      type: unknown
-    }
-
-    expect(adapted.type).toBe(clientReference)
-    expect(adapted.props).toEqual({})
-  })
-
-  it('preserves unresolved client references during RSC adaptation', async () => {
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: AppRscServerClientReferenceSymbol,
-        $$id: '/src/unresolved-rsc-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver((referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/unresolved-rsc-client.tsx')
-      expect(exportName).toBe('default')
-      return null
-    })
-
-    const element = createAppServerElement(clientReference, { count: 4 }) as never
-    const adapted = (await adaptAppServerRenderableForSsr(element)) as {
-      props: { count: number }
-      type: unknown
-    }
-
-    expect(adapted.type).toBe(clientReference)
-    expect(adapted.props.count).toBe(4)
-  })
-
-  it('falls back to children when an async HTML SSR client reference resolves to a server stub', async () => {
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: AppRscServerClientReferenceSymbol,
-        $$id: '/src/async-unresolved-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver((referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/async-unresolved-client.tsx')
-      expect(exportName).toBe('default')
-      return Promise.resolve(clientReference)
-    })
-
-    const element = createAppServerElement(clientReference, null, 'server child') as never
-    const adapted = await adaptAppServerRenderableForHtmlSsr(element)
-
-    expect(adapted).toBe('server child')
-  })
-
-  it('adapts Rue client component output after resolving async references for HTML SSR', async () => {
-    function ResolvedClientComponent() {
-      return createAppServerElement('button', null, 'Client')
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/rue-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/rue-client.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const element = createAppServerElement(clientReference, null) as never
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element)) as {
-      props: Record<string, unknown>
-      type: (props: Record<string, unknown>) => PromiseLike<{
-        props: {
-          dangerouslySetInnerHTML: { __html: string }
-        }
-        type: string
-      }>
-    }
-    const rendered = await adapted.type(adapted.props)
-
-    expect(rendered.type).toBe('button')
-    expect(rendered.props.children).toBe('Client')
-  })
-
-  it('unwraps Rue signal children returned by client components during HTML SSR', async () => {
-    function ResolvedClientComponent() {
-      return createAppServerElement('p', null, 'Count: ', {
-        get() {
-          return 0
-        },
-        value: 0,
-      } as never)
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/signal-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/signal-client.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const element = createAppServerElement(clientReference, null) as never
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element)) as {
-      props: Record<string, unknown>
-      type: (props: Record<string, unknown>) => PromiseLike<{
-        props: { children: [string, number] }
-      }>
-    }
-    const rendered = await adapted.type(adapted.props)
-
-    expect(rendered.props.children).toEqual(['Count: ', 0])
-  })
-
-  it('keeps async client references non-blocking during HTML SSR when children can render', async () => {
-    function ResolvedClientComponent() {
-      return createAppServerElement('span', null, 'Client')
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/children-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/children-client.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const element = createAppServerElement(clientReference, null, 'server child') as never
-    const adapted = await adaptAppServerRenderableForHtmlSsr(element)
-
-    expect(adapted).toBe('server child')
-  })
-
-  it('awaits async provider client references during HTML SSR even when children can render', async () => {
-    function ResolvedProvider(props: { children?: unknown }) {
-      return createAppServerElement('provider-shell', null, props.children)
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/theme-provider.tsx#ThemeProvider',
-      },
-    )
-    markAppSsrPassthroughComponent(clientReference)
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/theme-provider.tsx')
-      expect(exportName).toBe('ThemeProvider')
-      return ResolvedProvider
-    })
-
-    const element = createAppServerElement(clientReference, null, 'server child') as never
-    const adapted = (await adaptAppServerRenderableForHtmlSsr(element)) as {
-      props: { children: string }
-      type: (props: { children: string }) => { type: string }
-    }
-    const rendered = adapted.type(adapted.props)
-
-    expect(rendered.type).toBe('provider-shell')
-  })
-
-  it('resolves nested Rue compatibility client references during inline SSR adaptation', async () => {
-    function ResolvedClientComponent() {
-      return createAppServerElement('span', null, 'Client')
-    }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/nested-client.tsx#default',
-      },
-    )
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/nested-client.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const tree = createAppServerElement(
-      'div',
+    setAppClientReferenceResolver(() => module.Shell)
+    const plan = createAppServerElement(
+      createCompiledClientReference('/shell.tsx', 'default'),
       null,
-      createAppServerElement(clientReference, null),
-    ) as never
-    const adapted = (await adaptAppServerRenderableForSsr(tree)) as {
-      props: {
-        children: {
-          type: typeof ResolvedClientComponent
-        }
-      }
-    }
-    const adaptedChild = adapted.props.children
-
-    expect(adaptedChild.type).toBe(ResolvedClientComponent)
-  })
-
-  it('resolves async Rue children in arrays during inline SSR adaptation', async () => {
-    const portableVapor = {
-      __rue_compiled_mount() {},
-      __rue_cleanup_bucket: [],
-    }
-
-    const tree = createAppServerElement('div', null, 'before', portableVapor) as never
-    const adapted = (await adaptAppServerRenderableForSsr(tree)) as {
-      props: {
-        children: [
-          string,
-          {
-            props: {
-              'data-text-rue-html': string
-              dangerouslySetInnerHTML: { __html: string }
-            }
-            type: string
-          },
-        ]
-      }
-    }
-
-    expect(adapted.props.children[0]).toBe('before')
-    expect(adapted.props.children[1].type).toBe('text-rue-html')
-    expect(adapted.props.children[1].props.dangerouslySetInnerHTML.__html).toBe(
-      '<main>rue html</main>',
+      createAppServerElement(module.Child),
     )
+    const result = await startAppServerPlan(plan)
+    await read(result.stream)
+    const frame = await result.frame
+    expect(frame.references[0].children?.html).toContain('server child')
+    expect(frame.references[0].props).not.toHaveProperty('children')
   })
-
-  it('re-adapts foreign server component adapter results during inline SSR', async () => {
-    function ResolvedClientComponent() {
-      return createAppServerElement('span', null, 'Client')
+  it('uses explicit layout scope for stable client boundary identity', async () => {
+    const module = await compileServerFixture('export const Button=()=> <button>state</button>')
+    setAppClientReferenceResolver(() => module.Button)
+    const reference = createCompiledClientReference('/button.tsx', 'default')
+    const identities = []
+    for (let index = 0; index < 2; index++) {
+      const result = await startAppServerPlan(
+        scopeAppServerPlan(createAppServerElement(reference), 'layout:/dashboard'),
+      )
+      await read(result.stream)
+      identities.push((await result.frame).references[0].identity)
     }
-    const clientReference = Object.assign(
-      () => {
-        throw new Error('client reference should not execute on the server')
-      },
-      {
-        $$typeof: CompatRueRscServerClientReferenceSymbol,
-        $$id: '/src/foreign-client.tsx#default',
-      },
+    expect(identities[0]).toBe(identities[1])
+    expect(identities[0]).toContain('layout:/dashboard')
+  })
+  it('rejects missing client exports instead of producing incomplete HTML', async () => {
+    setAppClientReferenceResolver(() => undefined)
+    const result = await startAppServerPlan(
+      createAppServerElement(createCompiledClientReference('/missing.tsx', 'default')),
     )
-    function ForeignServerComponentAdapter() {
-      return createAppServerElement('div', null, createAppServerElement(clientReference, null))
-    }
-    setAppClientReferenceResolver(async (referenceKey, exportName) => {
-      expect(referenceKey).toBe('/src/foreign-client.tsx')
-      expect(exportName).toBe('default')
-      return ResolvedClientComponent
-    })
-
-    const tree = createAppServerElement(ForeignServerComponentAdapter, null) as never
-    const adapted = (await adaptAppServerRenderableForSsr(tree)) as {
-      props: Record<string, unknown>
-      type: (props: Record<string, unknown>) => PromiseLike<{
-        props: {
-          children: {
-            props: Record<string, unknown>
-            type: (props: Record<string, unknown>) => PromiseLike<{
-              type: string
-            }>
-          }
-        }
-      }>
-    }
-    const rendered = await adapted.type(adapted.props)
-    const renderedChild = rendered.props.children
-    const renderedGrandchild = await renderedChild.type(renderedChild.props)
-
-    expect(renderedGrandchild.type).toBe('span')
+    await expect(read(result.stream)).rejects.toThrow('missing compiled SSR export')
+    await expect(result.frame).rejects.toThrow('missing compiled SSR export')
+  })
+  it('propagates server errors through both output channels', async () => {
+    const error = new Error('page failed')
+    const result = await startAppServerPlan(
+      createAppServerElement(() => {
+        throw error
+      }),
+    )
+    await expect(read(result.stream)).rejects.toBe(error)
+    await expect(result.frame).rejects.toBe(error)
   })
 })

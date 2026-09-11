@@ -26,11 +26,7 @@ export {
   _$compiledListMemo,
   _$disposeCompiledKeyedRows,
   _$mountCompiledKeyedRow,
-  _$mountCompiledKeyedRowOwnerless,
-  _$mountCompiledKeyedRowSetup,
   _$mountCompiledKeyedSingleRow,
-  _$mountCompiledKeyedSingleRowOwnerless,
-  _$mountCompiledKeyedSingleRowSetup,
   _$mountCompiledSlotAt,
   _$mountCompiledSlotFactory,
   _$reconcileKeyed,
@@ -66,27 +62,14 @@ export {
   watchEffect,
 } from '@rue-js/runtime/internal/compiler'
 export {
-  KeepAlive,
-  Suspense,
-  Teleport,
-  Template,
-  Transition,
-  TransitionGroup,
-  _$addEventListener,
   _$appendChild,
-  _$compiledBindUseRef,
   _$compiledBranch,
   _$compiledBranchAt,
   _$compiledComponent,
   _$compiledOmitProps,
   _$compiledShowStyle,
-  _$compiledSlotValue,
   _$compiledSpreadAttributes,
-  _$compiledUseEffect,
-  _$compiledUseRef,
   _$compiledWithEventModifiers,
-  _$compiledWithKey,
-  _$compiledWithNativeEvents,
   _$createComment,
   _$createDocumentFragment,
   _$createElement,
@@ -103,9 +86,7 @@ export {
   _$setValue,
   _$settextContent,
   _$spreadAttributes,
-  getCompiledKey,
-  watch,
-} from '@rue-js/runtime/internal'
+} from '@rue-js/runtime/internal/compiler'
 export type * from '@rue-js/runtime/internal/compiler'
 
 export {

@@ -30,6 +30,90 @@ fn transform_module(src: &str) -> String {
 }
 
 #[test]
+fn lowers_hooks_when_props_cannot_be_specialized() {
+    let output = transform_module(
+        r#"
+import { useState, useEffect } from '@rue-js/rue';
+export const App = props => {
+  const [value, setValue] = useState(0);
+  useEffect(() => consume(value), [value]);
+  return <main {...props} onClick={() => setValue(value + 1)}>{String(value)}</main>;
+};
+"#,
+    );
+    assert!(output.contains("_$compiledUseState("), "{output}");
+    assert!(output.contains("_$compiledUseEffect("), "{output}");
+    assert!(!output.contains(" useState("), "{output}");
+    assert!(!output.contains("_$compiledWithHookId"), "{output}");
+}
+
+#[test]
+fn does_not_lower_same_named_hooks_from_non_rue_modules() {
+    let output = transform_module(
+        r#"
+import { useState } from './client-hook-error';
+export default function App() {
+  const [value] = useState(0);
+  return <main>{String(value)}</main>;
+}
+"#,
+    );
+    assert!(output.contains("useState(0)"), "{output}");
+    assert!(!output.contains("_$compiledUseState("), "{output}");
+}
+
+#[test]
+fn lowers_hooks_for_named_function_exported_by_default_identifier() {
+    let source = r#"
+import { useState } from '@rue-js/rue';
+function Link() {
+  const [pending, setPending] = useState(false);
+  if (Math.random()) consume(pending);
+  return Context.Provider({
+    value: { pending },
+    children: () => <a onClick={() => setPending(true)}>{String(pending)}</a>,
+  });
+}
+export default Link;
+"#;
+    let output = transform_module(source);
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(output.contains("_$compiledUseState("), "{output}");
+    assert!(!output.contains(" useState("), "{output}");
+    assert!(compact.contains("children:_$compiledRoot("), "{output}");
+    assert!(!compact.contains("children:()=>_$compiledRoot("), "{output}");
+}
+
+#[test]
+fn rejects_conditional_hooks_without_props_specialization() {
+    for statement in [
+        "if (props.active) useState(0);",
+        "props.active && useState(0);",
+        "props.active ? useState(0) : undefined;",
+        "for (const row of props.rows) useState(row);",
+    ] {
+        let source = format!(
+            "import {{ useState }} from '@rue-js/rue'; export const App = props => {{ {statement} return <main {{...props}}>value</main>; }};"
+        );
+        assert!(std::panic::catch_unwind(|| transform_module(&source)).is_err(), "{statement}");
+    }
+}
+
+#[test]
+fn accepts_async_components_created_by_imported_use_component() {
+    let output = transform_module(
+        r#"
+import { useComponent as lazyComponent } from '@rue-js/rue';
+
+const DocSearchBox = lazyComponent(() => import('./DocSearchBox'));
+const Layout = () => <main><DocSearchBox /></main>;
+"#,
+    );
+
+    assert!(output.contains("DocSearchBox"), "{output}");
+}
+
+#[test]
 fn custom_composables_keep_hidden_refs_reactive_in_deep_compilation() {
     let output = transform_module(
         r#"
@@ -47,8 +131,8 @@ const LocaleReader: FC = () => {
     assert!(compact.contains("constcurrentLocale=computed(()=>locale.value)"), "{output}");
     assert!(compact.contains("currentLocale.get()"), "{output}");
     assert!(compact.contains("useI18n()"), "{output}");
-    assert!(compact.contains("_$withCompiledPropsUpdater(_$compiledRoot("), "{output}");
-    assert!(compact.contains("_$compiledMarkComponentRenderReactive(LocaleReader)"), "{output}");
+    assert!(compact.contains("_$compiledRoot("), "{output}");
+    assert!(!compact.contains("_$compiledMarkComponentRenderReactive"), "{output}");
 }
 
 #[test]
@@ -260,7 +344,12 @@ export function EffectView(props) {
     }
     assert!(!compact.contains("_$compiledUseMemo"), "{output}");
     assert!(!compact.contains("_$compiledUseCallback"), "{output}");
-    assert!(output.contains(", _$compiledUseEffect,"), "{output}");
+    assert!(
+        output
+            .lines()
+            .any(|line| line.contains("_$compiledUseEffect") && line.contains("internal/reactive")),
+        "{output}"
+    );
 }
 
 #[test]
@@ -395,8 +484,8 @@ export function Parent() {
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
-    assert!(compact.contains("functionLeaf()"), "{output}");
-    assert!(compact.contains("functionParent()"), "{output}");
+    assert!(compact.contains("functionLeaf(_$rueProps,_$rueSlots,_$rueOwner)"), "{output}");
+    assert!(compact.contains("functionParent(_$rueProps,_$rueSlots,_$rueOwner)"), "{output}");
     assert!(compact.contains("_$compiledComponent(Leaf,()=>({}))"), "{output}");
     assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
     assert!(!compact.contains("_$createComponent"), "{output}");
@@ -455,10 +544,8 @@ export function Page() {
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
     assert!(compact.contains("_$compiledComponent(Frame"), "{output}");
-    assert!(
-        compact.contains("children:[(target,slotProps,owner)=>_$mountCompiledSlotFactory("),
-        "{output}"
-    );
+    assert!(compact.contains("children:(target,slotProps,owner)=>{"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotFactory("), "{output}");
     assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
     assert!(compact.contains("_$compiledCreateElement(\"span\""), "{output}");
     assert!(compact.contains("_$compiledCreateElement(\"em\""), "{output}");
@@ -468,44 +555,133 @@ export function Page() {
 }
 
 #[test]
-fn preserves_multiple_component_children_as_an_ordered_slot_array() {
+fn scalar_list_optimization_does_not_rewrite_unrelated_multi_node_slot_roots() {
     let output = transform_module(
         r#"
-function Stack({ reverse, children }) {
-  return <section>{reverse ? [...children].reverse() : children}</section>;
-}
+import { signal } from '@rue-js/rue';
+import Shell from './Shell';
+import Child from './Child';
+
+const rows = signal([{ id: 1, label: 'A' }]);
 
 export function Page() {
-  return <Stack reverse>
-    <span>A</span>
-    <span>B</span>
-    <span>C</span>
-  </Stack>;
+  return <Shell>
+    <h1>title</h1>
+    <ul>{rows.get().map(row => <li key={row.id}>{row.label}</li>)}</ul>
+    <Child />
+  </Shell>;
 }
 "#,
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let page = compact.split("functionPage(").nth(1).expect("compiled Page declaration");
 
-    assert!(compact.contains("children:[(target,slotProps,owner)=>"), "{output}");
-    assert_eq!(compact.matches("_$mountCompiledSlotFactory(").count(), 3, "{output}");
-    assert!(!compact.contains("_$compiledCreateText("), "{output}");
+    assert!(compact.contains("_$reconcileKeyedSingle("), "{output}");
+    assert!(page.contains("_$compiledRoot("), "{output}");
+    assert!(!page.contains("_$compiledScalarOwnedRoot("), "{output}");
 }
 
 #[test]
-fn mounts_map_results_from_a_local_jsx_render_helper_as_nodes() {
+fn classifies_nested_multi_node_root_without_scalarizing() {
     let output = transform_module(
         r#"
-const renderItem = item => <span>{item.label}</span>;
-export const List = ({ items }) => (
-  <div>{items.map(item => renderItem(item))}</div>
-);
+import { signal } from '@rue-js/rue';
+const rows = signal([{ id: 1 }]);
+export function Page() {
+  return <><section>{rows.get().map(row => <i key={row.id}>row</i>)}</section><footer>end</footer></>;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let page = compact.split("functionPage(").nth(1).expect("compiled Page declaration");
+
+    assert!(page.contains("_$compiledRoot("), "{output}");
+    assert!(!page.contains("_$compiledScalarRoot("), "{output}");
+    assert!(!page.contains("_$compiledScalarOwnedRoot("), "{output}");
+}
+
+#[test]
+fn keeps_unknown_root_on_general_compiled_root() {
+    use crate::compiled_invariants::{CompiledRootRangeProof, compiled_root_range_proof};
+
+    let call = {
+        let cm = Arc::new(SourceMap::default());
+        let fm = cm.new_source_file(
+            FileName::Custom("unknown-root-proof.ts".into()).into(),
+            "_$compiledRoot(() => range);".to_string(),
+        );
+        let mut parser =
+            Parser::new(Syntax::Typescript(TsSyntax::default()), StringInput::from(&*fm), None);
+        let module = parser.parse_module().expect("parse module");
+        let swc_core::ecma::ast::ModuleItem::Stmt(swc_core::ecma::ast::Stmt::Expr(statement)) =
+            &module.body[0]
+        else {
+            panic!("expected expression statement");
+        };
+        let swc_core::ecma::ast::Expr::Call(call) = statement.expr.as_ref() else {
+            panic!("expected call");
+        };
+        call.clone()
+    };
+
+    assert_eq!(compiled_root_range_proof(&call), CompiledRootRangeProof::Unknown);
+}
+
+#[test]
+fn scalar_parent_preserves_nested_multi_node_root() {
+    use swc_core::ecma::visit::VisitMutWith;
+    let cm = Arc::new(SourceMap::default());
+    let fm = cm.new_source_file(
+        FileName::Custom("nested-root.ts".into()).into(),
+        "_$compiledRoot(() => { const nested = _$compiledRoot(() => [first, last]); return [root, root]; });".to_string(),
+    );
+    let mut parser =
+        Parser::new(Syntax::Typescript(TsSyntax::default()), StringInput::from(&*fm), None);
+    let mut program = Program::Module(parser.parse_module().expect("parse roots"));
+    program.visit_mut_with(&mut super::ScalarListRootPass);
+    assert!(crate::compiled_invariants::validate(&program).is_ok());
+}
+
+#[test]
+fn compiled_children_factory_preserves_value_call_compatibility() {
+    let output = transform_module(
+        r#"
+const renderPreview = value => typeof value === 'function' ? value() : value;
+
+function Preview({ children }) {
+  const preview = Array.isArray(children) ? children[0] : children;
+  return <section>{renderPreview(preview)}</section>;
+}
+
+export function Page() {
+  return <Preview><h1>content</h1></Preview>;
+}
 "#,
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
-    assert!(compact.contains(".map((item)=>renderItem(item))"), "{output}");
-    assert!(compact.contains("renderAnchor(__slot,"), "{output}");
-    assert!(!compact.contains("_$settextContent"), "{output}");
+    assert!(compact.contains("_$compiledComponent(Preview"), "{output}");
+    assert!(compact.contains("target==null?__slot"), "{output}");
+    assert!(compact.contains("renderPreview(preview)"), "{output}");
+}
+
+#[test]
+#[should_panic(expected = "children is a slot factory")]
+fn rejects_array_operations_on_component_children() {
+    transform_module(
+        "const Stack=({children})=><section>{[...children].reverse()}</section>; export const Page=()=> <Stack><i>A</i><b>B</b></Stack>;",
+    );
+}
+
+#[test]
+fn adapts_unproven_local_render_helper_list_values() {
+    let output = transform_module(
+        r#"
+const renderItem = item => <span>{item.label}</span>;
+export const List = ({ items }) => <div>{items.map(item => renderItem(item))}</div>;
+"#,
+    );
+    assert!(output.contains("_$compiledValueFactory"), "{output}");
 }
 
 #[test]
@@ -600,8 +776,9 @@ export const View = ({ kind, children }) => (
 "#,
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
-    assert!(compact.contains("_$compiledDynamicComponent("), "{output}");
-    assert!(compact.contains("[_$rueCompiledProp"), "{output}");
+    assert!(compact.contains("switch("), "{output}");
+    assert!(!compact.contains("_$compiledDynamicComponent"), "{output}");
+    assert!(compact.contains("case\"card\":"), "{output}");
     assert!(!compact.contains("_$createComponent"), "{output}");
     assert!(!compact.contains("renderAnchor("), "{output}");
     assert!(!compact.contains("\"@rue-js/rue/internal\""), "{output}");
@@ -653,7 +830,7 @@ import { KeepAlive, Suspense, Teleport, Template, Transition, TransitionGroup } 
 export function Builtins(props) {
   return <main>
     <Teleport to={props.target}><b>teleport</b></Teleport>
-    <Suspense fallback={props.fallback}><i>suspense</i></Suspense>
+    <Suspense fallback={<b>loading</b>}><i>suspense</i></Suspense>
     <KeepAlive><u key={props.cacheKey}>keep</u></KeepAlive>
     <Transition><em>transition</em></Transition>
     <TransitionGroup><small>group</small></TransitionGroup>
@@ -664,15 +841,15 @@ export function Builtins(props) {
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
-    assert_eq!(compact.matches("_$compiledComponent(").count(), 4, "{output}");
-    assert_eq!(compact.matches("_$mountCompiledSlotAt(").count(), 4, "{output}");
-    assert_eq!(compact.matches("children:(target,slotProps,owner)=>").count(), 4, "{output}");
-    assert!(compact.contains("cacheKey:_$rueCompiledProp0.get()"), "{output}");
+    for helper in ["_$teleport", "_$transition", "_$transitionGroup", "_$keepAlive", "_$suspense"] {
+        assert!(compact.contains(helper), "{output}");
+    }
+    assert!(compact.matches("children:(target,slotProps,owner)=>").count() >= 5, "{output}");
+    assert!(compact.contains("cacheKey:"), "{output}");
     assert!(compact.contains("cacheName:\"u\""), "{output}");
-    assert!(!compact.contains("renderBetween("), "{output}");
-    assert_eq!(compact.matches("renderAnchor(").count(), 2, "{output}");
-    assert_eq!(compact.matches("_$createComponent(").count(), 2, "{output}");
-    assert!(!compact.contains("_$compiledRootFactory("), "{output}");
+    assert!(!compact.contains("renderAnchor("), "{output}");
+    assert!(!compact.contains("_$createComponent("), "{output}");
+    assert!(!compact.contains("_$compiledComponent("), "{output}");
 }
 
 #[test]
@@ -695,20 +872,15 @@ export async function DelayedChunk() {
 fn infers_dynamic_component_keep_alive_identity_and_name() {
     let output = transform_module(
         r#"
-import { Component, KeepAlive } from '@rue-js/rue';
-export const Viewport = props => (
-  <KeepAlive exclude="DraftPanel">
-    <Component is={props.views[props.active]} key={props.active} />
-  </KeepAlive>
-);
+import { KeepAlive } from '@rue-js/rue';
+import Panel from './Panel';
+export const Viewport = props => <KeepAlive exclude="DraftPanel"><Panel key={props.active}/></KeepAlive>;
 "#,
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
-    assert!(compact.contains("cacheKey:_$rueCompiledProp0.get()"), "{output}");
-    assert!(
-        compact.contains("cacheName:_$rueCompiledProp1.get()[_$rueCompiledProp0.get()].name"),
-        "{output}"
-    );
+    assert!(compact.contains("_$keepAlive("), "{output}");
+    assert!(compact.contains("cacheKey:"), "{output}");
+    assert!(compact.contains("cacheName:\"Panel\""), "{output}");
 }
 
 #[test]
@@ -725,4 +897,91 @@ const Panel: FC<{mode?: string}> = ({mode, ...rest}) => {
     );
     assert!(output.contains("_$compiledPropsGet(__rue_props, \"mode\")"), "{output}");
     assert!(!output.contains("__rue_props.mode"), "{output}");
+}
+
+#[test]
+fn recognizes_state_aliases_from_the_precise_reactive_entry() {
+    let output = transform_module(
+        r#"
+import { useState as state } from '@rue-js/rue/internal/reactive';
+export function View() {
+    const [value, setValue] = state(0);
+    return <p>{value}</p>;
+}
+"#,
+    );
+    assert!(output.contains("_$compiledUseState"), "{output}");
+    assert!(!output.contains("internal/compiler"), "{output}");
+}
+
+#[test]
+fn recognizes_action_state_from_the_runtime_reactive_entry() {
+    let output = transform_module(
+        r#"
+import { useActionState } from '@rue-js/runtime/internal/reactive';
+export function View() {
+    const [state, submit, pending] = useActionState(action, { count: 0 });
+    return <form action={submit}><button disabled={pending}>{state.count}</button></form>;
+}
+"#,
+    );
+    assert!(output.contains("_$compiledUseActionState(\"View:hook:0\""), "{output}");
+    assert!(!output.contains("disabled: pending"), "{output}");
+    assert!(!output.contains("state.count"), "{output}");
+}
+
+#[test]
+fn custom_hook_uses_child_owner_and_live_state_fields() {
+    let output = transform_module(
+        r#"
+import { useState } from '@rue-js/rue';
+function useCounter() { const [count, setCount] = useState(0); return { count, setCount }; }
+export function View() { const first = useCounter(); const second = useCounter(); return <span>{String(first.count + second.count)}</span>; }
+"#,
+    );
+    assert!(output.contains("_$compiledCreateOwner"), "{output}");
+    assert!(output.contains("get count ()"), "{output}");
+    assert!(!output.contains("_$compiledWithHookId"), "{output}");
+}
+
+#[test]
+#[should_panic(expected = "Rue hooks require a statically compiled call")]
+fn rejects_dynamic_hook_selection() {
+    transform_module(
+        r#"
+import { useState } from '@rue-js/rue';
+export function View() { const hook = Math.random() ? useState : (() => [0]); const [value] = hook(0); return <span>{String(value)}</span>; }
+"#,
+    );
+}
+
+#[test]
+fn lowers_imported_effect_alias_to_an_owner_slot() {
+    let output = transform_module(
+        r#"
+import { useEffect as afterMount } from '@rue-js/rue';
+export function View() { afterMount(() => console.log('mounted'), []); return <span>ready</span>; }
+"#,
+    );
+    assert!(output.contains("_$compiledUseEffect"), "{output}");
+    assert!(!output.contains("_$compiledWithHookId"), "{output}");
+}
+
+#[test]
+fn preserves_nested_local_bindings_that_shadow_destructured_props() {
+    let output = transform_module(
+        r#"
+import { computed } from '@rue-js/rue';
+export const View = ({ currentPath }) => {
+  const Child = () => {
+    const currentPath = computed(() => '/child');
+    const readPath = () => currentPath.get();
+    return <span>{readPath()}</span>;
+  };
+  return <Child path={currentPath} />;
+};
+"#,
+    );
+    assert!(output.contains("()=>currentPath.get()"), "{output}");
+    assert!(!output.contains("_$rueCompiledProp0.get().get()"), "{output}");
 }

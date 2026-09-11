@@ -1,5 +1,5 @@
 import type { FC } from '@rue-js/rue'
-import { Component, ref } from '@rue-js/rue'
+import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import Skeleton from '../../../packages/rue-design/src/components/skeleton/index'
@@ -224,16 +224,6 @@ const feedItems: FeedItem[] = [
   },
 ]
 
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  if (children == null || typeof children === 'boolean') {
-    return []
-  }
-  return [children]
-}
-
 const ApiTable: FC<{ rows: ApiRow[] }> = ({ rows }) => {
   return (
     <div className="not-prose overflow-x-auto rounded-box border border-base-300 bg-base-100">
@@ -302,21 +292,13 @@ const ExampleBlock: FC<ExampleBlockProps> = ({ title, summary, tab, preview, cod
 const DemoCard: FC<{ children?: any }> = ({ children }) => {
   return (
     <div className="card bg-base-100 shadow-sm">
-      <div className="card-body">{toChildArray(children)}</div>
+      <div className="card-body">{children}</div>
     </div>
   )
 }
 
-const SpreadChildren: FC<{ as?: any; children?: any; [key: string]: any }> = ({
-  as = 'div',
-  children,
-  ...rest
-}) => {
-  return (
-    <Component is={as as any} {...rest}>
-      {toChildArray(children)}
-    </Component>
-  )
+const SpreadChildren: FC<{ children?: any; [key: string]: any }> = ({ children, ...rest }) => {
+  return <div {...rest}>{children}</div>
 }
 
 type DemoToggleButtonActive = boolean | (() => boolean)
@@ -809,14 +791,8 @@ const SkeletonPage: FC = () => {
           title="List Layout"
           tab={tabs.list}
           preview={() => <ListLayoutPreview />}
-          code={`const SpreadChildren: FC<{ as?: any; children?: any; [key: string]: any }> = ({
-  as = 'div',
-  children,
-  ...rest
-}) => (
-  <Component is={as as any} {...rest}>
-    {toChildArray(children)}
-  </Component>
+          code={`const SpreadChildren: FC<{ children?: any; [key: string]: any }> = ({ children, ...rest }) => (
+  <div {...rest}>{children}</div>
 )
 
 const listLoading = ref(true)

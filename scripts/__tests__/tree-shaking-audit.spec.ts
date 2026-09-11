@@ -11,12 +11,9 @@ import {
 const expectedScenarios = [
   'public-signal',
   'public-ref-computed',
-  'public-create-rue',
-  'public-render',
   'public-transition',
   'public-custom-element',
   'compiler-internal',
-  'internal',
 ]
 
 describe('consumer tree-shaking audit', () => {

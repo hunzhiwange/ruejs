@@ -272,13 +272,13 @@ const MasklessModalPreview: FC = () => {
             body: 'space-y-3',
           }}
           title="Inspector panel"
-          footer={(_originNode: any, { CancelBtn }: any) => (
+          footer={() => (
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-base-content/60">
                 No mask layer is rendered in this example.
               </div>
               <div className="flex justify-end">
-                <CancelBtn>关闭面板</CancelBtn>
+                <Button onClick={() => (masklessOpen.value = false)}>关闭面板</Button>
               </div>
             </div>
           )}
@@ -823,10 +823,10 @@ const ModalPage: FC = () => {
     container: 'max-w-3xl',
     box: 'border border-base-300 shadow-2xl',
   }}
-  footer={(_originNode, { CancelBtn }) => (
+  footer={() => (
     <div className="flex w-full justify-between gap-3">
       <div className="text-sm text-base-content/60">No mask layer is rendered in this example.</div>
-      <CancelBtn>关闭面板</CancelBtn>
+      <Button onClick={() => (masklessOpen.value = false)}>关闭面板</Button>
     </div>
   )}
   onClose={() => {

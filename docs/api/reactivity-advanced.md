@@ -71,113 +71,17 @@
   triggerRef(shallow)
   ```
 
-## customRef() {#customref}
+## 已移除的高级 Ref API {#customref}
 
-创建一个显式控制依赖追踪和更新触发时机的自定义 ref。
-
-- **类型**
-
-  ```ts
-  function customRef<T>(factory: CustomRefFactory<T>): { value: T }
-
-  type CustomRefFactory<T> = (
-    track: () => void,
-    trigger: () => void,
-  ) => {
-    get: () => T
-    set: (value: T) => void
-  }
-  ```
-
-- **详情**
-
-  `customRef()` 接收一个工厂函数。工厂函数会拿到 `track` 和 `trigger`，并返回 `.value` 的 `get` / `set` 实现。
-
-  通常应在 `get()` 中调用 `track()` 来收集依赖，在合适的更新时机调用 `trigger()` 来通知订阅者。`set()` 不会自动触发更新，这让你可以实现防抖、节流、外部状态同步等更精细的行为。
-
-- **示例**
-
-  创建一个防抖 ref，仅在最新 set 调用后的一定超时后才触发依赖更新：
-
-  ```js
-  import { customRef } from '@rue-js/rue'
-
-  export function useDebouncedRef(value, delay = 200) {
-    let timeout
-
-    return customRef((track, trigger) => ({
-      get() {
-        track()
-        return value
-      },
-      set(nextValue) {
-        clearTimeout(timeout)
-        timeout = setTimeout(() => {
-          value = nextValue
-          trigger()
-        }, delay)
-      },
-    }))
-  }
-  ```
-
-  在组件中使用：
-
-  ```js
-  import { useDebouncedRef } from './debouncedRef'
-
-  const text = useDebouncedRef('hello')
-  ```
+`customRef()` 不在 compiler-only 公共能力面中。请使用 `ref()`、`shallowRef()`、`computed()` 和显式事件或定时器组合状态更新。
 
 ## 对象状态迁移
 
 `shallowReactive`、`shallowReadonly` 和 `toRaw` 已删除。Signal 保存普通对象，直接使用 `get()` 读取；独立快照需要显式复制。使用根值替换或路径写入更新状态。
 
-## effectScope() {#effectscope}
+## 已移除的独立 Scope API {#effectscope}
 
-创建一个 effect 作用域对象，可以捕获在其中创建的响应式 effect（即 computed 和 watchers），以便这些 effect 可以一起被处置。
-
-- **类型**
-
-  ```ts
-  function effectScope(detached?: boolean): EffectScope
-
-  interface EffectScope {
-    readonly active: boolean
-    run<T>(fn: () => T): T | undefined // 如果作用域不活动则为 undefined
-    stop(): void
-    dispose(): void
-  }
-  ```
-
-  默认创建的 scope 会关联到当前活动 scope，父 scope 停止时会一并停止子 scope。传入 `true` 会创建 detached scope，使其不随当前父 scope 自动停止。
-
-- **示例**
-
-  ```js
-  const scope = effectScope()
-
-  scope.run(() => {
-    const doubled = computed(() => counter.value * 2)
-
-    watch(doubled, () => console.log(doubled.value))
-
-    watchEffect(() => console.log('Count: ', doubled.value))
-  })
-
-  // 处置作用域中的所有 effect
-  scope.stop()
-  ```
-
-## getCurrentScope() {#getcurrentscope}
-
-如果存在，返回当前活动的 [effect 作用域](#effectscope)。
-
-- **类型**
-
-  ```ts
-  function getCurrentScope(): EffectScope | undefined
-  ```
+`effectScope()` 与 `getCurrentScope()` 不在 compiler-only 公共能力面中。组件生命周期内的清理使用 `onScopeDispose()` 或对应卸载钩子。
 
 ## onScopeDispose() {#onscopedispose}
 

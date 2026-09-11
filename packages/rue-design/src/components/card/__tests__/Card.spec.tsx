@@ -1,7 +1,9 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { render, setReactiveScheduling } from '@rue-js/rue'
-import { renderToString } from '@rue-js/server-renderer'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
+import { readFileSync } from 'node:fs'
+import { compileNodePlan } from '../../../../../runtime/__tests__/node-plan-test-utils'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 import Card from '../index'
 
@@ -13,11 +15,13 @@ afterEach(() => {
 
 describe('Card', () => {
   it('server-renders semantic structure without actions', async () => {
-    const html = await renderToString(
-      <Card title={'SSR Card'} className={'bg-base-100'}>
-        <p>{'Server body'}</p>
-      </Card>,
+    const server = compileNodePlan(
+      `import Card from './card.js'; export const View = () => <Card title="SSR Card" className="bg-base-100"><p>Server body</p></Card>`,
+      'server',
+      false,
+      { 'card.js': readFileSync('packages/rue-design/src/components/card/index.tsx', 'utf8') },
     )
+    const html = await server.renderToString(server.View)
 
     expect(html).toContain('SSR Card')
     expect(html).toContain('Server body')
@@ -27,19 +31,21 @@ describe('Card', () => {
 
   it('renders with base class and legacy class props', async () => {
     const c = mountContainer()
-    render(
-      <Card
-        size={'lg'}
-        border={true}
-        bordered={true}
-        dash={true}
-        side={true}
-        imageFull={true}
-        className={'bg-base-100'}
-      >
-        {'hello'}
-      </Card>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Card
+          size={'lg'}
+          border={true}
+          bordered={true}
+          dash={true}
+          side={true}
+          imageFull={true}
+          className={'bg-base-100'}
+        >
+          {'hello'}
+        </Card>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -58,17 +64,23 @@ describe('Card', () => {
 
   it('supports semantic header, cover, actions and body slots', async () => {
     const c = mountContainer()
-    render(
-      <Card
-        title={'Analytics Overview'}
-        extra={<button className={'btn btn-ghost btn-sm'}>{'Refresh'}</button>}
-        cover={<img src={'cover.png'} alt={'cover'} />}
-        actions={[<span>{'Share'}</span>, <span>{'Inspect'}</span>]}
-        className={'bg-base-100'}
-      >
-        <p className={'body-copy'}>{'Revenue increased by 24% this month.'}</p>
-      </Card>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Card title={'Analytics Overview'} className={'bg-base-100'}>
+          <Template slot="extra">
+            <button className="btn btn-ghost btn-sm">Refresh</button>
+          </Template>
+          <Template slot="cover">
+            <img src="cover.png" alt="cover" />
+          </Template>
+          <Template slot="actions">
+            <li>Share</li>
+            <li>Inspect</li>
+          </Template>
+          <p className={'body-copy'}>{'Revenue increased by 24% this month.'}</p>
+        </Card>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -96,11 +108,13 @@ describe('Card', () => {
 
   it('renders loading placeholders instead of body content', async () => {
     const c = mountContainer()
-    render(
-      <Card title={'Loading card'} loading={true}>
-        <p>{'Hidden body'}</p>
-      </Card>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Card title={'Loading card'} loading={true}>
+          <p>{'Hidden body'}</p>
+        </Card>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -115,17 +129,19 @@ describe('Card', () => {
     const c = mountContainer()
     const onTabChange = vi.fn()
 
-    render(
-      <Card
-        title={'Traffic'}
-        defaultActiveTabKey={'metrics'}
-        onTabChange={onTabChange}
-        tabList={[
-          { key: 'overview', label: 'Overview' },
-          { key: 'metrics', label: 'Metrics' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Card
+          title={'Traffic'}
+          defaultActiveTabKey={'metrics'}
+          onTabChange={onTabChange}
+          tabList={[
+            { key: 'overview', label: 'Overview' },
+            { key: 'metrics', label: 'Metrics' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -148,29 +164,32 @@ describe('Card', () => {
 
   it('renders Meta and Grid compounded subcomponents', async () => {
     const c = mountContainer()
-    render(
-      <Card title={'Shortcuts'} bodyClassName={'!p-0'}>
-        <Card.Body className={'border-base-300/80 border-b'}>
-          <Card.Meta
-            avatar={
-              <div className={'avatar placeholder'}>
-                <div className={'bg-primary text-primary-content rounded-full w-10'}>{'AI'}</div>
-              </div>
-            }
-            title={'Workspace AI'}
-            description={'Connect docs, demos and design decisions in one place.'}
-          />
-        </Card.Body>
-        <div className={'grid gap-px bg-base-300/60 sm:grid-cols-2'}>
-          <Card.Grid>
-            <div className={'font-semibold'}>{'Design Tokens'}</div>
-          </Card.Grid>
-          <Card.Grid hoverable={false}>
-            <div className={'font-semibold'}>{'Usage Reports'}</div>
-          </Card.Grid>
-        </div>
-      </Card>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Card title={'Shortcuts'} bodyClassName={'!p-0'}>
+          <Card.Body className={'border-base-300/80 border-b'}>
+            <Card.Meta
+              title={'Workspace AI'}
+              description={'Connect docs, demos and design decisions in one place.'}
+            >
+              <Template slot="avatar">
+                <div className={'avatar placeholder'}>
+                  <div className={'bg-primary text-primary-content rounded-full w-10'}>{'AI'}</div>
+                </div>
+              </Template>
+            </Card.Meta>
+          </Card.Body>
+          <div className={'grid gap-px bg-base-300/60 sm:grid-cols-2'}>
+            <Card.Grid>
+              <div className={'font-semibold'}>{'Design Tokens'}</div>
+            </Card.Grid>
+            <Card.Grid hoverable={false}>
+              <div className={'font-semibold'}>{'Usage Reports'}</div>
+            </Card.Grid>
+          </div>
+        </Card>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -188,20 +207,22 @@ describe('Card', () => {
 
   it('renders Body, Title, Actions and Figure low-level subcomponents', async () => {
     const c = mountContainer()
-    render(
-      <Card>
-        <Card.Figure>
-          <img src={'x'} alt={'y'} />
-        </Card.Figure>
-        <Card.Body>
-          <Card.Title>{'Hello'}</Card.Title>
-          <p>{'content'}</p>
-          <Card.Actions>
-            <button className={'btn'}>{'Go'}</button>
-          </Card.Actions>
-        </Card.Body>
-      </Card>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Card>
+          <Card.Figure>
+            <img src={'x'} alt={'y'} />
+          </Card.Figure>
+          <Card.Body>
+            <Card.Title>{'Hello'}</Card.Title>
+            <p>{'content'}</p>
+            <Card.Actions>
+              <button className={'btn'}>{'Go'}</button>
+            </Card.Actions>
+          </Card.Body>
+        </Card>,
+        c,
+      ),
     )
 
     await waitForContent(() => {

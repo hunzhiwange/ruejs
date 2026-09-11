@@ -7,6 +7,27 @@ use crate::log;
 use crate::utils;
 use crate::vapor::VaporTransform;
 
+fn reactive_call_slot_factory(vt: &mut VaporTransform, call: &Expr) -> Expr {
+    let root = ident("_root");
+    let anchor = vt.next_list_ident();
+    let mut stmts = vec![
+        const_decl(root.clone(), call_ident("_$createDocumentFragment", vec![])),
+        const_decl(
+            anchor.clone(),
+            call_ident("_$compiledCreateComment", vec![string_expr("rue:row-call")]),
+        ),
+        append_child(root.clone(), Expr::Ident(anchor.clone())),
+    ];
+    crate::element_slot::render_between_for_slot_at(vt, &root, &anchor, call, &mut stmts);
+    stmts.push(return_root(root));
+    let handle = crate::element_children::compiled_block_to_root_expr(BlockStmt {
+        span: DUMMY_SP,
+        ctxt: SyntaxContext::empty(),
+        stmts,
+    });
+    crate::element_slot::closed_slot_value(vt, &handle)
+}
+
 fn strip_compiled_list_row_keys(expr: &mut Expr) {
     match expr {
         Expr::JSXElement(element) => {
@@ -1405,31 +1426,11 @@ fn try_build_list_from_map_with_anchor(
                 }
             }
 
-            if render_item_direct_expr.as_ref().is_some_and(|expr| {
-                matches!(
-                    utils::unwrap_expr(expr),
-                    Expr::JSXElement(element)
-                        if element.opening.attrs.iter().any(|attr| matches!(attr, JSXAttrOrSpread::SpreadElement(_)))
-                )
-            }) {
-                (vt.next_el, vt.next_list, vt.next_map, vt.next_child) = counter_checkpoint;
-                stmts.truncate(list_stmt_start);
-                return true;
-            }
-
             let memo_ident = ident(&format!("{}_memo", map_base));
             let mut memo_setup = None;
             let simple_native_row_patch = render_item_prefix_stmts.is_empty()
                 && render_item_direct_expr.as_ref().is_some_and(|expr| {
                     crate::element_list_patch::accepts_simple_native_row(expr, &item_ident)
-                });
-            let ownerless_simple_native_row = simple_native_row_patch
-                && memo_dependencies.is_none()
-                && render_item_direct_expr.as_ref().is_some_and(|expr| {
-                    crate::element_list_patch::accepts_ownerless_simple_native_row(
-                        expr,
-                        &item_ident,
-                    )
                 });
             // A compiled row factory owns a closed DOM range. The keyed reconciler only
             // reuses, patches, moves, and disposes that explicit block.
@@ -1440,7 +1441,8 @@ fn try_build_list_from_map_with_anchor(
                 let inner = utils::unwrap_expr(inner);
                 let needs_block_range =
                     matches!(inner, Expr::JSXElement(_) | Expr::JSXFragment(_) | Expr::Cond(_))
-                        || matches!(inner, Expr::Bin(bin) if matches!(bin.op, BinaryOp::LogicalAnd | BinaryOp::LogicalOr));
+                        || matches!(inner, Expr::Bin(bin) if matches!(bin.op, BinaryOp::LogicalAnd | BinaryOp::LogicalOr))
+                        || matches!(inner, Expr::Call(_));
                 if needs_block_range {
                     let mut compiled_inner = inner.clone();
                     strip_compiled_list_row_keys(&mut compiled_inner);
@@ -1504,8 +1506,14 @@ fn try_build_list_from_map_with_anchor(
                     vt.push_plain_local_scope(row_signal_markers);
                     let static_templates = vt.static_templates;
                     vt.static_templates = row_template.is_some();
-                    let factory =
-                        crate::element_expr::compiled_slot_factory_expr(vt, &compiled_inner);
+                    let factory = crate::element_expr::compiled_slot_factory_expr(
+                        vt,
+                        &compiled_inner,
+                    )
+                    .or_else(|| {
+                        matches!(crate::utils::unwrap_expr(&compiled_inner), Expr::Call(_))
+                            .then(|| reactive_call_slot_factory(vt, &compiled_inner))
+                    });
                     vt.static_templates = static_templates;
                     vt.pop_plain_local_scope();
                     factory.map(|mut factory| {
@@ -1533,12 +1541,8 @@ fn try_build_list_from_map_with_anchor(
                                 );
                             }
                         }
-                        let simple_row_setup = (simple_native_row_patch && direct_patch && memo_dependencies.is_none()).then(|| {
-                            crate::element_list_patch::extract_simple_row_setup(&factory)
-                        }).flatten();
                         (
                             factory,
-                            simple_row_setup,
                             item_signal,
                             index_signal,
                             row_uses_index,
@@ -1590,7 +1594,6 @@ fn try_build_list_from_map_with_anchor(
                 factory.map(|factory| {
                     (
                         factory,
-                        None,
                         item_signal,
                         index_signal,
                         row_uses_index,
@@ -1604,7 +1607,6 @@ fn try_build_list_from_map_with_anchor(
             let row_mount_target;
             if let Some((
                 factory,
-                simple_row_setup,
                 item_signal,
                 index_signal,
                 row_uses_index,
@@ -1746,29 +1748,17 @@ fn try_build_list_from_map_with_anchor(
                 if let Some(setup) = memo_setup {
                     render_item_stmts.push(setup);
                     mount_args.push(Expr::Ident(memo_ident));
+                } else {
+                    mount_args.push(Expr::Ident(ident("undefined")));
                 }
                 if let Some(target) = &row_mount_target {
                     mount_args.push(Expr::Ident(target.clone()));
                 }
-                let mount_helper = if compiled_single_root
-                    && simple_row_setup.is_some()
-                    && ownerless_simple_native_row
-                {
-                    "_$mountCompiledKeyedSingleRowOwnerless"
-                } else if compiled_single_root && simple_row_setup.is_some() {
-                    "_$mountCompiledKeyedSingleRowSetup"
-                } else if compiled_single_root {
+                let mount_helper = if compiled_single_root {
                     "_$mountCompiledKeyedSingleRow"
-                } else if simple_row_setup.is_some() && ownerless_simple_native_row {
-                    "_$mountCompiledKeyedRowOwnerless"
-                } else if simple_row_setup.is_some() {
-                    "_$mountCompiledKeyedRowSetup"
                 } else {
                     "_$mountCompiledKeyedRow"
                 };
-                if let Some(setup) = simple_row_setup {
-                    mount_args[0] = setup;
-                }
                 render_item_stmts.push(Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(Box::new(call_ident(mount_helper, mount_args))),
@@ -1971,3 +1961,47 @@ fn try_build_list_from_map_with_anchor(
 #[cfg(test)]
 #[path = "element_list_tests.rs"]
 mod tests;
+
+/// Key wrappers are compiler metadata. Remove them only after all row/branch
+/// extraction has finished, retaining left-to-right evaluation of both arguments.
+pub(crate) fn erase_key_metadata(module: &mut Module) {
+    struct Erase;
+    impl VisitMut for Erase {
+        fn visit_mut_expr(&mut self, expr: &mut Expr) {
+            expr.visit_mut_children_with(self);
+            if let Expr::Call(call) = expr
+                && matches!(&call.callee, Callee::Expr(callee)
+                    if matches!(callee.as_ref(), Expr::Ident(id) if id.sym == *"_$compiledWithKey"))
+            {
+                let value = ident("__rue_key_value");
+                call.callee = Callee::Expr(Box::new(Expr::Paren(ParenExpr {
+                    span: DUMMY_SP,
+                    expr: Box::new(Expr::Arrow(ArrowExpr {
+                        span: DUMMY_SP,
+                        ctxt: SyntaxContext::empty(),
+                        params: vec![Pat::Ident(BindingIdent {
+                            id: value.clone(),
+                            type_ann: None,
+                        })],
+                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Ident(value)))),
+                        is_async: false,
+                        is_generator: false,
+                        type_params: None,
+                        return_type: None,
+                    })),
+                })));
+            }
+        }
+    }
+    module.visit_mut_with(&mut Erase);
+    for item in &mut module.body {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item
+            && import.src.value.to_string_lossy().starts_with("@rue-js/")
+        {
+            import.specifiers.retain(|specifier| {
+                !matches!(specifier,
+                ImportSpecifier::Named(named) if named.local.sym == *"_$compiledWithKey")
+            });
+        }
+    }
+}

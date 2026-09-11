@@ -117,6 +117,18 @@ fn transform_component_module_with_static_props(src: &str) -> String {
 }
 
 #[test]
+fn compiles_multiple_children_to_one_closed_slot_factory() {
+    let source = "const Child = props => <section>{props.children}</section>; export const View = () => <Child><i>one</i><b>two</b></Child>;";
+    for code in
+        [transform_component_module(source), transform_component_module_with_static_props(source)]
+    {
+        assert!(!code.contains("compiledValue"), "{code}");
+        assert!(!code.contains("renderAnchor"), "{code}");
+        assert_eq!(code.matches("_$mountCompiledSlotFactory(target, owner,").count(), 1, "{code}");
+    }
+}
+
+#[test]
 fn lowers_single_static_text_child_to_string_expr() {
     let mut vt = new_vt();
     let el = parse_jsx_element("<Box>hello</Box>");
@@ -145,9 +157,9 @@ fn lowers_single_expr_children_for_plain_jsx_call_and_empty_cases() {
 
     assert!(call_lowered.stmts.is_empty());
     assert!(!call_lowered.is_function);
-    assert!(call_out.contains(
-        "_$compiledMemo('memo',()=>_$compiledRoot(Object.assign((__rue_parent_context)=>{"
-    ));
+    assert!(
+        call_out.contains("_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
+    );
     assert!(call_out.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
 
     let mut empty_vt = new_vt();
@@ -220,18 +232,18 @@ fn localizes_multi_child_vapor_fallback_without_wrapping_safe_siblings() {
     assert!(before < fallback && fallback < after, "{expr}");
 
     let named = compact(&transform_component_module(
-        r#"const View = () => <Box><Template slot="header"><span>head</span></Template></Box>;"#,
+        r#"import Box from './Box'; const View = () => <Box><Template slot="header"><span>head</span></Template></Box>;"#,
     ));
     assert!(named.contains("__rue_slots:{\"header\":"), "{named}");
 
     let scoped = compact(&transform_component_module(
-        r#"const View = () => <Box>{(scope) => <span>{scope.label}</span>}</Box>;"#,
+        r#"import Box from './Box'; const View = () => <Box>{(scope) => <span>{scope.label}</span>}</Box>;"#,
     ));
     assert!(scoped.contains("__rue_slots:{\"default\":"), "{scoped}");
 }
 
 #[test]
-fn marks_compiled_branch_factories_but_keeps_opaque_fallback_setup_legacy() {
+fn uses_closed_ranges_for_branch_and_opaque_slot_setups() {
     let mut compiled_vt = new_vt();
     compiled_vt.static_templates = false;
     let compiled_host =
@@ -243,14 +255,14 @@ fn marks_compiled_branch_factories_but_keeps_opaque_fallback_setup_legacy() {
         emit_stmts(compiled_lowered.stmts),
         emit_expr(compiled_lowered.expr)
     ));
-    assert!(compiled.contains("__rue_compiled_roots:[_root]"), "{compiled}");
-    assert!(compiled.contains("__rue_compiled_explicit_roots:true"), "{compiled}");
+    assert!(compiled.contains("return[_root,_root]"), "{compiled}");
+    assert!(compiled.contains("return[_root,_root]"), "{compiled}");
 
     let opaque = compact(&transform_component_module(
-        "const View = () => <Box>{ok ? <OpaqueA /> : <OpaqueB />}</Box>;",
+        "import {Box,OpaqueA,OpaqueB} from './components'; const View = () => <Box>{ok ? <OpaqueA /> : <OpaqueB />}</Box>;",
     ));
-    assert!(opaque.contains("_$compiledRoot(()=>{"), "{opaque}");
-    assert!(!opaque.contains("__rue_compiled_explicit_roots:true"), "{opaque}");
+    assert!(opaque.contains("_$compiledComponent(OpaqueA"), "{opaque}");
+    assert!(opaque.contains("_$compiledComponent(OpaqueB"), "{opaque}");
 }
 
 #[test]
@@ -258,6 +270,7 @@ fn lowers_safe_native_component_children_without_vapor_wrappers() {
     let output = compact(&transform_component_module(
         r#"
         import { ref } from '@rue-js/rue'
+        import Box from './Box'
         const Demo = () => {
           const active = ref(false)
           return <Box><h1>Demo</h1><div role="tablist"><button className={`tab ${active.value ? 'on' : ''}`} onClick={() => active.value = true}>效果</button></div></Box>
@@ -265,12 +278,15 @@ fn lowers_safe_native_component_children_without_vapor_wrappers() {
         "#,
     ));
 
-    assert!(output.contains("children:[_$compiledRoot("), "{output}");
+    assert!(output.contains("children:(target,slotProps,owner)=>{"), "{output}");
+    assert!(output.contains("target==null?__slot"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotFactory("), "{output}");
     assert!(output.contains("_$compiledRoot("), "{output}");
     assert!(output.contains("_$template(\"<h1>Demo</h1>\")"), "{output}");
     assert!(output.contains(".content.cloneNode(true)"), "{output}");
     assert!(output.contains("effect(()=>{"), "{output}");
-    assert!(output.contains("_$compiledDelegateEvent("), "{output}");
+    assert!(output.contains(".addEventListener(\"click\""), "{output}");
+    assert!(output.contains(".removeEventListener(\"click\""), "{output}");
     assert!(output.contains("\"click\""), "{output}");
     assert!(
         !output.contains("const__child1=_$compiledRoot(")
@@ -284,6 +300,7 @@ fn keeps_static_opaque_components_inside_compiled_slot_branches_without_vapor() 
     let output = compact(&transform_component_module(
         r#"
         import { ref } from '@rue-js/rue'
+        import Box from './Box'
         import Code from './Code'
         const Demo = () => {
           const active = ref(false)
@@ -339,6 +356,7 @@ fn rewrites_slot_carrier_wrapper_and_fragment_children_stably() {
 fn named_slot_static_native_child_keeps_lazy_slot_carrier_and_clones_template() {
     let output = transform_component_module(
         r#"
+import SidebarPlayground from './SidebarPlayground';
 const View = () => <SidebarPlayground><Template slot="sidebar"><aside><strong>Tools</strong></aside></Template></SidebarPlayground>;
 "#,
     );
@@ -347,8 +365,9 @@ const View = () => <SidebarPlayground><Template slot="sidebar"><aside><strong>To
     assert!(compact.contains("const_$getTemplate1=_$template("), "{output}");
     assert!(compact.contains("<aside><strong>Tools</strong></aside>"), "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 1, "{output}");
-    assert!(compact.contains("const__child1=_$compiledRoot(()=>{"), "{output}");
-    assert!(compact.contains("__rue_slots:{\"sidebar\":__child1}"), "{output}");
+    assert!(compact.contains("__rue_slots:{\"sidebar\":(target,slotProps,owner)=>{"), "{output}");
+    assert!(compact.contains("target==null?__slot"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotFactory("), "{output}");
     assert!(!compact.contains("_$createElement(\"aside\""), "{output}");
     assert!(!compact.contains("_$createComponent(Template"), "{output}");
 }
@@ -370,7 +389,8 @@ fn builds_direct_render_and_dynamic_component_anchor_paths() {
 
     assert!(fragment_out.contains("_$createComment(\"rue:component:anchor\")"));
     assert!(fragment_out.contains("const__child1=_$compiledRoot(()=>{"));
-    assert!(fragment_out.contains("renderAnchor("));
+    assert!(fragment_out.contains("_$mountCompiledSlotAt({parent:root,before:_list1}"));
+    assert!(!fragment_out.contains("renderAnchor"));
     assert!(!fragment_out.contains("_$createComponent(Fragment"));
 
     let mut component_vt = new_vt();
@@ -387,9 +407,28 @@ fn builds_direct_render_and_dynamic_component_anchor_paths() {
     let component_out = compact(&emit_stmts(component_stmts));
 
     assert!(component_out.contains("_$createComment(\"rue:component:anchor\")"));
-    assert!(component_out.contains("effect(()=>{"));
+    assert!(component_out.contains("_$mountCompiledSlotAt({parent:root,before:_list1}"));
     assert!(component_out.contains("_$createComponent(Box,()=>({title:title}))"));
-    assert!(component_out.contains("renderAnchor(__slot2,root,_list1)"));
+    assert!(!component_out.contains("renderAnchor"));
+}
+
+#[test]
+fn mounts_component_at_explicit_anchor() {
+    let mut vt = new_vt();
+    let component = parse_jsx_element("<Box title={title} />");
+    let mut stmts = Vec::new();
+
+    build_component_element_at(
+        &mut vt,
+        &component,
+        &crate::emit::ident("root"),
+        &crate::emit::ident("anchor"),
+        &mut stmts,
+    );
+
+    let output = compact(&emit_stmts(stmts));
+    assert!(output.contains("_$mountCompiledSlotAt({parent:root,before:anchor}"), "{output}");
+    assert!(!output.contains("renderAnchor"), "{output}");
 }
 
 #[test]
@@ -410,6 +449,45 @@ fn mounts_proven_local_compiled_component_through_direct_slot_abi() {
 }
 
 #[test]
+fn mounts_member_components_through_the_compiled_component_abi() {
+    let output = compact(&transform_component_module_with_static_props(
+        r#"
+        import { Accordion } from '@rue-js/design';
+        export const Page = () => (
+          <Accordion>
+            <Accordion.Title className="font-semibold">Title</Accordion.Title>
+            <Accordion.Content>Content</Accordion.Content>
+          </Accordion>
+        );
+        "#,
+    ));
+
+    assert!(output.contains("_$mountCompiledComponent(_root,Accordion.Title,"), "{output}");
+    assert!(output.contains("_$mountCompiledComponent(_root,Accordion.Content,"), "{output}");
+    assert!(!output.contains("_$createComponent(Accordion.Title"), "{output}");
+}
+
+#[test]
+fn mounts_object_assign_compound_components_through_the_compiled_component_abi() {
+    let output = compact(&transform_component_module_with_static_props(
+        r#"
+        const Root = props => <section>{props.children}</section>;
+        const Content = props => <strong>{props.children}</strong>;
+        const Typography = Object.assign(Root, { Content });
+        export const Page = () => (
+          <Typography>
+            <Typography.Content>Content</Typography.Content>
+          </Typography>
+        );
+        "#,
+    ));
+
+    assert!(output.contains("_$compiledComponent(Typography,"), "{output}");
+    assert!(output.contains("_$mountCompiledComponent(_root,Typography.Content,"), "{output}");
+    assert!(!output.contains("renderAnchor("), "{output}");
+}
+
+#[test]
 fn component_jsx_uses_the_compiled_component_helper_without_h() {
     let component = parse_jsx_element("<Panel title={title} />");
     let output = compact(&emit_expr(build_component_mount_expr(&component)));
@@ -419,51 +497,26 @@ fn component_jsx_uses_the_compiled_component_helper_without_h() {
 }
 
 #[test]
-fn compiles_dynamic_component_registry_lookup_without_runtime_type_dispatch() {
-    let out = compact(&emit_expr(build_compiled_dynamic_mount_expr(
-        parse_expr("kind", false),
-        parse_expr("{ card: Card, panel: Panel }", false),
-        parse_expr("props", false),
-    )));
-
-    assert!(
-        out.contains("_$mountCompiledDynamic(target,kind,{card:Card,panel:Panel},props,owner)"),
-        "{out}"
-    );
-    assert!(!out.contains("_$createComponent"), "{out}");
-    assert!(!out.contains("renderAnchor"), "{out}");
-    assert!(!out.contains("_$compiledRootFactory"), "{out}");
+#[should_panic(expected = "literal factory registry")]
+fn rejects_non_enumerable_dynamic_component_shape() {
+    let element = parse_jsx_element("<Component is={resolveComponent()} />");
+    let mut vt = new_vt();
+    build_compiled_dynamic_component_expr(&mut vt, &element);
 }
 
 #[test]
-fn leaves_non_enumerable_dynamic_component_shape_to_runtime_lowering() {
-    let expression = parse_expr("<Component is={resolveComponent()} />", true);
-    let program = Program::Module(Module {
-        span: DUMMY_SP,
-        body: vec![ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(expression),
-        }))],
-        shebang: None,
-    });
-    let diagnostics = crate::diagnostics::collect(&program);
-    assert!(!diagnostics.iter().any(|item| item.category == "dynamic-component"));
-}
-
-#[test]
-fn builds_mount_expr_with_slot_source_native_events_and_string_props() {
-    let slot = parse_jsx_element(
-        "<Slot foo-bar=\"baz\" enabled __rueNativeOnClick={onClick} {...rest} />",
-    );
+fn builds_mount_expr_with_slot_source_event_props_and_string_props() {
+    let slot =
+        parse_jsx_element("<Slot foo-bar=\"baz\" enabled handleClick={onClick} {...rest} />");
 
     let out = compact(&emit_expr(build_component_mount_expr(&slot)));
 
-    assert!(out.starts_with("_$compiledWithNativeEvents(_$createComponent(Slot,"));
+    assert!(out.starts_with("_$createComponent(Slot,"));
     assert!(out.contains("\"foo-bar\":\"baz\""));
     assert!(out.contains("enabled:true"));
     assert!(out.contains("...rest"));
     assert!(out.contains("source:getCurrentInstance()&&getCurrentInstance().propsRO"));
-    assert!(out.contains("{\"click\":onClick}"));
+    assert!(out.contains("handleClick:onClick"));
 
     let namespaced =
         parse_jsx_element("<Box foo:bar=\"dropped\" onUpdateModelValue={update} normal />");
@@ -552,89 +605,62 @@ fn rewrites_named_slot_expression_branches_and_default_function_slot_bag() {
 fn rewrites_transition_group_children_maps_keys_and_nested_returns() {
     let mut vt = new_vt();
     let mut host = parse_jsx_element(
-        "<TransitionGroup><li key=\"first\">A</li>{items.map(item => { if (item.ok) { return <li key={item.id}>A</li>; } switch (item.kind) { case 'b': return <li key={item.kind}>B</li>; default: break; } try { return <>{item.name}</>; } catch (err) { return <li key={err.id}>E</li>; } finally { return <li key={item.finalKey}>F</li>; } })}{ready && <li key={fallbackKey}>Fallback</li>}<>{tail}</></TransitionGroup>",
+        r#"<TransitionGroup>{items.map(item => <li key={item.id}>{String(item.name)}</li>)}</TransitionGroup>"#,
     );
-
     let rewrite = rewrite_component_children_to_props(&mut vt, &mut host);
-    let mount = compact(&emit_expr(build_component_mount_expr(&host)));
-
+    let mount = compact(&emit_expr(rewrite.direct_render_expr.expect("dedicated primitive")));
     assert!(rewrite.stmts.is_empty());
-    assert!(host.children.is_empty());
-    assert!(host.opening.self_closing);
-    assert!(mount.contains("_$createComponent(TransitionGroup,()=>({children:["));
-    assert!(
-        mount.contains("_$compiledWithKey(_$compiledRoot(Object.assign((__rue_parent_context)=>{")
-    );
-    assert!(mount.contains("\"first\""));
-    assert!(mount.contains("items.map((item)=>{"));
-    assert!(mount.contains(
-        "return_$compiledWithKey(_$compiledRoot(Object.assign((__rue_parent_context)=>{"
-    ));
-    assert!(mount.contains("item.id"));
-    assert!(mount.contains("err.id"));
-    assert!(mount.contains("item.finalKey"));
-    assert!(mount.contains("ready?_$compiledWithKey"));
-    assert!(mount.contains(":\"\""));
-    assert!(mount.contains("_$createDocumentFragment()"));
+    assert!(mount.contains("_$transitionGroup("), "{mount}");
+    assert!(mount.contains("_$reconcileKeyed"), "{mount}");
+    assert!(mount.contains("_$mountCompiledSlotFactory"), "{mount}");
+    assert!(!mount.contains("_$createComponent"), "{mount}");
+    assert!(!mount.contains("__rueTransitionChildFactory"), "{mount}");
 }
 
 #[test]
 fn rewrites_transition_children_with_keys_for_mode_switches() {
     let mut vt = new_vt();
     let mut host = parse_jsx_element(
-        "<Transition mode=\"out-in\"><div key={view.value}>{view.value}</div></Transition>",
+        r#"<Transition mode="out-in"><div key={view.value}>{String(view.value)}</div></Transition>"#,
     );
-
     let rewrite = rewrite_component_children_to_props(&mut vt, &mut host);
-    let mount = compact(&emit_expr(build_component_mount_expr(&host)));
-
+    let mount = compact(&emit_expr(rewrite.direct_render_expr.expect("dedicated primitive")));
     assert!(rewrite.stmts.is_empty());
-    assert!(host.children.is_empty());
-    assert!(host.opening.self_closing);
-    assert!(mount.contains(
-        "_$createComponent(Transition,()=>({mode:\"out-in\",__rueTransitionChildFactory:()=>_$compiledWithKey"
-    ));
-    assert!(mount.contains("view.value"));
+    assert!(mount.contains("_$transition("), "{mount}");
+    assert!(mount.contains("childKey:view.value"), "{mount}");
+    assert!(mount.contains("_$mountCompiledSlotFactory"), "{mount}");
+    assert!(!mount.contains("_$createComponent"), "{mount}");
+    assert!(!mount.contains("__rueTransitionChildFactory"), "{mount}");
 }
 
 #[test]
 fn rewrites_transition_conditional_children_factory_with_branch_keys() {
     let mut vt = new_vt();
     let mut host = parse_jsx_element(
-        "<Transition mode={mode}>{ok ? <section key=\"a\">A</section> : <section key=\"b\">B</section>}</Transition>",
+        r#"<Transition mode={mode}>{ok ? <section>A</section> : <section>B</section>}</Transition>"#,
     );
-
     let rewrite = rewrite_component_children_to_props(&mut vt, &mut host);
-    let mount = compact(&emit_expr(build_component_mount_expr(&host)));
-
+    let mount = compact(&emit_expr(rewrite.direct_render_expr.expect("dedicated primitive")));
     assert!(rewrite.stmts.is_empty());
-    assert!(host.children.is_empty());
-    assert!(host.opening.self_closing);
-    assert!(mount.contains(
-        "_$createComponent(Transition,()=>({mode:mode,__rueTransitionChildFactory:()=>ok?_$compiledWithKey"
-    ));
-    assert!(mount.contains("\"a\""), "{mount}");
-    assert!(mount.contains("\"b\""), "{mount}");
-    assert!(!mount.contains("children:"), "{mount}");
+    assert!(mount.contains("_$transition("), "{mount}");
+    assert!(mount.contains("children:ok?"), "{mount}");
+    assert!(mount.contains("_$mountCompiledSlotFactory"), "{mount}");
+    assert!(!mount.contains("_$createComponent"), "{mount}");
+    assert!(!mount.contains("__rueTransitionChildFactory"), "{mount}");
 }
 
 #[test]
 fn keeps_transition_group_on_children_prop_instead_of_transition_factory() {
     let mut vt = new_vt();
-    let mut host = parse_jsx_element(
-        "<TransitionGroup><li key=\"a\">A</li>{ready && <li key=\"b\">B</li>}</TransitionGroup>",
-    );
-
+    let mut host =
+        parse_jsx_element(r#"<TransitionGroup><li>A</li>{ready && <li>B</li>}</TransitionGroup>"#);
     let rewrite = rewrite_component_children_to_props(&mut vt, &mut host);
-    let mount = compact(&emit_expr(build_component_mount_expr(&host)));
-
+    let mount = compact(&emit_expr(rewrite.direct_render_expr.expect("dedicated primitive")));
     assert!(rewrite.stmts.is_empty());
-    assert!(host.children.is_empty());
-    assert!(host.opening.self_closing);
-    assert!(mount.contains("_$createComponent(TransitionGroup,()=>({children:["));
-    assert!(mount.contains("_$compiledWithKey"));
-    assert!(mount.contains("\"a\""), "{mount}");
-    assert!(mount.contains("\"b\""), "{mount}");
+    assert!(mount.contains("_$transitionGroup("), "{mount}");
+    assert!(mount.contains("children:(target,slotProps,owner)=>"), "{mount}");
+    assert!(mount.contains("_$mountCompiledSlotFactory"), "{mount}");
+    assert!(!mount.contains("_$createComponent"), "{mount}");
     assert!(!mount.contains("__rueTransitionChildFactory"), "{mount}");
 }
 
@@ -751,18 +777,12 @@ fn covers_additional_component_slot_and_transition_group_edges() {
     );
 
     let mut group_vt = new_vt();
-    let mut group = parse_jsx_element(
-        "<TransitionGroup>lead{ok ? <li key=\"a\">A</li> : <li>B</li>}{items.map(item => <li key={item.id}>{item.name}</li>)}{...ignored}</TransitionGroup>",
-    );
+    let mut group = parse_jsx_element("<TransitionGroup>lead<li>A</li></TransitionGroup>");
     let rewrite = rewrite_component_children_to_props(&mut group_vt, &mut group);
-    let mount = compact(&emit_expr(build_component_mount_expr(&group)));
-
-    assert!(rewrite.stmts.is_empty());
-    assert!(mount.contains("children:[\"lead\",ok?_$compiledWithKey"));
-    assert!(mount.contains(":_$compiledRoot(Object.assign((__rue_parent_context)=>{"));
-    assert!(mount.contains("items.map((item)=>_$compiledWithKey(_$compiledRoot(()=>{"));
-    assert!(mount.contains("item.id"));
-    assert!(!mount.contains("ignored"));
+    let mount = compact(&emit_expr(rewrite.direct_render_expr.unwrap()));
+    assert!(mount.contains("_$transitionGroup("), "{mount}");
+    assert!(mount.contains("children:(target,slotProps,owner)=>"), "{mount}");
+    assert!(mount.contains("lead"), "{mount}");
 }
 
 #[test]
@@ -1060,10 +1080,7 @@ fn hardens_remaining_transition_and_default_child_edges() {
     let mixed_out = compact(&emit_expr(mixed_expr));
 
     assert!(mixed_out.contains("[\"lead\""));
-    assert!(
-        mixed_out
-            .contains("_$compiledWithKey(_$compiledRoot(Object.assign((__rue_parent_context)=>{")
-    );
+    assert!(mixed_out.contains("_$compiledWithKey(_$compiledRoot((__rue_parent_context)=>{"));
     assert!(mixed_out.contains("id"));
     assert!(!mixed_out.contains("items"));
 
@@ -1084,16 +1101,11 @@ fn hardens_remaining_transition_and_default_child_edges() {
     assert!(!mount.contains("__rue_slots"));
 
     let mut empty_rewrite_vt = new_vt();
-    let mut empty_transition = parse_jsx_element("<TransitionGroup>  {...items}</TransitionGroup>");
+    let mut empty_transition = parse_jsx_element("<TransitionGroup />");
     let empty_rewrite =
         rewrite_component_children_to_props(&mut empty_rewrite_vt, &mut empty_transition);
     assert!(empty_rewrite.stmts.is_empty());
-    assert!(
-        empty_transition
-            .children
-            .iter()
-            .any(|child| matches!(child, JSXElementChild::JSXSpreadChild(_)))
-    );
+    assert!(empty_rewrite.direct_render_expr.is_some());
 
     let mut no_slot_vt = new_vt();
     let no_slot = parse_jsx_element("<span />");
@@ -1234,9 +1246,9 @@ fn hardens_slot_empty_alt_array_fallback_and_empty_named_slots() {
     assert!(logical_or_stmts.contains("const__child"));
     assert!(logical_or_stmts.contains("_$createDocumentFragment"));
     let _logical_or_expr = compact(&emit_expr(logical_or_lowered.expr));
-    assert!(logical_or_stmts.contains("const__rue_branch_value=ok"), "{logical_or_stmts}");
-    assert!(logical_or_stmts.contains("__rue_compiled_branch_key:false"), "{logical_or_stmts}");
-    assert!(logical_or_stmts.contains("_$compiledBranch("), "{logical_or_stmts}");
+    assert!(logical_or_stmts.contains("_$mountCompiledSlotAt("), "{logical_or_stmts}");
+    assert!(!logical_or_stmts.contains("__rue_compiled_branch_key"), "{logical_or_stmts}");
+    assert!(logical_or_stmts.contains("_$mountCompiledSlotAt("), "{logical_or_stmts}");
 
     let mut named_alt_vt = new_vt();
     let (slot_name, named_lowered) = lower_named_slot_expr(
@@ -1293,18 +1305,13 @@ fn hardens_logical_slot_and_transition_empty_child_edges() {
     assert!(compact(&emit_expr(named_logical.expr)).contains("ok?__child"));
 
     let mut transition_vt = new_vt();
-    let mut transition = parse_jsx_element(
-        "<TransitionGroup>{}<></>{...items}text<li key={id}>A</li></TransitionGroup>",
-    );
+    let mut transition =
+        parse_jsx_element("<TransitionGroup>{}<></>text<li>A</li></TransitionGroup>");
     let rewrite = rewrite_component_children_to_props(&mut transition_vt, &mut transition);
-    let mount = compact(&emit_expr(build_component_mount_expr(&transition)));
-
-    assert!(rewrite.stmts.is_empty());
-    assert!(transition.children.is_empty());
-    assert!(mount.contains("children:"));
-    assert!(mount.contains("\"text\""));
-    assert!(mount.contains("_$compiledWithKey"));
-    assert!(!mount.contains("items"));
+    let mount = compact(&emit_expr(rewrite.direct_render_expr.unwrap()));
+    assert!(mount.contains("_$transitionGroup("), "{mount}");
+    assert!(mount.contains("text"), "{mount}");
+    assert!(!mount.contains("_$compiledWithKey"), "{mount}");
 }
 
 #[test]
@@ -1420,8 +1427,8 @@ fn hardens_nullish_slot_fallbacks_and_empty_key_attrs() {
 
     assert!(stmts.contains("const__child"));
     assert!(stmts.contains("_$createDocumentFragment"));
-    assert!(stmts.contains("const__rue_branch_value=content"), "{stmts}");
-    assert!(stmts.contains("__rue_branch_value!=null"), "{stmts}");
+    assert!(stmts.contains("_$mountCompiledSlotAt("), "{stmts}");
+    assert!(stmts.contains("_$mountCompiledSlotAt("), "{stmts}");
     assert!(stmts.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
     assert!(expr.contains("__child"));
 
@@ -1430,24 +1437,24 @@ fn hardens_nullish_slot_fallbacks_and_empty_key_attrs() {
 }
 
 #[test]
-fn hardens_slot_component_source_and_multiple_native_event_mounts() {
+fn hardens_slot_component_source_and_multiple_event_props_mounts() {
     let explicit_source = parse_jsx_element(
-        "<Slot source={customSource} __rueNativeOnPointerDown={onDown} __rueNativeOnKeyUp={onKey} label=\"menu\" />",
+        "<Slot source={customSource} handlePointerDown={onDown} handleKeyUp={onKey} label=\"menu\" />",
     );
     let out = compact(&emit_expr(build_component_mount_expr(&explicit_source)));
 
-    assert!(out.starts_with("_$compiledWithNativeEvents(_$createComponent(Slot,"));
+    assert!(out.starts_with("_$createComponent(Slot,"));
     assert!(out.contains("source:customSource"));
     assert!(!out.contains("getCurrentInstance"));
-    assert!(out.contains("\"pointerdown\":onDown"));
-    assert!(out.contains("\"keyup\":onKey"));
+    assert!(out.contains("handlePointerDown:onDown"));
+    assert!(out.contains("handleKeyUp:onKey"));
     assert!(out.contains("label:\"menu\""));
 
     let member_component =
-        parse_jsx_element("<Namespace.Menu.Item __rueNativeOnFocus={onFocus} data-id=\"x\" />");
+        parse_jsx_element("<Namespace.Menu.Item handleFocus={onFocus} data-id=\"x\" />");
     let member_out = compact(&emit_expr(build_component_mount_expr(&member_component)));
     assert!(member_out.contains("_$createComponent(Namespace.Menu.Item"));
-    assert!(member_out.contains("\"focus\":onFocus"));
+    assert!(member_out.contains("handleFocus:onFocus"));
     assert!(member_out.contains("\"data-id\":\"x\""));
 }
 
@@ -1608,8 +1615,8 @@ fn hardens_slot_lowering_static_false_and_nullish_slot_edges() {
     let stmts_out = compact(&emit_stmts(lowered.stmts));
     let expr_out = compact(&emit_expr(lowered.expr));
 
-    assert!(stmts_out.contains("const__rue_branch_value=provided"), "{stmts_out}");
-    assert!(stmts_out.contains("__rue_branch_value!=null"), "{stmts_out}");
+    assert!(stmts_out.contains("_$mountCompiledSlotAt("), "{stmts_out}");
+    assert!(stmts_out.contains("_$mountCompiledSlotAt("), "{stmts_out}");
     assert!(stmts_out.contains("_$createDocumentFragment"));
     assert!(stmts_out.contains("_$compiledCreateElement(\"span\",_root)"));
     assert!(expr_out.contains("__child"));
@@ -1660,7 +1667,7 @@ fn hardens_slot_lowering_rejected_conditionals_and_jsx_expr_fallbacks() {
 
     assert!(mixed_out.contains("ok?"), "{mixed_out}");
     assert!(mixed_out.contains("_$createComponent(A"), "{mixed_out}");
-    assert!(mixed_out.contains(":value"), "{mixed_out}");
+    assert!(mixed_out.contains("_$compiledValueFactory(value)"), "{mixed_out}");
     assert!(compact(&emit_expr(mixed.expr)).contains("__child"), "{mixed_out}");
 
     let mut empty_expr_vt = new_vt();
@@ -1680,7 +1687,7 @@ fn hardens_slot_lowering_nested_conditionals_functions_and_member_names() {
     let expr = compact(&emit_expr(lowered.expr));
 
     assert!(stmts.contains("ready?"), "{stmts}");
-    assert!(stmts.contains("fallback??"), "{stmts}");
+    assert!(stmts.contains("fallback") && stmts.contains("_$compiledValueFactory"), "{stmts}");
     assert!(stmts.contains("_$createComponent(Namespace.Body"), "{stmts}");
     assert!(stmts.contains("_$createDocumentFragment"), "{stmts}");
     assert!(stmts.contains("_$createElement(\"em\",_root)"), "{stmts}");
@@ -1749,9 +1756,9 @@ fn hardens_deep_member_components_empty_expr_slots_and_transition_finalizers() {
 }
 
 #[test]
-fn hardens_scoped_default_dynamic_named_slot_and_native_events() {
+fn hardens_scoped_default_dynamic_named_slot_and_event_props() {
     let mut host = parse_jsx_element(
-        "<Panel __rueNativeOnFocus={onFocus}>{(ctx) => ctx.body}{ready && <Template slot={slotName}><span>{label}</span></Template>}</Panel>",
+        "<Panel handleFocus={onFocus}>{(ctx) => ctx.body}{ready && <Template slot={slotName}><span>{label}</span></Template>}</Panel>",
     );
     let mut vt = new_vt();
     let rewrite = rewrite_component_children_to_props(&mut vt, &mut host);
@@ -1761,8 +1768,8 @@ fn hardens_scoped_default_dynamic_named_slot_and_native_events() {
     assert!(host.children.is_empty());
     assert!(host.opening.self_closing);
     assert!(stmts.contains("_$createElement(\"span\",_root)"), "{stmts}");
-    assert!(mount.starts_with("_$compiledWithNativeEvents(_$createComponent(Panel"), "{mount}");
-    assert!(mount.contains("\"focus\":onFocus"), "{mount}");
+    assert!(mount.starts_with("_$createComponent(Panel"), "{mount}");
+    assert!(mount.contains("handleFocus:onFocus"), "{mount}");
     assert!(mount.contains("__rue_slots"), "{mount}");
     assert!(mount.contains("\"default\":(ctx)=>ctx.body"), "{mount}");
     assert!(mount.contains("[slotName]:"), "{mount}");

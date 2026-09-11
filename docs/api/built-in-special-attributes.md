@@ -81,13 +81,13 @@
 
 用于在 [`<Component>`](/api/api/built-in-special-elements#component) 上选择要渲染的动态组件或元素。
 
-- **期望类型：** `string | Component | null`
+- **期望类型：** `string`，并配合 `<Component>` 的字面量 `registry`
 
 - **在原生元素上的使用**
 
   当在普通原生 HTML 元素上使用 `is` 属性时，Rue 不会把它改写为动态组件语义，也不会识别 `rue:` 前缀；它只会作为普通 HTML 属性传递。原生[自定义内置元素](https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-customized-builtin-example)的行为取决于浏览器支持和元素创建方式。
 
-  如果需要在组件和元素之间动态切换，请使用 `<Component is={...}>`，并传入组件对象、已注册组件名或原生标签名。
+  动态组件只支持 `<Component is={kind} registry={{ ... }}>` 的有限静态工厂集合。动态原生标签、任意组件对象和全局注册名不受支持。
 
 - **另请参阅**
   - [内置特殊元素 - `<Component>`](/api/api/built-in-special-elements#component)

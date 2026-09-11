@@ -1,5 +1,4 @@
 export {
-  createRueCompatElement,
   createRequiredRueCompatContext,
   getOrCreateRueCompatContext,
   useOptionalRueCompatContext,

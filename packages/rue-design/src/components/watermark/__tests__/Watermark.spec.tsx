@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -18,11 +19,13 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Watermark content="Rue Design" className="rounded-box" data-testid="watermark-root">
-        <div className="content-shell">content</div>
-      </Watermark>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Watermark content="Rue Design" className="rounded-box" data-testid="watermark-root">
+          <div className="content-shell">content</div>
+        </Watermark>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -45,19 +48,21 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Watermark
-        content={['Top Secret', 'Rue Lab']}
-        width={100}
-        height={40}
-        gap={[120, 80]}
-        offset={[90, 60]}
-        zIndex={15}
-        data-testid="watermark-root"
-      >
-        <div>panel</div>
-      </Watermark>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Watermark
+          content={['Top Secret', 'Rue Lab']}
+          width={100}
+          height={40}
+          gap={[120, 80]}
+          offset={[90, 60]}
+          zIndex={15}
+          data-testid="watermark-root"
+        >
+          <div>panel</div>
+        </Watermark>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -81,15 +86,17 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Watermark
-        content="Rue Design"
-        style={{ backgroundColor: '#0f172a' }}
-        data-testid="watermark-root"
-      >
-        <div>panel</div>
-      </Watermark>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Watermark
+          content="Rue Design"
+          style={{ backgroundColor: '#0f172a' }}
+          data-testid="watermark-root"
+        >
+          <div>panel</div>
+        </Watermark>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -106,15 +113,17 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Watermark
-        content="Rue Design"
-        style={{ backgroundColor: 'oklch(22% 0.04 265)' }}
-        data-testid="watermark-root"
-      >
-        <div>panel</div>
-      </Watermark>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Watermark
+          content="Rue Design"
+          style={{ backgroundColor: 'oklch(22% 0.04 265)' }}
+          data-testid="watermark-root"
+        >
+          <div>panel</div>
+        </Watermark>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -131,21 +140,23 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div
-        data-rue-appearance="dark"
-        style={{
-          colorScheme: 'dark',
-          color: '#f8fafc',
-          '--color-base-100': '#111827',
-          '--color-base-content': '#a7f3d0',
-        }}
-      >
-        <Watermark content="Rue Design" data-testid="watermark-root">
-          <div>panel</div>
-        </Watermark>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div
+          data-rue-appearance="dark"
+          style={{
+            colorScheme: 'dark',
+            color: '#f8fafc',
+            '--color-base-100': '#111827',
+            '--color-base-content': '#a7f3d0',
+          }}
+        >
+          <Watermark content="Rue Design" data-testid="watermark-root">
+            <div>panel</div>
+          </Watermark>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -163,18 +174,20 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Watermark
-        image="https://example.com/watermark.svg"
-        width={96}
-        height={36}
-        data-testid="parent-watermark"
-      >
-        <Watermark data-testid="child-watermark">
-          <div>nested</div>
-        </Watermark>
-      </Watermark>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Watermark
+          image="https://example.com/watermark.svg"
+          width={96}
+          height={36}
+          data-testid="parent-watermark"
+        >
+          <Watermark data-testid="child-watermark">
+            <div>nested</div>
+          </Watermark>
+        </Watermark>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -193,13 +206,15 @@ describe('Watermark', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Watermark content="Rue Parent" data-testid="parent-watermark">
-        <Watermark inherit={false} data-testid="child-watermark">
-          <div>child</div>
-        </Watermark>
-      </Watermark>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Watermark content="Rue Parent" data-testid="parent-watermark">
+          <Watermark inherit={false} data-testid="child-watermark">
+            <div>child</div>
+          </Watermark>
+        </Watermark>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -233,7 +248,7 @@ describe('Watermark', () => {
       </Watermark>
     )
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const root = container.querySelector('[data-testid="watermark-root"]') as HTMLElement
@@ -286,7 +301,7 @@ describe('Watermark', () => {
     )
 
     try {
-      render(<Demo />, container)
+      mountTestApp(container, () => render(<Demo />, container))
 
       let measuredCalls = 0
       await waitForContent(() => {

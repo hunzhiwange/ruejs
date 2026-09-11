@@ -20,7 +20,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vite-plus/test'
 import type { ViteDevServer } from 'vite-plus'
-import { APP_FIXTURE_DIR, startFixtureServer } from '../helpers.js'
+import { APP_FIXTURE_DIR, startFixtureServer, stripRueSsrMarkers } from '../helpers.js'
 
 let _server: ViteDevServer
 let _baseUrl: string
@@ -66,7 +66,7 @@ describe('"use client" page component: usePathname() SSR (issue #688)', () => {
   it('SSR HTML contains correct pathname (not /)', async () => {
     const res = await fetch(`${_baseUrl}${ROUTE}`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // The page component calls usePathname() and renders it into #client-page-pathname.
     // During SSR, this must be the actual request pathname, not "/".
@@ -75,7 +75,7 @@ describe('"use client" page component: usePathname() SSR (issue #688)', () => {
 
   it('navigation runtime pathname matches SSR-rendered usePathname()', async () => {
     const res = await fetch(`${_baseUrl}${ROUTE}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 
@@ -84,7 +84,7 @@ describe('"use client" page component: usePathname() SSR (issue #688)', () => {
 
   it('SSR HTML contains correct searchParams with query string', async () => {
     const res = await fetch(`${_baseUrl}${ROUTE}?q=hello&page=2`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain('<span id="client-page-search-q">hello</span>')
     expect(html).toContain('<span id="client-page-search-string">q=hello&amp;page=2</span>')
@@ -92,7 +92,7 @@ describe('"use client" page component: usePathname() SSR (issue #688)', () => {
 
   it('navigation runtime searchParams matches query string', async () => {
     const res = await fetch(`${_baseUrl}${ROUTE}?q=test`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
     const sp = new URLSearchParams(nav.searchParams)
@@ -108,7 +108,7 @@ describe('"use client" page component: usePathname() SSR (issue #688)', () => {
       "script-src 'nonce-text-test-nonce' 'strict-dynamic';",
     )
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain(`<script nonce="text-test-nonce">${RSC_BOOTSTRAP_PREFIX}`)
     expect(html).toContain(
@@ -141,7 +141,7 @@ describe('"use client" page component: usePathname() SSR (issue #688)', () => {
         'content-security-policy': "script-src 'nonce-request-header' 'strict-dynamic';",
       },
     })
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain(`<script nonce="request-header">${RSC_BOOTSTRAP_PREFIX}`)
   })
@@ -165,21 +165,21 @@ describe('"use client" dynamic page: usePathname() + useParams() SSR', () => {
   it('SSR HTML contains correct pathname for dynamic route', async () => {
     const res = await fetch(`${_baseUrl}${dynamicPath}`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain(`<span id="client-page-dynamic-pathname">${dynamicPath}</span>`)
   })
 
   it('SSR HTML contains correct slug param', async () => {
     const res = await fetch(`${_baseUrl}${dynamicPath}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain('<span id="client-page-dynamic-slug">my-slug</span>')
   })
 
   it('navigation runtime params contains slug for dynamic route', async () => {
     const res = await fetch(`${_baseUrl}${dynamicPath}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { params } = extractRscBootstrap(html)
 
@@ -188,7 +188,7 @@ describe('"use client" dynamic page: usePathname() + useParams() SSR', () => {
 
   it('navigation runtime pathname is correct for dynamic route', async () => {
     const res = await fetch(`${_baseUrl}${dynamicPath}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 

@@ -37,25 +37,20 @@
 
 ## 跟踪运行时错误 (Tracking Runtime Errors) {#tracking-runtime-errors}
 
-可以使用 `onError()` 向跟踪服务报告错误：
+Rue 会默认将未被组件错误边界处理的运行时错误输出到控制台。可以使用 `onError()` 将这些 Rue 错误另外发送到跟踪服务，无需再次调用 `console.error`：
 
 ```tsx
-import { onError, useApp, installBrowserErrorBridge } from '@rue-js/rue'
+import { onError, useApp } from '@rue-js/rue'
 
-// 将浏览器全局错误也交给下方的 onError 订阅处理
-installBrowserErrorBridge()
-
-onError((err, instance) => {
-  // 向跟踪服务报告错误
-  console.error('Rue Error:', err)
-  console.error('Component:', instance)
-
-  // 发送到错误跟踪服务
+onError((err, instance, info) => {
+  // 发送到错误跟踪服务；instance 和 info 可用作诊断上下文
   // sentry.captureException(err)
 })
 
 useApp(App).mount('#app')
 ```
+
+`onError` 只订阅 Rue 运行时错误，不会自动收集浏览器原生的 `error` 或 `unhandledrejection` 事件。如果需要跟踪后者，请配置错误跟踪服务的浏览器集成。
 
 [Sentry](https://docs.sentry.io/platforms/javascript/) 和 [Bugsnag](https://docs.bugsnag.com/platforms/javascript/) 等服务也提供 JavaScript 应用集成。
 

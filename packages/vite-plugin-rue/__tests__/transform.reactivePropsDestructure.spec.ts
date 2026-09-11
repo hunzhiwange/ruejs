@@ -52,7 +52,7 @@ describe('vite-plugin-rue reactive props destructure', () => {
 
     expect(code).toContain('/* RUE_TRANSFORMED */')
     expect(code).not.toContain('new Proxy(')
-    expect(code).toContain('(__rue_props)=>')
+    expect(code).toContain('(__rue_props, _$rueSlots, _$rueOwner)=>')
     expect(code).toContain('_$compiledSignal(_$compiledPropsGet(__rue_props, "query"))')
     expect(code).toContain('_$compiledSignal(_$compiledPropsGet(__rue_props, "count"))')
     expect(code).toContain('_$compiledSignal(_$compiledPropsGet(__rue_props, "label"))')

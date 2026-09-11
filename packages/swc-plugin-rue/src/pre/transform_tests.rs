@@ -163,7 +163,7 @@ _$compiledWithHookId("same", () => ref(2));
 }
 
 #[test]
-fn injects_component_render_marker_only_for_setup_render_control() {
+fn setup_render_control_never_injects_component_render_markers() {
     let src = r#"
 const Plain: FC = () => {
   return _$compiledRoot(() => <input value={label.get()} />)
@@ -199,68 +199,9 @@ function FunctionBranch(): JSX.Element {
     module.visit_mut_with(&mut PreTransform::default());
     let out = normalize(&emit_module(&module, cm));
 
-    let plain = out.split("const DynamicComponentRoot").next().expect("plain component output");
-    let dynamic_root = out
-        .split("const DynamicComponentRoot")
-        .nth(1)
-        .expect("dynamic component root output")
-        .split("const ConciseDynamicRoot")
-        .next()
-        .expect("dynamic component root body");
-    let concise = out
-        .split("const ConciseDynamicRoot")
-        .nth(1)
-        .expect("concise dynamic root output")
-        .split("const ConciseDynamicChildren")
-        .next()
-        .expect("concise dynamic root body");
-    let concise_children = out
-        .split("const ConciseDynamicChildren")
-        .nth(1)
-        .expect("concise dynamic children output")
-        .split("const ConciseNativeChildren")
-        .next()
-        .expect("concise dynamic children body");
-    let concise_native_children = out
-        .split("const ConciseNativeChildren")
-        .nth(1)
-        .expect("concise native children output")
-        .split("const EarlyReturn")
-        .next()
-        .expect("concise native children body");
-    let early = out
-        .split("const EarlyReturn")
-        .nth(1)
-        .expect("early-return component output")
-        .split("const AssignedBranch")
-        .next()
-        .expect("early-return body");
-    let assigned = out
-        .split("const AssignedBranch")
-        .nth(1)
-        .expect("assigned-branch component output")
-        .split("function FunctionBranch")
-        .next()
-        .expect("assigned-branch body");
-
-    assert!(!plain.contains("_$compiledMarkComponentRenderReactive()"), "{plain}");
-    assert!(!plain.contains("const Plain: FC = _$compiledMarkComponentRenderReactive"), "{plain}");
-    assert!(dynamic_root.contains("_$compiledMarkComponentRenderReactive(()=>"), "{dynamic_root}");
-    assert!(dynamic_root.contains("useSetup"), "{dynamic_root}");
-    assert!(concise.contains("_$compiledMarkComponentRenderReactive(()=>"), "{concise}");
-    assert!(
-        concise_children.contains("_$compiledMarkComponentRenderReactive(()=>"),
-        "{concise_children}"
-    );
-    assert!(
-        !concise_native_children.contains("_$compiledMarkComponentRenderReactive(()=>"),
-        "{concise_native_children}"
-    );
-    assert!(early.contains("_$compiledMarkComponentRenderReactive(()=>"), "{early}");
-    assert!(!early.contains("_$compiledMarkComponentRenderReactive()"), "{early}");
-    assert!(assigned.contains("_$compiledMarkComponentRenderReactive(()=>"), "{assigned}");
-    assert!(!assigned.contains("_$compiledMarkComponentRenderReactive()"), "{assigned}");
-    assert!(out.contains("_$compiledMarkComponentRenderReactive(FunctionBranch)"), "{out}");
+    assert!(!out.contains("_$compiledMarkComponentRenderReactive"), "{out}");
+    assert!(out.contains("_$compiledSetup"), "{out}");
+    assert!(out.contains("return <Tabs"), "{out}");
 }
 
 #[test]
@@ -282,10 +223,7 @@ const LocaleReader: FC = () => {
     module.visit_mut_with(&mut PreTransform::default());
     let out = normalize(&emit_module(&module, cm));
 
-    assert!(
-        out.contains("const LocaleReader: FC = _$compiledMarkComponentRenderReactive(()=>"),
-        "{out}"
-    );
+    assert!(out.contains("const LocaleReader: FC = ()=>"), "{out}");
     assert!(out.contains("const { locale, translate } = useLocale();"), "{out}");
     assert!(!out.contains("useSetup(()=>{ const { locale, translate } = useLocale();"), "{out}");
     assert!(

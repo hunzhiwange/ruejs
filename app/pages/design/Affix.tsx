@@ -278,7 +278,6 @@ const affixChangeCount = ref(0)
 
 const topCode = `import { useRef } from '@rue-js/rue'
 import { Affix } from '@rue-js/design'
-
 const panelRef = useRef<HTMLDivElement>()
 const sections = [
   { id: 'signal-map', title: 'Signal Map' },
@@ -306,7 +305,6 @@ const sections = [
 </div>`
 
 const windowCode = `import { Affix } from '@rue-js/design'
-
 const sections = [
   { id: 'window-brief', title: 'Viewport Brief' },
   { id: 'window-cadence', title: 'Page Cadence' },
@@ -337,7 +335,6 @@ const sections = [
 
 const bottomCode = `import { useRef } from '@rue-js/rue'
 import { Affix } from '@rue-js/design'
-
 const threadRef = useRef<HTMLDivElement>()
 
 <div ref={threadRef} className="h-[28rem] overflow-auto rounded-[1.6rem] border border-base-300 bg-base-100 p-4">
@@ -358,7 +355,6 @@ const threadRef = useRef<HTMLDivElement>()
 
 const stateCode = `import { ref, useRef } from '@rue-js/rue'
 import { Affix } from '@rue-js/design'
-
 const panelRef = useRef<HTMLDivElement>()
 const affixState = ref('Inline')
 const changeCount = ref(0)

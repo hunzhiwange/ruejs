@@ -67,17 +67,48 @@ pub(crate) fn components(program: &Program) -> Vec<Span> {
 }
 
 pub(crate) fn lower(module: &mut Module, components: Vec<Span>) {
-    module.visit_mut_with(&mut PropsReads { components, scopes: Vec::new(), snapshot_only: false });
+    let emit_names = module
+        .body
+        .iter()
+        .filter_map(|item| match item {
+            ModuleItem::ModuleDecl(ModuleDecl::Import(import))
+                if import.src.value.to_string_lossy().starts_with("@rue-js/") =>
+            {
+                Some(import)
+            }
+            _ => None,
+        })
+        .flat_map(|import| &import.specifiers)
+        .filter_map(|specifier| match specifier {
+            ImportSpecifier::Named(named)
+                if match &named.imported {
+                    Some(ModuleExportName::Ident(id)) => id.sym == "useEmit",
+                    None => named.local.sym == "useEmit",
+                    _ => false,
+                } =>
+            {
+                Some(named.local.to_id())
+            }
+            _ => None,
+        })
+        .collect();
+    module.visit_mut_with(&mut PropsReads {
+        components,
+        emit_names,
+        scopes: Vec::new(),
+        snapshot_only: false,
+    });
 }
 struct PropsReads {
     components: Vec<Span>,
+    emit_names: HashSet<Id>,
     scopes: Vec<HashSet<String>>,
     snapshot_only: bool,
 }
 impl PropsReads {
     fn is_props(&self, expr: &Expr) -> bool {
         matches!(crate::utils::unwrap_expr(expr), Expr::Ident(id)
-            if provenance::reactive_kind(&self.scopes, id.sym.as_ref()) == Some(ReactiveKind::PropsValue))
+            if matches!(provenance::reactive_kind(&self.scopes, id.sym.as_ref()), Some(ReactiveKind::PropsValue | ReactiveKind::SlotsValue)))
     }
     fn parameters<'a>(&mut self, span: Span, params: impl Iterator<Item = &'a Pat>) {
         self.scopes.push(if self.components.contains(&span) {
@@ -88,6 +119,16 @@ impl PropsReads {
     }
 }
 impl VisitMut for PropsReads {
+    fn visit_mut_var_declarator(&mut self, decl: &mut VarDeclarator) {
+        // A direct alias keeps the controller identity. Snapshot only actual spread/rest.
+        if matches!(&decl.name, Pat::Ident(_))
+            && decl.init.as_deref().is_some_and(|expr| self.is_props(expr))
+        {
+            return;
+        }
+        decl.visit_mut_children_with(self);
+    }
+
     fn visit_mut_module(&mut self, module: &mut Module) {
         self.scopes.push(provenance::collect_module_scope(module, &[]));
         module.visit_mut_children_with(self);
@@ -134,11 +175,54 @@ impl VisitMut for PropsReads {
     fn visit_mut_function(&mut self, function: &mut Function) {
         self.parameters(function.span, function.params.iter().map(|p| &p.pat));
         function.visit_mut_children_with(self);
+        if self.components.contains(&function.span) {
+            let mut used = std::collections::HashSet::new();
+            struct Names<'a>(&'a mut std::collections::HashSet<String>);
+            impl Visit for Names<'_> {
+                fn visit_ident(&mut self, id: &Ident) {
+                    self.0.insert(id.sym.to_string());
+                }
+            }
+            function.visit_with(&mut Names(&mut used));
+            while function.params.len() < 3 {
+                let base = ["_$rueProps", "_$rueSlots", "_$rueOwner"][function.params.len()];
+                let mut name = base.to_string();
+                while used.contains(&name) {
+                    name.push('_');
+                }
+                function.params.push(Param {
+                    span: function.span,
+                    decorators: vec![],
+                    pat: Pat::Ident(BindingIdent { id: crate::emit::ident(&name), type_ann: None }),
+                });
+            }
+        }
         self.scopes.pop();
     }
     fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
         self.parameters(arrow.span, arrow.params.iter());
         arrow.visit_mut_children_with(self);
+        if self.components.contains(&arrow.span) {
+            let mut used = std::collections::HashSet::new();
+            struct Names<'a>(&'a mut std::collections::HashSet<String>);
+            impl Visit for Names<'_> {
+                fn visit_ident(&mut self, id: &Ident) {
+                    self.0.insert(id.sym.to_string());
+                }
+            }
+            arrow.visit_with(&mut Names(&mut used));
+            while arrow.params.len() < 3 {
+                let base = ["_$rueProps", "_$rueSlots", "_$rueOwner"][arrow.params.len()];
+                let mut name = base.to_string();
+                while used.contains(&name) {
+                    name.push('_');
+                }
+                arrow.params.push(Pat::Ident(BindingIdent {
+                    id: crate::emit::ident(&name),
+                    type_ann: None,
+                }));
+            }
+        }
         self.scopes.pop();
     }
     fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
@@ -162,6 +246,13 @@ impl VisitMut for PropsReads {
         prop.visit_mut_children_with(self);
     }
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
+        if let Expr::Call(call) = expr
+            && matches!(&call.callee, Callee::Expr(callee) if matches!(callee.as_ref(), Expr::Ident(id) if self.emit_names.contains(&id.to_id())))
+        {
+            // Emit must retain the live controller, not a snapshot of callbacks.
+            return;
+        }
+
         if self.snapshot_only {
             if self.is_props(expr) {
                 *expr = crate::emit::call_ident("_$compiledPropsSnapshot", vec![expr.clone()]);
@@ -226,16 +317,6 @@ impl VisitMut for PropsReads {
         if let Expr::Member(member) = expr
             && self.is_props(&member.obj)
         {
-            if let MemberProp::Computed(key) = &mut member.prop
-                && !matches!(key.expr.as_ref(), Expr::Lit(Lit::Str(_) | Lit::Num(_)))
-            {
-                key.expr.visit_mut_with(self);
-                member.obj = Box::new(crate::emit::call_ident(
-                    "_$compiledPropsSnapshot",
-                    vec![*member.obj.clone()],
-                ));
-                return;
-            }
             let mut key = match &member.prop {
                 MemberProp::Ident(id) => Expr::Lit(Lit::Str(crate::emit::str_lit(id.sym.as_ref()))),
                 MemberProp::Computed(key) => *key.expr.clone(),

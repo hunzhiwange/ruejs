@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Alert, Button, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -231,9 +230,7 @@ const AlertDemo: FC = () => {
               </div>
             </div>
           )}
-          code={`import { Alert } from '@rue-js/design'
-
-<Alert direction="horizontal" className="w-full">
+          code={`import { Alert } from '@rue-js/design'<Alert direction="horizontal" className="w-full">
   <MailIcon />
   <span>12 unread messages. Tap to see.</span>
 </Alert>`}

@@ -20,7 +20,11 @@ describe('vite-plugin-rue footer deep compile', () => {
 
     expect(code).toContain(HEADER)
     expect(code).toContain('@rue-js/rue/internal')
-    expect(code).toContain('_$createComponent(Component')
+    expect(code).toContain('_$compiledRoot')
+    expect(code).toMatch(/_\$reconcileKeyed\s*\(/)
+    expect(code).toMatch(/_\$mountCompiledKeyedRow\s*\(/)
+    expect(code).not.toContain('_$createComponent')
+    expect(code).not.toContain('_$mountValue')
     expect(code).not.toContain(['@rue-js', 'jsx-dev-runtime'].join('/'))
     expect(code).not.toContain('_jsxDEV')
   })

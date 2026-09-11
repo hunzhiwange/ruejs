@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import ColorPicker, { COLOR_PICKER_MODE_GRADIENT, COLOR_PICKER_MODE_SINGLE } from '../index'
@@ -18,7 +19,9 @@ describe('ColorPicker', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<ColorPicker defaultOpen={true} defaultValue="#1677ff" />, container)
+    mountTestApp(container, () =>
+      render(<ColorPicker defaultOpen={true} defaultValue="#1677ff" />, container),
+    )
 
     const trigger = container.querySelector(
       '[data-rue-color-picker-trigger="true"]',
@@ -43,12 +46,14 @@ describe('ColorPicker', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <ColorPicker size="xs" defaultValue="#1677ff" />
-        <ColorPicker size="xl" defaultValue="#22c55e" showText />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <ColorPicker size="xs" defaultValue="#1677ff" />
+          <ColorPicker size="xl" defaultValue="#22c55e" showText />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -63,20 +68,17 @@ describe('ColorPicker', () => {
     })
   })
 
-  it('renders custom showText content without stringifying JSX', async () => {
+  it('renders custom trigger content through the default slot', async () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ColorPicker
-        defaultValue="#1677ff"
-        showText={color => (
-          <span data-rue-color-picker-show-text="true">
-            {'toHexString' in color ? `Custom Text (${color.toHexString()})` : color.toCssString()}
-          </span>
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker defaultValue="#1677ff" showText>
+          <span data-rue-color-picker-show-text="true">Custom Text (#1677ff)</span>
+        </ColorPicker>,
+        container,
+      ),
     )
 
     const trigger = container.querySelector(
@@ -101,14 +103,16 @@ describe('ColorPicker', () => {
     popupContainer.setAttribute('data-rue-color-picker-custom-container', 'true')
     document.body.appendChild(popupContainer)
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultValue="#1677ff"
-        getPopupContainer={() => popupContainer}
-        destroyTooltipOnHide
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultValue="#1677ff"
+          getPopupContainer={() => popupContainer}
+          destroyTooltipOnHide
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -129,22 +133,24 @@ describe('ColorPicker', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        presets={[
-          {
-            label: 'Warm',
-            colors: ['#ff6b57'],
-          },
-          {
-            label: 'Cool',
-            defaultOpen: true,
-            colors: ['#22c55e'],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          presets={[
+            {
+              label: 'Warm',
+              colors: ['#ff6b57'],
+            },
+            {
+              label: 'Cool',
+              defaultOpen: true,
+              colors: ['#22c55e'],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     const popup = document.body.querySelector(
@@ -163,27 +169,29 @@ describe('ColorPicker', () => {
     })
   })
 
-  it.skip('switches to gradient mode when selecting a gradient preset', async () => {
+  it('switches to gradient mode when selecting a gradient preset', async () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ColorPicker
-        mode={[COLOR_PICKER_MODE_SINGLE, COLOR_PICKER_MODE_GRADIENT]}
-        presets={[
-          {
-            label: 'Gradient Presets',
-            defaultOpen: true,
-            colors: [
-              [
-                { color: '#1677ff', percent: 0 },
-                { color: '#22c55e', percent: 100 },
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          mode={[COLOR_PICKER_MODE_SINGLE, COLOR_PICKER_MODE_GRADIENT]}
+          presets={[
+            {
+              label: 'Gradient Presets',
+              defaultOpen: true,
+              colors: [
+                [
+                  { color: '#1677ff', percent: 0 },
+                  { color: '#22c55e', percent: 100 },
+                ],
               ],
-            ],
-          },
-        ]}
-      />,
-      container,
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     const trigger = container.querySelector(
@@ -227,14 +235,16 @@ describe('ColorPicker', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultFormat="hex"
-        defaultValue="#1677ff"
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultFormat="hex"
+          defaultValue="#1677ff"
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     const popup = document.body.querySelector(
@@ -268,15 +278,17 @@ describe('ColorPicker', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultFormat="hex"
-        defaultValue="#1677ff"
-        showText
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultFormat="hex"
+          defaultValue="#1677ff"
+          showText
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     const trigger = container.querySelector(
@@ -335,7 +347,7 @@ describe('ColorPicker', () => {
       )
     }
 
-    render(<ControlledPreview />, container)
+    mountTestApp(container, () => render(<ControlledPreview />, container))
 
     await waitForContent(() => {
       const trigger = container.querySelector(
@@ -371,7 +383,12 @@ describe('ColorPicker', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<ColorPicker defaultOpen={true} defaultFormat="hex" defaultValue="#1677ff" />, container)
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker defaultOpen={true} defaultFormat="hex" defaultValue="#1677ff" />,
+        container,
+      ),
+    )
 
     const popup = document.body.querySelector(
       '[data-rue-color-picker-popup="true"]',
@@ -397,14 +414,16 @@ describe('ColorPicker', () => {
     resetActiveRuntime()
     const handleFormatChange = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultFormat="rgb"
-        defaultValue="rgba(56, 189, 248, 0.72)"
-        onFormatChange={handleFormatChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultFormat="rgb"
+          defaultValue="rgba(56, 189, 248, 0.72)"
+          onFormatChange={handleFormatChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -469,7 +488,7 @@ describe('ColorPicker', () => {
       )
     }
 
-    render(<CallbackPreview />, container)
+    mountTestApp(container, () => render(<CallbackPreview />, container))
 
     const popup = document.body.querySelector(
       '[data-rue-color-picker-popup="true"]',
@@ -523,7 +542,7 @@ describe('ColorPicker', () => {
       )
     }
 
-    render(<ControlledColorPreview />, container)
+    mountTestApp(container, () => render(<ControlledColorPreview />, container))
 
     const popup = document.body.querySelector(
       '[data-rue-color-picker-popup="true"]',
@@ -568,14 +587,16 @@ describe('ColorPicker', () => {
     const handleChange = vi.fn()
     const handleChangeComplete = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultValue="#1677ff"
-        onChange={handleChange}
-        onChangeComplete={handleChangeComplete}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultValue="#1677ff"
+          onChange={handleChange}
+          onChangeComplete={handleChangeComplete}
+        />,
+        container,
+      ),
     )
 
     const popup = document.body.querySelector(
@@ -618,20 +639,22 @@ describe('ColorPicker', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultFormat="rgb"
-        defaultValue="#1677ff"
-        presets={[
-          {
-            label: 'Brand',
-            colors: ['#ff6b57', '#22c55e'],
-          },
-        ]}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultFormat="rgb"
+          defaultValue="#1677ff"
+          presets={[
+            {
+              label: 'Brand',
+              colors: ['#ff6b57', '#22c55e'],
+            },
+          ]}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -672,22 +695,24 @@ describe('ColorPicker', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        presets={[
-          {
-            label: 'Warm',
-            colors: ['#ff6b57', '#f97316'],
-          },
-          {
-            label: 'Cool',
-            colors: ['#0ea5e9', '#22c55e'],
-          },
-        ]}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          presets={[
+            {
+              label: 'Warm',
+              colors: ['#ff6b57', '#f97316'],
+            },
+            {
+              label: 'Cool',
+              colors: ['#0ea5e9', '#22c55e'],
+            },
+          ]}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     const popup = document.body.querySelector(
@@ -732,16 +757,18 @@ describe('ColorPicker', () => {
     const handleChange = vi.fn()
     const handleClear = vi.fn()
 
-    render(
-      <ColorPicker
-        defaultOpen={true}
-        defaultValue="#1677ff"
-        allowClear
-        showText
-        onChange={handleChange}
-        onClear={handleClear}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ColorPicker
+          defaultOpen={true}
+          defaultValue="#1677ff"
+          allowClear
+          showText
+          onChange={handleChange}
+          onClear={handleClear}
+        />,
+        container,
+      ),
     )
 
     const popup = document.body.querySelector(

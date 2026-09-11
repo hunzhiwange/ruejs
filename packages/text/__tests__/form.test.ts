@@ -1,3 +1,4 @@
+import { renderToString as writeHtml } from '@rue-js/runtime/server'
 /**
  * text/form shim unit tests.
  *
@@ -6,7 +7,7 @@
  * submit interception behavior for client-side GET forms.
  */
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
-import Form from '../src/shims/form.js'
+import Form from '../src/shims/form.js?text-ssr'
 import { createElement, renderAppServerElementToHtml } from './app-server-protocol-test-utils.js'
 
 type FormEntry = [string, string]
@@ -80,13 +81,20 @@ function createFormDataClass({ supportsSubmitter }: { supportsSubmitter: boolean
   }
 }
 
-function renderClientForm(props: Record<string, unknown>) {
-  // Exercise the submit handler directly without adding a DOM renderer just for this shim.
-  const rendered = (Form as unknown as (props: Record<string, unknown>) => any)(props)
-  expect(rendered.type).toBe('form')
-  return rendered.props as {
-    onSubmit: (event: any) => Promise<void>
-  }
+async function renderClientForm(props: Record<string, unknown>) {
+  let captured: Record<string, unknown> | undefined
+  const plan = createElement(Form, props)
+  await writeHtml(
+    () => writer =>
+      plan({
+        ...writer,
+        onElement: (tag, attributes) => {
+          if (tag === 'form') captured = { ...attributes }
+        },
+      }),
+  )
+  expect(captured).toBeDefined()
+  return captured as { onSubmit: (event: any) => Promise<void> }
 }
 
 function createWindowStub() {
@@ -169,8 +177,8 @@ afterEach(() => {
 // ─── SSR rendering ──────────────────────────────────────────────────────
 
 describe('Form SSR rendering', () => {
-  it('renders a <form> element with string action', () => {
-    const html = renderAppServerElementToHtml(
+  it('renders a <form> element with string action', async () => {
+    const html = await renderAppServerElementToHtml(
       createElement(
         Form,
         { action: '/search' },
@@ -185,13 +193,13 @@ describe('Form SSR rendering', () => {
     expect(html).toContain('</form>')
   })
 
-  it('renders with function action (server action)', () => {
+  it('renders with function action (server action)', async () => {
     const serverAction = async (_formData: FormData) => {
       'use server'
     }
 
     // Function actions are passed through to the form protocol.
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(
         Form,
         { action: serverAction as any },
@@ -202,8 +210,8 @@ describe('Form SSR rendering', () => {
     expect(html).toContain('Submit')
   })
 
-  it('renders with additional HTML form attributes', () => {
-    const html = renderAppServerElementToHtml(
+  it('renders with additional HTML form attributes', async () => {
+    const html = await renderAppServerElementToHtml(
       createElement(
         Form,
         { action: '/submit', method: 'POST', className: 'my-form', id: 'contact-form' },
@@ -214,8 +222,8 @@ describe('Form SSR rendering', () => {
     expect(html).toContain('id="contact-form"')
   })
 
-  it('renders children elements', () => {
-    const html = renderAppServerElementToHtml(
+  it('renders children elements', async () => {
+    const html = await renderAppServerElementToHtml(
       createElement(
         Form,
         { action: '/search' },
@@ -233,8 +241,8 @@ describe('Form SSR rendering', () => {
     expect(html).toContain('Go')
   })
 
-  it('renders without method (defaults to GET in behavior)', () => {
-    const html = renderAppServerElementToHtml(
+  it('renders without method (defaults to GET in behavior)', async () => {
+    const html = await renderAppServerElementToHtml(
       createElement(Form, { action: '/search' }, createElement('input', { name: 'q' })),
     )
     // No explicit method attribute in HTML — browser defaults to GET
@@ -246,7 +254,7 @@ describe('Form SSR rendering', () => {
 
 describe('Form useActionState', () => {
   it('exports useActionState from the module', async () => {
-    const mod = await import('../src/shims/form.js')
+    const mod = await import('../src/shims/form.js?text-ssr')
     expect(typeof mod.useActionState).toBe('function')
   })
 })
@@ -255,7 +263,7 @@ describe('Form client GET interception', () => {
   it('strips existing query params from the action URL and warns in development', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: true })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { onSubmit } = renderClientForm({ action: '/search?lang=en' })
+    const { onSubmit } = await renderClientForm({ action: '/search?lang=en' })
     const event = createSubmitEvent({
       entries: [['q', 'rue']],
     })
@@ -272,7 +280,7 @@ describe('Form client GET interception', () => {
 
   it('honors submitter formAction, formMethod, and submitter name/value', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: true })
-    const { onSubmit } = renderClientForm({ action: '/search', method: 'POST' })
+    const { onSubmit } = await renderClientForm({ action: '/search', method: 'POST' })
     const submitter = new FakeButtonElement({
       attributes: {
         formaction: '/search-alt',
@@ -304,7 +312,7 @@ describe('Form client GET interception', () => {
 
   it('falls back to appending submitter name/value when FormData submitter overload is unavailable', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: false })
-    const { onSubmit } = renderClientForm({ action: '/search' })
+    const { onSubmit } = await renderClientForm({ action: '/search' })
     const submitter = new FakeButtonElement({
       attributes: {
         formaction: '/search-alt',
@@ -334,7 +342,7 @@ describe('Form client GET interception', () => {
 
   it('does not intercept POST submissions without a submitter GET override', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: true })
-    const { onSubmit } = renderClientForm({ action: '/search', method: 'POST' })
+    const { onSubmit } = await renderClientForm({ action: '/search', method: 'POST' })
     const event = createSubmitEvent({
       entries: [['q', 'server-action']],
     })
@@ -348,7 +356,7 @@ describe('Form client GET interception', () => {
   it('strips submitter formAction query params and warns in development', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: true })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { onSubmit } = renderClientForm({ action: '/search' })
+    const { onSubmit } = await renderClientForm({ action: '/search' })
     const submitter = new FakeButtonElement({
       attributes: {
         formaction: '/search-alt?lang=fr',
@@ -379,7 +387,7 @@ describe('Form client GET interception', () => {
   it('does not intercept submitters with unsupported formTarget overrides', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: true })
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { onSubmit } = renderClientForm({ action: '/search' })
+    const { onSubmit } = await renderClientForm({ action: '/search' })
     const submitter = new FakeButtonElement({
       attributes: {
         formtarget: '_blank',
@@ -408,7 +416,7 @@ describe('Form client GET interception', () => {
     const userOnSubmit = vi.fn((event: { preventDefault: () => void }) => {
       event.preventDefault()
     })
-    const { onSubmit } = renderClientForm({ action: '/search', onSubmit: userOnSubmit })
+    const { onSubmit } = await renderClientForm({ action: '/search', onSubmit: userOnSubmit })
     const event = createSubmitEvent({ entries: [['q', 'rue']] })
 
     await onSubmit(event)
@@ -421,7 +429,7 @@ describe('Form client GET interception', () => {
 
   it('uses replace mode when `replace` prop is set', async () => {
     const { navigate } = installClientGlobals({ supportsSubmitter: true })
-    const { onSubmit } = renderClientForm({ action: '/search', replace: true })
+    const { onSubmit } = await renderClientForm({ action: '/search', replace: true })
     const event = createSubmitEvent({ entries: [['q', 'rue']] })
 
     await onSubmit(event)
@@ -503,7 +511,7 @@ describe('Form Pages Router soft navigation', () => {
     // the form and trigger a full page reload (`didMpaNavigate` -> true).
     // Calling preventDefault is the only thing that can stop that.
     installPagesGlobals()
-    const { onSubmit } = renderClientForm({ action: '/results' })
+    const { onSubmit } = await renderClientForm({ action: '/results' })
     const event = createSubmitEvent({ entries: [['q', 'rue']] })
 
     await onSubmit(event)
@@ -515,7 +523,7 @@ describe('Form Pages Router soft navigation', () => {
     // POST forms (e.g. server actions) must not be intercepted by the Form's
     // navigation logic — Rue's own form-action handling owns them.
     installPagesGlobals()
-    const { onSubmit } = renderClientForm({ action: '/results', method: 'POST' })
+    const { onSubmit } = await renderClientForm({ action: '/results', method: 'POST' })
     const event = createSubmitEvent({ entries: [['q', 'rue']] })
 
     await onSubmit(event)
@@ -525,13 +533,13 @@ describe('Form Pages Router soft navigation', () => {
 })
 
 describe('Form function action (client/server action)', () => {
-  it('passes a function `action` through for action handling', () => {
+  it('passes a function `action` through for action handling', async () => {
     // Mirrors Text.js's `with-function/action-client` test path:
     // the action function must be wired up to the rendered <form>, not
     // intercepted as a navigation. The shim's job is just to thread it
     // through; the runtime owns the FormData dispatch.
     const actionFn = vi.fn(async (_formData: FormData) => {})
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(
         Form,
         { action: actionFn as any, id: 'search-form' },

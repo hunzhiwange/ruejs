@@ -175,6 +175,24 @@ export function fixPreloadAs(html: string): string {
  * hints (stylesheets, modulepreloads) hoisted into `<head>`.
  */
 const HEAD_OPEN_RE = /<head\b[^>]*>/
+const HTML_OPEN_RE = /<html\b[^>]*>/
+const BODY_OPEN_RE = /<body\b[^>]*>/
+
+/**
+ * Compiled Rue layouts may omit an explicit `<head>` node. Browsers repair
+ * that shape, but the streaming injector needs a concrete head boundary for
+ * bootstrap, metadata, and beforeInteractive ordering. Once both the html and
+ * body openings are present we know the head was genuinely omitted, rather
+ * than merely split across chunks.
+ */
+export function ensureDocumentHead(html: string): string {
+  if (HEAD_OPEN_RE.test(html)) return html
+  const htmlOpen = HTML_OPEN_RE.exec(html)
+  const bodyOpen = BODY_OPEN_RE.exec(html)
+  if (!htmlOpen || !bodyOpen || bodyOpen.index < htmlOpen.index + htmlOpen[0].length) return html
+  const insertAt = htmlOpen.index + htmlOpen[0].length
+  return `${html.slice(0, insertAt)}<head></head>${html.slice(insertAt)}`
+}
 
 /**
  * Create the tick-buffered HTML transform that injects RSC scripts between
@@ -205,7 +223,7 @@ const HEAD_OPEN_RE = /<head\b[^>]*>/
  */
 export function createTickBufferedTransform(
   rscEmbed: RscEmbedTransform,
-  injectHTML: HtmlInsertion = '',
+  injectHTML: string | (() => string | Promise<string>) = '',
   injectAfterHeadOpenHTML: HtmlInsertion = '',
 ): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder()
@@ -215,13 +233,17 @@ export function createTickBufferedTransform(
   let preHeadInjected = false
   let buffered: string[] = []
   let timeoutId: ReturnType<typeof setTimeout> | null = null
-  const readInsertion = (): string => (typeof injectHTML === 'function' ? injectHTML() : injectHTML)
+  let flushWork = Promise.resolve()
+  const readInsertion = (): string | Promise<string> =>
+    typeof injectHTML === 'function' ? injectHTML() : injectHTML
   const readPreHeadInsertion = (): string =>
     typeof injectAfterHeadOpenHTML === 'function'
       ? injectAfterHeadOpenHTML()
       : injectAfterHeadOpenHTML
-  const emitInsertion = (controller: TransformStreamDefaultController<Uint8Array>): void => {
-    const insertion = readInsertion()
+  const emitInsertion = async (
+    controller: TransformStreamDefaultController<Uint8Array>,
+  ): Promise<void> => {
+    const insertion = await readInsertion()
     if (insertion) {
       controller.enqueue(encoder.encode(insertion))
     }
@@ -268,17 +290,22 @@ export function createTickBufferedTransform(
     }
   }
 
-  const flushBuffered = (controller: TransformStreamDefaultController<Uint8Array>): void => {
+  const flushBuffered = async (
+    controller: TransformStreamDefaultController<Uint8Array>,
+  ): Promise<void> => {
     if (buffered.length === 0) return
+    buffered = [ensureDocumentHead(buffered.join(''))]
     const fallbackPreHeadInsertion = extractFallbackBeforeInteractiveScript()
+    const batch = fixPreloadAs(buffered.join(''))
+    buffered = []
 
     if (injected && insertsPerFlush) {
       // Emit newly collected server-inserted HTML before the text Fizz HTML
       // batch so CSS-in-JS styles precede the elements they style.
-      emitInsertion(controller)
+      await emitInsertion(controller)
     }
 
-    for (const chunk of buffered) {
+    for (const chunk of [batch]) {
       let working = chunk
       if (!preHeadInjected) {
         const result = spliceAfterHeadOpen(working, fallbackPreHeadInsertion)
@@ -292,37 +319,32 @@ export function createTickBufferedTransform(
         if (headEnd !== -1) {
           const before = working.slice(0, headEnd)
           const after = working.slice(headEnd)
-          controller.enqueue(encoder.encode(before + readInsertion() + after))
+          controller.enqueue(encoder.encode(before + (await readInsertion()) + after))
           injected = true
           continue
         }
       }
       controller.enqueue(encoder.encode(working))
     }
-    buffered = []
   }
 
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      buffered.push(fixPreloadAs(decoder.decode(chunk, { stream: true })))
+      buffered.push(decoder.decode(chunk, { stream: true }))
 
       if (timeoutId !== null) return
 
       timeoutId = setTimeout(() => {
-        try {
-          flushBuffered(controller)
-
-          const rscScripts = rscEmbed.flush()
-          if (rscScripts) {
-            controller.enqueue(encoder.encode(rscScripts))
-          }
-        } catch {
-          // Stream was cancelled between when the timeout was registered and
-          // when it fired (e.g. client disconnected, health-check cancelled
-          // the response body). Ignore — the stream is already closed.
-        }
-
         timeoutId = null
+        flushWork = flushWork
+          .then(async () => {
+            await flushBuffered(controller)
+            const rscScripts = rscEmbed.flush()
+            if (rscScripts) controller.enqueue(encoder.encode(rscScripts))
+          })
+          .catch(error => {
+            controller.error(error)
+          })
       }, 0)
     },
 
@@ -332,13 +354,14 @@ export function createTickBufferedTransform(
         timeoutId = null
       }
 
-      flushBuffered(controller)
+      await flushWork
+      await flushBuffered(controller)
 
       if (!injected) {
-        emitInsertion(controller)
+        await emitInsertion(controller)
         injected = true
       } else if (insertsPerFlush) {
-        emitInsertion(controller)
+        await emitInsertion(controller)
       }
 
       const finalScripts = await rscEmbed.finalize()

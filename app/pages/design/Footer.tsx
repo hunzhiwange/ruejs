@@ -136,6 +136,9 @@ const socialButtons = [
   { key: 'community', Icon: CommunityIcon },
 ] as const
 
+const SocialIcon: FC<{ kind: (typeof socialButtons)[number]['key'] }> = props =>
+  props.kind === 'x' ? <XIcon /> : props.kind === 'video' ? <VideoIcon /> : <CommunityIcon />
+
 const serviceLinks = [
   { label: 'Branding' },
   { label: 'Design' },
@@ -375,9 +378,9 @@ const FooterDemo: FC = () => {
                 title="Community"
                 content={
                   <div className="grid grid-flow-col gap-4">
-                    {socialButtons.map(({ key, Icon }) => (
+                    {socialButtons.map(({ key }) => (
                       <button key={key} type="button" aria-label={key}>
-                        <Icon />
+                        <SocialIcon kind={key} />
                       </button>
                     ))}
                   </div>
@@ -540,9 +543,9 @@ const FooterDemo: FC = () => {
                   title: 'Social',
                   content: (
                     <div className="grid grid-flow-col gap-4">
-                      {socialButtons.map(({ key, Icon }) => (
+                      {socialButtons.map(({ key }) => (
                         <button key={key} type="button" aria-label={key}>
-                          <Icon />
+                          <SocialIcon kind={key} />
                         </button>
                       ))}
                     </div>
@@ -598,9 +601,9 @@ const FooterDemo: FC = () => {
               <nav>
                 <h6 className="footer-title">Social</h6>
                 <div className="grid grid-flow-col gap-4">
-                  {socialButtons.map(({ key, Icon }) => (
+                  {socialButtons.map(({ key }) => (
                     <button key={key} type="button" aria-label={key}>
-                      <Icon />
+                      <SocialIcon kind={key} />
                     </button>
                   ))}
                 </div>
@@ -676,9 +679,9 @@ const FooterDemo: FC = () => {
               </aside>
               <nav>
                 <div className="grid grid-flow-col gap-4">
-                  {socialButtons.map(({ key, Icon }) => (
+                  {socialButtons.map(({ key }) => (
                     <a key={key} aria-label={key}>
-                      <Icon />
+                      <SocialIcon kind={key} />
                     </a>
                   ))}
                 </div>
@@ -719,9 +722,9 @@ const FooterDemo: FC = () => {
               </nav>
               <nav>
                 <div className="grid grid-flow-col gap-4">
-                  {socialButtons.map(({ key, Icon }) => (
+                  {socialButtons.map(({ key }) => (
                     <button key={key} type="button" aria-label={key}>
-                      <Icon />
+                      <SocialIcon kind={key} />
                     </button>
                   ))}
                 </div>
@@ -774,9 +777,9 @@ const FooterDemo: FC = () => {
                 </aside>
                 <nav className="md:place-self-center md:justify-self-end">
                   <div className="grid grid-flow-col gap-4">
-                    {socialButtons.map(({ key, Icon }) => (
+                    {socialButtons.map(({ key }) => (
                       <a key={key} aria-label={key}>
-                        <Icon />
+                        <SocialIcon kind={key} />
                       </a>
                     ))}
                   </div>

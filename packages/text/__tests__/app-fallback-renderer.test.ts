@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
-import { createAppFallbackRenderer } from '../src/server/app-fallback-renderer.js'
+import { createAppFallbackRenderer } from '../src/server/app-fallback-renderer.js?text-ssr'
 import type { AppElements } from '../src/server/app-elements.js'
 import {
   createElement,
@@ -389,7 +389,9 @@ describe('app fallback renderer default global error UI', () => {
     // Server errors do not render the "Back" button.
     expect(html).not.toContain('>Back<')
     // Digest footer "ERROR <digest>" — the test uses /ERROR \w+/.
-    expect(html).toMatch(/ERROR\s+1234567890/)
+    expect(new DOMParser().parseFromString(html, 'text/html').body.textContent).toMatch(
+      /ERROR\s+1234567890/,
+    )
   })
 
   it('prefers a user-defined global error module over the default', async () => {
@@ -418,7 +420,8 @@ describe('app fallback renderer default global error UI', () => {
     // user module is configured. Since the helper does not currently allow
     // overriding globalErrorModule, this assertion is encoded by re-creating
     // the renderer locally.
-    const { createAppFallbackRenderer } = await import('../src/server/app-fallback-renderer.js')
+    const { createAppFallbackRenderer } =
+      await import('../src/server/app-fallback-renderer.js?text-ssr')
     const localRenderer = createAppFallbackRenderer({
       basePath: '',
       clearRequestContext() {},

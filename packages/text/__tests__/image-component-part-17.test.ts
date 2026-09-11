@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vite-plus/test'
 import { createElement, renderToString } from './rue-ssr-test-utils.js'
-import Image, { getImageProps, type StaticImageData } from '../src/shims/image.js'
+import Image, { getImageProps, type StaticImageData } from '../src/shims/image.js?text-ssr'
 
 /** Helper: expected optimization URL matching what the image shim produces. */
 function optUrl(src: string, w: number, q = 75): string {
@@ -42,19 +42,15 @@ describe('dangerouslyAllowLocalIP private-IP guard', () => {
     // Module-level constants in image.tsx are evaluated at import time from
     // process.env, so we must re-evaluate the module after changing env.
     vi.resetModules()
-    const { default: PrivateIpImage } = await import('../src/shims/image.js')
+    const { default: PrivateIpImage } = await import('../src/shims/image.js?text-ssr')
 
     const html = await renderToString(
-      createElement(
-        'div',
-        null,
-        createElement(PrivateIpImage, {
-          alt: 'private ip',
-          src: 'http://127.0.0.1/photo.jpg',
-          width: 400,
-          height: 300,
-        }),
-      ),
+      createElement(PrivateIpImage, {
+        alt: 'private ip',
+        src: 'http://127.0.0.1/photo.jpg',
+        width: 400,
+        height: 300,
+      }),
     )
     // Production: blocked → no img tag rendered
     expect(html).not.toContain('<img')
@@ -66,7 +62,7 @@ describe('dangerouslyAllowLocalIP private-IP guard', () => {
     process.env.__TEXT_IMAGE_DANGEROUSLY_ALLOW_LOCAL_IP = 'false'
 
     vi.resetModules()
-    const { getImageProps: privateIpGetImageProps } = await import('../src/shims/image.js')
+    const { getImageProps: privateIpGetImageProps } = await import('../src/shims/image.js?text-ssr')
 
     const { props } = privateIpGetImageProps({
       alt: 'private ip',
@@ -85,7 +81,7 @@ describe('dangerouslyAllowLocalIP private-IP guard', () => {
     // Module-level constants in image.tsx are evaluated at import time from
     // process.env, so we must re-evaluate the module after changing env.
     vi.resetModules()
-    const { default: PrivateIpImage } = await import('../src/shims/image.js')
+    const { default: PrivateIpImage } = await import('../src/shims/image.js?text-ssr')
 
     const html = await renderToString(
       createElement(PrivateIpImage, {
@@ -107,7 +103,7 @@ describe('dangerouslyAllowLocalIP private-IP guard', () => {
     // Module-level constants in image.tsx are evaluated at import time from
     // process.env, so we must re-evaluate the module after changing env.
     vi.resetModules()
-    const { default: PrivateIpImage } = await import('../src/shims/image.js')
+    const { default: PrivateIpImage } = await import('../src/shims/image.js?text-ssr')
 
     const html = await renderToString(
       createElement(PrivateIpImage, {

@@ -1,6 +1,5 @@
 import type { FC, PropsWithChildren } from '../rue'
 import type { BaseTransitionProps } from './BaseTransition'
-import { TransitionGroup as compiledTransitionGroup } from '../compiler-runtime/builtins'
 
 export type TransitionGroupProps = PropsWithChildren<
   BaseTransitionProps & {
@@ -10,4 +9,6 @@ export type TransitionGroupProps = PropsWithChildren<
 >
 
 /** Compiler-recognized keyed-range transition coordinator. */
-export const TransitionGroup = compiledTransitionGroup as unknown as FC<TransitionGroupProps>
+export const TransitionGroup: FC<TransitionGroupProps> = () => {
+  throw new Error('[rue] TransitionGroup requires compilation')
+}

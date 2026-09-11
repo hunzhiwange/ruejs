@@ -1,9 +1,10 @@
 import { useApp } from '@rue-js/rue'
+import { App } from './App'
 import { createApp } from './main'
 import './style.css'
 
-const { app, router } = createApp()
+const { router } = createApp()
 
 router.isReady().then(() => {
-  useApp(app).use(router).mount('#app')
+  useApp(App).use(router).mount('#app')
 })

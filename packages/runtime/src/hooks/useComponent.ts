@@ -6,10 +6,9 @@
 - 占位渲染：提供可覆盖的 Loading 与 Error 组件，满足不同产品形态的占位需求。
  * - 固定渲染：使用 vapor + renderAnchor，内部通过 display: contents 容器承载稳定锚点，既能正确卸载，又不额外产生布局盒。
 */
-import rue, { FC } from '../rue'
-import { appendChild, createComment, createElement, getParentNode } from '../dom'
+import type { FC } from '../runtime-types'
+import { appendChild, createComment, createElement } from '../compiler-runtime/dom.browser'
 import { signal, untrack } from '../reactivity'
-import { createCompiledDynamic } from '../compiled-dynamic'
 import { _$createComponent } from '../compiled-component-call'
 import { _$withCompiledPropsUpdater } from '../compiled-component'
 import { _$compiledRoot } from '../compiled-root'
@@ -513,13 +512,16 @@ export function useComponent<P = any>(
   const { loader, loading: loadingComponent, error: errorComponent } = normalized
 
   return (props: any) => {
-    const appRue = rue as any
+    const handleError = (error: unknown) =>
+      queueMicrotask(() => {
+        throw error
+      })
     let slot = asyncComponentCache.get(loader as any)
     if (!slot) {
       // 初始化状态槽位：目标组件与错误各自为独立信号
-      const component = signal<FC<P> | null>(null, {}, true)
-      const err = signal<any>(null, {}, true)
-      const loadingVisible = signal<boolean>(false, {}, true)
+      const component = signal<FC<P> | null>(null)
+      const err = signal<any>(null)
+      const loadingVisible = signal<boolean>(false)
       const setComponentState = (next: FC<P> | null) => {
         if (component.get() !== next) {
           component.set(next)
@@ -580,7 +582,7 @@ export function useComponent<P = any>(
           setErrorState(loadError)
           const activeContexts = (slot as any).activeContexts as Set<object> | undefined
           if (activeContexts?.size) {
-            appRue.handleError(loadError, null)
+            handleError(loadError)
           } else {
             ;(slot as any).started = false
           }
@@ -679,8 +681,7 @@ export function useComponent<P = any>(
       }
 
       /** 加载占位组件 */
-      const Loading: FC<any> =
-        loadingComponent ?? (() => createCompiledDynamic('div', { children: '' }))
+      const Loading: FC<any> = loadingComponent ?? (() => null)
 
       /** 错误占位组件 */
       const ErrorComp: FC<any> =
@@ -689,7 +690,7 @@ export function useComponent<P = any>(
           // 提取错误消息：优先 message 字段；其次字符串化；兜底 'Error'
           const err = p && p.error
           const msg = err && err.message ? err.message : typeof err === 'string' ? err : 'Error'
-          return createCompiledDynamic('div', { children: msg })
+          return msg
         })
       // 缓存槽位，避免重复初始化
       slot = {
@@ -746,31 +747,31 @@ export function useComponent<P = any>(
     if (isServerRendering()) {
       const e = err.get()
       if (e) {
-        return _$createComponent(ErrorComp, { error: e })
+        return _$createComponent(ErrorComp as any, { error: e })
       }
 
       const comp = component.get()
       if (comp) {
-        return _$createComponent(comp as FC<P>, props)
+        return _$createComponent(comp as any, props)
       }
 
       registerServerPendingDependency((slot as any).promise)
       if (hasCustomLoading && loadingVisible.get()) {
-        return _$createComponent(Loading, {})
+        return _$createComponent(Loading as any, {})
       }
       const pending = (slot as any).promise as Promise<unknown> | null
       if (pending) {
         return pending.then(() => {
           const loadError = err.get()
-          if (loadError) return _$createComponent(ErrorComp, { error: loadError })
+          if (loadError) return _$createComponent(ErrorComp as any, { error: loadError })
           const loaded = component.get()
-          return loaded ? _$createComponent(loaded as FC<P>, props) : null
-        }) as ReturnType<FC<P>>
+          return loaded ? _$createComponent(loaded as any, props) : null
+        }) as unknown as ReturnType<FC<P>>
       }
       return null
     }
 
-    const propsSignal = signal<any>(props, {}, true)
+    const propsSignal = signal<any>(props)
     const mountKey = {}
     const root = _$compiledRoot(parent => {
       if (parent == null) throw new Error('[rue] async component requires a mount parent')
@@ -789,7 +790,7 @@ export function useComponent<P = any>(
         while (node) {
           const boundary = node[RUE_SUSPENSE_BOUNDARY_KEY] as SuspenseBoundary | undefined
           if (boundary) return boundary
-          node = getParentNode(node) as any
+          node = node.parentNode
         }
         return null
       }
@@ -812,7 +813,7 @@ export function useComponent<P = any>(
               ;((slot as any).hydrationCleanups as Set<() => void>).add(cleanup)
             }
           } catch (error: any) {
-            appRue.handleError(error, null)
+            handleError(error)
             startOnce()
           }
         }
@@ -833,10 +834,10 @@ export function useComponent<P = any>(
 
         mounted?.dispose()
         mounted = undefined
-        if (currentError) mounted = _$createComponent(ErrorComp, { error: currentError })
+        if (currentError) mounted = _$createComponent(ErrorComp as any, { error: currentError })
         else if (currentComponent) {
-          mounted = _$createComponent(currentComponent as FC<P>, { ...curProps, key: mountKey })
-        } else if (showLoading) mounted = _$createComponent(Loading, {})
+          mounted = _$createComponent(currentComponent as any, { ...curProps, key: mountKey })
+        } else if (showLoading) mounted = _$createComponent(Loading as any, {})
         if (!mounted) return
 
         const handle = mounted
@@ -864,7 +865,7 @@ export function useComponent<P = any>(
           hydrationCleanup()
         }
       })
-      return container as any
+      return [container, container]
     })
 
     return _$withCompiledPropsUpdater(root, nextProps => propsSignal.set(nextProps))

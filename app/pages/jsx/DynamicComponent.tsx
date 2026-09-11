@@ -1,4 +1,4 @@
-import { Component, type FC, ref, useApp } from '@rue-js/rue'
+import { Component, type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -57,25 +57,14 @@ const RegisteredNotice: FC<{ title: string; detail: string }> = props => (
   </section>
 )
 
-let didRegisterDynamicDemoComponents = false
-
-const ensureDynamicDemoComponentsRegistered = () => {
-  if (didRegisterDynamicDemoComponents) {
-    return
-  }
-
-  useApp(() => null)
-    .component('RegisteredMetric', RegisteredMetric as FC<any>)
-    .component('RegisteredNotice', RegisteredNotice as FC<any>)
-
-  didRegisterDynamicDemoComponents = true
-}
+const NativeArticle: FC<{ className?: string }> = props => (
+  <article className={props.className}>{props.children}</article>
+)
 
 const demoCode = `import {
   Component,
   type FC,
   ref,
-  useApp,
 } from '@rue-js/rue';
 
 const SalesCard: FC<{ title: string; value: string; detail: string }> = (props) => (
@@ -116,17 +105,6 @@ const Demo: FC = () => {
   const shell = ref<'native' | 'card' | 'notice'>('native');
   const registryMode = ref<'metric' | 'notice'>('metric');
 
-  useApp(() => null)
-    .component('RegisteredMetric', RegisteredMetric as FC<any>)
-    .component('RegisteredNotice', RegisteredNotice as FC<any>);
-
-  const resolveType = () =>
-    shell.value === 'native'
-      ? 'article'
-      : shell.value === 'card'
-        ? SalesCard
-        : StatusStrip;
-
   const resolveProps = () =>
     shell.value === 'native'
       ? {
@@ -145,12 +123,17 @@ const Demo: FC = () => {
 
   return (
     <div className="grid gap-6">
-      <Component is={resolveType()} {...resolveProps()}>
+      <Component
+        is={shell.value}
+        registry={{ native: NativeArticle, card: SalesCard, notice: StatusStrip }}
+        {...resolveProps()}
+      >
         <span className="badge badge-outline badge-sm">children 已透传</span>
       </Component>
 
       <Component
-        is={registryMode.value === 'metric' ? 'RegisteredMetric' : 'RegisteredNotice'}
+        is={registryMode.value}
+        registry={{ metric: RegisteredMetric, notice: RegisteredNotice }}
         title="运行时注册"
         value="CardView"
         detail="通过字符串名解析到已注册组件"
@@ -164,24 +147,10 @@ const Demo: FC = () => {
 export default Demo;`
 
 const DynamicComponent: FC = () => {
-  if (!import.meta.env.SSR) {
-    ensureDynamicDemoComponentsRegistered()
-  }
-
   const activeTab = ref<'preview' | 'code'>('preview')
   const renderTarget = ref<RenderTarget>('native')
   const tone = ref<SurfaceTone>('primary')
   const registryTarget = ref<RegistryTarget>('metric')
-
-  const resolveDynamicType = () => {
-    if (renderTarget.value === 'native') {
-      return 'article'
-    }
-    if (renderTarget.value === 'card') {
-      return SalesCard
-    }
-    return StatusStrip
-  }
 
   const resolveDynamicProps = () => {
     if (renderTarget.value === 'native') {
@@ -204,14 +173,6 @@ const DynamicComponent: FC = () => {
       detail: '这里的 is 已从原生标签切到另一个组件定义',
     }
   }
-  const resolveRegistryType = () => {
-    if (import.meta.env.SSR) {
-      return registryTarget.value === 'metric' ? RegisteredMetric : RegisteredNotice
-    }
-
-    return registryTarget.value === 'metric' ? 'RegisteredMetric' : 'RegisteredNotice'
-  }
-
   return (
     <SidebarPlayground>
       <h1 className="text-5xl font-semibold mb-4 md:mb-4">动态组件（Component）</h1>
@@ -302,7 +263,15 @@ const DynamicComponent: FC = () => {
 
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
                 <div className="rounded-box border border-dashed border-base-300 p-4 min-h-44">
-                  <Component is={resolveDynamicType()} {...resolveDynamicProps()}>
+                  <Component
+                    is={renderTarget.value}
+                    registry={{
+                      native: NativeArticle,
+                      card: SalesCard,
+                      notice: StatusStrip,
+                    }}
+                    {...resolveDynamicProps()}
+                  >
                     <span className="badge badge-outline badge-sm">children 已透传</span>
                   </Component>
                 </div>
@@ -329,11 +298,10 @@ const DynamicComponent: FC = () => {
             <section className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold">2. 运行时注册字符串组件名</h2>
+                  <h2 className="text-xl font-semibold">2. 编译期有限组件注册表</h2>
                   <p className="text-sm opacity-75">
-                    下面这个小区域直接在当前页面里使用导出的 {'<Component>'}，并通过
-                    useApp().component('RegisteredMetric', RegisteredMetric) 把字符串名注册到当前
-                    runtime。
+                    下面这个小区域为 {'<Component>'} 显式提供有限 registry，编译器可以提前确定所有
+                    可能的组件工厂。
                   </p>
                 </div>
 
@@ -360,13 +328,14 @@ const DynamicComponent: FC = () => {
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
                 <div className="rounded-box border border-dashed border-base-300 p-4 min-h-40">
                   <Component
-                    is={resolveRegistryType()}
+                    is={registryTarget.value}
+                    registry={{ metric: RegisteredMetric, notice: RegisteredNotice }}
                     title="运行时注册"
                     value="CardView"
                     detail={
                       registryTarget.value === 'metric'
-                        ? "通过 useApp().component('RegisteredMetric', RegisteredMetric) 注册后，字符串名会被解析成组件定义"
-                        : '切到另一个已注册组件名，仍然走同一个动态入口'
+                        ? 'metric 键在有限 registry 中解析到 RegisteredMetric'
+                        : 'notice 键在同一个有限 registry 中解析到 RegisteredNotice'
                     }
                   >
                     <span className="badge badge-outline badge-sm">children 一样会透传</span>
@@ -375,12 +344,9 @@ const DynamicComponent: FC = () => {
 
                 <div className="rounded-box border border-base-300 bg-base-200 p-4 text-sm space-y-2">
                   <div>
-                    这里不再额外挂一个子应用，只把字符串组件名注册到当前 runtime，再直接渲染{' '}
-                    {'<Component>'}。
+                    registry 直接写在 {'<Component>'} 上，不依赖全局字符串注册或运行时工厂查找。
                   </div>
-                  <div>
-                    因为已经注册了字符串名，所以 Component 会先查注册表，再决定最终渲染哪个组件。
-                  </div>
+                  <div>编译器会把 registry 降为有限分支，再决定最终渲染哪个组件。</div>
                   <div>这也顺带验证了字符串名路径下的 children 透传。</div>
                 </div>
               </div>

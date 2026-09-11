@@ -6,16 +6,16 @@ const source = `import { signal, computed } from '@rue-js/rue'
 
 export default function Demo() {
   const state = signal({ count: 1 })
-  const doubled = computed(() => (state.getPath('count') as number) * 2)
+  const doubled = computed(() => state.get().count * 2)
   return <div>
-      <p>路径值：{(state.getPath('count') as number)}，两倍：{doubled.get()}</p>
-      <button className="btn" onClick={() => state.updatePath('count', n => Number(n) + 1)}>路径 + 1</button>
+      <p>根值：{state.get().count}，两倍：{doubled.get()}</p>
+      <button className="btn" onClick={() => state.update(value => ({ ...value, count: value.count + 1 }))}>计数 + 1</button>
   </div>
 }`
 
 const IsProxy: FC = () => {
   const state = signal({ count: 1 })
-  const doubled = computed(() => (state.getPath('count') as number) * 2)
+  const doubled = computed(() => state.get().count * 2)
   return (
     <SidebarPlayground>
       <h1 className="text-4xl font-semibold">无代理状态模型</h1>
@@ -25,10 +25,13 @@ const IsProxy: FC = () => {
       </p>
       <div className="card bg-base-100 p-6 space-y-4">
         <p>
-          路径值：{state.getPath('count') as number}，两倍：{doubled.get()}
+          根值：{state.get().count}，两倍：{doubled.get()}
         </p>
-        <button className="btn" onClick={() => state.updatePath('count', n => Number(n) + 1)}>
-          路径 + 1
+        <button
+          className="btn"
+          onClick={() => state.update(value => ({ ...value, count: value.count + 1 }))}
+        >
+          计数 + 1
         </button>
       </div>
       <Code lang="tsx" code={source} />

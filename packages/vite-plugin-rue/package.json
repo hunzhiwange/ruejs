@@ -34,6 +34,9 @@
     },
     "./*": "./*"
   },
+  "scripts": {
+    "test": "cd ../.. && pnpm exec vitest run --project unit packages/vite-plugin-rue/__tests__/"
+  },
   "dependencies": {
     "@rue-js/rue": "workspace:*",
     "@rue-js/swc-plugin-rue": "workspace:*"

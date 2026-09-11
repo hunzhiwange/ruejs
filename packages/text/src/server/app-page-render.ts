@@ -1,3 +1,8 @@
+import {
+  isAppServerPlan,
+  readAppServerPlanLayoutErrorIndex,
+  startAppServerPlan,
+} from './app-server-tree.js'
 import type { CachedAppPageValue } from '../shims/cache.js'
 import type { RootParams } from '../shims/root-params.js'
 import { runWithFetchDedupe } from '../shims/fetch-cache.js'
@@ -55,10 +60,8 @@ import {
 import type { TextRscRenderOptions } from './app-render-adapter.js'
 import type { AppRscFormState } from './app-rsc-form-state.js'
 import type { AppSsrPayloadDecoder } from './app-ssr-payload-reader-core.js'
-import { adaptAppServerRenderable } from './app-server-tree.js'
 import { isRueRenderableHandle, type TextRenderable } from './renderable.js'
 import { readStreamAsText } from '../utils/text-stream.js'
-import { cloneServerProtocolElement, isServerProtocolElement } from './element-protocol.js'
 
 type AppPageBoundaryOnError = (
   error: unknown,
@@ -244,63 +247,6 @@ function createAppPageArtifactCompatibility(
   })
 }
 
-async function prepareRueRenderablesForRsc(
-  element: TextRenderable | Readonly<Record<string, TextRenderable>>,
-): Promise<TextRenderable | Readonly<Record<string, TextRenderable>>> {
-  if (!isAppElementsRecord(element)) {
-    return prepareRueRenderableValueForRsc(element)
-  }
-
-  const entries = Object.entries(element)
-  if (!entries.some(([, value]) => containsRueRenderableHandle(value))) return element
-
-  const textElement: Record<string, TextRenderable> = {
-    ...(element as Record<string, TextRenderable>),
-  }
-  for (const [key, value] of entries) {
-    if (containsRueRenderableHandle(value)) {
-      textElement[key] = await prepareRueRenderableValueForRsc(value as TextRenderable)
-    }
-  }
-  return textElement
-}
-
-function containsRueRenderableHandle(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(containsRueRenderableHandle)
-  if (isServerProtocolElement(value)) {
-    const props = (value as { props?: Record<string, unknown> | null }).props
-    if (!props) return false
-    return Object.values(props).some(containsRueRenderableHandle)
-  }
-  return isRueRenderableHandle(value)
-}
-
-async function prepareRueRenderableValueForRsc(value: TextRenderable): Promise<TextRenderable> {
-  if (Array.isArray(value)) {
-    return Promise.all(value.map(item => prepareRueRenderableValueForRsc(item as TextRenderable)))
-  }
-  if (isServerProtocolElement(value)) {
-    const props = ((value as { props?: Record<string, unknown> | null }).props ?? {}) as Record<
-      string,
-      unknown
-    >
-    const textProps: Record<string, unknown> = {}
-    let changed = false
-    for (const [key, propValue] of Object.entries(props)) {
-      if (containsRueRenderableHandle(propValue)) {
-        textProps[key] = await prepareRueRenderableValueForRsc(propValue as TextRenderable)
-        changed = true
-      } else {
-        textProps[key] = propValue
-      }
-    }
-    return changed ? (cloneServerProtocolElement(value, textProps) as TextRenderable) : value
-  }
-  return isRueRenderableHandle(value)
-    ? ((await adaptAppServerRenderable(value)) as TextRenderable)
-    : value
-}
-
 /**
  * Wraps an RSC response body to report invalid dynamic usage errors after the
  * stream is fully consumed. In dev mode, errors from cookies()/headers() inside
@@ -415,7 +361,7 @@ export async function renderAppPageLifecycle(
     options.element,
     options.routePattern,
   )
-  const rscElement = await prepareRueRenderablesForRsc(options.element)
+  const rscElement = options.element
   const rootBoundaryId = artifactCompatibility?.rootBoundaryId ?? null
   const renderEpoch = artifactCompatibility?.renderEpoch ?? null
   const rscOutputScope = createAppPageRscOutputScope({
@@ -450,6 +396,12 @@ export async function renderAppPageLifecycle(
     ...(artifactCompatibility ? { artifactCompatibility } : {}),
     renderObservation: payloadRenderObservation,
   })
+  const outgoingRouteId =
+    isAppElementsRecord(outgoingElement) &&
+    typeof outgoingElement[AppElementsWire.keys.route] === 'string'
+      ? AppElementsWire.readMetadata(outgoingElement).routeId
+      : null
+  const outgoingRoutePlan = outgoingRouteId ? outgoingElement[outgoingRouteId] : undefined
   const compileEnd = options.isProduction ? undefined : performance.now()
   const rscErrorTracker = createAppPageRscErrorTracker(baseOnError)
   // Defensive wrap for standalone callers. In the normal dispatch path this is
@@ -459,11 +411,35 @@ export async function renderAppPageLifecycle(
   // standalone call would establish here is only effective if the caller has
   // an outer runWithRequestContext / runWithFetchDedupe scope keeping the ALS
   // store alive across that consumption.
+  const compiledSsrHandler = await options.loadSsrHandler()
+  compiledSsrHandler.prepareCompiledReferences?.()
   const rscStream = runWithFetchDedupe(() =>
     options.renderToReadableStream(outgoingElement, {
       onError: rscErrorTracker.onRenderError,
+      formState: options.formState,
+      nonce: options.scriptNonce,
     }),
   )
+  if (isAppServerPlan(outgoingRoutePlan)) {
+    const execution = await startAppServerPlan(outgoingRoutePlan, {
+      formState: options.formState as
+        | import('@rue-js/runtime/internal/ssr').ActionFormState
+        | undefined,
+      nonce: options.scriptNonce,
+      onError: rscErrorTracker.onRenderError,
+    })
+    try {
+      await execution.stream.shellReady
+    } catch (error) {
+      const specialError = resolveAppPageSpecialError(error)
+      if (specialError) {
+        const layoutIndex = readAppServerPlanLayoutErrorIndex(error)
+        return layoutIndex === null
+          ? options.renderPageSpecialError(specialError)
+          : options.renderLayoutSpecialError(specialError, layoutIndex)
+      }
+    }
+  }
 
   let revalidateSeconds = options.revalidateSeconds
   let expireSeconds = options.expireSeconds
@@ -596,7 +572,17 @@ export async function renderAppPageLifecycle(
       return options.renderErrorBoundaryResponse(error)
     },
     async renderHtmlStream() {
-      const ssrHandler = await options.loadSsrHandler()
+      if (isAppServerPlan(outgoingRoutePlan)) {
+        const execution = await startAppServerPlan(outgoingRoutePlan, {
+          formState: options.formState as
+            | import('@rue-js/runtime/internal/ssr').ActionFormState
+            | undefined,
+          nonce: options.scriptNonce,
+          onError: rscErrorTracker.onRenderError,
+        })
+        await execution.stream.shellReady
+      }
+      const ssrHandler = compiledSsrHandler
       return renderAppPageHtmlStream({
         capturedRscDataRef,
         fontData,

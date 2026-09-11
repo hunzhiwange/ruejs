@@ -1,13 +1,11 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
+import { SpaceCompactItem, SpaceItem } from '..'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Space } from '@rue-js/design'
+import Space from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
-
-const resetActiveRuntime = () => {
-  ;(globalThis as any).__rue_active = (globalThis as any).__rue
-}
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -16,14 +14,15 @@ afterEach(() => {
 describe('Space', () => {
   it('renders a horizontal space container with preset gap', async () => {
     const container = mountContainer()
-    resetActiveRuntime()
 
-    render(
-      <Space className="custom-space" data-testid="space-root">
-        <button className="btn">One</button>
-        <button className="btn">Two</button>
-      </Space>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Space className="custom-space" data-testid="space-root">
+          <button className="btn">One</button>
+          <button className="btn">Two</button>
+        </Space>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -38,14 +37,15 @@ describe('Space', () => {
 
   it('supports vertical orientation, tuple gap and wrapping', async () => {
     const container = mountContainer()
-    resetActiveRuntime()
 
-    render(
-      <Space vertical size={[24, 12]} wrap data-testid="space-vertical">
-        <span>Alpha</span>
-        <span>Beta</span>
-      </Space>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Space vertical size={[24, 12]} wrap data-testid="space-vertical">
+          <span>Alpha</span>
+          <span>Beta</span>
+        </Space>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -60,15 +60,20 @@ describe('Space', () => {
 
   it('renders separators between items', async () => {
     const container = mountContainer()
-    resetActiveRuntime()
 
-    render(
-      <Space separator="/" data-testid="space-separator">
-        <span>Docs</span>
-        <span>API</span>
-        <span>Theme</span>
-      </Space>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Space data-testid="space-separator">
+          <SpaceItem showSeparator separator="/">
+            Docs
+          </SpaceItem>
+          <SpaceItem showSeparator separator="/">
+            API
+          </SpaceItem>
+          <SpaceItem>Theme</SpaceItem>
+        </Space>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -81,9 +86,10 @@ describe('Space', () => {
 
   it('supports custom tags and block layout', async () => {
     const container = mountContainer()
-    resetActiveRuntime()
 
-    render(<Space as="section" block id="space-block" data-testid="space-block" />, container)
+    mountTestApp(container, () =>
+      render(<Space as="section" block id="space-block" data-testid="space-block" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="space-block"]') as HTMLElement
@@ -98,15 +104,22 @@ describe('Space', () => {
 describe('Space.Compact', () => {
   it('merges adjacent child radii in horizontal groups', async () => {
     const container = mountContainer()
-    resetActiveRuntime()
 
-    render(
-      <Space.Compact data-testid="compact-root">
-        <button className="btn">Left</button>
-        <button className="btn">Middle</button>
-        <button className="btn">Right</button>
-      </Space.Compact>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Space.Compact data-testid="compact-root">
+          <SpaceCompactItem index={0} total={3}>
+            <button className="btn">Left</button>
+          </SpaceCompactItem>
+          <SpaceCompactItem index={1} total={3}>
+            <button className="btn">Middle</button>
+          </SpaceCompactItem>
+          <SpaceCompactItem index={2} total={3}>
+            <button className="btn">Right</button>
+          </SpaceCompactItem>
+        </Space.Compact>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -122,14 +135,19 @@ describe('Space.Compact', () => {
 
   it('supports vertical block groups and compact wrappers', async () => {
     const container = mountContainer()
-    resetActiveRuntime()
 
-    render(
-      <Space.Compact vertical block size="small" data-testid="compact-vertical">
-        <input className="input" value="Search" />
-        <button className="btn">Run</button>
-      </Space.Compact>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Space.Compact vertical block size="small" data-testid="compact-vertical">
+          <SpaceCompactItem index={0} total={2}>
+            <input className="input" value="Search" />
+          </SpaceCompactItem>
+          <SpaceCompactItem index={1} total={2}>
+            <button className="btn">Run</button>
+          </SpaceCompactItem>
+        </Space.Compact>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

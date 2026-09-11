@@ -143,7 +143,7 @@ fn dispatches_fragment_expr_nested_element_and_ignores_spread_children() {
     assert!(out.contains("_$createComment(\"rue:children:anchor\")"));
     assert!(out.contains("_$mountCompiledSlotAt({parent:root,before:_list1}"), "{out}");
     assert!(out.contains("_$createComment(\"rue:slot:anchor\")"));
-    assert!(out.contains("renderAnchor(__slot,root,_list2)"), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt("), "{out}");
     assert!(out.contains("_$appendChild(root,_$createTextNode(\"frag\"));"));
     assert!(out.contains("_$createElement(\"span\",root)"));
     assert!(out.contains("_$appendChild(_el1,_$createTextNode(\"child\"));"));
@@ -241,16 +241,16 @@ fn classifies_only_synchronous_scalar_children_for_direct_binding() {
 }
 
 #[test]
-fn reports_explicit_roots_for_compiler_proven_element_and_fragment_blocks() {
+fn reports_closed_ranges_for_compiler_proven_element_and_fragment_blocks() {
     let mut element_vt = new_vt();
     let element = parse_jsx_element("<section><span>child</span></section>");
     let element_out = compact(&emit_expr(compiled_block_to_root_expr(
         compiled_scalar_element_to_block(&mut element_vt, &element),
     )));
 
-    assert!(element_out.contains("__rue_compiled_host:_root"), "{element_out}");
-    assert!(element_out.contains("__rue_compiled_roots:[_root]"), "{element_out}");
-    assert!(element_out.contains("__rue_compiled_explicit_roots:true"), "{element_out}");
+    assert!(element_out.contains("return[_root,_root]"), "{element_out}");
+    assert!(!element_out.contains("__rue_compiled_host"), "{element_out}");
+    assert!(element_out.contains("return[_root,_root]"), "{element_out}");
 
     let mut fragment_vt = new_vt();
     let Expr::JSXFragment(fragment) = parse_expr("<><span>one</span><strong>two</strong></>", true)
@@ -261,9 +261,9 @@ fn reports_explicit_roots_for_compiler_proven_element_and_fragment_blocks() {
         compiled_fragment_to_block(&mut fragment_vt, &fragment),
     )));
 
-    assert!(fragment_out.contains("__rue_compiled_host:_root"), "{fragment_out}");
-    assert!(fragment_out.contains("__rue_compiled_roots:[_root]"), "{fragment_out}");
-    assert!(fragment_out.contains("__rue_compiled_explicit_roots:true"), "{fragment_out}");
+    assert!(fragment_out.contains("return[_root.firstChild,_root.lastChild]"), "{fragment_out}");
+    assert!(!fragment_out.contains("Array.from"), "{fragment_out}");
+    assert!(fragment_out.contains("return[_root.firstChild,_root.lastChild]"), "{fragment_out}");
 }
 
 #[test]
@@ -317,4 +317,30 @@ fn keeps_different_sources_and_effectful_tests_as_independent_branches() {
         &mut effectful_stmts,
     );
     assert_ne!(compact(&emit_stmts(effectful_stmts)).matches("_$compiledBranch(").count(), 1);
+}
+
+fn reject_unsafe_child(source: &str) {
+    let mut vt = new_vt();
+    let el = parse_jsx_element(source);
+    emit_element_children(&mut vt, &crate::emit::ident("root"), &el.children, &mut Vec::new());
+}
+
+#[test]
+#[should_panic(expected = "children")]
+fn rejects_object_children() {
+    reject_unsafe_child("<div>{({ arbitrary: true })}</div>");
+}
+
+#[test]
+#[should_panic(expected = "children")]
+fn rejects_mixed_node_object_children() {
+    reject_unsafe_child("<div>{[document.createTextNode('x'), { arbitrary: true }]}</div>");
+}
+
+#[test]
+#[should_panic(expected = "children")]
+fn rejects_object_map_children() {
+    reject_unsafe_child(
+        "<div>{rows.get().map(row => ({ key: row.id, node: document.createElement('li') }))}</div>",
+    );
 }

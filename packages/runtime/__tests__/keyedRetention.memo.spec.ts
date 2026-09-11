@@ -50,6 +50,7 @@ describe('compact keyed memo retention', () => {
           node.dataset.id = String(item.id)
           target.parent.insertBefore(node, target.before)
           return {
+            owner,
             first: node,
             last: node,
             dispose: () => disposeOwner(owner),

@@ -1,3 +1,12 @@
+import type { CompiledSignalHandle as SignalHandle } from '@rue-js/rue/internal/reactive'
+import {
+  onOwnerCleanup,
+  createOwner,
+  adoptOwner,
+  runWithOwner,
+  disposeOwner,
+} from '@rue-js/rue/internal/reactive'
+import { getCurrentAppTarget } from '@rue-js/rue/internal/app'
 /*
 Store 架构概述
 - 根实例：createStore 创建应用级 store root，并像 Router 一样按容器绑定，支持 install/useStoreRoot。
@@ -5,14 +14,7 @@ Store 架构概述
 - 响应式：底层直接复用 Rue 现有 signal/computed/watchEffect，避免重复造轮子。
 - 变更入口：提供 $patch/$set/$reset/$subscribe，既保留集中管理体验，也补上细粒度路径更新能力。
 */
-import {
-  batch,
-  computed,
-  getCurrentContainer,
-  signal,
-  watchEffect,
-  type SignalHandle,
-} from '@rue-js/rue'
+import { batch, computed, signal, watchEffect } from '@rue-js/rue'
 
 /** Store 状态树，要求顶层是可枚举的对象结构。 */
 export type StateTree = Record<string, any>
@@ -199,6 +201,7 @@ type QueryStoreBinding = {
 }
 
 // 按 Rue 渲染容器隔离 store root，保证多应用挂载时不会互相串用状态。
+const storeOwners = new WeakMap<StoreRoot, ReturnType<typeof createOwner>>()
 const __storeRootByContainer = new WeakMap<HTMLElement, StoreRoot>()
 // 进程级活动 root：没有当前容器时，useStoreRoot 会回退到最近 install 的 root。
 let __activeStoreRoot: StoreRoot | null = null
@@ -381,6 +384,28 @@ const cloneValue = <T>(value: T, seen = new WeakMap<object, unknown>()): T => {
     next[key] = cloneValue((value as Record<string, unknown>)[key], seen)
   })
   return next as T
+}
+
+const readPath = (value: any, keys: Array<string | number>): any =>
+  keys.reduce((current, key) => current?.[key], value)
+const writePath = (
+  source: SignalHandle<any>,
+  keys: Array<string | number>,
+  value: unknown,
+): void => {
+  if (!keys.length) {
+    source.set(value)
+    return
+  }
+  const root = cloneValue(source.peek()) ?? (typeof keys[0] === 'number' ? [] : {})
+  let current = root
+  for (let index = 0; index < keys.length - 1; index++) {
+    const key = keys[index]!
+    current[key] ??= typeof keys[index + 1] === 'number' ? [] : {}
+    current = current[key]
+  }
+  current[keys[keys.length - 1]!] = value
+  source.set(root)
 }
 
 const normalizePath = (path: StorePath): Array<string | number> =>
@@ -958,19 +983,18 @@ const applyStorePlugin = (
 
 /** 把 store root 绑定到当前 Rue 渲染容器，并设为活动 root。 */
 export const attachStoreRoot = (root: StoreRoot) => {
-  const container = getCurrentContainer() as HTMLElement | null
+  const container = getCurrentAppTarget() as HTMLElement | null
   if (container) {
     // 容器绑定让同一页面上的多个 Rue 应用可以拥有独立 store root。
     __storeRootByContainer.set(container, root)
-  }
-  __activeStoreRoot = root
+    onOwnerCleanup(() => __storeRootByContainer.delete(container))
+  } else __activeStoreRoot = root
 }
 
 /** 获取当前组件/容器可用的 store root。 */
 export const useStoreRoot = (): StoreRoot => {
-  const container = getCurrentContainer() as HTMLElement | null
-  const root =
-    (container ? __storeRootByContainer.get(container) || null : null) || __activeStoreRoot
+  const container = getCurrentAppTarget() as HTMLElement | null
+  const root = container ? __storeRootByContainer.get(container) : __activeStoreRoot
   if (!root) {
     // store 必须先通过 createStore().install() 或 attachStoreRoot() 建立 root。
     throw new Error('Store root not installed for current application/container')
@@ -980,6 +1004,8 @@ export const useStoreRoot = (): StoreRoot => {
 
 /** 创建一个应用级 store root。 */
 export const createStore = (): StoreRoot => {
+  const owner = createOwner()
+  adoptOwner(owner, undefined)
   const stores = new Map<string, StoreInstance>()
   const plugins: StorePlugin[] = []
 
@@ -1006,12 +1032,15 @@ export const createStore = (): StoreRoot => {
       Array.from(stores.values()).forEach(store => {
         store.$dispose()
       })
+      disposeOwner(owner)
+      storeOwners.delete(root)
       if (__activeStoreRoot === root) {
         __activeStoreRoot = null
       }
     },
   }
 
+  storeOwners.set(root, owner)
   return root
 }
 
@@ -1045,8 +1074,8 @@ const createStoreInstance = (
     Object.keys(state.peek()).forEach(key => {
       if (stateAccessors.has(key)) return
       defineStateProperty(key, {
-        get: () => state.getPath([key]),
-        set: value => state.setPath([key], value),
+        get: () => readPath(state.get(), [key]),
+        set: value => writePath(state, [key], value),
       })
     })
   }
@@ -1057,11 +1086,23 @@ const createStoreInstance = (
     })
     return snapshot
   }
+  const pathValues = new Map<string, ReturnType<typeof computed>>()
   const getPath = (path: StorePath): any => {
     const keys = normalizePath(path)
     if (!keys.length) return get()
     const source = sources.get(String(keys[0]))
-    return source ? source.getPath(keys.slice(1)) : state.getPath(keys)
+    const cacheKey = JSON.stringify(keys)
+    let value = pathValues.get(cacheKey)
+    if (!value) {
+      value = runWithOwner(storeOwners.get(root)!, () =>
+        computed(() =>
+          source ? readPath(source.get(), keys.slice(1)) : readPath(state.get(), keys),
+        ),
+      )!
+      pathValues.set(cacheKey, value)
+      owned.add(value)
+    }
+    return value.get()
   }
   const peekPath = (keys: Array<string | number>): any => {
     if (!keys.length) {
@@ -1072,7 +1113,7 @@ const createStoreInstance = (
       return snapshot
     }
     const source = sources.get(String(keys[0]))
-    return source ? source.peekPath(keys.slice(1)) : state.peekPath(keys)
+    return source ? readPath(source.peek(), keys.slice(1)) : readPath(state.peek(), keys)
   }
   const set = (path: StorePath, value: unknown) => {
     const keys = normalizePath(path)
@@ -1089,9 +1130,9 @@ const createStoreInstance = (
       return
     }
     const source = sources.get(String(keys[0]))
-    if (source) source.setPath(keys.slice(1), value)
+    if (source) writePath(source, keys.slice(1), value)
     else {
-      state.setPath(keys, value)
+      writePath(state, keys, value)
       ensureStateKeys()
     }
   }
@@ -1101,13 +1142,9 @@ const createStoreInstance = (
   }
   const mutatePath = (path: StorePath, mutator: (value: any) => void) => {
     const keys = normalizePath(path)
-    const source = sources.get(String(keys[0]))
-    if (!keys.length && sources.size) {
-      const draft = cloneValue(peekPath([]))
-      mutator(draft)
-      set([], draft)
-    } else if (source) source.mutatePath(keys.slice(1), mutator)
-    else state.mutatePath(keys, mutator)
+    const draft = cloneValue(peekPath(keys))
+    mutator(draft)
+    set(keys, draft)
     ensureStateKeys()
   }
 
@@ -1160,7 +1197,7 @@ const createStoreInstance = (
         return
       }
 
-      state.setPath([key], value)
+      writePath(state, [key], value)
       ensureStateKeys()
     })
   } else {
@@ -1306,7 +1343,9 @@ export function defineStore<TStore extends StoreInstance = StoreInstance>(
       return existing as TStore
     }
 
-    const store = createStoreInstance(targetRoot, id, input)
+    const owner = storeOwners.get(targetRoot)
+    if (owner === undefined) throw new Error('Store root has been disposed')
+    const store = runWithOwner(owner, () => createStoreInstance(targetRoot, id, input))!
     targetRoot._s.set(id, store)
     return store as TStore
   }

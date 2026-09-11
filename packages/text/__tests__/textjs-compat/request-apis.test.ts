@@ -15,7 +15,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test'
 import type { ViteDevServer } from 'vite-plus'
-import { APP_FIXTURE_DIR, startFixtureServer } from '../helpers.js'
+import { APP_FIXTURE_DIR, startFixtureServer, stripRueSsrMarkers } from '../helpers.js'
 
 describe('Text.js compat: request-apis', () => {
   let server: ViteDevServer
@@ -39,7 +39,7 @@ describe('Text.js compat: request-apis', () => {
         Cookie: 'session=cookie-from-request',
       },
     })
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain('header-from-request')
     expect(html).toContain('cookie-from-request')
@@ -63,11 +63,9 @@ describe('Text.js compat: request-apis', () => {
 
   it('preserves the dynamic = "error" failure for sync request API access', async () => {
     const res = await fetch(`${baseUrl}/textjs-compat/request-api-dynamic-error`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
-    expect(html).toMatch(
-      /Page with `dynamic = (?:&quot;|\\")error(?:&quot;|\\")` used a dynamic API/,
-    )
+    expect(html).toContain('Page with `dynamic = "error"` used a dynamic API')
     expect(html).not.toContain('Headers cannot be modified')
     expect(html).not.toContain('Cookies can only be modified in a Server Action or Route Handler')
   })

@@ -248,6 +248,7 @@ fn call_returns_jsx_renderable(call: &CallExpr) -> bool {
         || map_call_returns_jsx_renderable(call)
 }
 
+#[cfg(test)]
 fn compiled_memo_call_has_empty_deps(call: &CallExpr) -> bool {
     call_callee_ident_name(call) == Some("_$compiledMemo")
         && call
@@ -257,6 +258,7 @@ fn compiled_memo_call_has_empty_deps(call: &CallExpr) -> bool {
             .unwrap_or(false)
 }
 
+#[cfg(test)]
 fn arrow_contains_empty_deps_memo(expr: &Expr) -> bool {
     match unwrap_expr(expr) {
         Expr::Arrow(arrow) => {
@@ -266,6 +268,7 @@ fn arrow_contains_empty_deps_memo(expr: &Expr) -> bool {
     }
 }
 
+#[cfg(test)]
 fn hook_wrapped_call_has_empty_memo_deps(call: &CallExpr) -> bool {
     call_callee_ident_name(call) == Some("_$compiledWithHookId")
         && call
@@ -275,7 +278,8 @@ fn hook_wrapped_call_has_empty_memo_deps(call: &CallExpr) -> bool {
             .unwrap_or(false)
 }
 
-pub(crate) fn is_empty_deps_memoized_jsx_expr(expr: &Expr) -> bool {
+#[cfg(test)]
+fn is_empty_deps_memoized_jsx_expr(expr: &Expr) -> bool {
     match unwrap_expr(expr) {
         Expr::Call(call) => {
             compiled_memo_call_has_empty_deps(call)

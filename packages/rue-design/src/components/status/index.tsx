@@ -112,11 +112,8 @@ const mergeClassNames = (...values: Array<string | undefined | false | null>) =>
 }
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value === undefined || value === null || value === false || value === '') return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 判断 Status Tone 的内部工具函数。 */
 const isStatusTone = (value?: string): value is StatusTone => {
@@ -231,9 +228,6 @@ const resolveToneClasses = (tone?: StatusTone) => {
 }
 
 /** to Css Length 的内部工具函数。 */
-const _toCssLength = (value: number | string) => {
-  return typeof value === 'number' ? `${value}px` : value
-}
 
 /** 归一化 Offset Value 的内部工具函数。 */
 const normalizeOffsetValue = (value: number | string) => {
@@ -537,7 +531,7 @@ const Status: FC<StatusProps> = ({
 
   if (!hasChildren) {
     if (ignoreCount) {
-      return null
+      return <></>
     }
 
     if (showStandaloneIndicator) {

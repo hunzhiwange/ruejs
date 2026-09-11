@@ -1,7 +1,8 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { render } from '@rue-js/rue'
-import { Chat } from '@rue-js/design'
+import Chat from '..'
 
 const waitChatRender = () => new Promise(resolve => setTimeout(resolve, 0))
 
@@ -12,11 +13,13 @@ afterEach(() => {
 describe('Chat', () => {
   it('renders with placement classes', async () => {
     const c = document.createElement('div')
-    render(
-      <Chat placement={'start'}>
-        <Chat.Bubble>{'hello'}</Chat.Bubble>
-      </Chat>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Chat placement={'start'}>
+          <Chat.Bubble>{'hello'}</Chat.Bubble>
+        </Chat>,
+        c,
+      ),
     )
     await waitChatRender()
     let el = c.querySelector('.chat') as HTMLElement
@@ -26,11 +29,13 @@ describe('Chat', () => {
 
     document.body.innerHTML = ''
     const c2 = document.createElement('div')
-    render(
-      <Chat placement={'end'}>
-        <Chat.Bubble>{'world'}</Chat.Bubble>
-      </Chat>,
-      c2,
+    mountTestApp(c2, () =>
+      render(
+        <Chat placement={'end'}>
+          <Chat.Bubble>{'world'}</Chat.Bubble>
+        </Chat>,
+        c2,
+      ),
     )
     await waitChatRender()
     el = c2.querySelector('.chat') as HTMLElement
@@ -39,11 +44,13 @@ describe('Chat', () => {
 
   it('supports className on Chat', async () => {
     const c = document.createElement('div')
-    render(
-      <Chat placement={'start'} className={'w-full'}>
-        <Chat.Bubble>{'x'}</Chat.Bubble>
-      </Chat>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Chat placement={'start'} className={'w-full'}>
+          <Chat.Bubble>{'x'}</Chat.Bubble>
+        </Chat>,
+        c,
+      ),
     )
     await waitChatRender()
     const el = c.querySelector('.chat') as HTMLElement
@@ -62,11 +69,13 @@ describe('Chat', () => {
       'warning',
       'error',
     ] as const) {
-      render(
-        <Chat placement={'start'}>
-          <Chat.Bubble color={v}>{'x'}</Chat.Bubble>
-        </Chat>,
-        c,
+      mountTestApp(c, () =>
+        render(
+          <Chat placement={'start'}>
+            <Chat.Bubble color={v}>{'x'}</Chat.Bubble>
+          </Chat>,
+          c,
+        ),
       )
       await waitChatRender()
       const b = c.querySelector('.chat-bubble') as HTMLElement
@@ -75,11 +84,13 @@ describe('Chat', () => {
     }
 
     c.innerHTML = ''
-    render(
-      <Chat placement={'start'}>
-        <Chat.Bubble typing={true} />
-      </Chat>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Chat placement={'start'}>
+          <Chat.Bubble typing={true} />
+        </Chat>,
+        c,
+      ),
     )
     await waitChatRender()
     const loading = c.querySelector('.chat-bubble .loading.loading-dots') as HTMLElement
@@ -88,14 +99,16 @@ describe('Chat', () => {
 
   it('renders Header, Footer, Image subcomponents with semantic shortcuts', async () => {
     const c = document.createElement('div')
-    render(
-      <Chat placement={'start'}>
-        <Chat.Image src={'x'} alt={'y'} />
-        <Chat.Header author={'User'} time={'12:45'} />
-        <Chat.Bubble>{'message'}</Chat.Bubble>
-        <Chat.Footer className={'opacity-50'}>{'Delivered'}</Chat.Footer>
-      </Chat>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Chat placement={'start'}>
+          <Chat.Image src={'x'} alt={'y'} />
+          <Chat.Header author={'User'} time={'12:45'} />
+          <Chat.Bubble>{'message'}</Chat.Bubble>
+          <Chat.Footer className={'opacity-50'}>{'Delivered'}</Chat.Footer>
+        </Chat>,
+        c,
+      ),
     )
     await waitChatRender()
     const img = c.querySelector('.chat-image') as HTMLElement
@@ -133,7 +146,7 @@ describe('Chat', () => {
         typing: true,
       },
     ] as const
-    render(<Chat items={items} className={'w-full'} />, c)
+    mountTestApp(c, () => render(<Chat items={items} className={'w-full'} />, c))
     await waitChatRender()
     const chats = c.querySelectorAll('.chat')
     expect(chats.length).toBe(4)
@@ -159,17 +172,19 @@ describe('Chat', () => {
 
   it('renders a single semantic message from root props', async () => {
     const c = document.createElement('div')
-    render(
-      <Chat
-        placement={'end'}
-        avatar={{ src: 'bot.png', alt: 'bot' }}
-        author={'Rue Bot'}
-        timestamp={'09:30'}
-        message={'Build finished'}
-        color={'primary'}
-        footer={'Delivered'}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Chat
+          placement={'end'}
+          avatar={{ src: 'bot.png', alt: 'bot' }}
+          author={'Rue Bot'}
+          timestamp={'09:30'}
+          message={'Build finished'}
+          color={'primary'}
+          footer={'Delivered'}
+        />,
+        c,
+      ),
     )
     await waitChatRender()
 

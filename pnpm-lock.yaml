@@ -357,6 +357,9 @@ importers:
       '@rolldown/pluginutils':
         specifier: ^1.0.1
         version: 1.0.1
+      '@rue-js/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       es-module-lexer:
         specifier: ^2.1.0
         version: 2.3.1
@@ -406,25 +409,6 @@ importers:
       vitest:
         specifier: 4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.5)(@vitest/browser-preview@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.15.0(@types/node@25.9.5)(typescript@7.0.2))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-
-  packages/rue-ssr-binary-demo:
-    dependencies:
-      '@rue-js/rue':
-        specifier: workspace:*
-        version: link:../rue
-      '@rue-js/server-renderer':
-        specifier: workspace:*
-        version: link:../server-renderer
-    devDependencies:
-      '@rue-js/vite-plugin-rue':
-        specifier: workspace:*
-        version: link:../vite-plugin-rue
-      '@swc/core':
-        specifier: ^1.15.33
-        version: 1.15.43
-      vite:
-        specifier: 'catalog:'
-        version: 8.2.2(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
 
   packages/runtime:
     dependencies:
@@ -490,6 +474,9 @@ importers:
       magic-string:
         specifier: 'catalog:'
         version: 0.30.21
+      parse5:
+        specifier: ^8.0.1
+        version: 8.0.1
       vite-plugin-commonjs:
         specifier: 'catalog:'
         version: 0.10.4

@@ -213,11 +213,16 @@ const Hint: FC<ValidatorHintProps> = ({
   if (as === 'div') {
     return (
       <div {...rest} className={cls}>
-        {hasLines
-          ? (lines ?? []).map((item, index) => (
+        {hasLines ? (
+          <>
+            {' '}
+            {(lines ?? []).map((item, index) => (
               <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-            ))
-          : children}
+            ))}{' '}
+          </>
+        ) : (
+          children
+        )}
       </div>
     )
   }
@@ -225,22 +230,32 @@ const Hint: FC<ValidatorHintProps> = ({
   if (as === 'span') {
     return (
       <span {...rest} className={cls}>
-        {hasLines
-          ? (lines ?? []).map((item, index) => (
+        {hasLines ? (
+          <>
+            {' '}
+            {(lines ?? []).map((item, index) => (
               <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-            ))
-          : children}
+            ))}{' '}
+          </>
+        ) : (
+          children
+        )}
       </span>
     )
   }
 
   return (
     <p {...rest} className={cls}>
-      {hasLines
-        ? (lines ?? []).map((item, index) => (
+      {hasLines ? (
+        <>
+          {' '}
+          {(lines ?? []).map((item, index) => (
             <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-          ))
-        : children}
+          ))}{' '}
+        </>
+      ) : (
+        children
+      )}
     </p>
   )
 }
@@ -300,21 +315,31 @@ const Field: FC<ValidatorFieldProps> = ({
             className={hintClassName}
             hideUntilInvalid={hideHintWhenValid}
           >
-            {Array.isArray(hint)
-              ? hint.map((item, index) => (
+            {Array.isArray(hint) ? (
+              <>
+                {' '}
+                {hint.map((item, index) => (
                   <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-                ))
-              : hint}
+                ))}{' '}
+              </>
+            ) : (
+              hint
+            )}
           </Hint>
         ) : null}
 
         {extra != null ? (
           <p className={joinClassNames('label text-xs opacity-70', extraClassName)}>
-            {Array.isArray(extra)
-              ? extra.map((item, index) => (
+            {Array.isArray(extra) ? (
+              <>
+                {' '}
+                {extra.map((item, index) => (
                   <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-                ))
-              : extra}
+                ))}{' '}
+              </>
+            ) : (
+              extra
+            )}
           </p>
         ) : null}
       </div>
@@ -345,21 +370,31 @@ const Field: FC<ValidatorFieldProps> = ({
           className={hintClassName}
           hideUntilInvalid={hideHintWhenValid}
         >
-          {Array.isArray(hint)
-            ? hint.map((item, index) => (
+          {Array.isArray(hint) ? (
+            <>
+              {' '}
+              {hint.map((item, index) => (
                 <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-              ))
-            : hint}
+              ))}{' '}
+            </>
+          ) : (
+            hint
+          )}
         </Hint>
       ) : null}
 
       {extra != null ? (
         <p className={joinClassNames('label text-xs opacity-70', extraClassName)}>
-          {Array.isArray(extra)
-            ? extra.map((item, index) => (
+          {Array.isArray(extra) ? (
+            <>
+              {' '}
+              {extra.map((item, index) => (
                 <span key={`validator-line-${index}`} className="block" r-text={item}></span>
-              ))
-            : extra}
+              ))}{' '}
+            </>
+          ) : (
+            extra
+          )}
         </p>
       ) : null}
     </fieldset>

@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import PreviewBlock, { type PreviewTabMode } from './PreviewBlock'
 import { Button, Fieldset, Hero, Input } from '@rue-js/design'
-
 const stockFigure = 'https://img.daisyui.com/images/stock/photo-1635805737707-575885ab0820.webp'
 const stockOverlay = 'https://img.daisyui.com/images/stock/photo-1507358522600-9f71e620c44e.webp'
 

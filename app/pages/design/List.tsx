@@ -310,7 +310,7 @@ const apiRows: ApiRow[] = [
   },
 ]
 
-const basicCode = `import { List } from '@rue-js/design';
+const basicCode = `import { List } from '@rue-js/design'
 
 <List className="bg-base-100 rounded-box shadow-md">
   <List.Row normal className="p-4 pb-2 text-xs opacity-60 tracking-wide">

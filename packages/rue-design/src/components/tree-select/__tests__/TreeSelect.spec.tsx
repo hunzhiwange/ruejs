@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectDataNode } from '../index'
@@ -79,23 +80,25 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        allowClear
-        placeholder="选择节点"
-        treeDefaultExpandAll
-        treeData={[
-          {
-            title: '组织架构',
-            value: 'org',
-            children: [
-              { title: '设计系统', value: 'design' },
-              { title: '工程平台', value: 'platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          allowClear
+          placeholder="选择节点"
+          treeDefaultExpandAll
+          treeData={[
+            {
+              title: '组织架构',
+              value: 'org',
+              children: [
+                { title: '设计系统', value: 'design' },
+                { title: '工程平台', value: 'platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -142,22 +145,24 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        value="design"
-        treeDefaultExpandAll
-        treeData={[
-          {
-            title: '组织架构',
-            value: 'org',
-            children: [
-              { title: '设计系统', value: 'design' },
-              { title: '工程平台', value: 'platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          value="design"
+          treeDefaultExpandAll
+          treeData={[
+            {
+              title: '组织架构',
+              value: 'org',
+              children: [
+                { title: '设计系统', value: 'design' },
+                { title: '工程平台', value: 'platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -177,19 +182,21 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        placeholder="选择节点"
-        treeDefaultExpandAll
-        treeData={[
-          {
-            title: '组织架构',
-            value: 'org',
-            children: [{ title: '设计系统', value: 'design' }],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          placeholder="选择节点"
+          treeDefaultExpandAll
+          treeData={[
+            {
+              title: '组织架构',
+              value: 'org',
+              children: [{ title: '设计系统', value: 'design' }],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -246,7 +253,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const selector = container.querySelector(
@@ -326,7 +333,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const clearButton = container.querySelector('[aria-label="清空选择"]') as HTMLButtonElement
@@ -375,24 +382,26 @@ describe('TreeSelect', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <TreeSelect
-        treeCheckable
-        showCheckedStrategy={TreeSelect.SHOW_PARENT}
-        treeDefaultExpandAll
-        onChange={handleChange}
-        treeData={[
-          {
-            title: '平台团队',
-            value: 'team',
-            children: [
-              { title: '构建链路', value: 'build' },
-              { title: '发布平台', value: 'release' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          treeCheckable
+          showCheckedStrategy={TreeSelect.SHOW_PARENT}
+          treeDefaultExpandAll
+          onChange={handleChange}
+          treeData={[
+            {
+              title: '平台团队',
+              value: 'team',
+              children: [
+                { title: '构建链路', value: 'build' },
+                { title: '发布平台', value: 'release' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -451,7 +460,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -516,7 +525,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const selector = container.querySelector(
@@ -596,7 +605,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -663,7 +672,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -727,12 +736,12 @@ describe('TreeSelect', () => {
               selectedValues.value = Array.isArray(nextValue) ? nextValue.map(String) : []
             }}
           />
-          <div data-testid="selected-values">{selectedValues.value.join('/')}</div>
+          <div data-testid="selected-values">{String(selectedValues.value.join('/'))}</div>
         </>
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const selector = container.querySelector(
@@ -817,7 +826,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -848,22 +857,24 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        multiple
-        treeDefaultExpandAll
-        treeData={[
-          {
-            title: '平台团队',
-            value: 'team',
-            children: [
-              { title: '构建链路', value: 'build' },
-              { title: '发布平台', value: 'release' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          multiple
+          treeDefaultExpandAll
+          treeData={[
+            {
+              title: '平台团队',
+              value: 'team',
+              children: [
+                { title: '构建链路', value: 'build' },
+                { title: '发布平台', value: 'release' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -894,22 +905,24 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        multiple
-        treeDefaultExpandAll
-        treeData={[
-          {
-            title: '协作面板',
-            value: 'workspace',
-            children: [
-              { title: '日报汇总', value: 'daily' },
-              { title: '设计交接', value: 'handoff' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          multiple
+          treeDefaultExpandAll
+          treeData={[
+            {
+              title: '协作面板',
+              value: 'workspace',
+              children: [
+                { title: '日报汇总', value: 'daily' },
+                { title: '设计交接', value: 'handoff' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -943,28 +956,30 @@ describe('TreeSelect', () => {
 
     const Demo = () => {
       return (
-        <TreeSelect
-          multiple
-          value={selectedValues.value}
-          treeDefaultExpandAll
-          treeData={[
-            {
-              title: '平台团队',
-              value: 'team',
-              children: [
-                { title: '构建链路', value: 'build' },
-                { title: '发布平台', value: 'release' },
-              ],
-            },
-          ]}
-          onChange={nextValue => {
-            selectedValues.value = Array.isArray(nextValue) ? nextValue.map(String) : []
-          }}
-        />
+        <div>
+          <TreeSelect
+            multiple
+            value={selectedValues.value}
+            treeDefaultExpandAll
+            treeData={[
+              {
+                title: '平台团队',
+                value: 'team',
+                children: [
+                  { title: '构建链路', value: 'build' },
+                  { title: '发布平台', value: 'release' },
+                ],
+              },
+            ]}
+            onChange={nextValue => {
+              selectedValues.value = Array.isArray(nextValue) ? nextValue.map(String) : []
+            }}
+          />
+        </div>
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1030,7 +1045,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1078,7 +1093,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1136,12 +1151,12 @@ describe('TreeSelect', () => {
               selectedValue.value = nextValue == null ? '' : String(nextValue)
             }}
           />
-          <div data-testid="selected-value">{selectedValue.value}</div>
+          <div data-testid="selected-value">{String(selectedValue.value ?? '')}</div>
         </>
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const selector = container.querySelector(
@@ -1169,25 +1184,27 @@ describe('TreeSelect', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <TreeSelect
-        labelInValue
-        defaultValue="release"
-        treeDefaultExpandAll
-        treeData={[
-          {
-            title: '工程效率',
-            value: 'engineering',
-            children: [
-              { title: '构建链路', value: 'build' },
-              { title: '质量门禁', value: 'quality' },
-              { title: '发布管道', value: 'release' },
-            ],
-          },
-        ]}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          labelInValue
+          defaultValue="release"
+          treeDefaultExpandAll
+          treeData={[
+            {
+              title: '工程效率',
+              value: 'engineering',
+              children: [
+                { title: '构建链路', value: 'build' },
+                { title: '质量门禁', value: 'quality' },
+                { title: '发布管道', value: 'release' },
+              ],
+            },
+          ]}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1227,7 +1244,7 @@ describe('TreeSelect', () => {
 
     const Demo = () => {
       return (
-        <>
+        <div>
           <TreeSelect
             labelInValue
             defaultValue="release"
@@ -1247,12 +1264,14 @@ describe('TreeSelect', () => {
               selectedValue.value = nextValue
             }}
           />
-          <code data-testid="label-in-value-json">{JSON.stringify(selectedValue.value)}</code>
-        </>
+          <code data-testid="label-in-value-json">
+            {String(JSON.stringify(selectedValue.value))}
+          </code>
+        </div>
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const selector = container.querySelector(
@@ -1285,22 +1304,24 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        showSearch
-        treeNodeFilterProp="title"
-        treeData={[
-          {
-            title: '团队目录',
-            value: 'team',
-            children: [
-              { title: '产品增长', value: 'growth' },
-              { title: '产品平台', value: 'product-platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          showSearch
+          treeNodeFilterProp="title"
+          treeData={[
+            {
+              title: '团队目录',
+              value: 'team',
+              children: [
+                { title: '产品增长', value: 'growth' },
+                { title: '产品平台', value: 'product-platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1332,21 +1353,23 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        showSearch
-        treeData={[
-          {
-            title: '团队目录',
-            value: 'team',
-            children: [
-              { title: '产品平台', value: 'product-platform' },
-              { title: '增长分析', value: 'growth-analytics' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          showSearch
+          treeData={[
+            {
+              title: '团队目录',
+              value: 'team',
+              children: [
+                { title: '产品平台', value: 'product-platform' },
+                { title: '增长分析', value: 'growth-analytics' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1388,22 +1411,24 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        showSearch
-        treeNodeFilterProp="title"
-        treeData={[
-          {
-            title: '团队目录',
-            value: 'team',
-            children: [
-              { title: '产品增长', value: 'growth' },
-              { title: '产品平台', value: 'product-platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          showSearch
+          treeNodeFilterProp="title"
+          treeData={[
+            {
+              title: '团队目录',
+              value: 'team',
+              children: [
+                { title: '产品增长', value: 'growth' },
+                { title: '产品平台', value: 'product-platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1439,25 +1464,27 @@ describe('TreeSelect', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <TreeSelect
-        showSearch
-        allowClear
-        treeDefaultExpandAll
-        treeNodeFilterProp="title"
-        placeholder="选择节点"
-        treeData={[
-          {
-            title: '组织架构',
-            value: 'org',
-            children: [
-              { title: '设计系统', value: 'design' },
-              { title: '工程平台', value: 'platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TreeSelect
+          showSearch
+          allowClear
+          treeDefaultExpandAll
+          treeNodeFilterProp="title"
+          placeholder="选择节点"
+          treeData={[
+            {
+              title: '组织架构',
+              value: 'org',
+              children: [
+                { title: '设计系统', value: 'design' },
+                { title: '工程平台', value: 'platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1548,7 +1575,7 @@ describe('TreeSelect', () => {
       return <TreeSelect treeData={treeData.value} loadData={handleLoadData} />
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1606,7 +1633,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1680,7 +1707,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1736,7 +1763,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1760,7 +1787,7 @@ describe('TreeSelect', () => {
   })
 
   it('loads async nodes when expanding unloaded branches with async scheduling', async () => {
-    setReactiveScheduling('async')
+    setReactiveScheduling('microtask')
 
     try {
       const container = mountContainer()
@@ -1787,7 +1814,7 @@ describe('TreeSelect', () => {
         return <TreeSelect treeData={treeData.value} loadData={handleLoadData} />
       }
 
-      render(<Demo />, container)
+      mountTestApp(container, () => render(<Demo />, container))
 
       await waitForContent(() => {
         expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1842,7 +1869,7 @@ describe('TreeSelect', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1905,12 +1932,12 @@ describe('TreeSelect', () => {
               selectedValue.value = nextValue == null ? null : String(nextValue)
             }}
           />
-          <div data-testid="selected-value">{selectedValue.value ?? ''}</div>
+          <div data-testid="selected-value">{String(selectedValue.value ?? '')}</div>
         </>
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()
@@ -1978,12 +2005,12 @@ describe('TreeSelect', () => {
               selectedValue.value = nextValue == null ? null : String(nextValue)
             }}
           />
-          <div data-testid="selected-value">{selectedValue.value ?? ''}</div>
+          <div data-testid="selected-value">{String(selectedValue.value ?? '')}</div>
         </>
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-tree-select-selector="true"]')).toBeTruthy()

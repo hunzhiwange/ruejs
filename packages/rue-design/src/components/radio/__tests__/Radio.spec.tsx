@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Radio from '..'
@@ -18,7 +19,12 @@ describe('Radio', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Radio name="plan" value="pro" checked={true} className="border-base-300" />, container)
+    mountTestApp(container, () =>
+      render(
+        <Radio name="plan" value="pro" checked={true} className="border-base-300" />,
+        container,
+      ),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('input.radio') as HTMLInputElement
@@ -35,7 +41,7 @@ describe('Radio', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Radio color="primary" size="lg" />, container)
+    mountTestApp(container, () => render(<Radio color="primary" size="lg" />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('input.radio') as HTMLInputElement
@@ -49,7 +55,9 @@ describe('Radio', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(<Radio disabled={true} data-testid="radio" onChange={handleChange} />, container)
+    mountTestApp(container, () =>
+      render(<Radio disabled={true} data-testid="radio" onChange={handleChange} />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="radio"]') as HTMLInputElement
@@ -66,16 +74,18 @@ describe('Radio', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Radio
-        checked={true}
-        value="enterprise"
-        rootClassName="rounded-box px-2 py-1"
-        onChange={handleChange}
-      >
-        Enterprise
-      </Radio>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Radio
+          checked={true}
+          value="enterprise"
+          rootClassName="rounded-box px-2 py-1"
+          onChange={handleChange}
+        >
+          Enterprise
+        </Radio>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -103,18 +113,20 @@ describe('Radio', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Radio.Group
-        name="plan"
-        defaultValue="startup"
-        onChange={handleChange}
-        options={[
-          { label: 'Startup', value: 'startup' },
-          { label: 'Business', value: 'business' },
-          { label: 'Enterprise', value: 'enterprise', disabled: true },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Radio.Group
+          name="plan"
+          defaultValue="startup"
+          onChange={handleChange}
+          options={[
+            { label: 'Startup', value: 'startup' },
+            { label: 'Business', value: 'business' },
+            { label: 'Enterprise', value: 'enterprise', disabled: true },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -151,12 +163,14 @@ describe('Radio', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Radio.Group value="pro" onChange={handleChange}>
-        <Radio value="starter">Starter</Radio>
-        <Radio value="pro">Pro</Radio>
-      </Radio.Group>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Radio.Group value="pro" onChange={handleChange}>
+          <Radio value="starter">Starter</Radio>
+          <Radio value="pro">Pro</Radio>
+        </Radio.Group>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -184,18 +198,20 @@ describe('Radio', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Radio.Group
-        optionType="button"
-        buttonStyle="solid"
-        size="large"
-        defaultValue="pro"
-        options={[
-          { label: 'Starter', value: 'starter' },
-          { label: 'Pro', value: 'pro' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Radio.Group
+          optionType="button"
+          buttonStyle="solid"
+          size="large"
+          defaultValue="pro"
+          options={[
+            { label: 'Starter', value: 'starter' },
+            { label: 'Pro', value: 'pro' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

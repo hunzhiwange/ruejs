@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import FileInput from '../index'
@@ -38,7 +39,7 @@ describe('FileInput', () => {
   it('renders with the base class and enforces type=file', async () => {
     const container = mountContainer()
     resetActiveRuntime()
-    render(<FileInput />, container)
+    mountTestApp(container, () => render(<FileInput />, container))
 
     await waitForContent(() => {
       const element = container.querySelector('input.file-input') as HTMLInputElement
@@ -50,7 +51,9 @@ describe('FileInput', () => {
   it('applies color, size, and ghost modifiers', async () => {
     const container = mountContainer()
     resetActiveRuntime()
-    render(<FileInput variant="primary" size="lg" ghost />, container)
+    mountTestApp(container, () =>
+      render(<FileInput variant="primary" size="lg" ghost />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('input.file-input') as HTMLInputElement
@@ -74,13 +77,15 @@ describe('FileInput', () => {
       'error',
     ] as const
 
-    render(
-      <div>
-        {colors.map(color => (
-          <FileInput color={color} />
-        ))}
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          {colors.map(color => (
+            <FileInput color={color} />
+          ))}
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -96,12 +101,14 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <FileInput color="secondary" title="Enhanced color" buttonText="Choose" />
-        <FileInput.Dragger color="accent" title="Drop color" />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <FileInput color="secondary" title="Enhanced color" buttonText="Choose" />
+          <FileInput.Dragger color="accent" title="Drop color" />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -120,7 +127,12 @@ describe('FileInput', () => {
   it('forwards native attrs and appends className', async () => {
     const container = mountContainer()
     resetActiveRuntime()
-    render(<FileInput id="resume" accept=".pdf" multiple disabled className="w-full" />, container)
+    mountTestApp(container, () =>
+      render(
+        <FileInput id="resume" accept=".pdf" multiple disabled className="w-full" />,
+        container,
+      ),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('input.file-input') as HTMLInputElement
@@ -137,22 +149,24 @@ describe('FileInput', () => {
     resetActiveRuntime()
     const handleRemove = vi.fn()
 
-    render(
-      <FileInput
-        defaultFileList={[
-          {
-            uid: 'resume',
-            name: 'resume.pdf',
-            status: 'done',
-            description: '已同步',
-          },
-        ]}
-        onRemove={file => {
-          handleRemove(file.name)
-        }}
-        title="Upload assets"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput
+          defaultFileList={[
+            {
+              uid: 'resume',
+              name: 'resume.pdf',
+              status: 'done',
+              description: '已同步',
+            },
+          ]}
+          onRemove={file => {
+            handleRemove(file.name)
+          }}
+          title="Upload assets"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -174,20 +188,22 @@ describe('FileInput', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <FileInput
-        title="Upload gallery"
-        listType="picture"
-        maxCount={1}
-        beforeUpload={file => {
-          if (file.name.endsWith('.txt')) {
-            return FileInput.LIST_IGNORE
-          }
-          return true
-        }}
-        onChange={(info: any) => handleChange(info)}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput
+          title="Upload gallery"
+          listType="picture"
+          maxCount={1}
+          beforeUpload={file => {
+            if (file.name.endsWith('.txt')) {
+              return FileInput.LIST_IGNORE
+            }
+            return true
+          }}
+          onChange={(info: any) => handleChange(info)}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -228,7 +244,9 @@ describe('FileInput', () => {
     resetActiveRuntime()
     const inputRef = { current: undefined as HTMLInputElement | undefined }
 
-    render(<FileInput title="Upload images" accept="image/png" ref={inputRef} />, container)
+    mountTestApp(container, () =>
+      render(<FileInput title="Upload images" accept="image/png" ref={inputRef} />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('input[type="file"]') as HTMLInputElement
@@ -244,12 +262,14 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <FileInput title="Upload assets" />
-        <FileInput title="Upload folder" directory />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <FileInput title="Upload assets" />
+          <FileInput title="Upload folder" directory />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -270,9 +290,11 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <FileInput title="Upload images" buttonText="Choose png" accept=".png,image/png" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput title="Upload images" buttonText="Choose png" accept=".png,image/png" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -321,7 +343,7 @@ describe('FileInput', () => {
       />
     )
 
-    render(<ControlledValidationDemo />, container)
+    mountTestApp(container, () => render(<ControlledValidationDemo />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('input[type="file"]') as HTMLInputElement
@@ -360,13 +382,15 @@ describe('FileInput', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <FileInput.Dragger
-        multiple
-        title="Drop attachments"
-        onChange={(info: any) => handleChange(info)}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput.Dragger
+          multiple
+          title="Drop attachments"
+          onChange={(info: any) => handleChange(info)}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -389,7 +413,9 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<FileInput listType="picture" buttonText="Add image" />, container)
+    mountTestApp(container, () =>
+      render(<FileInput listType="picture" buttonText="Add image" />, container),
+    )
 
     await waitForContent(() => {
       expect(container.textContent).toContain('Add image')
@@ -411,7 +437,9 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<FileInput listType="picture-card" buttonText="Add image" />, container)
+    mountTestApp(container, () =>
+      render(<FileInput listType="picture-card" buttonText="Add image" />, container),
+    )
 
     await waitForContent(() => {
       expect(container.textContent).toContain('Add image')
@@ -431,22 +459,24 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <FileInput
-        listType="picture-card"
-        maxCount={2}
-        defaultFileList={[
-          {
-            uid: 'cover',
-            name: 'cover.png',
-            status: 'done',
-            type: 'image/png',
-            thumbUrl: 'https://example.test/cover.png',
-          },
-        ]}
-        buttonText="Add image"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput
+          listType="picture-card"
+          maxCount={2}
+          defaultFileList={[
+            {
+              uid: 'cover',
+              name: 'cover.png',
+              status: 'done',
+              type: 'image/png',
+              thumbUrl: 'https://example.test/cover.png',
+            },
+          ]}
+          buttonText="Add image"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -471,14 +501,16 @@ describe('FileInput', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <FileInput
-        listType="picture-card"
-        maxCount={2}
-        buttonText="Add image"
-        onChange={(info: any) => handleChange(info)}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput
+          listType="picture-card"
+          maxCount={2}
+          buttonText="Add image"
+          onChange={(info: any) => handleChange(info)}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -503,21 +535,23 @@ describe('FileInput', () => {
     resetActiveRuntime()
     const handlePreview = vi.fn()
 
-    render(
-      <FileInput
-        defaultFileList={[
-          {
-            uid: 'cover',
-            name: 'cover.png',
-            status: 'done',
-            type: 'image/png',
-            thumbUrl: 'https://example.test/cover.png',
-          },
-        ]}
-        listType="picture-card"
-        onPreview={handlePreview}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput
+          defaultFileList={[
+            {
+              uid: 'cover',
+              name: 'cover.png',
+              status: 'done',
+              type: 'image/png',
+              thumbUrl: 'https://example.test/cover.png',
+            },
+          ]}
+          listType="picture-card"
+          onPreview={handlePreview}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -560,7 +594,7 @@ describe('FileInput', () => {
       </div>
     )
 
-    render(<PreviewRerenderDemo />, container)
+    mountTestApp(container, () => render(<PreviewRerenderDemo />, container))
 
     await waitForContent(() => {
       expect(container.textContent).toContain('seed.pdf')
@@ -619,7 +653,7 @@ describe('FileInput', () => {
       )
     }
 
-    render(<LocalMessageDemo />, container)
+    mountTestApp(container, () => render(<LocalMessageDemo />, container))
 
     await waitForContent(() => {
       expect(container.textContent).toContain('seed.pdf')
@@ -681,7 +715,7 @@ describe('FileInput', () => {
       )
     }
 
-    render(<ChangeMessageDemo />, container)
+    mountTestApp(container, () => render(<ChangeMessageDemo />, container))
 
     await waitForContent(() => {
       expect(container.textContent).toContain('seed.pdf')
@@ -706,7 +740,7 @@ describe('FileInput', () => {
       expect(container.textContent).toContain('fresh-clip.mp4')
     })
 
-    render(<ChangeMessageDemo />, container)
+    mountTestApp(container, () => render(<ChangeMessageDemo />, container))
 
     await waitForContent(() => {
       expect(container.textContent).not.toContain('seed.pdf')
@@ -759,7 +793,7 @@ describe('FileInput', () => {
       </div>
     )
 
-    render(<ControlledPreviewDemo />, container)
+    mountTestApp(container, () => render(<ControlledPreviewDemo />, container))
 
     await waitForContent(() => {
       expect(container.textContent).toContain('deck.pdf')
@@ -804,17 +838,19 @@ describe('FileInput', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <FileInput
-        defaultFileList={[
-          {
-            uid: 'brief',
-            name: 'brief.pdf',
-            status: 'done',
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <FileInput
+          defaultFileList={[
+            {
+              uid: 'brief',
+              name: 'brief.pdf',
+              status: 'done',
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

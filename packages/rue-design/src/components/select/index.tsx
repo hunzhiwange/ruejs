@@ -173,7 +173,7 @@ export interface SelectProps {
   /** 前缀内容。 */
   prefix?: any
   /** 后缀内容。 */
-  suffix?: any
+  suffix?: string | number
   /** 输入前置附加内容。 */
   addonBefore?: any
   /** 输入后置附加内容。 */
@@ -454,13 +454,21 @@ const createOptionMetaMap = (options?: SelectOptionData[], fieldNames?: SelectFi
 }
 
 /** 渲染 Data Options 的内部工具函数。 */
-const renderDataOptions = (
-  options: SelectOptionData[],
-  fieldNames?: SelectFieldNames,
-  path = 'option',
-  selectedValues?: Set<string>,
-): any[] => {
-  return options.map((option, index) => {
+const RenderDataOptions = ({
+  arg0: options,
+  arg1: fieldNames,
+  arg2: path = 'option',
+  arg3: selectedValues,
+}: {
+  arg0: SelectOptionData[]
+  arg1?: SelectFieldNames
+  arg2?: any
+  arg3?: Set<string>
+}): any[] => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const option = rowArg0
+    const index = rowArg1
+
     const optionPath = `${path}-${index}`
     const nestedOptions = readOptionField(option, 'options', fieldNames)
     const className = readOptionField(option, 'className', fieldNames)
@@ -478,7 +486,12 @@ const renderDataOptions = (
           className={className}
           title={title}
         >
-          {renderDataOptions(nestedOptions, fieldNames, optionPath, selectedValues)}
+          <RenderDataOptions
+            arg0={nestedOptions}
+            arg1={fieldNames}
+            arg2={optionPath}
+            arg3={selectedValues}
+          />
         </optgroup>
       )
     }
@@ -495,10 +508,18 @@ const renderDataOptions = (
         className={className}
         {...(selectedValues?.has(String(value)) ? { selected: true } : {})}
       >
-        {label ?? value}
+        {String(label ?? value ?? '')}
       </option>
     )
-  })
+  }
+
+  return (
+    <>
+      {options.map((rowArg0: any, rowArg1: number) => (
+        <CompiledRow1 key={rowArg1} rowArg0={rowArg0} rowArg1={rowArg1} />
+      ))}
+    </>
+  )
 }
 
 /** 判断 Listbox Size 的内部工具函数。 */
@@ -814,49 +835,52 @@ type SelectCompound = FC<SelectProps> & {
 }
 
 /** Select Root 的内部工具函数。 */
-const SelectRoot: FC<SelectProps> = ({
-  value,
-  defaultValue,
-  color,
-  status,
-  variant,
-  size,
-  uiSize,
-  nativeSize,
-  ghost,
-  loading,
-  loadingText,
-  options,
-  fieldNames,
-  placeholder,
-  placeholderValue = '',
-  placeholderDisabled = true,
-  notFoundContent,
-  allowClear,
-  clearLabel = '清空选择',
-  onClear,
-  prefix,
-  suffix,
-  addonBefore,
-  addonAfter,
-  suffixIcon,
-  showArrow = true,
-  mode,
-  labelInValue,
-  optionLabelProp,
-  maxCount,
-  onChange,
-  onValueChange,
-  onSelect,
-  onDeselect,
-  rootClassName,
-  selectClassName,
-  className,
-  children,
-  multiple,
-  disabled,
-  ...rest
-}) => {
+const SelectRoot: FC<SelectProps> = (
+  {
+    value,
+    defaultValue,
+    color,
+    status,
+    variant,
+    size,
+    uiSize,
+    nativeSize,
+    ghost,
+    loading,
+    loadingText,
+    options,
+    fieldNames,
+    placeholder,
+    placeholderValue = '',
+    placeholderDisabled = true,
+    notFoundContent,
+    allowClear,
+    clearLabel = '清空选择',
+    onClear,
+    prefix,
+    suffix,
+    addonBefore,
+    addonAfter,
+    suffixIcon,
+    showArrow = true,
+    mode,
+    labelInValue,
+    optionLabelProp,
+    maxCount,
+    onChange,
+    onValueChange,
+    onSelect,
+    onDeselect,
+    rootClassName,
+    selectClassName,
+    className,
+    children,
+    multiple,
+    disabled,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const nativeProps = rest as Record<string, any>
   const hasOptions = Array.isArray(options) && options.length > 0
   const hasChildren = children !== undefined && children !== null
@@ -894,6 +918,7 @@ const SelectRoot: FC<SelectProps> = ({
   const hasShellDecorators =
     prefix !== undefined ||
     suffix !== undefined ||
+    slots.suffix != null ||
     addonBefore !== undefined ||
     addonAfter !== undefined ||
     !!allowClear ||
@@ -901,9 +926,6 @@ const SelectRoot: FC<SelectProps> = ({
     suffixIcon !== undefined
   const useShell = useCompactMultiple || (hasShellDecorators && !shouldRenderListbox)
   const nativeSelectedValues = normalizeSelectValues(value !== undefined ? value : defaultValue)
-  const renderedOptions = hasOptions
-    ? renderDataOptions(options!, fieldNames, 'option', new Set(nativeSelectedValues))
-    : children
   const loadingOptionContent = loadingText ?? '正在加载...'
   const emptyOptionContent = notFoundContent ?? '暂无可选项'
   const compactPlaceholder = placeholder ?? 'Select options'
@@ -988,33 +1010,6 @@ const SelectRoot: FC<SelectProps> = ({
 
       select.value = nextValues[0] ?? ''
     }
-  }
-
-  const syncCompactTriggerLabels = (nextValues: string[]) => {
-    const root = compactRootRef.current
-    const trigger = root?.querySelector('[data-rue-select-trigger="true"]')
-    const labelHost = trigger?.querySelector('.min-w-0.flex-1.flex-wrap') as HTMLElement | null
-    if (!labelHost) return
-    labelHost.replaceChildren()
-    const selectedOptions = nextValues
-      .map(selectedValue =>
-        compactResolvedOptions.value.find(option => String(option.value) === selectedValue),
-      )
-      .filter(Boolean) as SelectResolvedOption[]
-    if (!selectedOptions.length) {
-      const placeholderNode = document.createElement('span')
-      placeholderNode.className = 'truncate text-sm text-base-content/40'
-      placeholderNode.textContent = String(compactPlaceholder)
-      labelHost.appendChild(placeholderNode)
-      return
-    }
-    selectedOptions.forEach(option => {
-      const label = document.createElement('span')
-      label.className =
-        'inline-flex max-w-full items-center gap-1 rounded-md bg-base-200 px-2 py-1 text-xs text-base-content'
-      label.textContent = String(option.label ?? option.value)
-      labelHost.appendChild(label)
-    })
   }
 
   const syncNativeSelectionFromProps = () => {
@@ -1149,7 +1144,7 @@ const SelectRoot: FC<SelectProps> = ({
 
     compactIntentValues = clampedValues.slice()
     pendingCompactValues = clampedValues
-    syncCompactTriggerLabels(clampedValues)
+    if (value === undefined) compactSelectedValues.value = clampedValues
     syncSelectionToDom(clampedValues)(select)
     dispatchNativeSelectionChange(select)
     const restoreSelection = () =>
@@ -1175,8 +1170,8 @@ const SelectRoot: FC<SelectProps> = ({
 
     const nextValues = compactIntentValues.filter(valueKey => valueKey !== optionValue)
     compactIntentValues = nextValues.slice()
+    if (value === undefined) compactSelectedValues.value = nextValues
     pendingCompactValues = nextValues
-    syncCompactTriggerLabels(nextValues)
     syncSelectionToDom(nextValues)(select)
     dispatchNativeSelectionChange(select)
     const restoreSelection = () =>
@@ -1304,28 +1299,31 @@ const SelectRoot: FC<SelectProps> = ({
     className,
   )
   const shellClassName = buildShellClassName(color, status, variant, size, uiSize, ghost, className)
-  const resolvedArrow = showArrow ? (suffixIcon ?? <DefaultChevron />) : suffixIcon
+
   const getCompactGroups = () => groupResolvedOptions(compactResolvedOptions.value)
   const isCompactValueSelected = (optionValue: string) =>
     compactSelectedValues.value.includes(optionValue)
-  const getCompactNativeOptions = () =>
-    compactResolvedOptions.value.map(option => {
-      const optionValue = String(option.value)
-      return (
-        <option
-          key={option.key}
-          value={option.value as any}
-          disabled={option.disabled}
-          title={option.title}
-          className={option.className}
-          {...(isCompactValueSelected(optionValue) ? { selected: true } : {})}
-        >
-          {option.label ?? option.value}
-        </option>
-      )
-    })
+  const CompactNativeOptions = () => (
+    <>
+      {compactResolvedOptions.value.map(option => {
+        const optionValue = String(option.value)
+        return (
+          <option
+            key={option.key}
+            value={option.value as any}
+            disabled={option.disabled}
+            title={option.title}
+            className={option.className}
+            {...(isCompactValueSelected(optionValue) ? { selected: true } : {})}
+          >
+            {String(option.label ?? option.value ?? '')}
+          </option>
+        )
+      })}
+    </>
+  )
 
-  const selectNode = (
+  const SelectNode = () => (
     <select
       {...rest}
       {...getNativeSizeAttrs()}
@@ -1344,24 +1342,107 @@ const SelectRoot: FC<SelectProps> = ({
       placeholder !== undefined &&
       placeholder !== null ? (
         <option value={placeholderValue as any} disabled={placeholderDisabled}>
-          {placeholder}
+          {String(placeholder)}
         </option>
       ) : null}
-      {getUseCompactMultiple() ? getCompactNativeOptions() : renderedOptions}
+      {getUseCompactMultiple() ? (
+        <CompactNativeOptions />
+      ) : hasOptions ? (
+        <RenderDataOptions
+          arg0={options!}
+          arg1={fieldNames}
+          arg2={'option'}
+          arg3={new Set(nativeSelectedValues)}
+        />
+      ) : (
+        <>{children}</>
+      )}
       {!getUseCompactMultiple() && loading && hasNoProvidedOptions() ? (
-        <option disabled={true}>{loadingOptionContent}</option>
+        <option disabled={true}>{String(loadingOptionContent)}</option>
       ) : null}
       {!getUseCompactMultiple() && !loading && hasNoProvidedOptions() ? (
-        <option disabled={true}>{emptyOptionContent}</option>
+        <option disabled={true}>{String(emptyOptionContent)}</option>
       ) : null}
     </select>
   )
 
   if (!getUseShell()) {
-    return selectNode
+    return <SelectNode />
   }
 
   if (getUseCompactMultiple()) {
+    const CompiledRow101 = ({ rowArg0 }: { rowArg0: any }) => {
+      const CompiledRow102 = ({ rowArg0 }: { rowArg0: any }) => {
+        const option = rowArg0
+
+        const optionValue = String(option.value)
+        const selected = isCompactValueSelected(optionValue)
+        return (
+          <button
+            key={optionValue}
+            type="button"
+            className={mergeClassName(
+              'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition',
+              option.disabled
+                ? 'cursor-not-allowed opacity-50'
+                : selected
+                  ? 'bg-primary/10 text-primary'
+                  : 'hover:bg-base-200',
+            )}
+            data-rue-select-option={optionValue}
+            aria-selected={selected ? 'true' : 'false'}
+            disabled={option.disabled}
+            onClick={(event: MouseEvent) => {
+              toggleCompactOption(optionValue, event)
+            }}
+          >
+            <span className="truncate">{String(option.label ?? option.value ?? '')}</span>
+            <span data-rue-select-check="true" className={selected ? 'opacity-100' : 'opacity-0'}>
+              ✓
+            </span>
+          </button>
+        )
+      }
+
+      const group = rowArg0
+      return (
+        <div key={group.key} className="space-y-1">
+          {group.label !== undefined ? (
+            <div className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-base-content/45">
+              {String(group.label)}
+            </div>
+          ) : null}
+          {group.options.map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow102 rowArg0={rowArg0} />
+          ))}
+        </div>
+      )
+    }
+
+    const CompiledRow2 = ({ rowArg0 }: { rowArg0: any }) => {
+      const option = rowArg0
+
+      const optionValue = String(option.value)
+      return (
+        <span
+          key={optionValue}
+          className="inline-flex max-w-full items-center gap-1 rounded-md bg-base-200 px-2 py-1 text-xs text-base-content"
+        >
+          <span className="truncate">{String(option.label ?? option.value ?? '')}</span>
+          {!mergedDisabled ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs h-4 min-h-0 w-4 rounded-full p-0 text-[10px]"
+              aria-label={`移除 ${String(option.label ?? option.value)}`}
+              onClick={(event: MouseEvent) => removeCompactOption(optionValue, event)}
+            >
+              ×
+            </button>
+          ) : null}
+        </span>
+      )
+    }
+
     return (
       <div
         ref={(element: HTMLDivElement | null) => {
@@ -1371,7 +1452,7 @@ const SelectRoot: FC<SelectProps> = ({
         data-rue-select-root="true"
         aria-disabled={mergedDisabled ? 'true' : undefined}
       >
-        {selectNode}
+        <SelectNode />
         <div
           className={mergeClassName(
             mergeClassName(shellClassName, 'flex min-h-12 items-center gap-2 py-2'),
@@ -1393,27 +1474,12 @@ const SelectRoot: FC<SelectProps> = ({
           ) : null}
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
             {getCompactSelectedOptions().length ? (
-              getCompactSelectedOptions().map(option => {
-                const optionValue = String(option.value)
-                return (
-                  <span
-                    key={optionValue}
-                    className="inline-flex max-w-full items-center gap-1 rounded-md bg-base-200 px-2 py-1 text-xs text-base-content"
-                  >
-                    <span className="truncate">{option.label ?? option.value}</span>
-                    {!mergedDisabled ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs h-4 min-h-0 w-4 rounded-full p-0 text-[10px]"
-                        aria-label={`移除 ${String(option.label ?? option.value)}`}
-                        onClick={(event: MouseEvent) => removeCompactOption(optionValue, event)}
-                      >
-                        ×
-                      </button>
-                    ) : null}
-                  </span>
-                )
-              })
+              <>
+                {' '}
+                {getCompactSelectedOptions().map((rowArg0: any, rowIndex: number) => (
+                  <CompiledRow2 rowArg0={rowArg0} />
+                ))}{' '}
+              </>
             ) : (
               <span className="truncate text-sm text-base-content/40">
                 {String(compactPlaceholder)}
@@ -1438,12 +1504,14 @@ const SelectRoot: FC<SelectProps> = ({
           {loading ? (
             <span className="loading loading-spinner loading-xs shrink-0" aria-hidden="true" />
           ) : null}
-          {suffix !== undefined ? (
-            <span className="shrink-0 text-sm text-base-content/60">{suffix}</span>
+          {suffix !== undefined || slots.suffix != null ? (
+            <span className="shrink-0 text-sm text-base-content/60">
+              {slots.suffix ? slots.suffix : String(suffix ?? '')}
+            </span>
           ) : null}
-          {resolvedArrow !== undefined && resolvedArrow !== null ? (
+          {showArrow || suffixIcon != null ? (
             <span className="pointer-events-none flex shrink-0 items-center text-base-content/70">
-              {resolvedArrow}
+              {suffixIcon != null ? String(suffixIcon) : <DefaultChevron />}
             </span>
           ) : null}
           {addonAfter !== undefined ? (
@@ -1461,46 +1529,8 @@ const SelectRoot: FC<SelectProps> = ({
             aria-multiselectable="true"
             className="max-h-72 space-y-2 overflow-auto"
           >
-            {getCompactGroups().map(group => (
-              <div key={group.key} className="space-y-1">
-                {group.label !== undefined ? (
-                  <div className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-base-content/45">
-                    {group.label}
-                  </div>
-                ) : null}
-                {group.options.map(option => {
-                  const optionValue = String(option.value)
-                  const selected = isCompactValueSelected(optionValue)
-                  return (
-                    <button
-                      key={optionValue}
-                      type="button"
-                      className={mergeClassName(
-                        'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition',
-                        option.disabled
-                          ? 'cursor-not-allowed opacity-50'
-                          : selected
-                            ? 'bg-primary/10 text-primary'
-                            : 'hover:bg-base-200',
-                      )}
-                      data-rue-select-option={optionValue}
-                      aria-selected={selected ? 'true' : 'false'}
-                      disabled={option.disabled}
-                      onClick={(event: MouseEvent) => {
-                        toggleCompactOption(optionValue, event)
-                      }}
-                    >
-                      <span className="truncate">{option.label ?? option.value}</span>
-                      <span
-                        data-rue-select-check="true"
-                        className={selected ? 'opacity-100' : 'opacity-0'}
-                      >
-                        ✓
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+            {getCompactGroups().map((rowArg0: any, rowIndex: number) => (
+              <CompiledRow101 rowArg0={rowArg0} />
             ))}
           </div>
         </div>
@@ -1520,7 +1550,7 @@ const SelectRoot: FC<SelectProps> = ({
       {prefix !== undefined ? (
         <span className="shrink-0 text-sm text-base-content/60">{prefix}</span>
       ) : null}
-      {selectNode}
+      <SelectNode />
       {!loading && allowClear ? (
         <button
           type="button"
@@ -1538,14 +1568,14 @@ const SelectRoot: FC<SelectProps> = ({
           aria-hidden="true"
         />
       ) : null}
-      {suffix !== undefined ? (
+      {suffix !== undefined || slots.suffix != null ? (
         <span className="inline-flex shrink-0 items-center self-center text-sm text-base-content/60">
-          {suffix}
+          {slots.suffix ? slots.suffix : String(suffix ?? '')}
         </span>
       ) : null}
-      {resolvedArrow !== undefined && resolvedArrow !== null ? (
+      {showArrow || suffixIcon != null ? (
         <span className="pointer-events-none inline-flex shrink-0 items-center self-center text-base-content/70">
-          {resolvedArrow}
+          {suffixIcon != null ? String(suffixIcon) : <DefaultChevron />}
         </span>
       ) : null}
       {addonAfter !== undefined ? (

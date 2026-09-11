@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Swap } from '@rue-js/design'
+import Swap from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,12 +19,14 @@ describe('Swap', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Swap active rotate flip className="text-2xl" data-testid="swap-root">
-        <Swap.On>ON</Swap.On>
-        <Swap.Off>OFF</Swap.Off>
-      </Swap>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Swap active rotate flip className="text-2xl" data-testid="swap-root">
+          <Swap.On>ON</Swap.On>
+          <Swap.Off>OFF</Swap.Off>
+        </Swap>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -43,20 +46,22 @@ describe('Swap', () => {
     const onCheckedChange = vi.fn()
     const onChange = vi.fn()
 
-    render(
-      <Swap
-        checked={true}
-        effect="rotate"
-        inputClassName="sr-only"
-        inputProps={{ name: 'newsletter' }}
-        data-testid="swap-auto"
-        onChange={onChange}
-        onCheckedChange={onCheckedChange}
-      >
-        <Swap.On>Subscribed</Swap.On>
-        <Swap.Off>Unsubscribed</Swap.Off>
-      </Swap>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Swap
+          checked={true}
+          effect="rotate"
+          inputClassName="sr-only"
+          inputProps={{ name: 'newsletter' }}
+          data-testid="swap-auto"
+          onChange={onChange}
+          onCheckedChange={onCheckedChange}
+        >
+          <Swap.On>Subscribed</Swap.On>
+          <Swap.Off>Unsubscribed</Swap.Off>
+        </Swap>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -86,13 +91,15 @@ describe('Swap', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Swap data-testid="swap-checkbox">
-        <input type="checkbox" checked={true} />
-        <Swap.On data-testid="swap-on">ON</Swap.On>
-        <Swap.Off data-testid="swap-off">OFF</Swap.Off>
-      </Swap>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Swap data-testid="swap-checkbox">
+          <input type="checkbox" checked={true} />
+          <Swap.On data-testid="swap-on">ON</Swap.On>
+          <Swap.Off data-testid="swap-off">OFF</Swap.Off>
+        </Swap>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -112,13 +119,15 @@ describe('Swap', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Swap as="div" data-testid="swap-class-mode">
-        <Swap.Indeterminate as="span" className="text-xs" data-testid="swap-indeterminate">
-          Maybe
-        </Swap.Indeterminate>
-      </Swap>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Swap as="div" data-testid="swap-class-mode">
+          <Swap.Indeterminate as="span" className="text-xs" data-testid="swap-indeterminate">
+            Maybe
+          </Swap.Indeterminate>
+        </Swap>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -137,13 +146,15 @@ describe('Swap', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Swap defaultIndeterminate data-testid="swap-mixed">
-        <Swap.On>ON</Swap.On>
-        <Swap.Indeterminate>Maybe</Swap.Indeterminate>
-        <Swap.Off>OFF</Swap.Off>
-      </Swap>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Swap defaultIndeterminate data-testid="swap-mixed">
+          <Swap.On>ON</Swap.On>
+          <Swap.Indeterminate>Maybe</Swap.Indeterminate>
+          <Swap.Off>OFF</Swap.Off>
+        </Swap>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

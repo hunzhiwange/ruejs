@@ -335,8 +335,8 @@ const Hero: FC<HeroProps> = ({
   })
   const overlayProps = resolveOverlayProps(overlay)
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       style={mergeStyle(style, backgroundStyle)}
       className={joinClassName(
@@ -348,7 +348,51 @@ const Hero: FC<HeroProps> = ({
     >
       {overlayProps ? <Overlay {...overlayProps} /> : null}
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      style={mergeStyle(style, backgroundStyle)}
+      className={joinClassName(
+        'hero',
+        tone !== 'default' ? heroToneClassMap[tone] : undefined,
+        fullHeight ? heroSizeClassMap.screen : size ? heroSizeClassMap[size] : undefined,
+        className,
+      )}
+    >
+      {overlayProps ? <Overlay {...overlayProps} /> : null}
+      {children}
+    </span>
+  ) : Component === 'h1' ? (
+    <h1
+      {...rest}
+      style={mergeStyle(style, backgroundStyle)}
+      className={joinClassName(
+        'hero',
+        tone !== 'default' ? heroToneClassMap[tone] : undefined,
+        fullHeight ? heroSizeClassMap.screen : size ? heroSizeClassMap[size] : undefined,
+        className,
+      )}
+    >
+      {overlayProps ? <Overlay {...overlayProps} /> : null}
+      {children}
+    </h1>
+  ) : Component === 'p' ? (
+    <p
+      {...rest}
+      style={mergeStyle(style, backgroundStyle)}
+      className={joinClassName(
+        'hero',
+        tone !== 'default' ? heroToneClassMap[tone] : undefined,
+        fullHeight ? heroSizeClassMap.screen : size ? heroSizeClassMap[size] : undefined,
+        className,
+      )}
+    >
+      {overlayProps ? <Overlay {...overlayProps} /> : null}
+      {children}
+    </p>
+  ) : (
+    <></>
   )
 }
 
@@ -365,8 +409,8 @@ const Content: FC<HeroContentProps> = ({
 }) => {
   const Component = as as any
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'hero-content',
@@ -378,7 +422,51 @@ const Content: FC<HeroContentProps> = ({
       )}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'hero-content',
+        layout !== 'inherit' ? heroContentLayoutClassMap[layout] : undefined,
+        align ? heroAlignClassMap[align] : undefined,
+        textAlign ? heroTextAlignClassMap[textAlign] : undefined,
+        gap ? heroGapClassMap[gap] : undefined,
+        className,
+      )}
+    >
+      {children}
+    </span>
+  ) : Component === 'h1' ? (
+    <h1
+      {...rest}
+      className={joinClassName(
+        'hero-content',
+        layout !== 'inherit' ? heroContentLayoutClassMap[layout] : undefined,
+        align ? heroAlignClassMap[align] : undefined,
+        textAlign ? heroTextAlignClassMap[textAlign] : undefined,
+        gap ? heroGapClassMap[gap] : undefined,
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  ) : Component === 'p' ? (
+    <p
+      {...rest}
+      className={joinClassName(
+        'hero-content',
+        layout !== 'inherit' ? heroContentLayoutClassMap[layout] : undefined,
+        align ? heroAlignClassMap[align] : undefined,
+        textAlign ? heroTextAlignClassMap[textAlign] : undefined,
+        gap ? heroGapClassMap[gap] : undefined,
+        className,
+      )}
+    >
+      {children}
+    </p>
+  ) : (
+    <></>
   )
 }
 
@@ -395,8 +483,8 @@ const Overlay: FC<HeroOverlayProps> = ({
 }) => {
   const Component = as as any
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       style={mergeStyle(style, resolveOverlayOpacityStyle(opacity))}
       className={joinClassName(
@@ -407,7 +495,48 @@ const Overlay: FC<HeroOverlayProps> = ({
       )}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      style={mergeStyle(style, resolveOverlayOpacityStyle(opacity))}
+      className={joinClassName(
+        'hero-overlay',
+        tone !== 'default' ? heroOverlayToneClassMap[tone] : undefined,
+        blur ? 'backdrop-blur-sm' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </span>
+  ) : Component === 'h1' ? (
+    <h1
+      {...rest}
+      style={mergeStyle(style, resolveOverlayOpacityStyle(opacity))}
+      className={joinClassName(
+        'hero-overlay',
+        tone !== 'default' ? heroOverlayToneClassMap[tone] : undefined,
+        blur ? 'backdrop-blur-sm' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  ) : Component === 'p' ? (
+    <p
+      {...rest}
+      style={mergeStyle(style, resolveOverlayOpacityStyle(opacity))}
+      className={joinClassName(
+        'hero-overlay',
+        tone !== 'default' ? heroOverlayToneClassMap[tone] : undefined,
+        blur ? 'backdrop-blur-sm' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </p>
+  ) : (
+    <></>
   )
 }
 
@@ -422,8 +551,8 @@ const Title: FC<HeroTitleProps> = ({
 }) => {
   const Component = as as any
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'font-bold tracking-tight',
@@ -433,7 +562,45 @@ const Title: FC<HeroTitleProps> = ({
       )}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'font-bold tracking-tight',
+        heroTitleSizeClassMap[size],
+        balanced ? 'text-balance' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </span>
+  ) : Component === 'h1' ? (
+    <h1
+      {...rest}
+      className={joinClassName(
+        'font-bold tracking-tight',
+        heroTitleSizeClassMap[size],
+        balanced ? 'text-balance' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  ) : Component === 'p' ? (
+    <p
+      {...rest}
+      className={joinClassName(
+        'font-bold tracking-tight',
+        heroTitleSizeClassMap[size],
+        balanced ? 'text-balance' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </p>
+  ) : (
+    <></>
   )
 }
 
@@ -448,8 +615,8 @@ const Description: FC<HeroDescriptionProps> = ({
 }) => {
   const Component = as as any
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'max-w-2xl leading-relaxed',
@@ -459,7 +626,45 @@ const Description: FC<HeroDescriptionProps> = ({
       )}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'max-w-2xl leading-relaxed',
+        heroDescriptionSizeClassMap[size],
+        muted ? 'opacity-80' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </span>
+  ) : Component === 'h1' ? (
+    <h1
+      {...rest}
+      className={joinClassName(
+        'max-w-2xl leading-relaxed',
+        heroDescriptionSizeClassMap[size],
+        muted ? 'opacity-80' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  ) : Component === 'p' ? (
+    <p
+      {...rest}
+      className={joinClassName(
+        'max-w-2xl leading-relaxed',
+        heroDescriptionSizeClassMap[size],
+        muted ? 'opacity-80' : undefined,
+        className,
+      )}
+    >
+      {children}
+    </p>
+  ) : (
+    <></>
   )
 }
 
@@ -475,8 +680,8 @@ const Actions: FC<HeroActionsProps> = ({
 }) => {
   const Component = as as any
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'flex gap-3',
@@ -490,7 +695,57 @@ const Actions: FC<HeroActionsProps> = ({
       )}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'flex gap-3',
+        stackOnMobile
+          ? 'flex-col sm:flex-row sm:flex-wrap'
+          : direction === 'column'
+            ? 'flex-col'
+            : 'flex-row flex-wrap',
+        resolveActionsAlignmentClass(align, direction, stackOnMobile),
+        className,
+      )}
+    >
+      {children}
+    </span>
+  ) : Component === 'h1' ? (
+    <h1
+      {...rest}
+      className={joinClassName(
+        'flex gap-3',
+        stackOnMobile
+          ? 'flex-col sm:flex-row sm:flex-wrap'
+          : direction === 'column'
+            ? 'flex-col'
+            : 'flex-row flex-wrap',
+        resolveActionsAlignmentClass(align, direction, stackOnMobile),
+        className,
+      )}
+    >
+      {children}
+    </h1>
+  ) : Component === 'p' ? (
+    <p
+      {...rest}
+      className={joinClassName(
+        'flex gap-3',
+        stackOnMobile
+          ? 'flex-col sm:flex-row sm:flex-wrap'
+          : direction === 'column'
+            ? 'flex-col'
+            : 'flex-row flex-wrap',
+        resolveActionsAlignmentClass(align, direction, stackOnMobile),
+        className,
+      )}
+    >
+      {children}
+    </p>
+  ) : (
+    <></>
   )
 }
 

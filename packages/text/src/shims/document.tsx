@@ -6,8 +6,6 @@
  * with actual content.
  */
 import {
-  createTextCompatElement,
-  TextCompatComponent,
   type TextCompatComponentType,
   type TextCompatElement,
   type TextCompatNode,
@@ -31,15 +29,17 @@ export function Html({
  * The dev server injects meta tags, styles, etc.
  */
 export function Head({ children }: { children?: TextCompatNode }): TextCompatNode {
-  return createTextCompatElement(
-    'head',
-    null,
-    createTextCompatElement('meta', { charSet: 'utf-8' }),
-    createTextCompatElement('meta', {
-      name: 'viewport',
-      content: 'width=device-width, initial-scale=1',
-    }),
-    children ?? null,
+  return (
+    <head>
+      <meta {...{ charSet: 'utf-8' }} />
+      <meta
+        {...{
+          name: 'viewport',
+          content: 'width=device-width, initial-scale=1',
+        }}
+      />
+      {children}
+    </head>
   )
 }
 
@@ -47,10 +47,14 @@ export function Head({ children }: { children?: TextCompatNode }): TextCompatNod
  * Main - renders the page content container.
  */
 export function Main(): TextCompatNode {
-  return createTextCompatElement('div', {
-    id: '__text',
-    dangerouslySetInnerHTML: { __html: getTextMainHtml() },
-  })
+  return (
+    <div
+      {...{
+        id: '__text',
+        dangerouslySetInnerHTML: { __html: getTextMainHtml() },
+      }}
+    />
+  )
 }
 
 /**
@@ -59,9 +63,13 @@ export function Main(): TextCompatNode {
  * Uses dangerouslySetInnerHTML so the HTML comment survives renderToString.
  */
 export function TextScript(): TextCompatNode {
-  return createTextCompatElement('span', {
-    dangerouslySetInnerHTML: { __html: getTextScriptsHtml() },
-  })
+  return (
+    <span
+      {...{
+        dangerouslySetInnerHTML: { __html: getTextScriptsHtml() },
+      }}
+    />
+  )
 }
 
 export function getTextMainHtml(): string {
@@ -108,45 +116,37 @@ export type DocumentInitialProps = {
   styles?: TextCompatElement[] | Iterable<TextCompatNode> | TextCompatElement
 }
 
-/**
- * Default Document component — also the base class user `_document.tsx` files
- * `extend`. Must be a class (not a function) to match Text.js's `text/document`
- * default export so `class MyDocument extends Document` produces a constructible
- * class that Rue can instantiate during SSR. Returning a function here breaks
- * any user `_document.tsx` that uses the class-based form because `extends`
- * against a non-constructor produces a class that can only be called without
- * `new`, which Rue refuses to do.
- *
- * @see https://github.com/vercel/next.js/blob/canary/packages/text/src/pages/_document.tsx
- * Ported behavior: Text.js's default `Document` is a class component. Custom
- * documents extend it and override `getInitialProps` and `render`. Generic
- * default matches Text.js (`P = {}`).
- */
-// oxlint-disable-text-line @typescript-eslint/no-empty-object-type
-export default class Document<P = {}> extends TextCompatComponent<
-  P & { children?: TextCompatNode }
-> {
-  /**
-   * `getInitialProps` is invoked by the SSR pipeline. The default implementation
-   * is a stub: text does not yet plumb the Pages Router `renderPage` /
-   * `defaultGetInitialProps` chain into the SSR entry, so subclasses that
-   * delegate via `await Document.getInitialProps(ctx)` receive an empty shell
-   * (`html: ""`). This matches the runtime contract user code expects without
-   * pretending the chain is wired up.
-   */
-  static async getInitialProps(_ctx: DocumentContext): Promise<DocumentInitialProps> {
-    return { html: '' }
-  }
-
-  render(): TextCompatNode {
-    return (
-      <Html>
-        <Head />
-        <body>
-          <Main />
-          <TextScript />
-        </body>
-      </Html>
-    )
-  }
+type DocumentInstance = {
+  render(): TextCompatNode
 }
+
+type DocumentConstructor = {
+  (_props?: { children?: TextCompatNode }): TextCompatNode
+  new (_props?: { children?: TextCompatNode }): DocumentInstance
+  prototype: DocumentInstance
+  getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+}
+
+/** Default document is callable by Rue and constructable by custom subclasses. */
+const Document = function (this: DocumentInstance | undefined): TextCompatNode | void {
+  if (new.target) return
+  return Document.prototype.render.call(this)
+} as DocumentConstructor
+
+Document.prototype.render = function (): TextCompatNode {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <TextScript />
+      </body>
+    </Html>
+  )
+}
+
+Document.getInitialProps = async function (_ctx: DocumentContext): Promise<DocumentInitialProps> {
+  return { html: '' }
+}
+
+export default Document

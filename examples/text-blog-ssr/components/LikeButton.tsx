@@ -1,20 +1,24 @@
 'use client'
 
-import { useState } from '@rue-js/rue'
+import { ref } from '@rue-js/rue'
 
 export default function LikeButton({ initialLikes = 12 }: { initialLikes?: number }) {
-  const [liked, setLiked] = useState(false)
-  const [likes, setLikes] = useState(initialLikes)
+  const liked = ref(false)
+  const likes = ref(initialLikes)
 
   function handleClick() {
-    const nextLiked = !liked
-    setLiked(nextLiked)
-    setLikes(value => value + (nextLiked ? 1 : -1))
+    const nextLiked = !liked.value
+    liked.value = nextLiked
+    likes.value += nextLiked ? 1 : -1
   }
 
   return (
-    <button className={`like-button${liked ? ' liked' : ''}`} type="button" onClick={handleClick}>
-      {liked ? 'Liked' : 'Like'} · {likes}
+    <button
+      className={`like-button${liked.value ? ' liked' : ''}`}
+      type="button"
+      onClick={handleClick}
+    >
+      {liked.value ? 'Liked' : 'Like'} · {likes.value}
     </button>
   )
 }

@@ -125,42 +125,13 @@ fn hardens_static_component_prop_detection_with_wrapped_literals_and_callbacks()
 }
 
 #[test]
-fn detects_static_component_shortcuts() {
-    assert!(is_static_component_without_props(&parse_jsx_element("<Card />")));
-    assert!(!is_static_component_without_props(&parse_jsx_element("<Card title=\"x\" />")));
-    assert!(!is_static_component_without_props(&parse_jsx_element("<Card>Child</Card>")));
-    assert!(!is_static_component_without_props(&parse_jsx_element("<div />")));
-
-    assert!(is_static_component_children_ident(&parse_jsx_element("<Card children={slot} />")));
-    assert!(!is_static_component_children_ident(&parse_jsx_element("<Card children=\"slot\" />")));
-    assert!(!is_static_component_children_ident(&with_empty_expr_attr(
-        parse_jsx_element("<Card children={slot} />"),
-        "children",
-    )));
-    assert!(!is_static_component_children_ident(&parse_jsx_element(
-        "<Card children={slot.name} />"
-    )));
-    assert!(!is_static_component_children_ident(&parse_jsx_element(
-        "<Card children={slot} extra=\"x\" />"
-    )));
-    assert!(!is_static_component_children_ident(&parse_jsx_element("<div children={slot} />")));
-    assert!(!is_static_component_children_ident(&parse_jsx_element("<Card {...props} />")));
-
+fn detects_transition_component_shortcuts() {
     assert!(!is_transition_group_component(&parse_jsx_element("<svg:path />")));
     assert!(!is_transition_raw_children_component(&parse_jsx_element("<svg:path />")));
 }
 
 #[test]
-fn rejects_non_ident_children_and_namespaced_dynamic_callback_attrs() {
-    let mut namespaced_children = parse_jsx_element("<Card children={slot} />");
-    let source = parse_jsx_element("<Card data:children={slot} />");
-    if let JSXAttrOrSpread::JSXAttr(source_attr) = &source.opening.attrs[0]
-        && let JSXAttrOrSpread::JSXAttr(target_attr) = &mut namespaced_children.opening.attrs[0]
-    {
-        target_attr.name = source_attr.name.clone();
-    }
-    assert!(!is_static_component_children_ident(&namespaced_children));
-
+fn rejects_namespaced_dynamic_callback_attrs() {
     let namespaced_callback = parse_jsx_element("<Card data:handler={handle} />");
     assert!(!component_has_no_dynamic_props_excluding_children(&namespaced_callback));
 }

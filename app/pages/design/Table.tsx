@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Table, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 type ControlledSortOrder = 'ascend' | 'descend' | null
 type ActiveSortOrder = Exclude<ControlledSortOrder, null>
@@ -392,7 +391,7 @@ const columnApiRows: ApiRow[] = [
   {
     prop: 'filters / filterDropdown / filteredValue',
     description: '默认筛选菜单、自定义筛选面板与受控筛选值。',
-    type: 'FilterItem[] / render fn / any[]',
+    type: 'Filter.Item[] / render fn / any[]',
     defaultValue: '-',
   },
   {
@@ -468,7 +467,6 @@ const expandableApiRows: ApiRow[] = [
 ]
 
 const basicExampleCode = `import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: '林青', city: '杭州', role: '设计工程师', team: '体验平台' },
   { key: '2', name: '周宁', city: '上海', role: '前端工程师', team: '设计系统' },
@@ -493,7 +491,6 @@ export default function Demo() {
 }`
 
 const visualExampleCode = `import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: '林青', city: '杭州', role: '设计工程师', team: '体验平台' },
   { key: '2', name: '周宁', city: '上海', role: '前端工程师', team: '设计系统' },
@@ -552,7 +549,6 @@ export default function Demo() {
 
 const controlledSortExampleCode = `import { ref } from '@rue-js/rue'
 import { Table } from '@rue-js/design'
-
 type SortOrder = 'ascend' | 'descend' | null
 type ControlledSorter = { columnKey: string | null; order: SortOrder }
 
@@ -761,7 +757,6 @@ export default function Demo() {
 
 const multipleSorterExampleCode = `import { ref } from '@rue-js/rue'
 import { Table } from '@rue-js/design'
-
 type SortOrder = 'ascend' | 'descend'
 type SortKey = 'chinese' | 'math' | 'english'
 type SortOrderMap = Partial<Record<SortKey, SortOrder>>
@@ -925,7 +920,6 @@ export default function Demo() {
 
 const columnToggleExampleCode = `import { ref } from '@rue-js/rue'
 import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: 'Cy Ganderton', team: 'Design Ops', city: 'Hangzhou', owner: 'Hart Hagerty', updatedAt: '2026-04-18' },
   { key: '2', name: 'Brice Swyre', team: 'Growth', city: 'Shanghai', owner: 'Yancy Tear', updatedAt: '2026-04-19' },
@@ -987,7 +981,6 @@ export default function Demo() {
 
 const selectionExampleCode = `import { ref } from '@rue-js/rue'
 import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: '林青', city: '杭州', team: '体验平台', status: 'active' },
   { key: '2', name: '周宁', city: '上海', team: '设计系统', status: 'active' },
@@ -1043,7 +1036,6 @@ export default function Demo() {
 
 const expandExampleCode = `import { ref } from '@rue-js/rue'
 import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: '林青', team: '体验平台', score: 92, address: '云谷路 88 号' },
   { key: '2', name: '周宁', team: '设计系统', score: 88, address: '武康路 12 号' },
@@ -1100,7 +1092,6 @@ export default function Demo() {
 }`
 
 const layoutExampleCode = `import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: '林青', city: '杭州', role: '设计工程师', team: '体验平台', address: '云谷路 88 号', visits: 148 },
   { key: '2', name: '周宁', city: '上海', role: '前端工程师', team: '设计系统', address: '武康路 12 号', visits: 203 },
@@ -1137,7 +1128,6 @@ export default function Demo() {
 
 const groupedExampleCode = `import { ref } from '@rue-js/rue'
 import { Table } from '@rue-js/design'
-
 const data = [
   { key: '1', name: '林青', age: 28, city: '杭州', role: '设计工程师', team: '体验平台', salary: 26000 },
   { key: '2', name: '周宁', age: 34, city: '上海', role: '前端工程师', team: '设计系统', salary: 31000 },
@@ -1213,7 +1203,6 @@ export default function Demo() {
 }`
 
 const staticExampleCode = `import { Table } from '@rue-js/design'
-
 const pinnedRows = [
   { id: '1', item: '套餐 A', owner: '前台', channel: '门店', stock: 42, price: '199' },
   { id: '2', item: '套餐 B', owner: '门店', channel: '小程序', stock: 36, price: '299' },

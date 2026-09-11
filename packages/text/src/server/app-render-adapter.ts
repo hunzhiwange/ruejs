@@ -10,6 +10,8 @@ type AppPageBoundaryOnError = (
 ) => unknown
 
 export type TextRscRenderOptions = {
+  formState?: unknown
+  nonce?: string
   onError: AppPageBoundaryOnError
 }
 

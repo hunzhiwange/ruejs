@@ -8,13 +8,9 @@ mod utils;
 #[test]
 fn transforms_spec46() {
     let src = r##"
-import { type FC, installBrowserErrorBridge, installErrorConsole, installDevErrorOverlay, useApp } from '@rue-js/rue'
+import { type FC, useApp } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
-
-installBrowserErrorBridge()
-installErrorConsole()
-installDevErrorOverlay()
 
 const ParentBox: FC = (p) => (
   <div>
@@ -41,14 +37,22 @@ useApp(RootApp).use(router).mount('#app')
 
     let output = utils::strip_marker(&out);
 
-    assert!(output.contains("useApp"), "{output}");
-    assert!(output.contains("_$compiledRoot(Object.assign("), "{output}");
     assert!(
-        output.contains("_$compiledText(_el3, ()=>_$compiledPropsGet(p, \"children\"))"),
+        output.contains(
+            "_$createApp(()=>_$compiledComponent(RootApp, ()=>({}))).use(router).mount('#app')"
+        ),
         "{output}"
     );
-    assert!(output.contains("_$createComponent(RouterView, ()=>({}))"), "{output}");
-    assert!(output.contains("_$createComponent(ParentBox, ()=>({"), "{output}");
-    assert!(output.contains("children: __child1"), "{output}");
+    assert!(output.contains("_$compiledRoot("), "{output}");
+    assert!(
+        output.contains("_$compiledScalarText(_el3, ()=>_$compiledPropsGet(p, \"children\"))"),
+        "{output}"
+    );
+    assert!(output.contains("_$mountCompiledComponent(_root, RouterView, ()=>({}))"), "{output}");
+    assert!(output.contains("_$compiledComponent(ParentBox, ()=>({"), "{output}");
+    assert!(
+        output.contains("children: (target, slotProps, owner)=>_$mountCompiledSlotFactory("),
+        "{output}"
+    );
     assert!(!output.contains("renderAnchor"), "{output}");
 }

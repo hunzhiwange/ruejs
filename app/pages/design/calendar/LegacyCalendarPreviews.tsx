@@ -1,7 +1,6 @@
 import type { FC } from '@rue-js/rue'
 import { onMounted, onUnmounted, ref, useRef } from '@rue-js/rue'
-import Calendar from '../../../../packages/rue-design/src/components/calendar'
-
+import { Calendar } from '@rue-js/design'
 type CallyElement = HTMLElement & { value?: string }
 type PikadayInstance = { destroy?: () => void }
 type PikadayConstructor = new (options: Record<string, unknown>) => PikadayInstance
@@ -20,10 +19,6 @@ interface PreviewStatusProps {
 
 let callyReadyPromise: Promise<void> | null = null
 let pikadayCtorPromise: Promise<PikadayConstructor> | null = null
-
-const CalendarCally = Calendar.Cally
-const CalendarMonth = Calendar.Month
-const CalendarPikaSingle = Calendar.PikaSingle
 
 const getCalendarExternalLoaders = () => {
   return (globalThis as { __RUE_CALENDAR_EXTERNALS__?: CalendarExternalLoaders })
@@ -158,15 +153,15 @@ export const CallyCalendarPreview: FC = () => {
 
   return (
     <div className="space-y-3">
-      <CalendarCally
+      <Calendar.Cally
         ref={calendarRef}
         data-testid="cally-calendar"
         className="border border-base-300 bg-base-100 shadow-lg rounded-box"
       >
         <PreviousIcon />
         <NextIcon />
-        <CalendarMonth />
-      </CalendarCally>
+        <Calendar.Month />
+      </Calendar.Cally>
       <PreviewStatus
         ready={ready.value}
         readyLabel="Cally ready"
@@ -250,11 +245,11 @@ export const CallyDatePickerPreview: FC = () => {
         data-testid="cally-picker-panel"
         className={`inline-block rounded-box bg-base-100 p-3 shadow-lg ${open.value ? '' : 'hidden'}`}
       >
-        <CalendarCally ref={calendarRef} data-testid="cally-picker-calendar">
+        <Calendar.Cally ref={calendarRef} data-testid="cally-picker-calendar">
           <PreviousIcon />
           <NextIcon />
-          <CalendarMonth />
-        </CalendarCally>
+          <Calendar.Month />
+        </Calendar.Cally>
       </div>
       <PreviewStatus
         ready={ready.value}
@@ -321,7 +316,7 @@ export const PikadayCalendarPreview: FC = () => {
 
   return (
     <div className="space-y-3">
-      <CalendarPikaSingle
+      <Calendar.PikaSingle
         ref={inputRef}
         data-testid="pikaday-cdn-input"
         className="input input-bordered w-full max-w-xs"

@@ -179,13 +179,13 @@ describe('Rue import guard', () => {
     expect(hits, 'Pages SSR must route through the Rue render adapter.').toEqual([])
   })
 
-  it('keeps Pages SSR adapter on the neutral legacy render protocol facade', async () => {
+  it('keeps Pages SSR adapter on the compiled writer entry', async () => {
     const source = await fs.readFile(
       path.join(packageRoot, 'src/server/pages-renderer-adapter.ts'),
       'utf8',
     )
 
-    expect(source).toMatch(/from ['"]\.\/legacy-render-protocol\.js['"]/)
+    expect(source).toContain('@rue-js/runtime/server')
     expect(source).not.toMatch(/rue-legacy-renderer/)
   })
 
@@ -364,30 +364,21 @@ describe('Rue import guard', () => {
     expect(hits).toEqual([])
   })
 
-  it('keeps server element runtime behind the app element protocol adapter', async () => {
-    const hits = await collectSourceHits('src/server', /rue-element-compat|rue-runtime-protocol/)
-
-    expect(
-      [...new Set(hits.map(hit => hit.file))],
-      'Server runtime code should consume app-element-runtime-protocol instead of Rue shims.',
-    ).toEqual(['src/server/app-element-runtime-protocol.ts'])
-
-    const source = await fs.readFile(
-      path.join(packageRoot, 'src/server/app-element-runtime-protocol.ts'),
-      'utf8',
+  it('has no server element dispatcher or fallback protocol imports', async () => {
+    const hits = await collectSourceHits(
+      'src/server',
+      /rue-element-compat|rue-runtime-protocol|app-element-runtime-protocol|server-element-runtime/,
     )
-    expect(source).toMatch(/type AppRuntimeCreateElement/)
-    expect(source).toMatch(/type AppRuntimeExportKey/)
-    expect(source).not.toMatch(/\bRueCreateElement\b|\bRueRuntimeExportKey\b/)
+    expect(hits).toEqual([])
   })
 
-  it('keeps App server tree class detection on the Text component contract', async () => {
+  it('requires compiled factories in the App server tree', async () => {
     const source = await fs.readFile(
       path.join(packageRoot, 'src/server/app-server-tree.ts'),
       'utf8',
     )
 
-    expect(source).toMatch(/isTextClassComponent/)
+    expect(source).toContain('Text requires a compiled component factory')
     expect(source).not.toMatch(/isRueComponent/)
   })
 

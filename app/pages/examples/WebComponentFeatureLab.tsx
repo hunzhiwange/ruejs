@@ -11,6 +11,7 @@ import {
   useHost,
   useShadowRoot,
 } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 import labSource from './WebComponentFeatureLab.tsx?raw'
@@ -26,6 +27,11 @@ type ScopedBadgeProps = {
 }
 
 const LAB_CONTEXT = createContext('lab:fallback')
+
+const LabContextProvider: FC<{ value: string; children?: any }> = props => {
+  provideContext(LAB_CONTEXT, () => props.value)
+  return <>{props.children}</>
+}
 
 const LAB_TAGS = {
   shadow: 'rue-lab-shadow-probe',
@@ -357,7 +363,7 @@ const WebComponentFeatureLab: FC = () => {
             channel
           </button>
         </div>
-        <LAB_CONTEXT.Provider value={channel.value}>
+        <LabContextProvider value={channel.value}>
           <rue-lab-context-probe props={{ count: count.value }}>
             <Template slot="badge">
               {
@@ -369,7 +375,7 @@ const WebComponentFeatureLab: FC = () => {
               }
             </Template>
           </rue-lab-context-probe>
-        </LAB_CONTEXT.Provider>
+        </LabContextProvider>
       </section>
     )
   }

@@ -81,9 +81,8 @@ export default BasicElements;
     let normalized = utils::normalize(&utils::strip_marker(&out));
     assert!(normalized.contains("_$template('<div class=\"max-w-4xl"), "{out}");
     assert!(normalized.contains(".content.cloneNode(true)"), "{out}");
-    assert!(normalized.contains("RouterLink.__rueHref(\"/jsx\")"), "{out}");
-    assert_eq!(normalized.matches(".addEventListener(").count(), 5, "{out}");
-    assert_eq!(normalized.matches(".removeEventListener(").count(), 5, "{out}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{out}");
+    assert!(normalized.contains("_$mountCompiledSlotFactory"), "{out}");
     assert!(!normalized.contains("_$addEventListener"), "{out}");
 }
 
@@ -181,9 +180,8 @@ export default Expressions;
     let normalized = utils::normalize(&utils::strip_marker(&out));
     assert!(normalized.contains("_$template('<div class=\"max-w-4xl"), "{out}");
     assert!(normalized.contains("rue:text-hole:2"), "{out}");
-    assert!(normalized.contains("renderAnchor(__slot"), "{out}");
-    assert!(normalized.contains("RouterLink.__rueHref(\"/jsx\")"), "{out}");
-    assert_eq!(normalized.matches("onScopeDispose(").count(), 5, "{out}");
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{out}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{out}");
 }
 
 #[test]
@@ -219,7 +217,8 @@ export default Page;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/basic_native_member_slot.out.js", stripped).ok();
 
-    assert!(out.contains(&utils::normalize("const __slot = (icons[0].icon);")));
+    assert!(out.contains("_$mountCompiledSlotAt"));
+    assert!(out.contains("icons[0].icon"));
     assert!(!out.contains(&utils::normalize("_$settextContent(_el1, icons[0].icon);")));
 }
 
@@ -252,8 +251,9 @@ export default Page;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/basic_helper_call_slot.out.js", stripped).ok();
 
-    assert!(out.contains(&utils::normalize("const __slot = show ? renderIcon() : 'fallback';")));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el4, _list1)")));
+    assert!(out.contains("_$mountCompiledSlotAt"));
+    assert!(out.contains("show ? _$compiledValueFactory(renderIcon())"));
+    assert!(!out.contains("renderAnchor"));
     assert!(
         !out.contains(&utils::normalize(
             "_$settextContent(_el3, show ? renderIcon() : 'fallback');"
@@ -288,8 +288,9 @@ export default Page;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/basic_bare_local_slot.out.js", stripped).ok();
 
-    assert!(out.contains(&utils::normalize("const __slot = (iconNode);")));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el4, _el3)")));
+    assert!(out.contains("_$mountCompiledSlotAt"));
+    assert!(out.contains("()=>_$compiledValueFactory(iconNode)"));
+    assert!(!out.contains("renderAnchor"));
     assert!(!out.contains(&utils::normalize("_$settextContent(_el2, iconNode);")));
 }
 
@@ -316,10 +317,8 @@ export default Page;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/basic_nullish_jsx_slot.out.js", stripped).ok();
 
-    assert!(
-        out.contains(&utils::normalize("const __slot = iconConfig.icon ?? _$compiledRoot(()=>{"))
-    );
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el2, _el1)")));
+    assert!(out.contains("_$mountCompiledSlotAt"));
+    assert!(out.contains("iconConfig.icon ??"));
     assert!(!out.contains("_$settextContent("));
 }
 
@@ -402,5 +401,5 @@ export default InlineRouterLinkExpr;
     assert!(normalized.contains("_$template('<div class=\"wrap\">"), "{out}");
     assert!(normalized.contains(".content.cloneNode(true)"), "{out}");
     assert!(normalized.contains("_$compiledComponent(RouterLink"), "{out}");
-    assert!(normalized.contains("renderAnchor(__slot"), "{out}");
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{out}");
 }

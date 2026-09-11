@@ -44,7 +44,7 @@ export function View() {
     assert_eq!(output.matches("_$compiledPath(").count(), 3, "{output}");
     assert!(!output.contains(".get().user"), "{output}");
     assert!(!output.contains(".get().rows"), "{output}");
-    assert!(output.contains("internal/compiler"), "{output}");
+    assert!(output.contains("internal/reactive"), "{output}");
 }
 
 #[test]

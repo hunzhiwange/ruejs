@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import RadialProgress from '..'
@@ -18,7 +19,9 @@ describe('RadialProgress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<RadialProgress value={70}>70%</RadialProgress>, container)
+    mountTestApp(container, () =>
+      render(<RadialProgress value={70}>70%</RadialProgress>, container),
+    )
 
     await waitForContent(() => {
       const root = container.querySelector('.rue-radial-progress') as HTMLElement
@@ -35,17 +38,19 @@ describe('RadialProgress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <RadialProgress
-        value={55}
-        size="12rem"
-        thickness="2px"
-        style={{ borderWidth: '4px' }}
-        className="text-primary"
-      >
-        demo
-      </RadialProgress>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <RadialProgress
+          value={55}
+          size="12rem"
+          thickness="2px"
+          style={{ borderWidth: '4px' }}
+          className="text-primary"
+        >
+          demo
+        </RadialProgress>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -63,11 +68,13 @@ describe('RadialProgress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <RadialProgress value={70} aria-valuenow="42" aria-label="Upload progress">
-        custom
-      </RadialProgress>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <RadialProgress value={70} aria-valuenow="42" aria-label="Upload progress">
+          custom
+        </RadialProgress>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -81,14 +88,16 @@ describe('RadialProgress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <RadialProgress
-        type="dashboard"
-        percent={78}
-        success={{ percent: 42 }}
-        format={(percentValue, successValue) => `${successValue}% / ${percentValue}%`}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <RadialProgress
+          type="dashboard"
+          percent={78}
+          success={{ percent: 42 }}
+          format={(percentValue, successValue) => `${successValue}% / ${percentValue}%`}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -105,7 +114,12 @@ describe('RadialProgress', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<RadialProgress percent={60} steps={{ count: 6, gap: 4 }} showInfo={false} />, container)
+    mountTestApp(container, () =>
+      render(
+        <RadialProgress percent={60} steps={{ count: 6, gap: 4 }} showInfo={false} />,
+        container,
+      ),
+    )
 
     await waitForContent(() => {
       const root = container.querySelector('.rue-radial-progress') as HTMLElement

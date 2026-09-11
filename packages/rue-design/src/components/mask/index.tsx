@@ -98,11 +98,11 @@ export interface MaskProps {
   /** imageClassName 附加类名。 */
   imageClassName?: string
   /** 主体内容。 */
-  content?: any
+  content?: string | number
   /** contentClassName 附加类名。 */
   contentClassName?: string
   /** caption 配置项。 */
-  caption?: any
+  caption?: string
   /** captionClassName 附加类名。 */
   captionClassName?: string
   /** 根节点附加类名。 */
@@ -119,12 +119,8 @@ const mergeClassName = (base: string, className?: string) => {
 }
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (Array.isArray(value)) {
-    return value.some(item => hasRenderableContent(item))
-  }
-  return value !== undefined && value !== null && value !== false
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 解析 Half 的内部工具函数。 */
 const resolveHalf = (half?: MaskHalf) => {
@@ -367,13 +363,13 @@ const Mask: FC<MaskProps> = ({
                   contentClassName,
                 )}
               >
-                {contentNode}
+                {content !== undefined ? <span>{String(content)}</span> : children}
               </div>
             ) : null}
           </div>
           {caption != null ? (
             <div className={mergeClassName('text-center text-sm opacity-70', captionClassName)}>
-              {caption}
+              {String(caption ?? '')}
             </div>
           ) : null}
         </div>
@@ -396,7 +392,7 @@ const Mask: FC<MaskProps> = ({
                 contentClassName,
               )}
             >
-              {contentNode}
+              {content !== undefined ? <span>{String(content)}</span> : children}
             </div>
           ) : null}
         </div>
@@ -404,7 +400,7 @@ const Mask: FC<MaskProps> = ({
           <figcaption
             className={mergeClassName('text-center text-sm opacity-70', captionClassName)}
           >
-            {caption}
+            {String(caption ?? '')}
           </figcaption>
         ) : null}
       </figure>

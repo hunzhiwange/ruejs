@@ -5,17 +5,16 @@ Form 模块概述
 */
 import type { FC } from '@rue-js/rue'
 import {
-  Component as DynamicComponent,
-  Slot,
-  getCurrentInstance,
+  createContext,
+  useContext,
+  computed,
   onCleanup,
   onMounted,
-  onUpdated,
   ref,
-  render as renderRue,
   useRef,
-  watch,
+  watchEffect,
 } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 
 /** FormLayout 类型。 */
 export type FormLayout = 'horizontal' | 'vertical' | 'inline'
@@ -24,10 +23,7 @@ export type FormLabelAlign = 'left' | 'right'
 /** FormSize 尺寸类型。 */
 export type FormSize = 'small' | 'middle' | 'large' | 'sm' | 'md' | 'lg'
 /** FormRequiredMark 类型。 */
-export type FormRequiredMark =
-  | boolean
-  | 'optional'
-  | ((label: any, info: { required: boolean }) => any)
+export type FormRequiredMark = boolean | 'optional'
 /** FormComponent 类型。 */
 export type FormComponent = string | false
 /** NamePath 类型。 */
@@ -158,6 +154,7 @@ export interface FormProps {
   children?: any
   /** render 配置项。 */
   render?: (form: FormInstance) => any
+
   /** component 配置项。 */
   component?: FormComponent
   /** layout 配置项。 */
@@ -208,6 +205,8 @@ export interface FormProps {
 
 /** FormItemProps 组件属性。 */
 export interface FormItemProps {
+  control?: 'input' | 'checkbox' | 'textarea'
+  controlProps?: Record<string, unknown>
   /** 根节点附加类名。 */
   className?: string
   /** 根节点内联样式。 */
@@ -217,18 +216,8 @@ export interface FormItemProps {
   /** 组件子内容。 */
   children?: any
   /** render 配置项。 */
-  render?: (
-    controlProps: Record<string, any>,
-    meta: {
-      value: any
-      touched: boolean
-      validating: boolean
-      errors: string[]
-      warnings: string[]
-      status?: ValidateStatus
-    },
-    form: FormInstance,
-  ) => any
+  render?: (control: Record<string, any>, meta?: unknown) => any
+
   /** 表单 name 属性或分组名称。 */
   name?: NamePath
   /** 展示标签。 */
@@ -289,22 +278,19 @@ export interface FormItemProps {
 
 /** FormListProps 组件属性。 */
 export interface FormListProps {
+  fields?: Array<FormItemProps & { name: NamePath }>
   /** form 配置项。 */
   form?: FormInstance
   /** 表单 name 属性或分组名称。 */
   name: NamePath
   /** 组件子内容。 */
-  children?: (
-    fields: FormListFieldData[],
-    operation: FormListOperation,
-    meta: { errors: string[]; warnings: string[] },
-  ) => any
   /** render 配置项。 */
   render?: (
     fields: FormListFieldData[],
     operation: FormListOperation,
     meta: { errors: string[]; warnings: string[] },
   ) => any
+
   /** initialValue 值。 */
   initialValue?: any[]
   /** rules 配置项。 */
@@ -428,17 +414,6 @@ interface FormContextValue {
   formName?: string
 }
 
-/** RUE_COMPONENT_TYPE_KEY 内部常量。 */
-const RUE_COMPONENT_TYPE_KEY = '__rue_component_type'
-/** FORM_CONTEXT_PROP 内部常量。 */
-const FORM_CONTEXT_PROP = '__rueFormContext'
-/** FORM_PATH_PROP 内部常量。 */
-const FORM_PATH_PROP = '__rueFormPath'
-/** FORM_ORIGINAL_SLOT_PROP 内部常量。 */
-const FORM_ORIGINAL_SLOT_PROP = '__rueFormOriginalDefaultSlot'
-/** RUE_SLOT_KEY 内部常量。 */
-const RUE_SLOT_KEY = '__rue_slots'
-
 let formEntitySeed = 0
 
 const defaultValidateMessages: FormValidateMessages = {
@@ -514,10 +489,6 @@ const pathMatches = (left: NamePathSegment[], right: NamePathSegment[]) => {
 }
 
 /** path Starts With 的内部工具函数。 */
-const _pathStartsWith = (namePath: NamePathSegment[], target: NamePathSegment[]) => {
-  if (target.length > namePath.length) return false
-  return target.every((segment, index) => segment === namePath[index])
-}
 
 /** 读取 Value At Path 的内部工具函数。 */
 const getValueAtPath = (source: any, namePath: NamePathSegment[]) => {
@@ -591,168 +562,6 @@ const buildChangedValues = (namePath: NamePathSegment[], value: any) => {
 const normalizeTriggerList = (trigger?: string | string[]) => {
   if (!trigger) return ['onChange']
   return Array.isArray(trigger) ? trigger : [trigger]
-}
-
-/** 判断 Renderable Node 的内部工具函数。 */
-const isRenderableNode = (value: unknown): value is Record<string, any> => {
-  return !!value && typeof value === 'object'
-}
-
-/** patch Renderable Props 的内部工具函数。 */
-const patchRenderableProps = (node: any, patch: Record<string, any>) => {
-  if (!isRenderableNode(node) || !node.props || typeof node.props !== 'object') return node
-  const originalProps = node.props as Record<string, any>
-  const nextProps = {
-    ...originalProps,
-    ...patch,
-  }
-  nextProps.className = mergeClassName(originalProps.className, patch.className)
-  nextProps.style = {
-    ...originalProps.style,
-    ...patch.style,
-  }
-  if (patch.children !== undefined) {
-    nextProps.children = patch.children
-  }
-  node.props = nextProps
-  return node
-}
-
-/** patch Control Node 的内部工具函数。 */
-const _patchControlNode = (node: any, patch: Record<string, any>): any => {
-  if (Array.isArray(node)) {
-    let patched = false
-    return node.map(child => {
-      if (patched) return child
-      const nextChild = _patchControlNode(child, patch)
-      if (nextChild !== child) patched = true
-      return nextChild
-    })
-  }
-
-  if (!isRenderableNode(node)) return node
-
-  if (node.type === 'fragment' && node.props && typeof node.props === 'object') {
-    const nextChildren = _patchControlNode((node.props as Record<string, any>).children, patch)
-    if (nextChildren === (node.props as Record<string, any>).children) return node
-    return patchRenderableProps(node, { children: nextChildren })
-  }
-
-  return patchRenderableProps(node, patch)
-}
-
-/** inject Form Context 的内部工具函数。 */
-const _injectFormContext = (
-  value: unknown,
-  formContext: FormContextValue,
-  pathPrefix: NamePathSegment[],
-): unknown => {
-  if (typeof value === 'function' && (value as { kind?: unknown }).kind === 'block-factory') {
-    return _injectFormContext((value as () => unknown)(), formContext, pathPrefix)
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(child => _injectFormContext(child, formContext, pathPrefix))
-  }
-  if (!isRenderableNode(value)) {
-    return value
-  }
-
-  const props = value.props
-  if (!props || typeof props !== 'object') {
-    return value
-  }
-
-  const nextProps = {
-    ...(props as Record<string, unknown>),
-  }
-
-  const type = value[RUE_COMPONENT_TYPE_KEY] ?? value.type
-  if (type === FormItem || type === FormList) {
-    nextProps[FORM_CONTEXT_PROP] = formContext
-    nextProps[FORM_PATH_PROP] = pathPrefix
-    value.props = nextProps
-    return value
-  }
-
-  if ((typeof type === 'string' || type === 'fragment') && 'children' in nextProps) {
-    nextProps.children = _injectFormContext(nextProps.children, formContext, pathPrefix)
-    value.props = nextProps
-    return value
-  }
-
-  return value
-}
-
-/** 解析 Default Slot Children 的内部工具函数。 */
-const resolveDefaultSlotChildren = (source: Record<string, unknown>, fallback: any) => {
-  const slots = source[RUE_SLOT_KEY]
-  if (slots && typeof slots === 'object' && 'default' in (slots as Record<string, unknown>)) {
-    const defaultSlot = (slots as Record<string, unknown>).default
-    if (typeof defaultSlot === 'function') {
-      return defaultSlot()
-    }
-    return defaultSlot
-  }
-  if ('children' in source) {
-    return source.children
-  }
-  return fallback
-}
-
-/** materialize Slot Children 的内部工具函数。 */
-const materializeSlotChildren = (children: any): any => {
-  if (typeof children === 'function' && (children as { kind?: unknown }).kind === 'block-factory') {
-    return children()
-  }
-  return children
-}
-
-/** 判断是否存在 Default Slot 的内部工具函数。 */
-const hasDefaultSlot = (source: Record<string, unknown>) => {
-  const slots = source[RUE_SLOT_KEY]
-  return !!(slots && typeof slots === 'object' && 'default' in (slots as Record<string, unknown>))
-}
-
-/** patch Default Slot Source 的内部工具函数。 */
-const patchDefaultSlotSource = (
-  source: Record<string, unknown>,
-  transform: (children: any) => any,
-) => {
-  const slots = source[RUE_SLOT_KEY]
-  if (!slots || typeof slots !== 'object' || !('default' in (slots as Record<string, unknown>))) {
-    return source
-  }
-
-  const slotRecord = slots as Record<string, unknown>
-  const originalDefault = slotRecord[FORM_ORIGINAL_SLOT_PROP] ?? slotRecord.default
-  slotRecord[FORM_ORIGINAL_SLOT_PROP] = originalDefault
-  slotRecord.default = (...args: any[]) =>
-    transform(
-      typeof originalDefault === 'function'
-        ? (originalDefault as (...args: any[]) => any)(...args)
-        : originalDefault,
-    )
-  return source
-}
-
-/** render Transformed Children 的内部工具函数。 */
-const _renderTransformedChildren = (
-  source: Record<string, unknown>,
-  fallback: any,
-  transform: (children: any) => any,
-) => {
-  if (hasDefaultSlot(source)) {
-    return (
-      <Slot
-        source={patchDefaultSlotSource(source, children =>
-          transform(materializeSlotChildren(children)),
-        )}
-      />
-    )
-  }
-
-  return transform(materializeSlotChildren(resolveDefaultSlotChildren(source, fallback)))
 }
 
 /** 读取 Rule Length Type 的内部工具函数。 */
@@ -952,65 +761,12 @@ const runRules = async (
 }
 
 /** resolve Size Class 的内部工具函数。 */
-const _resolveSizeClass = (size?: FormSize) => {
-  switch (size) {
-    case 'small':
-      return 'sm'
-    case 'middle':
-      return 'md'
-    case 'large':
-      return 'lg'
-    default:
-      return size
-  }
-}
 
 /** 读取 Default Value From Event 的内部工具函数。 */
-const getDefaultValueFromEvent = (valuePropName: string, ...args: any[]) => {
-  const [first, second] = args
-
-  if (valuePropName === 'checked') {
-    if (isObjectLike(second) && typeof second.checked === 'boolean') {
-      return second.checked
-    }
-    if (
-      isObjectLike(first) &&
-      isObjectLike(first.target) &&
-      typeof first.target.checked === 'boolean'
-    ) {
-      return first.target.checked
-    }
-    if (typeof first === 'boolean') return first
-    return !!first
-  }
-
-  if (args.length > 1 && first !== undefined && !(isObjectLike(first) && 'target' in first)) {
-    return first
-  }
-
-  if (isObjectLike(first) && isObjectLike(first.target)) {
-    const target = first.target as Record<string, any>
-    if (valuePropName in target) return target[valuePropName]
-    if ('value' in target) return target.value
-  }
-
-  return first
-}
 
 /** 读取 Feedback Icon 的内部工具函数。 */
-const getFeedbackIcon = (status: ValidateStatus | undefined) => {
-  if (!status) return null
-  if (status === 'error') return <span className="text-error">!</span>
-  if (status === 'warning') return <span className="text-warning">!</span>
-  if (status === 'success') return <span className="text-success">✓</span>
-  return <span className="loading loading-spinner loading-xs text-primary" />
-}
 
 /** 解析 Col Width 的内部工具函数。 */
-const resolveColWidth = (config?: FormColConfig) => {
-  if (!config?.span) return undefined
-  return `${(config.span / 24) * 100}%`
-}
 
 /** should Keep Field 的内部工具函数。 */
 const shouldKeepField = (entity: RegisteredFieldEntity, formPreserve?: boolean) => {
@@ -1450,34 +1206,11 @@ const createFormInstance = (): InternalFormInstance => {
 }
 
 /** 渲染 Required Mark 的内部工具函数。 */
-const renderRequiredMark = (label: any, required: boolean, requiredMark: FormRequiredMark) => {
-  if (typeof requiredMark === 'function') {
-    return requiredMark(label, { required })
-  }
-
-  if (requiredMark === 'optional' && !required) {
-    return (
-      <span className="ml-2 text-xs text-base-content/45" aria-hidden="true">
-        optional
-      </span>
-    )
-  }
-
-  if (requiredMark !== false && required) {
-    return (
-      <span className="ml-1 text-error" aria-hidden="true">
-        *
-      </span>
-    )
-  }
-
-  return null
-}
 
 /** Error List 的内部工具函数。 */
 const ErrorList: FC<FormErrorListProps> = ({ errors, warnings, className, style }) => {
   const list = [...(errors ?? []), ...(warnings ?? [])].filter(item => item != null)
-  if (!list.length) return null
+  if (!list.length) return <></>
 
   return (
     <ul
@@ -1498,673 +1231,287 @@ const ErrorList: FC<FormErrorListProps> = ({ errors, warnings, className, style 
   )
 }
 
-/** Form Item 的内部工具函数。 */
+/** Read the explicitly supplied form, or the current form owner context. */
+const FormContext = createContext<FormInstance | undefined>(undefined)
+export const createForm = (): FormInstance => createFormInstance()
+export const useFormInstance = () => {
+  const form = useContext(FormContext)
+  if (!form) throw new Error('A form instance or ancestor Form is required')
+  return form
+}
+export const useForm = (form?: FormInstance): [FormInstance] => {
+  const value = useRef(form ?? createFormInstance())
+  return [value.current!]
+}
+export const useWatch = (name: NamePath, form?: FormInstance) => {
+  const target = (form ?? useFormInstance()) as InternalFormInstance
+  return computed(() => {
+    void target.__INTERNAL__.version.value
+    return target.getFieldValue(name)
+  })
+}
+
+/** A field binds a finite control schema; custom children remain static slots. */
 const FormItem: FC<FormItemProps> = props => {
-  const slotSource = ((getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO ?? {
-    children: props.children,
-  }) as Record<string, unknown>
-  const formInstance = props.form as InternalFormInstance | undefined
-  const entityIdRef = useRef<string>()
-  const unregisterRef = useRef<(() => void) | null>(null)
-  const subscriptionFormRef = useRef<InternalFormInstance | undefined>(undefined)
-  const unsubscribeRenderRef = useRef<(() => void) | null>(null)
-  const renderVersion = ref(0)
-  const renderCacheRef = useRef<any>()
-  const previousValuesRef = useRef<any>()
-  const lastRegisteredKeyRef = useRef<string>()
-  const latestPropsRef = useRef<FormItemProps>(props)
-  const noStyleHostRef = useRef<HTMLElement | null>(null)
-  const controlHostRef = useRef<HTMLElement | null>(null)
-  const helpHostRef = useRef<HTMLElement | null>(null)
-  const feedbackHostRef = useRef<HTMLElement | null>(null)
-  latestPropsRef.current = props
-
-  if (!entityIdRef.current) {
-    entityIdRef.current = `rue-form-item-${formEntitySeed++}`
-  }
-
-  if (props.name != null && !formInstance) {
-    throw new Error('Form.Item 绑定字段时需要显式传入 form')
-  }
-
-  const namePath = props.name == null ? undefined : toNamePathArray(props.name)
-  const nameKey = namePath ? getPathKey(namePath) : undefined
-  const layout = props.layout ?? 'horizontal'
-  const required = resolveItemRequired(props.required, props.rules)
-  const labelAlign = props.labelAlign ?? 'right'
-  const labelWrap = false
-  const labelCol = props.labelCol
-  const wrapperCol = props.wrapperCol
-  const controlId =
-    props.htmlFor ?? (namePath ? namePath.map(segment => String(segment)).join('__') : undefined)
-
-  if (namePath && formInstance && lastRegisteredKeyRef.current !== nameKey) {
-    const latestProps = latestPropsRef.current ?? props
-    unregisterRef.current?.()
-    unregisterRef.current = formInstance.__INTERNAL__.registerField({
-      id: entityIdRef.current,
+  const form = (props.form ?? useContext(FormContext)) as InternalFormInstance | undefined
+  const name = props.name == null ? undefined : toNamePathArray(props.name)
+  const id = props.htmlFor ?? name?.map(String).join('__')
+  if (name && !form) throw new Error('A named FormItem requires a form')
+  if (name && form) {
+    const unregister = form.__INTERNAL__.registerField({
+      id: `rue-form-item-${formEntitySeed++}`,
       kind: 'item',
-      getNamePath: () => namePath,
-      getRules: () => latestProps.rules ?? [],
-      getRequired: () => latestProps.required,
-      getLabel: () => latestProps.label,
-      getMessageVariables: () => latestProps.messageVariables,
-      getValidateTrigger: () => normalizeTriggerList(latestProps.validateTrigger),
-      getDependencies: () =>
-        (latestProps.dependencies ?? []).map(dependency => toNamePathArray(dependency)),
-      getInitialValue: () => latestProps.initialValue,
-      getPreserve: () => latestProps.preserve,
+      getNamePath: () => name,
+      getRules: () => props.rules ?? [],
+      getRequired: () => props.required,
+      getLabel: () => props.label,
+      getMessageVariables: () => props.messageVariables,
+      getValidateTrigger: () => normalizeTriggerList(props.validateTrigger),
+      getDependencies: () => (props.dependencies ?? []).map(toNamePathArray),
+      getInitialValue: () => props.initialValue,
+      getPreserve: () => props.preserve,
     })
-    lastRegisteredKeyRef.current = nameKey
+    onCleanup(unregister)
   }
-
-  const getRenderState = () => {
-    const allValues = formInstance?.getFieldsValue(true) ?? {}
-    const meta = namePath && formInstance ? formInstance.__INTERNAL__.getMeta(namePath) : null
-    const currentValue = namePath && formInstance ? formInstance.getFieldValue(namePath) : undefined
-    const triggerName = props.trigger ?? 'onChange'
-    const validateTrigger = normalizeTriggerList(props.validateTrigger)
-    const status =
-      props.validateStatus ??
-      (meta?.validating
-        ? 'validating'
-        : meta?.errors.length
-          ? 'error'
-          : meta?.warnings.length
-            ? 'warning'
-            : meta?.touched && (props.rules?.length ?? 0) > 0
-              ? 'success'
-              : undefined)
-    return {
-      allValues,
-      meta,
-      currentValue,
-      triggerName,
-      validateTrigger,
-      status,
-    }
-  }
-
-  const renderManagedContent = () => {
-    const { allValues, meta, currentValue, triggerName, validateTrigger, status } = getRenderState()
-    const renderField = props.render ?? props.children
-    let controlNode: any
-
-    if (
-      typeof renderField === 'function' &&
-      (renderField as { kind?: unknown }).kind !== 'block-factory' &&
-      namePath &&
-      formInstance &&
-      !props.shouldUpdate
-    ) {
-      const injectedValueProps = props.getValueProps
-        ? props.getValueProps(currentValue)
-        : {
-            [props.valuePropName ?? 'value']:
-              props.valuePropName === 'checked' ? !!currentValue : currentValue,
-          }
-
-      const controlProps: Record<string, any> = {
-        ...injectedValueProps,
-        id: controlId,
-      }
-
-      controlProps[triggerName] = (...args: any[]) => {
-        const rawValue = props.getValueFromEvent
-          ? props.getValueFromEvent(...args)
-          : getDefaultValueFromEvent(props.valuePropName ?? 'value', ...args)
-        const nextValue = props.normalize
-          ? props.normalize(rawValue, currentValue, formInstance.getFieldsValue(true))
-          : rawValue
-
-        void formInstance.__INTERNAL__.updateValueFromControl(namePath, nextValue, {
-          touch: true,
-          triggerName,
-        })
-      }
-
-      validateTrigger
-        .filter(eventName => eventName !== triggerName)
-        .forEach(eventName => {
-          controlProps[eventName] = (..._args: any[]) => {
-            void formInstance.__INTERNAL__.validateFieldByPath(namePath, eventName)
-          }
-        })
-
-      controlNode = renderField(
-        controlProps,
-        {
-          value: currentValue,
-          touched: meta?.touched ?? false,
-          validating: meta?.validating ?? false,
-          errors: meta?.errors ?? [],
-          warnings: meta?.warnings ?? [],
-          status,
-        },
-        formInstance,
-      )
-    } else if (
-      typeof renderField === 'function' &&
-      (renderField as { kind?: unknown }).kind !== 'block-factory' &&
-      (!namePath || props.shouldUpdate)
-    ) {
-      const shouldRender =
-        typeof props.shouldUpdate === 'function'
-          ? props.shouldUpdate(previousValuesRef.current ?? allValues, allValues)
-          : props.shouldUpdate === true || renderCacheRef.current === undefined
-
-      if (shouldRender || renderCacheRef.current === undefined) {
-        renderCacheRef.current = renderField(allValues, formInstance)
-      }
-      previousValuesRef.current = cloneValue(allValues)
-      controlNode = renderCacheRef.current
-    } else {
-      controlNode = <Slot source={slotSource} />
-    }
-
-    if (props.noStyle) {
-      if (noStyleHostRef.current) {
-        renderRue(<>{controlNode}</>, noStyleHostRef.current)
-      }
-      return
-    }
-
-    if (controlHostRef.current) {
-      renderRue(<>{controlNode}</>, controlHostRef.current)
-    }
-
-    if (helpHostRef.current) {
-      renderRue(
-        props.help !== undefined ? (
-          <>{props.help}</>
-        ) : meta && (meta.errors.length > 0 || meta.warnings.length > 0) ? (
-          <ul className="mt-2 grid gap-1 text-xs">
-            {meta.errors.map((message, index) => (
-              <li key={`error-${index}`} className="text-error">
-                {message}
-              </li>
-            ))}
-            {meta.warnings.map((message, index) => (
-              <li key={`warning-${index}`} className="text-warning">
-                {message}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <></>
-        ),
-        helpHostRef.current,
-      )
-    }
-
-    if (feedbackHostRef.current) {
-      renderRue(props.hasFeedback ? <>{getFeedbackIcon(status)}</> : <></>, feedbackHostRef.current)
-    }
-  }
-
-  const assignControlHost = (element: HTMLElement | null) => {
-    controlHostRef.current = element
-    if (element) {
-      queueMicrotask(() => {
-        renderManagedContent()
-      })
-    }
-  }
-
-  if (subscriptionFormRef.current !== formInstance) {
-    unsubscribeRenderRef.current?.()
-    subscriptionFormRef.current = formInstance
-    unsubscribeRenderRef.current = formInstance
-      ? formInstance.__INTERNAL__.subscribe(() => {
-          renderVersion.value += 1
-        })
-      : null
-  }
-
-  watch(
-    () => renderVersion.value,
-    () => {
-      renderManagedContent()
-    },
-    { immediate: true },
-  )
-
-  onCleanup(() => {
-    unregisterRef.current?.()
-    unregisterRef.current = null
-    unsubscribeRenderRef.current?.()
-    unsubscribeRenderRef.current = null
-    subscriptionFormRef.current = undefined
+  const value = computed(() => {
+    if (!form || !name) return undefined
+    void form.__INTERNAL__.version.value
+    return form.getFieldValue(name)
   })
-
-  onMounted(() => {
-    renderManagedContent()
+  const meta = computed(() => {
+    if (!form || !name) return { errors: [], warnings: [], validating: false }
+    void form.__INTERNAL__.version.value
+    const meta = form.__INTERNAL__.getMeta(name)
+    return { ...meta, errors: [...meta.errors], warnings: [...meta.warnings] }
   })
-
-  onUpdated(() => {
-    renderManagedContent()
-  })
-
-  if (props.noStyle) {
-    return <div ref={noStyleHostRef} style={{ display: 'contents' }} />
+  const update = (event: Event) => {
+    if (!form || !name) return
+    const element = event.target as HTMLInputElement
+    const raw = props.getValueFromEvent
+      ? props.getValueFromEvent(event)
+      : props.control === 'checkbox' || props.valuePropName === 'checked'
+        ? element.checked
+        : element.value
+    const next = props.normalize
+      ? props.normalize(raw, value.value, form.getFieldsValue(true))
+      : raw
+    void form.__INTERNAL__.updateValueFromControl(name, next, {
+      touch: true,
+      triggerName: props.trigger ?? 'onChange',
+    })
   }
-
-  const labelNode =
-    props.label !== undefined ? (
-      <label
-        className={mergeClassName(
-          'text-[0.95rem] leading-7 font-medium text-base-content/78',
-          labelAlign === 'left' ? 'text-left' : 'text-right md:text-right',
-          labelWrap ? 'whitespace-normal' : 'md:whitespace-nowrap',
-        )}
-        style={{ width: layout === 'horizontal' ? resolveColWidth(labelCol) : undefined }}
-        for={controlId}
-      >
-        <span>{props.label}</span>
-        {layout === 'horizontal' && props.colon !== false ? (
-          <span className="ml-1 text-base-content/45">:</span>
-        ) : null}
-        {renderRequiredMark(props.label, required, true)}
-      </label>
-    ) : null
-
-  const wrapperStyle =
-    layout === 'horizontal' && wrapperCol?.offset
-      ? {
-          marginLeft: `${(wrapperCol.offset / 24) * 100}%`,
-          width: resolveColWidth(wrapperCol),
-        }
-      : layout === 'horizontal'
-        ? { width: resolveColWidth(wrapperCol) }
-        : undefined
-
+  const validateBlur = () => {
+    if (form && name && normalizeTriggerList(props.validateTrigger).includes('onBlur')) {
+      void form.__INTERNAL__.validateFieldByPath(name, 'onBlur')
+    }
+  }
+  const Control = () =>
+    props.control === 'checkbox' ? (
+      <input
+        {...props.controlProps}
+        id={id}
+        type="checkbox"
+        className="checkbox"
+        checked={!!value.value}
+        onChange={update}
+        onBlur={validateBlur}
+      />
+    ) : props.control === 'textarea' ? (
+      <textarea
+        {...props.controlProps}
+        id={id}
+        className="textarea"
+        value={value.value ?? ''}
+        onInput={update}
+        onChange={update}
+        onBlur={validateBlur}
+      />
+    ) : props.control === 'input' ? (
+      <input
+        {...props.controlProps}
+        id={id}
+        className="input"
+        value={value.value ?? ''}
+        onInput={update}
+        onChange={update}
+        onBlur={validateBlur}
+      />
+    ) : (
+      <>{props.children}</>
+    )
+  if (props.noStyle) return <Control />
   return (
     <div
       className={mergeClassName(
-        'rue-form-item',
+        'rue-form-item grid gap-3',
         props.hidden ? 'hidden' : undefined,
-        layout === 'horizontal' ? 'flex flex-col gap-3 md:flex-row md:items-start' : 'grid gap-3',
         props.className,
       )}
       style={props.style}
     >
-      {labelNode}
-      <div className="min-w-0 flex-1" style={wrapperStyle}>
-        <div className="flex items-start gap-3">
-          <div
-            key={nameKey ?? '__rue_form_item_control__'}
-            className="min-w-0 flex-1"
-            ref={assignControlHost}
-          />
-          {props.hasFeedback ? <span className="mt-3 shrink-0" ref={feedbackHostRef} /> : null}
-        </div>
-
-        <div className="mt-3" ref={helpHostRef} />
-
-        {props.extra != null ? (
-          <div className="mt-3 text-[0.8rem] leading-6 text-base-content/55">{props.extra}</div>
-        ) : null}
+      {props.label != null ? (
+        <label for={id} className="font-medium">
+          <span>{props.label}</span>
+          {props.colon !== false ? ':' : ''}
+          {resolveItemRequired(props.required, props.rules) ? (
+            <span className="text-error">*</span>
+          ) : null}
+        </label>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <Control />
       </div>
+      {props.hasFeedback ? (
+        <span data-rue-form-feedback="true">
+          {meta.value.validating ? '…' : meta.value.errors.length ? '×' : '✓'}
+        </span>
+      ) : null}
+      {props.help != null ? (
+        <div>{props.help}</div>
+      ) : (
+        <ErrorList errors={meta.value.errors} warnings={meta.value.warnings} />
+      )}
+      {props.extra != null ? <div className="text-xs">{props.extra}</div> : null}
     </div>
   )
 }
 
-/** Form List 的内部工具函数。 */
+/** Explicit list data and operations, independent of a JSX value protocol. */
+export function createFormList(form: FormInstance, name: NamePath): FormListOperation {
+  const target = form as InternalFormInstance
+  const path = toNamePathArray(name)
+  const read = () => {
+    const value = form.getFieldValue(path)
+    return Array.isArray(value) ? [...value] : []
+  }
+  return {
+    add(value, index) {
+      const list = read()
+      list.splice(index ?? list.length, 0, value ?? null)
+      void target.__INTERNAL__.updateListValue(path, list)
+    },
+    remove(index) {
+      const list = read()
+      for (const i of (Array.isArray(index) ? index : [index]).sort((a, b) => b - a))
+        if (i >= 0 && i < list.length) list.splice(i, 1)
+      void target.__INTERNAL__.updateListValue(path, list)
+    },
+    move(from, to) {
+      const list = read()
+      if (from < 0 || to < 0 || from >= list.length || to >= list.length) return
+      const [value] = list.splice(from, 1)
+      list.splice(to, 0, value)
+      void target.__INTERNAL__.updateListValue(path, list)
+    },
+  }
+}
 const FormList: FC<FormListProps> = props => {
-  const { form, name, children, render, initialValue, rules } = props
-  const formInstance = form as InternalFormInstance | undefined
-  if (!formInstance) {
-    throw new Error('Form.List 需要显式传入 form')
+  const CompiledRow101 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const row = rowArg0
+    const index = rowArg1
+    return (
+      <div data-rue-form-list-index={index}>
+        {(props.fields ?? []).map(field => (
+          <FormItem
+            {...field}
+            form={form}
+            name={[...name, index, ...toNamePathArray(field.name)]}
+          />
+        ))}
+      </div>
+    )
   }
 
-  const renderList = render ?? children
-  if (typeof renderList !== 'function') {
-    throw new Error('Form.List 需要通过 render 提供列表内容')
-  }
-
-  const namePath = toNamePathArray(name)
-  const entityIdRef = useRef<string>()
-  const unregisterRef = useRef<(() => void) | null>(null)
-  const subscriptionFormRef = useRef<InternalFormInstance | undefined>(undefined)
-  const unsubscribeRenderRef = useRef<(() => void) | null>(null)
-  const renderVersion = ref(0)
-  const latestRulesRef = useRef<FormRule[] | undefined>(rules)
-  const latestInitialValueRef = useRef<any[] | undefined>(initialValue)
-  const keyListRef = useRef<number[]>([])
-  const nextKeyRef = useRef(0)
-  latestRulesRef.current = rules
-  latestInitialValueRef.current = initialValue
-
-  if (!entityIdRef.current) {
-    entityIdRef.current = `rue-form-list-${formEntitySeed++}`
-  }
-
-  if (!unregisterRef.current) {
-    unregisterRef.current = formInstance.__INTERNAL__.registerField({
-      id: entityIdRef.current,
-      kind: 'list',
-      getNamePath: () => namePath,
-      getRules: () => latestRulesRef.current ?? [],
-      getRequired: () => undefined,
-      getLabel: () => namePath[namePath.length - 1],
-      getMessageVariables: () => undefined,
-      getValidateTrigger: () => ['onChange'],
-      getDependencies: () => [],
-      getInitialValue: () => latestInitialValueRef.current,
-      getPreserve: () => true,
-    })
-  }
-
-  if (subscriptionFormRef.current !== formInstance) {
-    unsubscribeRenderRef.current?.()
-    subscriptionFormRef.current = formInstance
-    unsubscribeRenderRef.current = formInstance.__INTERNAL__.subscribe(() => {
-      renderVersion.value += 1
-    })
-  }
-
-  onCleanup(() => {
-    unregisterRef.current?.()
-    unregisterRef.current = null
-    unsubscribeRenderRef.current?.()
-    unsubscribeRenderRef.current = null
-    subscriptionFormRef.current = undefined
+  const form = (props.form ?? useFormInstance()) as InternalFormInstance
+  const name = toNamePathArray(props.name)
+  const unregister = form.__INTERNAL__.registerField({
+    id: `rue-form-list-${formEntitySeed++}`,
+    kind: 'list',
+    getNamePath: () => name,
+    getRules: () => props.rules ?? [],
+    getRequired: () => undefined,
+    getLabel: () => name.at(-1),
+    getMessageVariables: () => undefined,
+    getValidateTrigger: () => ['onChange'],
+    getDependencies: () => [],
+    getInitialValue: () => props.initialValue,
+    getPreserve: () => true,
   })
+  onCleanup(unregister)
+  const rows = computed(() => {
+    void form.__INTERNAL__.version.value
+    const list = form.getFieldValue(name)
+    return Array.isArray(list) ? list : []
+  })
+  return (
+    <div data-rue-form-list-shell="true">
+      {rows.value.map((rowArg0: any, rowArg1: number) => (
+        <CompiledRow101 rowArg0={rowArg0} rowArg1={rowArg1} />
+      ))}
+    </div>
+  )
+}
 
-  return (() => {
-    void renderVersion.value
-
-    const listValue = formInstance.getFieldValue(namePath)
-    const normalizedList = Array.isArray(listValue) ? listValue : []
-    const meta = formInstance.__INTERNAL__.getMeta(namePath)
-    const keyList = keyListRef.current ?? []
-    const nextKey = nextKeyRef.current ?? 0
-
-    if (keyListRef.current == null) {
-      keyListRef.current = keyList
-    }
-    if (nextKeyRef.current == null) {
-      nextKeyRef.current = nextKey
-    }
-    const takeNextKey = () => {
-      const currentKey = nextKeyRef.current ?? 0
-      nextKeyRef.current = currentKey + 1
-      return currentKey
-    }
-
-    if (keyList.length < normalizedList.length) {
-      while (keyList.length < normalizedList.length) {
-        keyList.push(takeNextKey())
-      }
-    }
-    if (keyList.length > normalizedList.length) {
-      keyListRef.current = keyList.slice(0, normalizedList.length)
-    }
-
-    const operations: FormListOperation = {
-      add(defaultValue, insertIndex) {
-        const nextItems = [...normalizedList]
-        const index =
-          insertIndex == null
-            ? nextItems.length
-            : Math.max(0, Math.min(insertIndex, nextItems.length))
-        nextItems.splice(index, 0, defaultValue ?? null)
-        keyList.splice(index, 0, takeNextKey())
-        void formInstance.__INTERNAL__.updateListValue(namePath, nextItems)
-      },
-      remove(index) {
-        const indexes = (Array.isArray(index) ? index : [index]).sort((left, right) => right - left)
-        const nextItems = [...normalizedList]
-        indexes.forEach(currentIndex => {
-          if (currentIndex < 0 || currentIndex >= nextItems.length) return
-          nextItems.splice(currentIndex, 1)
-          keyList.splice(currentIndex, 1)
-        })
-        void formInstance.__INTERNAL__.updateListValue(namePath, nextItems)
-      },
-      move(from, to) {
-        if (
-          from < 0 ||
-          to < 0 ||
-          from >= normalizedList.length ||
-          to >= normalizedList.length ||
-          from === to
-        ) {
-          return
-        }
-
-        const nextItems = [...normalizedList]
-        const [moved] = nextItems.splice(from, 1)
-        nextItems.splice(to, 0, moved)
-        const [movedKey] = keyList.splice(from, 1)
-        keyList.splice(to, 0, movedKey)
-        void formInstance.__INTERNAL__.updateListValue(namePath, nextItems)
-      },
-    }
-
-    const fields: FormListFieldData[] = normalizedList.map((_, index) => ({
-      key: keyList[index],
-      name: index,
-      fieldKey: keyList[index],
-    }))
-
+const FormRoot: FC<FormProps> = props => {
+  const formRef = useRef((props.form ?? createFormInstance()) as InternalFormInstance)
+  const form = formRef.current!
+  const initialized = form.__INTERNAL__.ensureInitialized(props.initialValues)
+  provideContext(FormContext, () => form)
+  watchEffect(() =>
+    form.__INTERNAL__.setRuntimeOptions({
+      name: props.name,
+      preserve: props.preserve,
+      validateTrigger: normalizeTriggerList(props.validateTrigger),
+      validateMessages: { ...defaultValidateMessages, ...props.validateMessages },
+      scrollToFirstError: props.scrollToFirstError,
+      onValuesChange: props.onValuesChange,
+      onFieldsChange: props.onFieldsChange,
+      onFinish: props.onFinish,
+      onFinishFailed: props.onFinishFailed,
+    }),
+  )
+  onMounted(() => {
+    if (initialized) form.__INTERNAL__.emitUpdate()
+  })
+  const rootRef = (element: HTMLElement | null) => form.__INTERNAL__.setRootElement(element)
+  const submit = (event: Event) => {
+    event.preventDefault()
+    props.onSubmit?.(event)
+    form.submit()
+  }
+  if (props.component === false) return <>{props.children}</>
+  if (props.component === 'div')
     return (
       <div
-        key={fields.map(field => `${String(field.fieldKey)}:${field.name}`).join('|')}
-        data-rue-form-list-shell="true"
+        ref={rootRef}
+        className={mergeClassName('rue-form grid gap-6', props.className)}
+        style={props.style}
+        data-rue-form="true"
       >
-        {renderList(fields, operations, { errors: meta.errors, warnings: meta.warnings })}
+        {props.children}
       </div>
     )
-  })()
-}
-
-/** use Form Instance 的内部工具函数。 */
-const useFormInstance = () => {
-  throw new Error('当前运行时不支持自动解析祖先 Form，请显式持有并传递 form 实例')
-}
-
-/** use Watch 的内部工具函数。 */
-const useWatch = (name: NamePath, form?: FormInstance) => {
-  const instanceProps = (getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO as Record<string, any> | undefined
-  const context = instanceProps?.[FORM_CONTEXT_PROP] as FormContextValue | undefined
-  const targetForm = (form ?? context?.form) as InternalFormInstance | undefined
-  const renderVersion = ref(0)
-  const observedFormRef = useRef<InternalFormInstance | undefined>(undefined)
-  const unsubscribeRef = useRef<(() => void) | null>(null)
-
-  if (observedFormRef.current !== targetForm) {
-    unsubscribeRef.current?.()
-    observedFormRef.current = targetForm
-    unsubscribeRef.current = targetForm
-      ? targetForm.__INTERNAL__.subscribe(() => {
-          renderVersion.value += 1
-        })
-      : null
-  }
-
-  onCleanup(() => {
-    unsubscribeRef.current?.()
-    unsubscribeRef.current = null
-    observedFormRef.current = undefined
-  })
-
-  if (!targetForm) return undefined
-  return (() => {
-    void renderVersion.value
-    return targetForm.getFieldValue(name)
-  })()
-}
-
-/** use Form 的内部工具函数。 */
-const useForm = (form?: FormInstance): [FormInstance] => {
-  const formRef = useRef<FormInstance>()
-  if (!formRef.current) {
-    formRef.current = form ?? createFormInstance()
-  }
-  return [formRef.current]
-}
-
-/** Form Root 的内部工具函数。 */
-const FormRoot: FC<FormProps> = ({
-  className,
-  style,
-  children,
-  render,
-  component = 'form',
-  layout = 'horizontal',
-  initialValues,
-  form,
-  name,
-  preserve,
-  validateMessages,
-  validateTrigger,
-  scrollToFirstError,
-  onValuesChange,
-  onFieldsChange,
-  onFinish,
-  onFinishFailed,
-  onSubmit,
-  ...rest
-}) => {
-  const slotSource = ((getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO ?? {
-    children,
-  }) as Record<string, unknown>
-  const internalFormRef = useRef<InternalFormInstance>()
-  const rootElementRef = useRef<HTMLElement | null>(null)
-  const subscriptionFormRef = useRef<InternalFormInstance | undefined>(undefined)
-  const unsubscribeRenderRef = useRef<(() => void) | null>(null)
-  const renderVersion = ref(0)
-
-  if (!internalFormRef.current) {
-    internalFormRef.current = (form as InternalFormInstance | undefined) ?? createFormInstance()
-  }
-
-  const resolvedForm = ((form as InternalFormInstance | undefined) ??
-    internalFormRef.current) as InternalFormInstance
-  const initializedNow = resolvedForm.__INTERNAL__.ensureInitialized(initialValues)
-  // Keep render-prop consumers subscribed when they read values through the form instance.
-  const formVersionSnapshot = resolvedForm.__INTERNAL__.version.value
-
-  resolvedForm.__INTERNAL__.setRuntimeOptions({
-    name,
-    preserve,
-    validateTrigger: normalizeTriggerList(validateTrigger),
-    validateMessages: {
-      ...defaultValidateMessages,
-      ...validateMessages,
-    },
-    scrollToFirstError,
-    onValuesChange,
-    onFieldsChange,
-    onFinish,
-    onFinishFailed,
-  })
-
-  if (subscriptionFormRef.current !== resolvedForm) {
-    unsubscribeRenderRef.current?.()
-    subscriptionFormRef.current = resolvedForm
-    unsubscribeRenderRef.current = resolvedForm.__INTERNAL__.subscribe(() => {
-      renderVersion.value += 1
-    })
-  }
-
-  const handleNativeSubmit = (event: Event) => {
-    event.preventDefault()
-    onSubmit?.(event)
-    resolvedForm.submit()
-  }
-
-  onMounted(() => {
-    if (initializedNow) {
-      resolvedForm.__INTERNAL__.emitUpdate()
-    }
-  })
-
-  onCleanup(() => {
-    unsubscribeRenderRef.current?.()
-    unsubscribeRenderRef.current = null
-    subscriptionFormRef.current = undefined
-  })
-
-  const resolveContent = () => {
-    void formVersionSnapshot
-
-    return typeof render === 'function' ? (
-      <>{render(resolvedForm)}</>
-    ) : typeof children === 'function' &&
-      (children as { kind?: unknown }).kind !== 'block-factory' ? (
-      <>{children(resolvedForm)}</>
-    ) : (
-      <Slot source={slotSource} />
-    )
-  }
-
-  const content = resolveContent()
-
-  if (component === false) {
-    return content
-  }
-
-  const rootProps = {
-    ...rest,
-    ref: (element: HTMLElement | null) => {
-      rootElementRef.current = element
-      resolvedForm.__INTERNAL__.setRootElement(element)
-    },
-    onSubmit: component === 'form' ? handleNativeSubmit : undefined,
-    className: mergeClassName(
-      'rue-form',
-      layout === 'inline' ? 'flex flex-wrap items-start gap-5' : 'grid content-start gap-6',
-      className,
-    ),
-    style,
-    'data-rue-form': 'true',
-  }
-
-  if (component === 'form') {
+  if (props.component === 'section')
     return (
-      <form {...rootProps}>
-        {(() => {
-          void renderVersion.value
-          return resolveContent()
-        })()}
-      </form>
-    )
-  }
-
-  if (component === 'div') {
-    return (
-      <div {...rootProps}>
-        {(() => {
-          void renderVersion.value
-          return resolveContent()
-        })()}
-      </div>
-    )
-  }
-
-  if (component === 'section') {
-    return (
-      <section {...rootProps}>
-        {(() => {
-          void renderVersion.value
-          return resolveContent()
-        })()}
+      <section
+        ref={rootRef}
+        className={mergeClassName('rue-form grid gap-6', props.className)}
+        style={props.style}
+        data-rue-form="true"
+      >
+        {props.children}
       </section>
     )
-  }
-
   return (
-    <DynamicComponent is={component as any} {...rootProps}>
-      {(() => {
-        void renderVersion.value
-        return resolveContent()
-      })()}
-    </DynamicComponent>
+    <form
+      ref={rootRef}
+      onSubmit={submit}
+      className={mergeClassName('rue-form grid gap-6', props.className)}
+      style={props.style}
+      data-rue-form="true"
+    >
+      {props.children}
+    </form>
   )
 }
 

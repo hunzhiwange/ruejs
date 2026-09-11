@@ -41,10 +41,10 @@ export default AttributesAndProps;
     assert!(normalized.contains("_$template('<span"), "{out}");
     assert!(normalized.contains("_$template('<div class=\"max-w-4xl"), "{out}");
     assert!(normalized.contains(".content.cloneNode(true)"), "{out}");
-    assert!(normalized.contains("RouterLink.__rueHref(\"/jsx\")"), "{out}");
-    assert_eq!(normalized.matches(".addEventListener(").count(), 5, "{out}");
-    assert_eq!(normalized.matches(".removeEventListener(").count(), 5, "{out}");
-    assert_eq!(normalized.matches("onScopeDispose(").count(), 5, "{out}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{out}");
+    assert!(normalized.contains("to: \"/jsx\""), "{out}");
+    assert!(normalized.contains("className: \"text-blue-600 hover:underline\""), "{out}");
+    assert!(normalized.contains("_$mountCompiledSlotFactory"), "{out}");
     assert!(!normalized.contains("_$addEventListener"), "{out}");
 }
 
@@ -66,6 +66,9 @@ export default Demo;
     let normalized = utils::normalize(&utils::strip_marker(&out));
 
     assert!(normalized.contains(&utils::normalize(
-        r#"_$createComponent(TooltipHost, ()=>({ "data-tip": "Home", "aria-label": "导航", children: "Home" }))"#,
+        r#"_$compiledComponent(TooltipHost, ()=>({ "data-tip": "Home", "aria-label": "导航""#,
     )));
+    assert!(
+        normalized.contains("children: (target, slotProps, owner)=>_$mountCompiledSlotFactory")
+    );
 }

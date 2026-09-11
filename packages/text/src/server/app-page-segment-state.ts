@@ -161,3 +161,14 @@ export function resolveAppPageLeafSegmentStateKey(
   }
   return ''
 }
+
+export function createAppPageTreePath(
+  routeSegments: readonly string[] | null | undefined,
+  treePosition: number,
+): string {
+  const treePathSegments = routeSegments?.slice(0, treePosition) ?? []
+  if (treePathSegments.length === 0) {
+    return '/'
+  }
+  return `/${treePathSegments.join('/')}`
+}

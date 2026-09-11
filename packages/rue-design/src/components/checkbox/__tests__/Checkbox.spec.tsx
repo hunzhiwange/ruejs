@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Checkbox from '../index'
@@ -18,7 +19,9 @@ describe('Checkbox', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Checkbox className="border-base-300" checked={true} />, container)
+    mountTestApp(container, () =>
+      render(<Checkbox className="border-base-300" checked={true} />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('input.checkbox') as HTMLInputElement
@@ -33,7 +36,7 @@ describe('Checkbox', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Checkbox color="primary" size="lg" />, container)
+    mountTestApp(container, () => render(<Checkbox color="primary" size="lg" />, container))
 
     await waitForContent(() => {
       const input = container.querySelector('input.checkbox') as HTMLInputElement
@@ -47,15 +50,17 @@ describe('Checkbox', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Checkbox
-        name="remember"
-        value="yes"
-        disabled={true}
-        data-testid="remember"
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Checkbox
+          name="remember"
+          value="yes"
+          disabled={true}
+          data-testid="remember"
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -74,11 +79,13 @@ describe('Checkbox', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Checkbox value="partial" indeterminate={true} rootClassName="rounded-box px-2 py-1">
-        部分选择
-      </Checkbox>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Checkbox value="partial" indeterminate={true} rootClassName="rounded-box px-2 py-1">
+          部分选择
+        </Checkbox>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -99,7 +106,12 @@ describe('Checkbox', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(<Checkbox checked={true} data-testid="controlled" onChange={handleChange} />, container)
+    mountTestApp(container, () =>
+      render(
+        <Checkbox checked={true} data-testid="controlled" onChange={handleChange} />,
+        container,
+      ),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="controlled"]') as HTMLInputElement
@@ -132,7 +144,7 @@ describe('Checkbox', () => {
       </Checkbox>
     )
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-rue-checkbox-root="true"]')).not.toBeNull()
@@ -165,18 +177,20 @@ describe('Checkbox', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Checkbox.Group
-        name="fruits"
-        defaultValue={['apple']}
-        onChange={handleChange}
-        options={[
-          { label: 'Apple', value: 'apple' },
-          { label: 'Banana', value: 'banana' },
-          { label: 'Pear', value: 'pear', disabled: true },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Checkbox.Group
+          name="fruits"
+          defaultValue={['apple']}
+          onChange={handleChange}
+          options={[
+            { label: 'Apple', value: 'apple' },
+            { label: 'Banana', value: 'banana' },
+            { label: 'Pear', value: 'pear', disabled: true },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -205,12 +219,14 @@ describe('Checkbox', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Checkbox.Group defaultValue={['b']} onChange={handleChange} className="gap-2">
-        <Checkbox value="a">Alpha</Checkbox>
-        <Checkbox value="b">Beta</Checkbox>
-      </Checkbox.Group>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Checkbox.Group defaultValue={['b']} onChange={handleChange} className="gap-2">
+          <Checkbox value="a">Alpha</Checkbox>
+          <Checkbox value="b">Beta</Checkbox>
+        </Checkbox.Group>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

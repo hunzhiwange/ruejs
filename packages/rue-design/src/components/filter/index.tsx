@@ -380,6 +380,156 @@ const Filter: FC<FilterProps> = ({
   onReset,
   ...rest
 }) => {
+  const getRootColor = () => color
+  const getRootVariant = () => variant
+  const CompiledRow103 = ({ rowArg0 }: { rowArg0: any }) => {
+    const entry = rowArg0
+    return entry.kind === 'reset' ? (
+      <input
+        key={`filter-reset-${entry.mode}`}
+        {...entry.reset.inputProps}
+        name={entry.reset.name}
+        type={entry.reset.type}
+        defaultChecked={entry.reset.defaultChecked}
+        className={entry.reset.className}
+        disabled={entry.reset.disabled}
+        onPointerDown={(event: Event) => {
+          if (entry.mode !== 'form') {
+            handleManagedResetClick(event, entry.reset.onChange)
+          }
+        }}
+        onMouseDown={(event: Event) => {
+          if (entry.mode !== 'form') {
+            handleManagedResetClick(event, entry.reset.onChange)
+          }
+        }}
+        onChange={(event: Event) => {
+          if (entry.mode === 'form') {
+            entry.reset.onChange?.(event)
+          } else {
+            handleManagedResetClick(event, entry.reset.onChange)
+          }
+        }}
+      />
+    ) : (
+      <input
+        key={entry.item.key ?? `filter-item-${entry.index}`}
+        {...buildManagedItemInputProps(entry.item)}
+        data-rue-filter-role="item"
+        data-rue-filter-name={entry.item.name}
+        data-rue-filter-type={entry.item.type}
+        data-rue-filter-size={entry.item.size}
+        data-rue-filter-color={entry.item.color}
+        data-rue-filter-variant={entry.item.variant}
+        data-rue-filter-class-name={entry.item.className}
+        data-rue-filter-active={entry.item.active ? 'true' : 'false'}
+        data-rue-filter-disabled={disabled || entry.item.disabled ? 'true' : 'false'}
+        data-rue-filter-value={
+          resolveItemValue(entry.item) !== undefined
+            ? serializeValue(resolveItemValue(entry.item) as FilterValue)
+            : undefined
+        }
+        type={entry.item.type ?? resolvedType}
+        name={entry.item.name ?? resolvedName}
+        checked={hasValue(resolveItemValue(entry.item))}
+        defaultChecked={entry.item.defaultChecked}
+        disabled={disabled || entry.item.disabled}
+        className={resolveButtonClassName({
+          color: entry.item.color ?? getRootColor(),
+          size: entry.item.size ?? size,
+          variant: entry.item.variant ?? getRootVariant(),
+          active: entry.item.active || hasValue(resolveItemValue(entry.item)),
+          className: mergeClassNames(itemClassName, entry.item.className),
+        })}
+        onChange={(event: Event) => {
+          const nextChecked = (event.target as HTMLInputElement | null)?.checked === true
+          const itemValue = resolveItemValue(entry.item)
+          const meta = {
+            checked: nextChecked,
+            value: itemValue,
+            item: entry.item,
+          }
+          entry.item.onChange?.(event, meta)
+          handleItemChange(entry.item, itemValue, nextChecked, event)
+        }}
+      />
+    )
+  }
+
+  const CompiledRow101 = ({ rowArg0 }: { rowArg0: any }) => {
+    const entry = rowArg0
+    return entry.kind === 'reset' ? (
+      <input
+        key={`filter-reset-${entry.mode}`}
+        {...entry.reset.inputProps}
+        name={entry.reset.name}
+        type={entry.reset.type}
+        defaultChecked={entry.reset.defaultChecked}
+        className={entry.reset.className}
+        disabled={entry.reset.disabled}
+        onPointerDown={(event: Event) => {
+          if (entry.mode !== 'form') {
+            handleManagedResetClick(event, entry.reset.onChange)
+          }
+        }}
+        onMouseDown={(event: Event) => {
+          if (entry.mode !== 'form') {
+            handleManagedResetClick(event, entry.reset.onChange)
+          }
+        }}
+        onChange={(event: Event) => {
+          if (entry.mode === 'form') {
+            entry.reset.onChange?.(event)
+          } else {
+            handleManagedResetClick(event, entry.reset.onChange)
+          }
+        }}
+      />
+    ) : (
+      <input
+        key={entry.item.key ?? `filter-item-${entry.index}`}
+        {...buildManagedItemInputProps(entry.item)}
+        data-rue-filter-role="item"
+        data-rue-filter-name={entry.item.name}
+        data-rue-filter-type={entry.item.type}
+        data-rue-filter-size={entry.item.size}
+        data-rue-filter-color={entry.item.color}
+        data-rue-filter-variant={entry.item.variant}
+        data-rue-filter-class-name={entry.item.className}
+        data-rue-filter-active={entry.item.active ? 'true' : 'false'}
+        data-rue-filter-disabled={disabled || entry.item.disabled ? 'true' : 'false'}
+        data-rue-filter-value={
+          resolveItemValue(entry.item) !== undefined
+            ? serializeValue(resolveItemValue(entry.item) as FilterValue)
+            : undefined
+        }
+        type={entry.item.type ?? resolvedType}
+        name={entry.item.name ?? resolvedName}
+        checked={hasValue(resolveItemValue(entry.item))}
+        defaultChecked={entry.item.defaultChecked}
+        disabled={disabled || entry.item.disabled}
+        className={resolveButtonClassName({
+          color: entry.item.color ?? getRootColor(),
+          size: entry.item.size ?? size,
+          variant: entry.item.variant ?? getRootVariant(),
+          active: entry.item.active || hasValue(resolveItemValue(entry.item)),
+          className: mergeClassNames(itemClassName, entry.item.className),
+        })}
+        onChange={(event: Event) => {
+          const nextChecked = (event.target as HTMLInputElement | null)?.checked === true
+          const itemValue = resolveItemValue(entry.item)
+          const meta = {
+            checked: nextChecked,
+            value: itemValue,
+            item: entry.item,
+          }
+          entry.item.onChange?.(event, meta)
+          handleItemChange(entry.item, itemValue, nextChecked, event)
+        }}
+      />
+    )
+  }
+
   const normalizedItems = normalizeItems(items)
   const readNormalizedItems = () => (Array.isArray(normalizedItems) ? normalizedItems : [])
   const resolvedType: FilterInputType = multiple ? 'checkbox' : (type ?? 'radio')
@@ -467,22 +617,8 @@ const Filter: FC<FilterProps> = ({
     const markedEvent = event as Event & { __rueFilterResetHandled?: boolean }
     if (markedEvent.__rueFilterResetHandled) return
     markedEvent.__rueFilterResetHandled = true
-    const resetElement = event.target as HTMLElement | null
-    const groupElement = resetElement?.closest?.('[data-rue-filter-group="true"]')
-    const itemElements = groupElement
-      ? Array.from(groupElement.children).filter(
-          (element): element is HTMLInputElement =>
-            element instanceof HTMLInputElement && element.dataset.rueFilterRole === 'item',
-        )
-      : []
     resetOnChange?.(event)
     clearSelection(event)
-    queueMicrotask(() => {
-      itemElements.forEach(input => {
-        input.checked = false
-        input.classList.toggle('btn-active', false)
-      })
-    })
   }
 
   const handleGroupClick = (event: Event) => {
@@ -597,9 +733,8 @@ const Filter: FC<FilterProps> = ({
       : []),
   ]
 
-  return (
-    <Component
-      is={as}
+  return as === 'div' ? (
+    <div
       registry={FILTER_HOSTS}
       {...rest}
       style={style}
@@ -621,83 +756,47 @@ const Filter: FC<FilterProps> = ({
     >
       {readNormalizedItems().length > 0 ? (
         <>
-          {managedEntries.map(entry =>
-            entry.kind === 'reset' ? (
-              <input
-                key={`filter-reset-${entry.mode}`}
-                {...entry.reset.inputProps}
-                name={entry.reset.name}
-                type={entry.reset.type}
-                defaultChecked={entry.reset.defaultChecked}
-                className={entry.reset.className}
-                disabled={entry.reset.disabled}
-                onPointerDown={(event: Event) => {
-                  if (entry.mode !== 'form') {
-                    handleManagedResetClick(event, entry.reset.onChange)
-                  }
-                }}
-                onMouseDown={(event: Event) => {
-                  if (entry.mode !== 'form') {
-                    handleManagedResetClick(event, entry.reset.onChange)
-                  }
-                }}
-                onChange={(event: Event) => {
-                  if (entry.mode === 'form') {
-                    entry.reset.onChange?.(event)
-                  } else {
-                    handleManagedResetClick(event, entry.reset.onChange)
-                  }
-                }}
-              />
-            ) : (
-              <input
-                key={entry.item.key ?? `filter-item-${entry.index}`}
-                {...buildManagedItemInputProps(entry.item)}
-                data-rue-filter-role="item"
-                data-rue-filter-name={entry.item.name}
-                data-rue-filter-type={entry.item.type}
-                data-rue-filter-size={entry.item.size}
-                data-rue-filter-color={entry.item.color}
-                data-rue-filter-variant={entry.item.variant}
-                data-rue-filter-class-name={entry.item.className}
-                data-rue-filter-active={entry.item.active ? 'true' : 'false'}
-                data-rue-filter-disabled={disabled || entry.item.disabled ? 'true' : 'false'}
-                data-rue-filter-value={
-                  resolveItemValue(entry.item) !== undefined
-                    ? serializeValue(resolveItemValue(entry.item) as FilterValue)
-                    : undefined
-                }
-                type={entry.item.type ?? resolvedType}
-                name={entry.item.name ?? resolvedName}
-                checked={hasValue(resolveItemValue(entry.item))}
-                defaultChecked={entry.item.defaultChecked}
-                disabled={disabled || entry.item.disabled}
-                className={resolveButtonClassName({
-                  color: entry.item.color ?? color,
-                  size: entry.item.size ?? size,
-                  variant: entry.item.variant ?? variant,
-                  active: entry.item.active || hasValue(resolveItemValue(entry.item)),
-                  className: mergeClassNames(itemClassName, entry.item.className),
-                })}
-                onChange={(event: Event) => {
-                  const nextChecked = (event.target as HTMLInputElement | null)?.checked === true
-                  const itemValue = resolveItemValue(entry.item)
-                  const meta = {
-                    checked: nextChecked,
-                    value: itemValue,
-                    item: entry.item,
-                  }
-                  entry.item.onChange?.(event, meta)
-                  handleItemChange(entry.item, itemValue, nextChecked, event)
-                }}
-              />
-            ),
-          )}
+          {managedEntries.map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow101 rowArg0={rowArg0} />
+          ))}
         </>
       ) : (
         children
       )}
-    </Component>
+    </div>
+  ) : as === 'form' ? (
+    <form
+      registry={FILTER_HOSTS}
+      {...rest}
+      style={style}
+      onReset={(event: Event) => {
+        restoreDefaultSelection(event)
+        if (onReset) onReset(event)
+      }}
+      onClick={(event: Event) => {
+        handleGroupClick(event)
+        if (onClick) onClick(event)
+      }}
+      className={mergeClassNames(
+        resolvedType === 'radio' ? 'filter' : 'flex flex-wrap gap-1',
+        className,
+      )}
+      data-rue-filter-group="true"
+      data-rue-filter-mode={as}
+      data-rue-filter-type={resolvedType}
+    >
+      {readNormalizedItems().length > 0 ? (
+        <>
+          {managedEntries.map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow103 rowArg0={rowArg0} />
+          ))}
+        </>
+      ) : (
+        children
+      )}
+    </form>
+  ) : (
+    <></>
   )
 }
 

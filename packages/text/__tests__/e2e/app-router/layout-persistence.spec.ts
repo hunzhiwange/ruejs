@@ -36,8 +36,7 @@ async function waitForInteractiveCounter(
   await expect(async () => {
     const before = await readCounterValue(page, controls)
     await incrementButton.click()
-    const after = await readCounterValue(page, controls)
-    expect(after).toBeGreaterThan(before)
+    await expect.poll(() => readCounterValue(page, controls)).toBeGreaterThan(before)
   }).toPass({ timeout: 10_000 })
 
   return readCounterValue(page, controls)
@@ -288,6 +287,11 @@ test.describe('Parallel slot persistence', () => {
     await expect(page.locator('[data-testid="team-slot"]')).toBeVisible()
     await expect(page.locator('[data-testid="analytics-slot"]')).toBeVisible()
 
+    const counter = page.getByTestId('team-slot-counter')
+    await counter.click()
+    await counter.click()
+    await expect(counter).toHaveText('2')
+
     // Soft navigate to /dashboard/settings
     await page.click('[data-testid="dash-settings-link"]')
     await expect(page.locator('h1')).toHaveText('Settings')
@@ -301,6 +305,9 @@ test.describe('Parallel slot persistence', () => {
     await expect(page.locator('[data-testid="analytics-slot"]')).toBeVisible()
     await expect(page.locator('[data-testid="team-default"]')).not.toBeAttached()
     await expect(page.locator('[data-testid="analytics-default"]')).not.toBeAttached()
+    await expect(counter).toHaveText('2')
+    await counter.click()
+    await expect(counter).toHaveText('3')
   })
 
   test('parallel slots show default.tsx on hard navigation to child route', async ({ page }) => {

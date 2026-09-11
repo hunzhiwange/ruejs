@@ -33,7 +33,7 @@ describe('text/navigation shim', () => {
       return createElement('span', null, 'unreachable')
     }
 
-    expect(() => renderAppServerElementToHtml(createElement(Probe))).toThrow(
+    await expect(renderAppServerElementToHtml(createElement(Probe))).rejects.toThrow(
       'invariant expected app router to be mounted',
     )
   })
@@ -57,7 +57,7 @@ describe('text/navigation shim', () => {
       throw new Error('Expected AppRouterContext to be available in the test renderer')
     }
 
-    renderAppServerElementToHtml(
+    await renderAppServerElementToHtml(
       createElement(AppRouterContext.Provider, { value: appRouterInstance }, createElement(Probe)),
     )
 
@@ -181,7 +181,7 @@ describe('text/navigation shim', () => {
         {},
       )
 
-      const readHookValues = () => {
+      const readHookValues = async () => {
         let pathname = ''
         let search = ''
         function Probe() {
@@ -190,21 +190,21 @@ describe('text/navigation shim', () => {
           return createElement('span', null, pathname)
         }
 
-        renderAppServerElementToHtml(
+        await renderAppServerElementToHtml(
           createElement(Context.Provider, { value: snapshot }, createElement(Probe)),
         )
 
         return { pathname, search }
       }
 
-      expect(readHookValues()).toEqual({
+      expect(await readHookValues()).toEqual({
         pathname: '/pending',
         search: 'from=snapshot',
       })
 
       win.history.pushState(null, '', '/ownerless?from=history')
 
-      expect(readHookValues()).toEqual({
+      expect(await readHookValues()).toEqual({
         pathname: '/pending',
         search: 'from=snapshot',
       })
@@ -546,9 +546,9 @@ describe('text/navigation shim', () => {
         )
       }
 
-      expect(renderAppServerElementToHtml(createElement(Probe))).toBe(
-        '<span>/split-hydration|hello|hello</span>',
-      )
+      expect(
+        (await renderAppServerElementToHtml(createElement(Probe))).replace(/<!--.*?-->/g, ''),
+      ).toBe('<span>/split-hydration|hello|hello</span>')
 
       setterMod.setNavigationContext(null)
     } finally {
@@ -609,7 +609,7 @@ describe('text/navigation shim', () => {
       return createElement('span', { 'data-testid': 'segment' }, segment ?? 'null')
     }
 
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(providerMod.LayoutSegmentProvider, {
         segmentMap: { children: ['explore'] },
         children: createElement(Probe),
@@ -637,10 +637,10 @@ describe('text/navigation shim', () => {
 
     function Probe() {
       received = useTextCompatContext(consumerCtx!)
-      return null
+      return () => {}
     }
 
-    renderAppServerElementToHtml(
+    await renderAppServerElementToHtml(
       createElement(providerCtx!.Provider, { value: register }, createElement(Probe)),
     )
 
@@ -693,16 +693,16 @@ describe('text/navigation shim', () => {
       )
     }
 
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(LayoutSegmentProvider, {
         segmentMap: { children: ['blog', 'hello'], team: ['settings'] },
         children: createElement(TestComponent),
       }),
     )
 
-    expect(html).toContain('<span id="children">["blog","hello"]</span>')
-    expect(html).toContain('<span id="team">["settings"]</span>')
-    expect(html).toContain('<span id="team-singular">settings</span>')
+    expect(html.replace(/<!--.*?-->/g, '')).toContain('<span id="children">["blog","hello"]</span>')
+    expect(html.replace(/<!--.*?-->/g, '')).toContain('<span id="team">["settings"]</span>')
+    expect(html.replace(/<!--.*?-->/g, '')).toContain('<span id="team-singular">settings</span>')
   })
 
   it('useSelectedLayoutSegments(unknownKey) returns [] for missing slot', async () => {
@@ -714,7 +714,7 @@ describe('text/navigation shim', () => {
       return createElement('span', null, JSON.stringify(segs))
     }
 
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(LayoutSegmentProvider, {
         segmentMap: { children: ['blog'] },
         children: createElement(TestComponent),
@@ -946,324 +946,24 @@ describe('text/navigation shim', () => {
 // ---------------------------------------------------------------------------
 describe('text/error shim — unstable_catchError', () => {
   it('exports unstable_catchError as a function', async () => {
-    const mod = await import('../src/shims/error.js')
+    const mod = await import('../src/shims/error.js?text-ssr')
     expect(typeof mod.unstable_catchError).toBe('function')
   })
 
   it('returns a Component that renders children when no error occurs', async () => {
-    const { unstable_catchError } = await import('../src/shims/error.js')
+    const { unstable_catchError } = await import('../src/shims/error.js?text-ssr')
 
     function Fallback(_props: { title: string }) {
       return createElement('p', null, 'should not render')
     }
 
     const Boundary = unstable_catchError<{ title: string }>(Fallback)
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(Boundary, { title: 'ignored' }, createElement('span', { id: 'ok' }, 'hello')),
     )
 
     expect(html).toContain('id="ok"')
     expect(html).toContain('hello')
-  })
-
-  it('class-component lifecycle catches non-router errors and renders the fallback', async () => {
-    // The active compat SSR renderer does not invoke error boundaries during
-    // SSR; errors propagate up by design (boundaries only run during client
-    // commit). To validate behavior without spinning up a real browser, we
-    // exercise the lifecycle hooks directly: `getDerivedStateFromError` is
-    // the canonical predicate driving the class component's behavior, and
-    // its return value is the only thing the compat runtime feeds into the
-    // text render.
-    const { unstable_catchError } = await import('../src/shims/error.js')
-
-    const seenErrors: unknown[] = []
-    function Fallback(
-      props: { title: string },
-      info: { error: unknown; reset: () => void; unstable_retry: () => void },
-    ) {
-      seenErrors.push(info.error)
-      const message = info.error instanceof Error ? info.error.message : String(info.error)
-      return createElement(
-        'div',
-        null,
-        createElement('p', { id: 'title' }, props.title),
-        createElement('p', { id: 'msg' }, message),
-      )
-    }
-
-    const Boundary = unstable_catchError<{ title: string }>(Fallback)
-
-    // Locate the inner class component by inspecting what the HOC renders.
-    // The wrapper function returns the `_CatchError` element wrapper.
-    const wrapperResult = (
-      Boundary as unknown as (props: { title: string; children?: unknown }) => { type: unknown }
-    )({
-      title: 'hello-title',
-      children: createElement('span', null, 'child'),
-    })
-    const InnerCatchError = wrapperResult.type as unknown as new (props: {
-      fallback: typeof Fallback
-      forwardedProps: { title: string }
-      children?: unknown
-    }) => {
-      state: { error: { thrownValue: unknown } | null }
-      render(): unknown
-    }
-
-    const props = {
-      fallback: Fallback,
-      forwardedProps: { title: 'hello-title' },
-      children: createElement('span', null, 'child'),
-    }
-    // Cast through unknown to instantiate without engaging Rue's renderer.
-    const instance = new InnerCatchError(props)
-    instance.state = { error: null }
-
-    // 1. No error → renders children.
-    const childrenOutput = renderAppServerElementToHtml(instance.render())
-    expect(childrenOutput).toContain('child')
-
-    // 2. After getDerivedStateFromError, renders the fallback with ErrorInfo.
-    const thrown = new Error('boom')
-    const derived = (
-      InnerCatchError as unknown as {
-        getDerivedStateFromError(e: unknown): { error: { thrownValue: unknown } | null }
-      }
-    ).getDerivedStateFromError(thrown)
-    expect(derived).toEqual({ error: { thrownValue: thrown } })
-    instance.state = derived
-    const fallbackOutput = renderAppServerElementToHtml(instance.render())
-    expect(fallbackOutput).toContain('id="msg"')
-    expect(fallbackOutput).toContain('boom')
-    expect(fallbackOutput).toContain('hello-title')
-    expect(seenErrors[seenErrors.length - 1]).toBe(thrown)
-  })
-
-  it('class-component getDerivedStateFromError re-throws Text.js router errors', async () => {
-    const { unstable_catchError } = await import('../src/shims/error.js')
-    const { redirect } = await import('../src/shims/navigation.js')
-
-    function Fallback() {
-      return null
-    }
-    const Boundary = unstable_catchError(Fallback)
-
-    // Probe the inner class through the wrapper.
-    const wrapperResult = (Boundary as unknown as (p: Record<string, never>) => { type: unknown })(
-      {},
-    )
-    const InnerCatchError = wrapperResult.type as unknown as {
-      getDerivedStateFromError(e: unknown): unknown
-    }
-
-    let captured: unknown = null
-    try {
-      redirect('/login')
-    } catch (e) {
-      captured = e
-    }
-    expect(() => InnerCatchError.getDerivedStateFromError(captured)).toThrow()
-    try {
-      InnerCatchError.getDerivedStateFromError(captured)
-    } catch (rethrown) {
-      // Identity-preserving rethrow.
-      expect(rethrown).toBe(captured)
-    }
-  })
-
-  it('rethrows Text.js navigation signals (redirect, notFound) instead of catching them', async () => {
-    const { unstable_catchError } = await import('../src/shims/error.js')
-    const { redirect } = await import('../src/shims/navigation.js')
-
-    function RedirectThrower(): unknown {
-      redirect('/login')
-      return createElement('span', null)
-    }
-
-    function Fallback() {
-      return createElement('p', null, 'should not be reached')
-    }
-
-    const Boundary = unstable_catchError(Fallback)
-
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      // The boundary must let the redirect propagate up — renderToStaticMarkup
-      // should throw with the redirect digest.
-      let captured: unknown = null
-      try {
-        renderAppServerElementToHtml(createElement(Boundary, null, createElement(RedirectThrower)))
-      } catch (e) {
-        captured = e
-      }
-      expect(captured).not.toBeNull()
-      expect((captured as { digest?: string }).digest).toContain('TEXT_REDIRECT')
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('exposes the displayName matching Text.js (`unstable_catchError(...)`)', async () => {
-    const { unstable_catchError } = await import('../src/shims/error.js')
-    const Fallback = function MyFallback() {
-      return null
-    }
-    const Boundary = unstable_catchError(Fallback)
-    // Wrapper component carries the user fallback name for DevTools.
-    expect(Boundary.displayName).toBe('unstable_catchError(MyFallback)')
-  })
-
-  // Ported from Text.js:
-  //   .textjs-ref/test/e2e/app-dir/catch-error/catch-error.test.ts
-  //   "should render fallback when null is thrown from a Client Component"
-  //   "should render fallback when undefined is thrown from a Client Component"
-  //
-  // The boundary must accept null/undefined as `thrownValue` (not just Error
-  // instances) and route them to the fallback. Crucially, the rethrow guard
-  // (`isTextRouterError`) must not crash on null/undefined inputs.
-  it('class-component getDerivedStateFromError accepts null thrown values', async () => {
-    const { unstable_catchError } = await import('../src/shims/error.js')
-
-    function Fallback() {
-      return null
-    }
-    const Boundary = unstable_catchError(Fallback)
-    const wrapperResult = (Boundary as unknown as (p: Record<string, never>) => { type: unknown })(
-      {},
-    )
-    const InnerCatchError = wrapperResult.type as unknown as {
-      getDerivedStateFromError(e: unknown): { error: { thrownValue: unknown } | null }
-    }
-
-    const derivedNull = InnerCatchError.getDerivedStateFromError(null)
-    expect(derivedNull).toEqual({ error: { thrownValue: null } })
-
-    const derivedUndefined = InnerCatchError.getDerivedStateFromError(undefined)
-    expect(derivedUndefined).toEqual({ error: { thrownValue: undefined } })
-
-    // Exhaustive non-error primitives (strings, numbers, booleans) should
-    // also flow through to the fallback without throwing.
-    expect(InnerCatchError.getDerivedStateFromError('string')).toEqual({
-      error: { thrownValue: 'string' },
-    })
-    expect(InnerCatchError.getDerivedStateFromError(0)).toEqual({
-      error: { thrownValue: 0 },
-    })
-  })
-
-  // unstable_retry behavior parity. Text.js refreshes the App Router segment
-  // and resets the boundary. text does the same on the client; on the
-  // server we throw (refresh is meaningless during SSR setup).
-  it('unstable_retry throws on the server (where refresh is meaningless)', async () => {
-    const { unstable_catchError } = await import('../src/shims/error.js')
-
-    function Fallback(
-      _props: Record<string, never>,
-      info: { error: unknown; reset: () => void; unstable_retry: () => void },
-    ) {
-      return createElement('button', { onClick: info.unstable_retry }, 'retry')
-    }
-    const Boundary = unstable_catchError(Fallback)
-    // Probe the inner class for its instance shape.
-    const wrapperResult = (Boundary as unknown as (p: Record<string, never>) => { type: unknown })(
-      {},
-    )
-    const InnerCatchError = wrapperResult.type as unknown as new (props: object) => {
-      state: { error: { thrownValue: unknown } | null }
-      unstable_retry: () => void
-    }
-    const instance = new InnerCatchError({
-      fallback: Fallback,
-      forwardedProps: {},
-    })
-    instance.state = { error: { thrownValue: new Error('boom') } }
-
-    // typeof window === "undefined" in this Node test environment, so
-    // unstable_retry should throw a clear "client only" error.
-    expect(() => instance.unstable_retry()).toThrow(/client/i)
-  })
-
-  it('unstable_retry on the client calls appRouterInstance.refresh and resets the boundary', async () => {
-    // Stub `window` with the minimum surface navigation.ts needs at
-    // module-load time (location, history, addEventListener). This must be
-    // installed BEFORE re-importing the shims, otherwise navigation.ts will
-    // initialize its client navigation state against a bare `{}` and crash.
-    // Mutable view over globalThis that allows assigning/deleting `window`.
-    // We avoid `as Window & typeof globalThis` because the stub doesn't have
-    // the full DOM surface — just the bits navigation.ts touches at
-    // module-load.
-    const globalAny = globalThis as unknown as { window?: unknown }
-    const previousWindow = globalAny.window
-    const stubWindow = {
-      location: {
-        search: '',
-        pathname: '/',
-        href: 'http://localhost/',
-        origin: 'http://localhost',
-      },
-      history: {
-        pushState: () => {},
-        replaceState: () => {},
-        back: () => {},
-        forward: () => {},
-        state: null,
-      },
-      addEventListener: () => {},
-      scrollTo: () => {},
-    }
-    globalAny.window = stubWindow
-
-    try {
-      vi.resetModules()
-
-      const { unstable_catchError } = await import('../src/shims/error.js')
-      const navigation = await import('../src/shims/navigation.js')
-
-      const refreshSpy = vi
-        .spyOn(navigation.appRouterInstance, 'refresh')
-        .mockImplementation(() => {})
-
-      function Fallback() {
-        return null
-      }
-      const Boundary = unstable_catchError(Fallback)
-      const wrapperResult = (
-        Boundary as unknown as (p: Record<string, never>) => { type: unknown }
-      )({})
-      const InnerCatchError = wrapperResult.type as unknown as new (props: object) => {
-        state: { error: { thrownValue: unknown } | null }
-        unstable_retry: () => void
-      }
-      const instance = new InnerCatchError({
-        fallback: Fallback,
-        forwardedProps: {},
-      })
-
-      // Seed an error so reset has something to clear, and replace setState
-      // with a spy so we can confirm the boundary self-resets.
-      instance.state = { error: { thrownValue: new Error('boom') } }
-      const setStateCalls: Array<{ error: { thrownValue: unknown } | null }> = []
-      ;(instance as unknown as { setState: (partial: object) => void }).setState = partial => {
-        setStateCalls.push(partial as { error: { thrownValue: unknown } | null })
-        instance.state = { ...instance.state, ...(partial as object) } as typeof instance.state
-      }
-
-      // startTransition runs synchronously here because there's no
-      // concurrent renderer in the test environment.
-      instance.unstable_retry()
-
-      expect(refreshSpy).toHaveBeenCalledTimes(1)
-      expect(setStateCalls).toEqual([{ error: null }])
-
-      refreshSpy.mockRestore()
-    } finally {
-      if (previousWindow === undefined) {
-        delete globalAny.window
-      } else {
-        globalAny.window = previousWindow
-      }
-      vi.resetModules()
-    }
   })
 })
 

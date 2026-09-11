@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Mask } from '@rue-js/design'
+import Mask from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,14 +19,16 @@ describe('Mask', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Mask
-        src="https://picsum.photos/160/160"
-        alt="Avatar"
-        className="w-20 h-20"
-        data-testid="mask-image"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Mask
+          src="https://picsum.photos/160/160"
+          alt="Avatar"
+          className="w-20 h-20"
+          data-testid="mask-image"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -42,7 +45,9 @@ describe('Mask', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Mask shape="star" half="end" data-testid="mask-half" />, container)
+    mountTestApp(container, () =>
+      render(<Mask shape="star" half="end" data-testid="mask-half" />, container),
+    )
 
     await waitForContent(() => {
       const el = container.querySelector('[data-testid="mask-half"]') as HTMLElement
@@ -55,21 +60,23 @@ describe('Mask', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Mask
-        as="div"
-        shape="diamond"
-        tone="primary"
-        size="lg"
-        ring={true}
-        shadow={true}
-        interactive={true}
-        className="grid place-content-center"
-        data-testid="mask-box"
-      >
-        content
-      </Mask>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Mask
+          as="div"
+          shape="diamond"
+          tone="primary"
+          size="lg"
+          ring={true}
+          shadow={true}
+          interactive={true}
+          className="grid place-content-center"
+          data-testid="mask-box"
+        >
+          content
+        </Mask>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -89,17 +96,19 @@ describe('Mask', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Mask
-        shape="hexagon"
-        size="2xl"
-        fit="contain"
-        bordered={true}
-        data-testid="mask-sized"
-        src="https://picsum.photos/200/200"
-        alt="Sized"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Mask
+          shape="hexagon"
+          size="2xl"
+          fit="contain"
+          bordered={true}
+          data-testid="mask-sized"
+          src="https://picsum.photos/200/200"
+          alt="Sized"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -115,25 +124,27 @@ describe('Mask', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Mask
-          src="https://picsum.photos/180/180"
-          alt="Captioned"
-          content="Overlay"
-          caption="Figure caption"
-          data-testid="mask-figure"
-        />
-        <Mask
-          as="div"
-          src="https://picsum.photos/180/180"
-          alt="Wrapped"
-          content="Panel"
-          caption="Div caption"
-          data-testid="mask-div-wrapper"
-        />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Mask
+            src="https://picsum.photos/180/180"
+            alt="Captioned"
+            content="Overlay"
+            caption="Figure caption"
+            data-testid="mask-figure"
+          />
+          <Mask
+            as="div"
+            src="https://picsum.photos/180/180"
+            alt="Wrapped"
+            content="Panel"
+            caption="Div caption"
+            data-testid="mask-div-wrapper"
+          />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

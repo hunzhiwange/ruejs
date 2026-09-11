@@ -73,7 +73,10 @@ describe('createCompiledProps prototype', () => {
         create: () => {
           childCreates += 1
           childState.get()
-          return _$compiledRoot(() => document.createElement('span'))
+          return _$compiledRoot(() => {
+            const __blockNode = document.createElement('span')
+            return [__blockNode, __blockNode] as const
+          })
         },
       }
     })
@@ -102,7 +105,10 @@ describe('createCompiledProps prototype', () => {
         () => {
           childState.get()
           return _$withCompiledPropsUpdater(
-            _$compiledRoot(() => document.createElement('span')),
+            _$compiledRoot(() => {
+              const __blockNode = document.createElement('span')
+              return [__blockNode, __blockNode] as const
+            }),
             () => {},
           )
         },
@@ -123,7 +129,10 @@ describe('createCompiledProps prototype', () => {
     const childFactory = () => {
       onCleanup(() => trace.push('child'))
       return _$withCompiledPropsUpdater(
-        _$compiledRoot(() => document.createElement('span')),
+        _$compiledRoot(() => {
+          const __blockNode = document.createElement('span')
+          return [__blockNode, __blockNode] as const
+        }),
         () => {},
       )
     }
@@ -131,7 +140,7 @@ describe('createCompiledProps prototype', () => {
       if (mountParent == null) throw new Error('missing parent')
       _$mountCompiledComponent(mountParent, childFactory, () => ({}))
       onCleanup(() => trace.push('parent'))
-      return null
+      return [null, null] as const
     })
 
     parent.__rue_compiled_mount(host)
@@ -283,7 +292,7 @@ describe('createCompiledProps prototype', () => {
           })
         })
 
-        return section
+        return [section, section] as const
       })
 
       return {

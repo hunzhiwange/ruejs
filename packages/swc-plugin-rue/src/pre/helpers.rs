@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 use swc_core::atoms::Atom;
-use swc_core::common::Spanned;
 use swc_core::common::{DUMMY_SP, SyntaxContext};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::visit::{Visit, VisitMut, VisitMutWith, VisitWith};
@@ -2557,10 +2556,9 @@ fn setup_is_compiled_safe(collected: &[Stmt]) -> bool {
                     self.visit_call_expr(inner);
                     return;
                 }
-                if !matches!(
-                    crate::compiled_capabilities::runtime_tier_for_helper(ident.sym.as_ref()),
-                    Some(crate::compiled_capabilities::RuntimeTier::Compiled)
-                ) {
+                if crate::compiled_capabilities::runtime_import_entry(ident.sym.as_ref()).is_none()
+                    || crate::compiled_capabilities::requires_component_context(ident.sym.as_ref())
+                {
                     self.safe = false;
                     return;
                 }
@@ -2853,70 +2851,6 @@ fn component_has_dynamic_children(element: &JSXElement) -> bool {
     })
 }
 
-pub(crate) fn block_has_component_render_reactive_marker(block: &BlockStmt) -> bool {
-    block.stmts.iter().any(|stmt| {
-        let Stmt::Expr(expr_stmt) = stmt else {
-            return false;
-        };
-        let Expr::Call(call) = crate::utils::unwrap_expr(expr_stmt.expr.as_ref()) else {
-            return false;
-        };
-        call_expr_callee_ident_name(call) == Some("_$compiledMarkComponentRenderReactive")
-    })
-}
-
-pub fn mark_component_render_reactive(block: &mut BlockStmt) {
-    if block_has_component_render_reactive_marker(block) {
-        return;
-    }
-
-    block.stmts.insert(
-        0,
-        Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(crate::emit::call_ident(
-                "_$compiledMarkComponentRenderReactive",
-                vec![],
-            )),
-        }),
-    );
-}
-
-pub fn mark_component_render_reactive_factory(expr: &mut Box<Expr>) {
-    let component = expr.as_ref().clone();
-    let span = component.span();
-    let mut call =
-        crate::emit::call_ident("_$compiledMarkComponentRenderReactive", vec![component]);
-    if let Expr::Call(call_expr) = &mut call {
-        call_expr.span = span;
-    }
-    *expr = Box::new(call);
-}
-
-/// Nested JSX-returning closures stay on the classic JSX runtime path when they are passed as
-/// opaque component props. Annotate the closure before mounting so its first render can collect
-/// dependencies without performing an untracked duplicate render.
-pub fn mark_nested_jsx_render_closure(expr: &mut Box<Expr>) -> bool {
-    let should_mark = match expr.as_ref() {
-        Expr::Arrow(arrow) => match arrow.body.as_ref() {
-            BlockStmtOrExpr::Expr(body) => matches!(
-                crate::utils::unwrap_expr(body.as_ref()),
-                Expr::JSXElement(_) | Expr::JSXFragment(_)
-            ),
-            BlockStmtOrExpr::BlockStmt(_) => false,
-        },
-        _ => false,
-    };
-    if !should_mark {
-        return false;
-    }
-
-    let closure = expr.as_ref().clone();
-    *expr =
-        Box::new(crate::emit::call_ident("_$compiledMarkComponentRenderReactive", vec![closure]));
-    true
-}
-
 /// 判定 FnDecl 是否需要转换：
 /// - 条件一：其函数体中返回 JSX 或 h(...) 形式的可渲染内容；
 /// - 条件二：其返回类型显式标注为 JSX.Element。
@@ -3034,11 +2968,6 @@ pub fn process_var_decl(v: &mut VarDecl) {
             BlockStmtOrExpr::BlockStmt(b) => b,
             _ => continue,
         };
-        // Render-control components must recompute their local branch snapshots on every render.
-        // Moving those locals into useSetup would freeze the first branch forever.
-        if block_has_component_render_reactive_marker(block) {
-            continue;
-        }
         // 如果已存在 _$useSetup 声明，避免重复注入
         if block_has_use_setup(block) {
             continue;

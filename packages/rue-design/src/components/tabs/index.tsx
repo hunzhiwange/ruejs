@@ -44,6 +44,8 @@ export interface TabItem {
   /** 展示标签。 */
   label: any
   /** 组件子内容。 */
+  content?: string | number
+  /** 内容面板；保留 content 作为纯文本简写。 */
   children?: any
   /** 是否禁用交互。 */
   disabled?: boolean
@@ -93,14 +95,13 @@ export interface TabsProps {
   removeIcon?: any
   /** indicator 配置项。 */
   indicator?: TabsIndicator
-  /** tabBarExtraContent 配置项。 */
-  tabBarExtraContent?: any | TabBarExtraContentMap
   /** 根节点附加类名。 */
   className?: string
   /** tabBarClassName 附加类名。 */
   tabBarClassName?: string
   /** contentClassName 附加类名。 */
   contentClassName?: string
+  tabBarExtraContent?: TabBarExtraContentMap
 }
 
 let tabsIdSeed = 0
@@ -142,17 +143,6 @@ const resolveInitialActiveKey = (items: TabItem[], preferredKey?: string) => {
 }
 
 /** 归一化 Extra Content 的内部工具函数。 */
-const normalizeExtraContent = (extra?: any | TabBarExtraContentMap): TabBarExtraContentMap => {
-  if (
-    extra &&
-    typeof extra === 'object' &&
-    !Array.isArray(extra) &&
-    ('left' in extra || 'right' in extra)
-  ) {
-    return extra as TabBarExtraContentMap
-  }
-  return { right: extra }
-}
 
 /** 构建 Tabs Class Name 的内部工具函数。 */
 const buildTabsClassName = (
@@ -203,28 +193,30 @@ const buildPanelClassName = (contentClassName?: string, active = true) =>
   )
 
 /** Tabs 主组件：支持 items 内容面板、额外操作区与可编辑头部。 */
-const Tabs: FC<TabsProps> = ({
-  items,
-  activeKey,
-  defaultActiveKey,
-  onChange,
-  onEdit,
-  style,
-  type,
-  placement,
-  tabPlacement,
-  size,
-  centered,
-  destroyOnHidden,
-  hideAdd,
-  addIcon,
-  removeIcon,
-  indicator,
-  tabBarExtraContent,
-  className,
-  tabBarClassName,
-  contentClassName,
-}) => {
+const Tabs: FC<TabsProps> = (
+  {
+    items,
+    activeKey,
+    defaultActiveKey,
+    onChange,
+    onEdit,
+    style,
+    type,
+    placement,
+    tabPlacement,
+    size,
+    centered,
+    destroyOnHidden,
+    hideAdd,
+    addIcon,
+    removeIcon,
+    indicator,
+    className,
+    tabBarClassName,
+    contentClassName,
+  },
+  slots: Record<string, any> = {},
+) => {
   const normalizedItems = items ?? []
   const resolvedPlacement = tabPlacement ?? placement ?? 'top'
   const resolvedStyle = resolveVisualStyle(style, type)
@@ -232,8 +224,10 @@ const Tabs: FC<TabsProps> = ({
   const uncontrolledActiveKey = ref(
     resolveInitialActiveKey(normalizedItems, defaultActiveKey ?? activeKey),
   )
-  const hasPanels = normalizedItems.some(item => item.children != null)
-  const extraContent = normalizeExtraContent(tabBarExtraContent)
+  const readPanelSlot = (key: string) => slots[key]
+  const readExtraSlot = (side: string) => slots[side]
+  const hasPanels = normalizedItems.some(item => item.content != null || slots[item.key])
+  const extraContent = { left: slots.left, right: slots.right }
   const isVertical = resolvedPlacement === 'start' || resolvedPlacement === 'end'
   const replaceDefaultIndicator = !!indicator && resolvedStyle === 'border'
 
@@ -274,8 +268,8 @@ const Tabs: FC<TabsProps> = ({
     appendClassName(tabBarClassName, isVertical ? 'w-full' : undefined),
   )
   const addTrigger = type === 'editable-card' && hideAdd !== true && !!onEdit
-  const renderAddButtonNode = () => {
-    if (!addTrigger) return null
+  const RenderAddButtonNode = () => {
+    if (!addTrigger) return <></>
 
     return (
       <button
@@ -289,7 +283,7 @@ const Tabs: FC<TabsProps> = ({
     )
   }
 
-  const renderTabsNode = () => (
+  const RenderTabsNode = () => (
     <div
       role="tablist"
       aria-orientation={isVertical ? 'vertical' : 'horizontal'}
@@ -307,7 +301,7 @@ const Tabs: FC<TabsProps> = ({
             id={tabId}
             key={item.key}
             aria-selected={getEffectiveActiveKey() === item.key ? 'true' : 'false'}
-            aria-controls={item.children != null ? panelId : undefined}
+            aria-controls={item.content != null ? panelId : undefined}
             className={appendClassName(
               appendClassName(
                 appendClassName(
@@ -394,46 +388,38 @@ const Tabs: FC<TabsProps> = ({
     </div>
   )
 
-  const renderPanelsNode = () => {
-    if (!hasPanels) return null
-
-    if (destroyOnHidden) {
-      const activeItem = currentActiveItem.get()
-      if (!activeItem || activeItem.children == null) return null
+  const readVisiblePanels = () =>
+    normalizedItems.filter(
+      item =>
+        (item.content != null || readPanelSlot(item.key)) &&
+        (!destroyOnHidden || item.key === getEffectiveActiveKey()),
+    )
+  const RenderPanelsNode = () => {
+    const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+      const item = rowArg0
 
       return (
         <div
-          key={`${activeItem.key}-panel`}
+          key={`${item.key}-panel`}
           role="tabpanel"
-          id={`${currentSeed.value}-panel-${activeItem.key}`}
-          aria-labelledby={`${currentSeed.value}-tab-${activeItem.key}`}
-          aria-hidden="false"
-          className={buildPanelClassName(activeItem.contentClassName)}
+          id={`${currentSeed.value}-panel-${item.key}`}
+          aria-labelledby={`${currentSeed.value}-tab-${item.key}`}
+          aria-hidden={item.key === getEffectiveActiveKey() ? 'false' : 'true'}
+          className={buildPanelClassName(
+            item.contentClassName,
+            item.key === getEffectiveActiveKey(),
+          )}
         >
-          {activeItem.children}
+          {item.content != null ? <span>{String(item.content)}</span> : <>{slots[item.key]}</>}
         </div>
       )
     }
 
     return (
       <>
-        {normalizedItems.map(item => {
-          return (
-            <div
-              key={`${item.key}-panel`}
-              role="tabpanel"
-              id={`${currentSeed.value}-panel-${item.key}`}
-              aria-labelledby={`${currentSeed.value}-tab-${item.key}`}
-              aria-hidden={item.key === getEffectiveActiveKey() ? 'false' : 'true'}
-              className={buildPanelClassName(
-                item.contentClassName,
-                item.key === getEffectiveActiveKey(),
-              )}
-            >
-              {item.children}
-            </div>
-          )
-        })}
+        {readVisiblePanels().map(item => (
+          <CompiledRow1 key={item.key} rowArg0={item} />
+        ))}
       </>
     )
   }
@@ -448,20 +434,22 @@ const Tabs: FC<TabsProps> = ({
           )}
         >
           <div className="flex w-full max-w-xs shrink-0 flex-col gap-3">
-            {extraContent.left != null ? <div className="shrink-0">{extraContent.left}</div> : null}
-            {renderTabsNode()}
+            {extraContent.left != null ? (
+              <div className="shrink-0">{readExtraSlot('left')}</div>
+            ) : null}
+            <RenderTabsNode />
             {addTrigger || extraContent.right != null ? (
               <div className="flex flex-wrap items-center gap-2">
-                {renderAddButtonNode()}
+                <RenderAddButtonNode />
                 {extraContent.right != null ? (
-                  <div className="shrink-0">{extraContent.right}</div>
+                  <div className="shrink-0">{readExtraSlot('right')}</div>
                 ) : null}
               </div>
             ) : null}
           </div>
           {hasPanels ? (
             <div className={appendClassName('min-w-0 flex-1', contentClassName)}>
-              {renderPanelsNode()}
+              <RenderPanelsNode />
             </div>
           ) : null}
         </div>
@@ -478,21 +466,25 @@ const Tabs: FC<TabsProps> = ({
         )}
       >
         <div className="flex flex-wrap items-center gap-3">
-          {extraContent.left != null ? <div className="shrink-0">{extraContent.left}</div> : null}
+          {extraContent.left != null ? (
+            <div className="shrink-0">{readExtraSlot('left')}</div>
+          ) : null}
           <div
             className={appendClassName(
               'min-w-0 flex-1',
               centered ? 'flex justify-center' : undefined,
             )}
           >
-            {renderTabsNode()}
+            <RenderTabsNode />
           </div>
-          {renderAddButtonNode()}
-          {extraContent.right != null ? <div className="shrink-0">{extraContent.right}</div> : null}
+          <RenderAddButtonNode />
+          {extraContent.right != null ? (
+            <div className="shrink-0">{readExtraSlot('right')}</div>
+          ) : null}
         </div>
         {hasPanels ? (
           <div className={appendClassName('min-w-0 flex-1', contentClassName)}>
-            {renderPanelsNode()}
+            <RenderPanelsNode />
           </div>
         ) : null}
       </div>

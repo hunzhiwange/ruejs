@@ -87,7 +87,10 @@ describe('compiled hook owner', () => {
           return [declared, ref, declared.get() % 2, functionValue, NaN]
         },
       )
-      return compiledRuntime._$compiledRoot(() => document.createTextNode('effects'))
+      return compiledRuntime._$compiledRoot(() => {
+        const __blockNode = document.createTextNode('effects')
+        return [__blockNode, __blockNode] as const
+      })
     })
 
     expect([automaticRuns, emptyRuns, events.length]).toEqual([0, 0, 0])
@@ -144,7 +147,10 @@ describe('compiled hook owner', () => {
         )
       register()
       register()
-      return compiledRuntime._$compiledRoot(() => document.createTextNode('snapshots'))
+      return compiledRuntime._$compiledRoot(() => {
+        const __blockNode = document.createTextNode('snapshots')
+        return [__blockNode, __blockNode] as const
+      })
     })
     handle.__rue_compiled_mount(document.createElement('main'))
     expect(runs).toBe(1)
@@ -256,7 +262,10 @@ describe('compiled hook owner', () => {
         events.push(`effect:${value.get()}`)
         return () => events.push('effect-cleanup')
       })
-      return compiledRuntime._$compiledRoot(() => document.createTextNode('owned'))
+      return compiledRuntime._$compiledRoot(() => {
+        const __blockNode = document.createTextNode('owned')
+        return [__blockNode, __blockNode] as const
+      })
     })
     const container = document.createElement('main')
 
@@ -309,9 +318,27 @@ describe('compiled hook owner', () => {
     })
     const container = document.createElement('main')
 
+    container.innerHTML = '<i>existing</i>'
     expect(() => handle.__rue_compiled_mount(container)).toThrowError('mount failed')
     handle.dispose()
     expect(events).toEqual(['before-unmount', 'unmounted'])
-    expect(container.innerHTML).toBe('')
+    expect(container.innerHTML).toBe('<i>existing</i>')
   })
+})
+
+it('releases hook owners when beforeMount throws', () => {
+  const events: string[] = []
+  const root = compiledRuntime._$withCompiledHookScope(() => {
+    compiledRuntime.onBeforeMount(() => {
+      throw new Error('before mount failed')
+    })
+    compiledRuntime.onUnmounted(() => events.push('released'))
+    return compiledRuntime._$compiledRoot(() => [null, null])
+  })
+  expect(() => root.__rue_compiled_mount(document.createElement('div'))).toThrow(
+    'before mount failed',
+  )
+  expect(events).toEqual(['released'])
+  root.dispose()
+  expect(events).toEqual(['released'])
 })

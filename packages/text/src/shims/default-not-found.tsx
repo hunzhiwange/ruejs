@@ -13,11 +13,7 @@
  * (`test/e2e/app-dir/prefetching-not-found/prefetching-not-found.test.ts`,
  * `test/e2e/basepath/error-pages.test.ts`).
  */
-import {
-  createTextCompatElement,
-  TextCompatFragment,
-  type TextCompatElement,
-} from './component-adapter.js'
+import { type TextCompatElement } from './component-adapter.js'
 import type { RueStyle } from './rue-shim-types.js'
 
 const styles = {
@@ -60,36 +56,32 @@ const MESSAGE = 'This page could not be found.'
  * snapshot diffs between Text.js and text stay minimal.
  */
 export default function DefaultNotFound(): TextCompatElement {
-  return createTextCompatElement(
-    TextCompatFragment,
-    null,
-    createTextCompatElement('title', null, `${STATUS}: ${MESSAGE}`),
-    createTextCompatElement(
-      'div',
-      { style: styles.error },
-      createTextCompatElement(
-        'div',
-        null,
-        createTextCompatElement('style', {
-          dangerouslySetInnerHTML: {
-            __html:
-              'body{color:#000;background:#fff;margin:0}.text-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.text-error-h1{border-right:1px solid rgba(255,255,255,.3)}}',
-          },
-        }),
-        createTextCompatElement(
-          'h1',
-          {
-            className: 'text-error-h1',
-            style: styles.h1,
-          },
-          STATUS,
-        ),
-        createTextCompatElement(
-          'div',
-          { style: styles.desc },
-          createTextCompatElement('h2', { style: styles.h2 }, MESSAGE),
-        ),
-      ),
-    ),
+  return (
+    <>
+      <title>{`${STATUS}: ${MESSAGE}`}</title>
+      <div {...{ style: styles.error }}>
+        <div>
+          <style
+            {...{
+              dangerouslySetInnerHTML: {
+                __html:
+                  'body{color:#000;background:#fff;margin:0}.text-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.text-error-h1{border-right:1px solid rgba(255,255,255,.3)}}',
+              },
+            }}
+          />
+          <h1
+            {...{
+              className: 'text-error-h1',
+              style: styles.h1,
+            }}
+          >
+            {STATUS}
+          </h1>
+          <div {...{ style: styles.desc }}>
+            <h2 {...{ style: styles.h2 }}>{MESSAGE}</h2>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

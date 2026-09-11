@@ -66,7 +66,6 @@ const apiRows: ApiRow[] = [
 
 const basicCode = `import type { FC } from '@rue-js/rue'
 import { Splitter } from '@rue-js/design'
-
 const BasicSplitterDemo: FC = () => {
   return (
     <Splitter style={{ height: 280 }}>
@@ -102,7 +101,6 @@ export default BasicSplitterDemo`
 const controlledCode = `import type { FC } from '@rue-js/rue'
 import { ref } from '@rue-js/rue'
 import { Splitter } from '@rue-js/design'
-
 const ControlledSplitterDemo: FC = () => {
   const sizes = ref<Array<number | string>>(['38%', '62%'])
   const enabled = ref(true)
@@ -177,7 +175,6 @@ export default ControlledSplitterDemo`
 
 const verticalCode = `import type { FC } from '@rue-js/rue'
 import { Splitter } from '@rue-js/design'
-
 const VerticalSplitterDemo: FC = () => {
   return (
     <Splitter orientation="vertical" style={{ height: 320 }}>
@@ -213,7 +210,6 @@ export default VerticalSplitterDemo`
 const resetCode = `import type { FC } from '@rue-js/rue'
 import { ref } from '@rue-js/rue'
 import { Splitter } from '@rue-js/design'
-
 const defaultSizes: Array<number | string> = [180, 260, 160]
 
 const ResettableSplitterDemo: FC = () => {
@@ -268,7 +264,6 @@ export default ResettableSplitterDemo`
 const lazyCode = `import type { FC } from '@rue-js/rue'
 import { ref } from '@rue-js/rue'
 import { Splitter } from '@rue-js/design'
-
 const LazySplitterDemo: FC = () => {
   const status = ref('拖拽时只移动 handle，释放后才提交尺寸')
 

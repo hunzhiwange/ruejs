@@ -106,6 +106,7 @@ type PersistentSidebarPlaygroundOptions = {
 
 type SidebarPlaygroundProps = {
   currentPath?: string
+  children?: any
 }
 
 const useOptionalRoute = () => {
@@ -139,19 +140,6 @@ const readCurrentLocationPath = () => {
   return normalizeCurrentPath(location.pathname || '')
 }
 
-const renderRouterAnchorProps = (href: string, enabled: boolean) => {
-  if (!enabled) {
-    return { href }
-  }
-
-  return {
-    href: RouterLink.__rueHref(href),
-    onClick: (event: MouseEvent) => {
-      RouterLink.__rueOnClick(event, href)
-    },
-  }
-}
-
 const updateSidebarActiveLinks = (root: HTMLElement, activePath: string) => {
   root.querySelectorAll<HTMLAnchorElement>('[data-rue-sidebar-href]').forEach(link => {
     const isActive = link.getAttribute('data-rue-sidebar-href') === activePath
@@ -164,6 +152,52 @@ const updateSidebarActiveLinks = (root: HTMLElement, activePath: string) => {
   })
 }
 
+const SidebarItemRow: FC<{
+  item: SidebarItem
+  getActivePath: () => string
+  useRouterLinks: boolean
+}> = props => {
+  const isItemActive = () => props.getActivePath() === props.item.href
+  return (
+    <li key={props.item.id}>
+      {props.item.children && props.item.children.length ? (
+        <div>
+          <div className="px-3 py-2 font-medium text-base-content/80">{props.item.title}</div>
+          <ul className="menu menu-sm bg-transparent rounded-box w-full">
+            <SidebarItemsList
+              items={props.item.children}
+              getActivePath={props.getActivePath}
+              useRouterLinks={props.useRouterLinks}
+            />
+          </ul>
+        </div>
+      ) : props.item.href && props.useRouterLinks ? (
+        <RouterLink
+          to={props.item.href}
+          aria-current={isItemActive() ? 'page' : undefined}
+          className={`${isItemActive() ? 'active' : ''} w-full`}
+          data-rue-sidebar-href={props.item.href}
+        >
+          {props.item.title}
+        </RouterLink>
+      ) : props.item.href ? (
+        <a
+          href={props.item.href}
+          aria-current={isItemActive() ? 'page' : undefined}
+          className={`${isItemActive() ? 'active' : ''} w-full`}
+          data-rue-sidebar-href={props.item.href}
+        >
+          {props.item.title}
+        </a>
+      ) : (
+        <span className="block w-full cursor-default rounded-btn px-3 py-2 text-base-content/45">
+          {props.item.title}
+        </span>
+      )}
+    </li>
+  )
+}
+
 const SidebarItemsList: FC<{
   items: SidebarItem[]
   getActivePath: () => string
@@ -171,53 +205,28 @@ const SidebarItemsList: FC<{
 }> = props => {
   return (
     <>
-      {props.items.map(item => {
-        const isItemActive = () => props.getActivePath() === item.href
-        const anchorProps = item.href
-          ? renderRouterAnchorProps(item.href, props.useRouterLinks)
-          : null
-
-        return (
-          <li key={item.id}>
-            {item.children && item.children.length ? (
-              <div>
-                <div className="px-3 py-2 font-medium text-base-content/80">{item.title}</div>
-                <ul className="menu menu-sm bg-transparent rounded-box w-full">
-                  <SidebarItemsList
-                    items={item.children}
-                    getActivePath={props.getActivePath}
-                    useRouterLinks={props.useRouterLinks}
-                  />
-                </ul>
-              </div>
-            ) : item.href ? (
-              <a
-                href={anchorProps?.href}
-                onClick={anchorProps?.onClick}
-                aria-current={isItemActive() ? 'page' : undefined}
-                className={`${isItemActive() ? 'active' : ''} w-full`}
-                data-rue-sidebar-href={item.href}
-              >
-                {item.title}
-              </a>
-            ) : (
-              <span className="block w-full cursor-default rounded-btn px-3 py-2 text-base-content/45">
-                {item.title}
-              </span>
-            )}
-          </li>
-        )
-      })}
+      {props.items.map(item => (
+        <SidebarItemRow
+          key={item.id}
+          item={item}
+          getActivePath={props.getActivePath}
+          useRouterLinks={props.useRouterLinks}
+        />
+      ))}
     </>
   )
 }
 
-export const createPersistentSidebarPlayground = ({
+export const PersistentSidebarPlayground: FC<
+  PersistentSidebarPlaygroundOptions & SidebarPlaygroundProps
+> = ({
   sections,
   wrapperClassName,
   showCounts = false,
   fallbackToRoute = true,
-}: PersistentSidebarPlaygroundOptions): FC<SidebarPlaygroundProps> => {
+  currentPath,
+  children,
+}) => {
   const preparedSections = prepareSidebarSections(sections)
   let sharedOpenSections: Record<string, boolean> | null = null
   let sharedSearchQuery: string | null = null
@@ -430,32 +439,28 @@ export const createPersistentSidebarPlayground = ({
     )
   }
 
-  const SidebarPlayground: FC<SidebarPlaygroundProps> = props => {
-    const contentRef = useRef<HTMLElement>()
-    const rootClassName = [
-      'sidebar-playground',
-      wrapperClassName,
-      'md:flex',
-      'md:items-start',
-      'md:gap-6',
-      'xl:grid',
-      'xl:grid-cols-[11.25rem_minmax(0,1fr)_15rem]',
-    ]
-      .filter(Boolean)
-      .join(' ')
+  const contentRef = useRef<HTMLElement>()
+  const rootClassName = [
+    'sidebar-playground',
+    wrapperClassName,
+    'md:flex',
+    'md:items-start',
+    'md:gap-6',
+    'xl:grid',
+    'xl:grid-cols-[11.25rem_minmax(0,1fr)_15rem]',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
-    return (
-      <div className={rootClassName}>
-        <div className="md:w-45 shrink-0">
-          <SidebarPlaygroundNavigation currentPath={props.currentPath} />
-        </div>
-        <article ref={contentRef} class="component-preview min-w-0">
-          {props.children}
-        </article>
-        <PageContentAnchor containerRef={contentRef} />
+  return (
+    <div className={rootClassName}>
+      <div className="md:w-45 shrink-0">
+        <SidebarPlaygroundNavigation currentPath={currentPath} />
       </div>
-    )
-  }
-
-  return SidebarPlayground
+      <article ref={contentRef} class="component-preview min-w-0">
+        {children}
+      </article>
+      <PageContentAnchor containerRef={contentRef} />
+    </div>
+  )
 }

@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -355,59 +355,41 @@ describe('metadata route serializers', () => {
 
 describe('text/dynamic shim', () => {
   it('exports a default function', async () => {
-    const mod = await import('../src/shims/dynamic.js')
+    const mod = await import('../src/shims/dynamic.js?text-ssr')
     expect(typeof mod.default).toBe('function')
   })
 
   it('exports flushPreloads', async () => {
-    const mod = await import('../src/shims/dynamic.js')
+    const mod = await import('../src/shims/dynamic.js?text-ssr')
     expect(typeof mod.flushPreloads).toBe('function')
   })
 
   it('returns a component for SSR-enabled dynamic imports', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const FakeComponent = () => createElement('div', null, 'Hello from dynamic')
     const DynamicComponent = dynamic(() => Promise.resolve({ default: FakeComponent }))
 
     await flushPreloads()
-    const html = renderAppServerElementToHtml(DynamicComponent({}) as never)
+    const html = await renderAppServerElementToHtml(createElement(DynamicComponent, {}))
     expect(html).toContain('Hello from dynamic')
   })
 
-  it('uses an async component during the pure RSC compat pass', async () => {
-    const { default: dynamic } = await import('../src/shims/dynamic.js')
-    const { deleteContextRuntime, readContextRuntime, setContextRuntime } =
-      await import('../src/shims/context-runtime-global.js')
+  it('uses the compiled writer during an RSC request scope', async () => {
+    const { default: dynamic } = await import('../src/shims/dynamic.js?text-ssr')
     const { createRequestContext, runWithRequestContext } =
       await import('../src/shims/unified-request-context.js')
-    const previousRuntime = readContextRuntime()
     const RscComponent = ({ label }: { label: string }) => createElement('span', null, label)
-
-    setContextRuntime({
-      createElement: (type: unknown, props: Record<string, unknown> | null) => ({ type, props }),
-    })
-
-    try {
-      const DynamicComponent = dynamic(() => Promise.resolve({ default: RscComponent }))
-      const pendingElement = runWithRequestContext(
-        createRequestContext({ appRouterRenderPhase: 'rsc' }),
-        () => DynamicComponent({ label: 'RSC dynamic' }),
-      )
-
-      expect(pendingElement).toBeInstanceOf(Promise)
-      await expect(pendingElement).resolves.toMatchObject({
-        type: RscComponent,
-        props: { label: 'RSC dynamic' },
-      })
-    } finally {
-      if (previousRuntime === undefined) deleteContextRuntime()
-      else setContextRuntime(previousRuntime)
-    }
+    const DynamicComponent = dynamic(() => Promise.resolve({ default: RscComponent }))
+    const html = await runWithRequestContext(
+      createRequestContext({ appRouterRenderPhase: 'rsc' }),
+      () => renderAppServerElementToHtml(createElement(DynamicComponent, { label: 'RSC dynamic' })),
+    )
+    expect(html).toContain('RSC dynamic')
   })
 
   it('renders loading state for ssr: false on server', async () => {
-    const { default: dynamic } = await import('../src/shims/dynamic.js')
+    const { default: dynamic } = await import('../src/shims/dynamic.js?text-ssr')
 
     const FakeComponent = () => createElement('div', null, 'Should not appear')
     const Loading = () => createElement('span', null, 'Loading...')
@@ -417,13 +399,13 @@ describe('text/dynamic shim', () => {
     })
 
     // On server with ssr: false, should render loading, not the component
-    const html = renderAppServerElementToHtml(createElement(DynamicComponent))
+    const html = await renderAppServerElementToHtml(createElement(DynamicComponent))
     expect(html).toContain('Loading...')
     expect(html).not.toContain('Should not appear')
   })
 
   it('renders nothing for ssr: false without loading on server', async () => {
-    const { default: dynamic } = await import('../src/shims/dynamic.js')
+    const { default: dynamic } = await import('../src/shims/dynamic.js?text-ssr')
 
     const FakeComponent = () => createElement('div', null, 'Should not appear')
     const DynamicComponent = dynamic(() => Promise.resolve({ default: FakeComponent }), {
@@ -431,34 +413,36 @@ describe('text/dynamic shim', () => {
     })
 
     // On server with ssr: false and no loading component, should render nothing
-    const html = renderAppServerElementToHtml(createElement(DynamicComponent))
-    expect(html).toBe('')
+    const html = await renderAppServerElementToHtml(createElement(DynamicComponent))
+    expect(html.replace(/<!--[\s\S]*?-->/g, '')).toBe('')
   })
 
   it('accepts module without default export (bare component)', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const BareComponent = () => createElement('p', null, 'Bare export')
     const DynamicComponent = dynamic(() => Promise.resolve(BareComponent))
 
     await flushPreloads()
-    const html = renderAppServerElementToHtml(DynamicComponent({}) as never)
+    const html = await renderAppServerElementToHtml(createElement(DynamicComponent, {}))
     expect(html).toContain('Bare export')
   })
 
   it('forwards props to the underlying component', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const Greeter = ({ name }: { name: string }) => createElement('span', null, `Hello ${name}`)
     const DynamicGreeter = dynamic(() => Promise.resolve({ default: Greeter }))
 
     await flushPreloads()
-    const html = renderAppServerElementToHtml(DynamicGreeter({ name: 'World' }) as never)
+    const html = await renderAppServerElementToHtml(
+      createElement(DynamicGreeter, { name: 'World' }),
+    )
     expect(html).toContain('Hello World')
   })
 
   it('renders loading fallback when component not yet resolved (SSR)', async () => {
-    const { default: dynamic } = await import('../src/shims/dynamic.js')
+    const { default: dynamic } = await import('../src/shims/dynamic.js?text-ssr')
 
     let resolveLoader!: (val: any) => void
     const loaderPromise = new Promise(r => {
@@ -469,16 +453,26 @@ describe('text/dynamic shim', () => {
 
     const DynamicSlow = dynamic(() => loaderPromise as any, { loading: Loading })
 
-    expect(renderAppServerElementToHtml(createElement(DynamicSlow))).toContain('Please wait...')
-
+    const { renderAppServerElementToStream } = await import('./app-server-protocol-test-utils.js')
+    const reader = renderAppServerElementToStream(createElement(DynamicSlow)).getReader()
+    const decoder = new TextDecoder()
+    let html = ''
+    while (!html.includes('Please wait...')) {
+      const part = await reader.read()
+      expect(part.done).toBe(false)
+      html += decoder.decode(part.value)
+    }
     resolveLoader({ default: SlowComponent })
-
-    const html = await renderAppServerElementToHtmlAsync(createElement(DynamicSlow))
+    for (;;) {
+      const part = await reader.read()
+      if (part.done) break
+      html += decoder.decode(part.value)
+    }
     expect(html).toContain('Loaded')
   })
 
   it('streaming renderer resolves multiple dynamic components', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const CompA = () => createElement('div', null, 'Component A')
     const CompB = () => createElement('div', null, 'Component B')
@@ -487,15 +481,15 @@ describe('text/dynamic shim', () => {
     const DynB = dynamic(() => new Promise<any>(r => setTimeout(() => r({ default: CompB }), 10)))
 
     await flushPreloads()
-    const htmlA = renderAppServerElementToHtml(DynA({}) as never)
-    const htmlB = renderAppServerElementToHtml(DynB({}) as never)
+    const htmlA = await renderAppServerElementToHtml(createElement(DynA, {}))
+    const htmlB = await renderAppServerElementToHtml(createElement(DynB, {}))
 
     expect(htmlA).toContain('Component A')
     expect(htmlB).toContain('Component B')
   })
 
   it('flushPreloads second call resolves immediately (queue drained)', async () => {
-    const { flushPreloads } = await import('../src/shims/dynamic.js')
+    const { flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     // First call should drain whatever's in the queue
     await flushPreloads()
@@ -506,7 +500,7 @@ describe('text/dynamic shim', () => {
   })
 
   it('loading component receives Text.js noSSR loading props', async () => {
-    const { default: dynamic } = await import('../src/shims/dynamic.js')
+    const { default: dynamic } = await import('../src/shims/dynamic.js?text-ssr')
 
     let receivedProps: any = null
     const Loading = (props: any) => {
@@ -520,7 +514,7 @@ describe('text/dynamic shim', () => {
       loading: Loading,
     })
 
-    renderAppServerElementToHtml(createElement(DynComp))
+    await renderAppServerElementToHtml(createElement(DynComp))
     expect(receivedProps).not.toBeNull()
     expect(receivedProps.isLoading).toBe(true)
     expect(receivedProps.pastDelay).toBe(false)
@@ -528,7 +522,7 @@ describe('text/dynamic shim', () => {
   })
 
   it('renders loading fallback for ssr: false with props forwarded', async () => {
-    const { default: dynamic } = await import('../src/shims/dynamic.js')
+    const { default: dynamic } = await import('../src/shims/dynamic.js?text-ssr')
 
     const HeavyChart = ({ title }: { title: string }) => createElement('canvas', null, title)
     const Loading = () => createElement('div', null, 'Chart loading...')
@@ -539,13 +533,15 @@ describe('text/dynamic shim', () => {
     })
 
     // On server: should show loading, not the chart
-    const html = renderAppServerElementToHtml(createElement(DynamicChart, { title: 'Revenue' }))
+    const html = await renderAppServerElementToHtml(
+      createElement(DynamicChart, { title: 'Revenue' }),
+    )
     expect(html).toContain('Chart loading...')
     expect(html).not.toContain('Revenue')
   })
 
   it('handles module with both default and named exports', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const MainComponent = () => createElement('div', null, 'Main')
     const namedHelper = () => 'helper'
@@ -553,12 +549,12 @@ describe('text/dynamic shim', () => {
     const DynComp = dynamic(() => Promise.resolve({ default: MainComponent, namedHelper }))
 
     await flushPreloads()
-    const html = renderAppServerElementToHtml(DynComp({}) as never)
+    const html = await renderAppServerElementToHtml(createElement(DynComp, {}))
     expect(html).toContain('Main')
   })
 
   it('loader rejection does not crash flushPreloads', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     dynamic(() => Promise.reject(new Error('Module not found')))
 
@@ -568,7 +564,7 @@ describe('text/dynamic shim', () => {
   })
 
   it('loader rejection renders loading component with error', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const LoadingComp = (props: { error?: Error | null; isLoading?: boolean }) => {
       if (props.error) {
@@ -582,12 +578,12 @@ describe('text/dynamic shim', () => {
     })
 
     await flushPreloads()
-    const html = renderAppServerElementToHtml(DynComp({}) as never)
+    const html = await renderAppServerElementToHtml(createElement(DynComp, {}))
     expect(html).toContain('Error: chunk load fail')
   })
 
   it('loader rejection without loading component propagates via onError', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const DynComp = dynamic(() => Promise.reject(new Error('fail')))
 
@@ -596,7 +592,7 @@ describe('text/dynamic shim', () => {
   })
 
   it('loader rejection with non-Error value is caught during SSR', async () => {
-    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js')
+    const { default: dynamic, flushPreloads } = await import('../src/shims/dynamic.js?text-ssr')
 
     const DynComp = dynamic(() => Promise.reject('string error'))
 

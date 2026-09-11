@@ -1,9 +1,6 @@
-// Private compiler ABI for Rue's built-in components.
-export {
-  KeepAlive,
-  Suspense,
-  Teleport,
-  Template,
-  Transition,
-  TransitionGroup,
-} from './compiler-runtime/builtins'
+export { Teleport } from './components/Teleport'
+export { Transition } from './components/Transition'
+export { TransitionGroup } from './components/TransitionGroup'
+export { KeepAlive } from './components/KeepAlive'
+export { Suspense } from './components/Suspense'
+export { Template } from './components/Template'

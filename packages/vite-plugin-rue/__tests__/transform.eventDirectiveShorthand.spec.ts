@@ -44,7 +44,7 @@ describe('vite-plugin-rue event directive transform', () => {
             <input v-on:keyup.enter="handleEnter" />
             <button v-on:click-meta-exact="handleMetaExact">Meta</button>
             <button r-on:click-meta-exact="handleMetaExactRight">Meta Right</button>
-            <Card r-on:click.native.once="handleBack" />
+            <button r-on:click.once="handleBack" />
             <div title="contact@demo=1" @mouse-down={handleMouseDown} />
           </section>
         )
@@ -63,9 +63,9 @@ describe('vite-plugin-rue event directive transform', () => {
     expect(code).toContain('/* RUE_TRANSFORMED */')
     expect(code).toContain('.addEventListener("click"')
     expect(code).toContain('.removeEventListener("click"')
-    expect(code).toContain('onScopeDispose')
+    expect(code).toContain('onOwnerCleanup')
     expect(code).toContain('_$compiledWithEventModifiers')
-    expect(code).toContain('_$compiledWithNativeEvents')
+    expect(code).not.toContain('_$compiledWithNativeEvents')
     expect(code).toContain('"click"')
     expect(code).toContain('"keyup"')
     expect(code).toContain('"mousedown"')
@@ -82,4 +82,13 @@ describe('vite-plugin-rue event directive transform', () => {
     expect(code).not.toContain('__rue_on__')
     expect(code).toContain('contact@demo=1')
   })
+})
+
+it('rejects legacy component native events with an explicit DOM-boundary diagnostic', async () => {
+  await expect(
+    invokeTransform(
+      `import Card from './Card'; export const View = () => <Card r-on:click.native={() => {}} />`,
+      '/app/ComponentNativeEvent.tsx',
+    ),
+  ).rejects.toThrow(/explicit DOM event boundary/)
 })

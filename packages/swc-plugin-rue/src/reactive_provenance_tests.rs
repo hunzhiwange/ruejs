@@ -68,10 +68,12 @@ fn tracks_rue_reactive_factories_through_hooks_aliases_and_destructuring() {
     let scope = collect_module_scope(&module, &[]);
     let transform = transform_with_scope(scope);
 
-    for name in ["count", "shallow", "custom", "property", "leftRef", "right", "countAlias"] {
+    for name in
+        ["count", "shallow", "custom", "property", "leftRef", "right", "countAlias", "total"]
+    {
         assert_eq!(transform.reactive_kind(name), Some(ReactiveKind::RefLike), "{name}");
     }
-    for name in ["total", "directSignal"] {
+    for name in ["directSignal"] {
         assert_eq!(transform.reactive_kind(name), Some(ReactiveKind::Signal), "{name}");
     }
     assert_eq!(transform.reactive_kind("hookSignal"), None);
@@ -176,7 +178,7 @@ fn invalidates_shadowed_reassigned_and_unknown_values() {
 }
 
 #[test]
-fn marks_only_a_component_first_parameter_as_reactive_props() {
+fn marks_component_props_and_slots_parameters() {
     let module = parse_module("function component(props, context) {}");
     let function = module
         .body
@@ -191,11 +193,33 @@ fn marks_only_a_component_first_parameter_as_reactive_props() {
         collect_component_parameter_scope(function.params.iter().map(|parameter| &parameter.pat));
     let component_transform = transform_with_scope(component_scope);
     assert_eq!(component_transform.reactive_kind("props"), Some(ReactiveKind::PropsValue));
-    assert_eq!(component_transform.reactive_kind("context"), None);
+    assert_eq!(component_transform.reactive_kind("context"), Some(ReactiveKind::SlotsValue));
 
     let ordinary_scope =
         collect_parameter_scope(function.params.iter().map(|parameter| &parameter.pat));
     let ordinary_transform = transform_with_scope(ordinary_scope);
     assert_eq!(ordinary_transform.reactive_kind("props"), None);
     assert_eq!(ordinary_transform.reactive_kind("context"), None);
+}
+
+#[test]
+fn computed_value_and_get_are_compiled_scalar_reads() {
+    let module = parse_module(
+        r#"
+      import { computed } from '@rue-js/rue';
+      const derived = computed(() => 2);
+      derived.value;
+      derived.get();
+    "#,
+    );
+    let vt = transform_with_scope(collect_module_scope(&module, &[]));
+    for item in &module.body {
+        if let ModuleItem::Stmt(Stmt::Expr(expression)) = item {
+            assert!(crate::vapor::is_compiled_reactive_scalar_expr(
+                &vt,
+                &expression.expr,
+                &HashSet::new()
+            ));
+        }
+    }
 }

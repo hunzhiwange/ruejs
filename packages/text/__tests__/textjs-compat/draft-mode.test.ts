@@ -17,7 +17,13 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vite-plus/test'
 import type { ViteDevServer } from 'vite-plus'
-import { APP_FIXTURE_DIR, startFixtureServer, fetchJson, fetchHtml } from '../helpers.js'
+import {
+  APP_FIXTURE_DIR,
+  startFixtureServer,
+  fetchJson,
+  fetchHtml,
+  stripRueSsrMarkers,
+} from '../helpers.js'
 
 describe('Text.js compat: draft-mode', () => {
   let server: ViteDevServer
@@ -240,11 +246,9 @@ describe('Text.js compat: draft-mode', () => {
 
   it('await draftMode() preserves the dynamic = "error" failure', async () => {
     const res = await fetch(`${baseUrl}/textjs-compat/draft-mode-dynamic-error`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
-    expect(html).toMatch(
-      /Page with `dynamic = (?:&quot;|\\")error(?:&quot;|\\")` used a dynamic API/,
-    )
+    expect(html).toContain('Page with `dynamic = "error"` used a dynamic API')
     expect(res.headers.getSetCookie()).toEqual([])
   })
 

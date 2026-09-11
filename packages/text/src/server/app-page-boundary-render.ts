@@ -1,3 +1,4 @@
+import { AppMeta, AppDiv } from './app-server-tree.js'
 import { buildClientHookErrorMessage } from '../shims/client-hook-error.js'
 import { ErrorBoundary } from '../shims/error-boundary.js'
 import { LayoutSegmentProvider } from '../shims/layout-segment-context-core.js'
@@ -27,7 +28,6 @@ import {
   type AppServerComponent,
   type AppServerRenderable,
 } from './app-server-tree.js'
-import { runWithServerElementRuntime } from './server-element-runtime.js'
 
 markAppSsrPassthroughComponent(ErrorBoundary)
 
@@ -294,9 +294,7 @@ async function renderAppPageBoundaryElementResponse<TModule extends AppPageModul
     isRscRequest: options.isRscRequest,
     middlewareHeaders: options.middlewareContext.headers,
     renderToReadableStream(element, streamOptions) {
-      return runWithServerElementRuntime(() =>
-        options.renderToReadableStream(element, streamOptions),
-      )
+      return options.renderToReadableStream(element, streamOptions)
     },
     status: options.status,
   })
@@ -338,8 +336,8 @@ export async function renderAppPageHttpAccessFallback<TModule extends AppPageMod
   })
 
   const headElements: AppServerRenderable[] = [
-    createAppServerElement('meta', { charSet: 'utf-8', key: 'charset' }),
-    createAppServerElement('meta', { content: 'noindex', key: 'robots', name: 'robots' }),
+    createAppServerElement(AppMeta, { charSet: 'utf-8', key: 'charset' }),
+    createAppServerElement(AppMeta, { content: 'noindex', key: 'robots', name: 'robots' }),
   ]
   if (metadata) {
     headElements.push(createAppServerElement(MetadataHead, { key: 'metadata', metadata, pathname }))
@@ -401,7 +399,7 @@ export async function renderAppPageErrorBoundary<TModule extends AppPageModule>(
   const pathname = new URL(options.requestUrl).pathname
 
   const headElements: AppServerRenderable[] = [
-    createAppServerElement('meta', { charSet: 'utf-8', key: 'charset' }),
+    createAppServerElement(AppMeta, { charSet: 'utf-8', key: 'charset' }),
   ]
   if (!errorBoundary.isGlobalError) {
     try {

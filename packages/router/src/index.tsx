@@ -1,3 +1,6 @@
+import type { CompiledSignalHandle as SignalHandle } from '@rue-js/rue/internal/reactive'
+import { onOwnerCleanup } from '@rue-js/rue/internal/reactive'
+import { getCurrentAppTarget } from '@rue-js/rue/internal/app'
 /**
  * Rue Router 入口模块。
  *
@@ -7,36 +10,12 @@
  * - install/attachRouter 把 Router 绑定到当前容器，同时维护一个进程级活动 Router。
  * - RouterView 依据 matched 链和嵌套深度渲染组件，RouterLink 则提供声明式导航入口。
  */
-import {
-  type FC,
-  createContext,
-  signal,
-  getCurrentContainer,
-  type SignalHandle,
-  renderAnchor,
-  onBeforeUnmount,
-  onMounted,
-  onUnmounted,
-  untrack,
-  useContext,
-  watchEffect,
-} from '@rue-js/rue'
-import {
-  KeepAlive as createCompiledKeepAlive,
-  _$compiledRoot,
-  _$compiledWithKey,
-  _$createComponent as createDynamicComponent,
-  type CompiledComponentHandle,
-  type CompiledKeepAliveProps,
-  useSetup,
-} from '@rue-js/rue/internal'
-import { RUE_COMPILED_UPDATE_PROPS_KEY } from '@rue-js/runtime/internal'
-import {
-  appendChild,
-  createComment,
-  createElement as createDomElement,
-  setStyle,
-} from '@rue-js/runtime/dom'
+import { type FC, createContext, signal, onUnmounted, useContext } from '@rue-js/rue'
+import { _$compiledComponent, type CompiledComponentFactory } from '@rue-js/rue/internal/component'
+import { _$compiledRoot, _$mountCompiledSlotFactory } from '@rue-js/rue/internal/block'
+import { _$keepAlive } from '@rue-js/rue/internal/keepalive'
+import { provideContext } from '@rue-js/rue/internal/app'
+import type { BlockFactory } from '@rue-js/rue/internal/block'
 import {
   bindRoutePrefetchTrigger,
   shouldPrefetchRouteForEvent,
@@ -256,40 +235,9 @@ const __routerByContainer = new WeakMap<HTMLElement, Router>()
 // RouterLink 的编译快路径会通过实例级 resolver 把 to 转为路径。
 const __routerResolvePathByInstance = new WeakMap<Router, (to: RouteLocationRaw) => string>()
 const __routerPersistKeysByInstance = new WeakMap<Router, string[]>()
-const RUE_CONTAINER_CLEANUPS_KEY = '__rue_container_cleanups__'
-
-const registerRouterContainerCleanup = (container: object | null, cleanup: () => void) => {
-  if (!container) {
-    return () => {}
-  }
-  const globalRecord = globalThis as typeof globalThis & Record<string, unknown>
-  let registry = globalRecord[RUE_CONTAINER_CLEANUPS_KEY] as
-    | WeakMap<object, Set<() => void>>
-    | undefined
-  if (!registry) {
-    registry = new WeakMap()
-    globalRecord[RUE_CONTAINER_CLEANUPS_KEY] = registry
-  }
-  let cleanups = registry.get(container)
-  if (!cleanups) {
-    cleanups = new Set()
-    registry.set(container, cleanups)
-  }
-  cleanups.add(cleanup)
-  return () => {
-    cleanups?.delete(cleanup)
-    if (cleanups?.size === 0) {
-      registry?.delete(container)
-    }
-  }
-}
 let __activeRouter: Router | null = null
 // 嵌套 RouterView 使用 depth context 定位 matched 链上的对应记录。
 const RouterViewDepthContext = createContext(0)
-const isRueServerRendering = () => {
-  const renderingCount = (globalThis as Record<string, unknown>).__rue_is_server_rendering__
-  return typeof renderingCount === 'number' && renderingCount > 0
-}
 
 /** 编译后的路由记录，额外保存完整路径和路径正则。 */
 type CompiledRouteRecord = Omit<RouteRecord, 'children'> & {
@@ -508,7 +456,9 @@ const loadRouteComponents = (route: Route) =>
 export const useAsyncRouteComponent = (loader: RouteComponentLoader): LazyRouteComponent => {
   const AsyncRouteComponent = ((props: any) => {
     const resolved = AsyncRouteComponent.__rue_route_resolved
-    return resolved ? createDynamicComponent(resolved, props) : null
+    return resolved
+      ? _$compiledComponent(resolved as CompiledComponentFactory<any>, () => props)
+      : _$compiledRoot(() => [null, null])
   }) as LazyRouteComponent
 
   Object.defineProperty(AsyncRouteComponent, '__rue_route_loader', {
@@ -523,9 +473,11 @@ export const useAsyncRouteComponent = (loader: RouteComponentLoader): LazyRouteC
 
 /** 将 Router 绑定到当前 Rue 容器，并设置为进程级活动 Router。 */
 export const attachRouter = (router: Router) => {
-  const c = getCurrentContainer() as HTMLElement | null
-  if (c) __routerByContainer.set(c, router)
-  __activeRouter = router
+  const c = getCurrentAppTarget() as HTMLElement | null
+  if (c) {
+    __routerByContainer.set(c, router)
+    onOwnerCleanup(() => __routerByContainer.delete(c))
+  } else __activeRouter = router
 }
 
 /**
@@ -922,7 +874,7 @@ export const createRouter = (options: RouterOptions): Router => {
   const initialRouteState = resolveInitialRoute(options.history.location())
 
   // currentPath：受历史驱动的源信号；第三参 true 表示同步更新立即通知观察者
-  const currentPath = signal(initialRouteState.path, {}, true)
+  const currentPath = signal(initialRouteState.path)
 
   const beforeGuards: NavigationGuard[] = []
   const afterGuards: AfterEachGuard[] = []
@@ -1405,7 +1357,7 @@ export const createRouter = (options: RouterOptions): Router => {
   if (null === matchRoute) {
     throw new Error('No route matched path ' + currentPath.get())
   }
-  const route = signal<Route>(matchRoute, {}, true)
+  const route = signal<Route>(matchRoute)
 
   const refreshRouteAfterPreload = (loadedRoute: Route) => {
     if (!loadedRoute || route.get() !== loadedRoute) {
@@ -1620,209 +1572,50 @@ export const createRouter = (options: RouterOptions): Router => {
 
 /** 获取当前上下文中的 Router，优先使用容器绑定，其次使用活动 Router。 */
 export const useRouter = (): Router => {
-  const c = getCurrentContainer() as HTMLElement | null
-  const r = (c ? __routerByContainer.get(c) || null : null) || __activeRouter
+  const c = getCurrentAppTarget() as HTMLElement | null
+  const r = c ? __routerByContainer.get(c) : __activeRouter
   if (!r) throw new Error('Router not installed for current application/container')
   return r
 }
 
-type RouteParamsState = {
-  source: SignalHandle<RouteParams>
-  proxy: RouteParams
-}
-
-const createRouteParamsState = (params: RouteParams): RouteParamsState => {
-  const source = signal(params, {}, true)
-  const proxy = new Proxy({} as RouteParams, {
-    get: (_target, key) => source.get()[key as string],
-    has: (_target, key) => key in source.get(),
-    ownKeys: () => Reflect.ownKeys(source.get()),
-    getOwnPropertyDescriptor: (_target, key) => {
-      if (!(key in source.get())) {
-        return undefined
-      }
-      return {
-        configurable: true,
-        enumerable: true,
-        value: source.get()[key as string],
-        writable: false,
-      }
-    },
-  })
-  return { source, proxy }
-}
-
-/**
- * 路由视图组件。
- *
- * RouterView 会根据当前嵌套深度读取 route.matched[depth]，并在单个锚点前
- * 渲染对应组件；子组件中的 RouterView 会通过 context 自动进入下一层深度。
- */
+/** A route is a closed component call selected by the navigation signal. */
 export const RouterView: FC = () => {
   const depth = useContext(RouterViewDepthContext)
-  const ownerContainer = getCurrentContainer() as object | null
-
-  if (__SSR__ && isRueServerRendering()) {
-    const r = __activeRouter
-    if (!r) {
-      return null
+  const router = useRouter()
+  const persistKeys = __routerPersistKeysByInstance.get(router) ?? []
+  const slots = new Map<
+    string,
+    { component: FC<any>; params: SignalHandle<RouteParams>; children: BlockFactory<any> }
+  >()
+  const view = _$keepAlive(() => {
+    const data = router.route.get()
+    const record = data?.matched?.[depth]
+    const component = record?.component && resolveRouteComponent(record.component)
+    const key = record ? resolveRoutePersistKey(record) : undefined
+    let entry = key ? slots.get(key) : undefined
+    if (component && record && data && key) {
+      const params = resolveRecordParams(record, data.params, null, null)
+      if (!entry || entry.component !== component) {
+        const source = signal(params)
+        const children: BlockFactory<any> = (target, _props, owner) =>
+          _$mountCompiledSlotFactory(target, owner, () => {
+            provideContext(RouterViewDepthContext, () => depth + 1)
+            return _$compiledComponent(component as CompiledComponentFactory<any>, () => ({
+              params: source.get(),
+            }))
+          })
+        entry = { component, params: source, children }
+        slots.set(key, entry)
+      } else entry.params.set(params)
     }
-    const data = r.route.get()
-    const record = data?.matched?.[depth] || null
-
-    if (!record || !data || !record.component) {
-      return null
-    }
-
-    const recordParams = resolveRecordParams(record, data.params, null, null)
-    const resolvedComponent = resolveRouteComponent(record.component)
-
-    if (!resolvedComponent) {
-      return null
-    }
-
-    return createDynamicComponent(RouterViewDepthContext.Provider as any, {
-      value: depth + 1,
-      children: () => createDynamicComponent(resolvedComponent, { params: recordParams }),
-    })
-  }
-
-  const view = useSetup(() => {
-    const r = useRouter()
-    const persistKeys = __routerPersistKeysByInstance.get(r) ?? []
-    const container = createDomElement('span') as any
-    setStyle(container, { display: 'contents' } as any)
-    const anchorEl = createComment('rue-router-view-anchor') as any
-    appendChild(container, anchorEl)
-    let previousRecord: RouteRecord | null = null
-    let previousParams: RouteParams | null = null
-    let previousResolvedComponent: FC<any> | null | undefined = null
-    let keepAliveHandle: CompiledComponentHandle<CompiledKeepAliveProps> | undefined
-    const paramsByRouteKey = new Map<string, RouteParamsState>()
-    const contentByRouteKey = new Map<string, { component: FC<any>; content: unknown }>()
-    const mounted = signal(false)
-    let disposed = false
-
-    const routeEffect = watchEffect(() => {
-      // route 是 signal，需要在 effect 中读取以订阅导航变化。
-      const data = r.route.get()
-      if (!mounted.get()) {
-        return
-      }
-      const record = data?.matched?.[depth] || null
-      const parent = (anchorEl as any).parentNode || container
-
-      untrack(() => {
-        // 渲染 DOM 本身不应收集当前 effect 之外的依赖，避免重复订阅。
-        if (!record || !data || !record.component) {
-          previousRecord = null
-          previousParams = null
-          previousResolvedComponent = null
-          renderAnchor(null as any, parent, anchorEl)
-          keepAliveHandle = undefined
-          return
-        }
-
-        const recordParams = resolveRecordParams(
-          record,
-          data.params,
-          previousRecord,
-          previousParams,
-        )
-        const resolvedComponent = resolveRouteComponent(record.component)
-        if (!resolvedComponent) {
-          previousRecord = record
-          previousParams = recordParams
-          previousResolvedComponent = resolvedComponent
-          renderAnchor(null as any, parent, anchorEl)
-          keepAliveHandle = undefined
-          return
-        }
-        const routeKey = resolveRoutePersistKey(record)
-        let paramsState = paramsByRouteKey.get(routeKey)
-        if (!paramsState) {
-          paramsState = createRouteParamsState(recordParams)
-          paramsByRouteKey.set(routeKey, paramsState)
-        } else {
-          paramsState.source.set(recordParams)
-        }
-        if (
-          previousRecord === record &&
-          previousParams === recordParams &&
-          previousResolvedComponent === resolvedComponent
-        ) {
-          // 记录、当前层参数和懒组件解析结果均未变化时保留原块，避免组件被重挂载。
-          return
-        }
-        previousRecord = record
-        previousParams = recordParams
-        previousResolvedComponent = resolvedComponent
-
-        const routeContent = _$compiledWithKey(
-          createDynamicComponent(RouterViewDepthContext.Provider as any, {
-            value: depth + 1,
-            children: () =>
-              createDynamicComponent(resolvedComponent, {
-                key: routeKey,
-                params: paramsState.proxy,
-              }),
-          }),
-          routeKey,
-        )
-
-        let renderedContent = routeContent
-        if (persistKeys.length > 0) {
-          let cachedContent = contentByRouteKey.get(routeKey)
-          if (!cachedContent || cachedContent.component !== resolvedComponent) {
-            cachedContent = {
-              component: resolvedComponent,
-              content: routeContent,
-            }
-            contentByRouteKey.set(routeKey, cachedContent)
-          }
-          const keepAliveProps: CompiledKeepAliveProps = {
-            include: persistKeys,
-            cacheKey: routeKey,
-            cacheName: routeKey,
-            children: cachedContent.content as any,
-          }
-          if (keepAliveHandle == null) {
-            keepAliveHandle = createCompiledKeepAlive(keepAliveProps)
-          } else {
-            keepAliveHandle[RUE_COMPILED_UPDATE_PROPS_KEY]?.(keepAliveProps)
-          }
-          renderedContent = keepAliveHandle
-        }
-        renderAnchor(renderedContent, parent, anchorEl)
-      })
-    })
-
-    onMounted(() => mounted.set(true))
-
     return {
-      container,
-      dispose() {
-        if (disposed) {
-          return
-        }
-        disposed = true
-        routeEffect.dispose()
-        const parent = (anchorEl as any).parentNode || container
-        renderAnchor(null as any, parent, anchorEl)
-        paramsByRouteKey.clear()
-        contentByRouteKey.clear()
-      },
+      cacheKey: component ? key : undefined,
+      cacheName: key,
+      include: persistKeys,
+      children: component ? entry?.children : undefined,
     }
   })
-
-  let unregisterContainerCleanup = () => {}
-  const disposeView = () => {
-    unregisterContainerCleanup()
-    view.dispose()
-  }
-  unregisterContainerCleanup = registerRouterContainerCleanup(ownerContainer, disposeView)
-  onBeforeUnmount(disposeView)
-  return _$compiledRoot(() => view.container) as any
+  return view as any
 }
 
 type RouterLinkProps = {
@@ -1830,13 +1623,6 @@ type RouterLinkProps = {
   replace?: boolean
   prefetch?: RoutePrefetchStrategy
 } & Record<string, unknown>
-
-/** RouterLink 暴露给编译快路径的静态能力。 */
-type RouterLinkFastPath = FC<RouterLinkProps> & {
-  __rueHref: (to: unknown) => string
-  __rueOnClick: (e: MouseEvent, to: unknown, replace?: unknown) => void
-  __rueOnPrefetch: (e: Event, to: unknown, prefetch?: unknown) => void
-}
 
 const resolveRouterLocationPath = (router: Router | null, to: unknown) => {
   // 生成 href 时也复用 Router 的命名路由解析逻辑，保证链接和导航目标一致。
@@ -1862,46 +1648,10 @@ const resolveRouterLocationPath = (router: Router | null, to: unknown) => {
 
 const routerLinkHref = (to: unknown) => {
   // HistoryLike.createHref 负责把内部路径转换成用户可点击的 href。
-  const path = resolveRouterLocationPath(__activeRouter, to)
-  const createHref = __activeRouter?.history?.createHref
+  const router = getCurrentAppTarget() ? useRouter() : __activeRouter
+  const path = resolveRouterLocationPath(router, to)
+  const createHref = router?.history?.createHref
   return createHref ? createHref(path) : path || '/'
-}
-
-const routerLinkNavigate = (to: unknown, replace?: unknown) => {
-  // 快路径事件处理无法直接捕获组件内 router，因此使用当前活动 Router。
-  const router = __activeRouter
-  if (!router) throw new Error('Router not installed for current application/container')
-
-  const target = to as RouteLocationRaw
-  const nav = replace ? router.replace : router.push
-  void nav(target)
-}
-
-const routerLinkOnClick = (e: MouseEvent, to: unknown, replace?: unknown) => {
-  // 保留新标签页、下载、辅助键等浏览器原生行为，只拦截普通左键点击。
-  if (
-    (e as any).defaultPrevented ||
-    e.button !== 0 ||
-    e.metaKey ||
-    e.ctrlKey ||
-    e.shiftKey ||
-    e.altKey
-  ) {
-    return
-  }
-  e.preventDefault()
-  routerLinkNavigate(to, replace)
-}
-
-const routerLinkOnPrefetch = (e: Event, to: unknown, prefetch?: unknown) => {
-  if (!shouldPrefetchRouteForEvent(e.type, prefetch as RoutePrefetchStrategy | undefined)) {
-    return
-  }
-  const router = __activeRouter
-  if (!router) {
-    return
-  }
-  void router.prefetch(to as RouteLocationRaw).catch(() => {})
 }
 
 const RouterLinkImpl: FC<RouterLinkProps> = props => {
@@ -1909,7 +1659,7 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
   const replace = !!(props as any).replace
   const prefetch = (props as any).prefetch as RoutePrefetchStrategy | undefined
   const {
-    children,
+    children: _children,
     to: _to,
     replace: _replace,
     prefetch: _prefetch,
@@ -1920,20 +1670,6 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
     onTouchStart: userTouchStart,
     ...rest
   } = props as any
-  const childList = Array.isArray(children)
-    ? (children as any[])
-    : children != null
-      ? [children]
-      : []
-
-  if (__SSR__ && isRueServerRendering()) {
-    return (
-      <a href={routerLinkHref(to)} {...rest}>
-        {childList}
-      </a>
-    )
-  }
-
   const r = useRouter()
   let clearPrefetchTrigger = () => {}
   let linkElement: Element | null = null
@@ -1988,7 +1724,7 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
     void nav(to)
   }
 
-  // children 归一化为数组后交给编译器，其他属性直接落到最终的 a 元素上。
+  // children is the compiler-provided default slot.
   return (
     <a
       href={routerLinkHref(to)}
@@ -2000,7 +1736,7 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
       onTouchStart={(event: Event) => prefetchOn(event, userTouchStart)}
       {...rest}
     >
-      {childList}
+      {props.children}
     </a>
   )
 }
@@ -2011,16 +1747,12 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
  * 渲染为 `<a>`，默认拦截普通左键点击并调用 router.push；传入 replace 时调用
  * router.replace。href 会根据当前 history 模式生成，保证可复制和可降级。
  */
-export const RouterLink = Object.assign(RouterLinkImpl, {
-  __rueHref: routerLinkHref,
-  __rueOnClick: routerLinkOnClick,
-  __rueOnPrefetch: routerLinkOnPrefetch,
-}) as RouterLinkFastPath
+export const RouterLink = RouterLinkImpl
 
 /** 获取当前路由匹配结果的响应式信号。 */
 export const useRoute = (): SignalHandle<Route> => {
-  const c = getCurrentContainer() as HTMLElement | null
-  const r = (c ? __routerByContainer.get(c) || null : null) || __activeRouter
+  const c = getCurrentAppTarget() as HTMLElement | null
+  const r = c ? __routerByContainer.get(c) : __activeRouter
   if (!r) throw new Error('Router not installed for current application/container')
 
   return r.route

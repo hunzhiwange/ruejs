@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { type FC, nextTick, onMounted, onUnmounted, ref, useApp } from '@rue-js/rue'
-import { createCompiledDynamic } from '@rue-js/runtime/internal'
 
 import {
   NavigationFailureType,
@@ -267,41 +266,34 @@ describe('rue router', () => {
 
   it('renders RouterView and navigates with RouterLink inside an app', async () => {
     const HomePage: FC = () => <p data-testid="page">Home</p>
-    const PostPage: FC<{ params: { id: string } }> = ({ params }) =>
-      createCompiledDynamic('p', { 'data-testid': 'page', children: `Post ${params.id}` }) as any
+    const PostPage: FC<{ params: { id: string } }> = ({ params }) => (
+      <p data-testid="page">{String(`Post ${params.id}`)}</p>
+    )
     const RouteReader: FC = () => {
       const route = useRoute()
       const router = useRouter()
 
       return (
         <p data-testid="current">
-          {route.get()?.path} / {router.currentPath.get()}
+          {String(route.get()?.path)} / {String(router.currentPath.get())}
         </p>
       )
     }
-    const App: FC = () =>
-      createCompiledDynamic('main', {
-        children: [
-          createCompiledDynamic(RouteReader, {}),
-          createCompiledDynamic(RouterLink, {
-            'data-testid': 'post-link',
-            to: { name: 'post', params: { id: 7 } },
-            children: 'Open Post',
-          }),
-          createCompiledDynamic(RouterLink, {
-            'data-testid': 'home-link',
-            to: '/',
-            replace: true,
-            children: 'Home',
-          }),
-          createCompiledDynamic(RouterLink, {
-            'data-testid': 'home-query-link',
-            to: '/?panel=search',
-            children: 'Home Query',
-          }),
-          createCompiledDynamic(RouterView, {}),
-        ],
-      }) as any
+    const App: FC = () => (
+      <main>
+        <RouteReader />
+        <RouterLink data-testid="post-link" to={{ name: 'post', params: { id: 7 } }}>
+          Open Post
+        </RouterLink>
+        <RouterLink data-testid="home-link" to="/" replace>
+          Home
+        </RouterLink>
+        <RouterLink data-testid="home-query-link" to="/?panel=search">
+          Home Query
+        </RouterLink>
+        <RouterView />
+      </main>
+    )
 
     const router = createRouter({
       history: createMemoryHistory('/'),
@@ -398,6 +390,97 @@ describe('rue router', () => {
     expect(container.textContent).toBe('Second')
   })
 
+  it('routes link events to their own application', async () => {
+    const Home: FC = () => <p>Home</p>
+    const Next: FC = () => <p>Next</p>
+    const App: FC = () => (
+      <main>
+        <RouterLink to="/next">Next</RouterLink>
+        <RouterView />
+      </main>
+    )
+    const makeRouter = () =>
+      createRouter({
+        history: createMemoryHistory('/'),
+        routes: [
+          { path: '/', component: Home },
+          { path: '/next', component: Next },
+        ],
+      })
+    const first = makeRouter()
+    const second = makeRouter()
+    const left = document.createElement('div')
+    const right = document.createElement('div')
+    document.body.append(left, right)
+    const a = useApp(App).use(first)
+    const b = useApp(App).use(second)
+    a.mount(left)
+    b.mount(right)
+    left.querySelector('a')!.click()
+    await first.isReady()
+    await flushRender()
+    expect(first.currentPath.get()).toBe('/next')
+    expect(second.currentPath.get()).toBe('/')
+    expect(left.querySelector('p')?.textContent).toBe('Next')
+    expect(right.querySelector('p')?.textContent).toBe('Home')
+    a.unmount()
+    b.unmount()
+  })
+
+  it('keeps nested route owners and cached params isolated while reusing a component', async () => {
+    let mounted = 0
+    let unmounted = 0
+    const Page: FC<{ params: { id?: string; name?: string } }> = props => {
+      onMounted(() => {
+        mounted++
+      })
+      onUnmounted(() => {
+        unmounted++
+      })
+      return <p data-testid="cached">{String(props.params.id ?? props.params.name)}</p>
+    }
+    const Layout: FC = () => (
+      <section>
+        <RouterView />
+      </section>
+    )
+    const router = createRouter({
+      history: createMemoryHistory('/group/a/1'),
+      routes: [
+        {
+          path: '/group',
+          component: Layout,
+          children: [
+            { path: 'a/:id', component: Page, persist: true },
+            { path: 'b/:name', component: Page, persist: true },
+          ],
+        },
+      ],
+    })
+    const target = document.createElement('div')
+    document.body.append(target)
+    const app = useApp(RouterView).use(router)
+    app.mount(target)
+    await flushRender()
+    expect(target.textContent).toBe('1')
+    await router.push('/group/a/2')
+    await flushRender()
+    expect(target.textContent).toBe('2')
+    expect(mounted).toBe(1)
+    await router.push('/group/b/3')
+    await flushRender()
+    expect(target.textContent).toBe('3')
+    expect(mounted).toBe(2)
+    await router.push('/group/a/4')
+    await flushRender()
+    expect(target.textContent).toBe('4')
+    expect(mounted).toBe(2)
+    expect(unmounted).toBe(0)
+    app.unmount()
+    expect(unmounted).toBe(2)
+    expect(target.textContent).toBe('')
+  })
+
   it('keeps a rapid editor return single-mounted when the root mount is retried', async () => {
     let resolveEditorDelay: (() => void) | undefined
     const editorDelay = new Promise<void>(resolve => {
@@ -436,8 +519,8 @@ describe('rue router', () => {
     const router = createRouter({
       history: createMemoryHistory('/editor'),
       routes: [
-        { path: '/editor', component: () => createCompiledDynamic(EditorPage, {}) as any },
-        { path: '/open', component: () => createCompiledDynamic(OpenPage, {}) as any },
+        { path: '/editor', component: EditorPage },
+        { path: '/open', component: OpenPage },
       ],
     })
     const container = document.createElement('div')
@@ -446,7 +529,7 @@ describe('rue router', () => {
 
     app.mount(container)
     await flushRender()
-    app.mount(container)
+    expect(() => app.mount(container)).toThrow('already mounted')
     await flushRender()
 
     expect({ editorMounted, editorResolved }).toEqual({ editorMounted: 1, editorResolved: 0 })

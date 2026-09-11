@@ -1,26 +1,9 @@
-import {
-  createOwner,
-  disposeOwner,
-  effect,
-  onOwnerCleanup,
-  untrack,
-  type CompiledOwner,
-} from '../runtime-core/compiled'
-import {
-  appendChild,
-  createComment,
-  createDocumentFragment,
-  createTextNode,
-  insertBefore,
-  removeChild,
-} from './dom.browser'
-import type { CompiledBlock, CompiledTarget } from './types'
+import { effect } from '../runtime-core/compiled'
 import type { CompactCompiledRootHandle } from './compact-root'
 
 const UPDATE_PROPS_KEY = '__rue_compiled_update_props__' as const
 
-export const _$withCompiledHookScope = <T extends CompactCompiledRootHandle>(factory: () => T): T =>
-  factory()
+export { _$withCompiledHookScope } from './hooks'
 
 export const _$withCompiledPropsUpdater = <Props>(
   root: CompactCompiledRootHandle,
@@ -38,92 +21,4 @@ export const _$withCompiledPropsUpdater = <Props>(
   return handle
 }
 
-export const _$mountCompiledSlotFactory = (
-  target: CompiledTarget,
-  owner: CompiledOwner,
-  create: () => CompactCompiledRootHandle,
-): CompiledBlock => {
-  const staging = target.batch ? target.parent : createDocumentFragment(target.parent)
-  const previousLast = staging.lastChild
-  const handle = untrack(create)
-  const result = untrack(() => handle.__rue_compiled_mount(staging, target.batch))
-  if (result != null && result.parentNode !== staging) appendChild(staging, result)
-  let first = previousLast?.nextSibling ?? staging.firstChild
-  if (first == null) {
-    first = createComment('rue:empty-slot')
-    appendChild(staging, first)
-  }
-  const last = staging.lastChild!
-  if (!target.batch) insertBefore(target.parent, staging, target.before)
-  let disposed = false
-  return {
-    first,
-    last,
-    owner: owner as unknown as CompiledBlock['owner'],
-    dispose() {
-      if (disposed) return
-      disposed = true
-      try {
-        handle.dispose()
-      } finally {
-        disposeOwner(owner)
-      }
-    },
-  }
-}
-
-export const _$mountCompiledSlotAt = <Props extends object>(
-  target: CompiledTarget,
-  readFactory: () => unknown,
-  readProps: () => Props,
-): void => {
-  let mountedFactory: unknown
-  let mountedProps: Props | undefined
-  let disposeMounted: (() => void) | undefined
-  effect(() => {
-    const factory = readFactory()
-    const props = readProps()
-    const sameProps =
-      mountedProps != null &&
-      Object.keys(props).length === Object.keys(mountedProps).length &&
-      Object.keys(props).every(key =>
-        Object.is(props[key as keyof Props], mountedProps![key as keyof Props]),
-      )
-    if (Object.is(factory, mountedFactory) && sameProps) return
-    disposeMounted?.()
-    const owner = createOwner()
-    try {
-      untrack(() => {
-        if (typeof factory === 'function') {
-          const block = (
-            factory as (target: CompiledTarget, props: Props, owner: CompiledOwner) => CompiledBlock
-          )(target, props, owner)
-          disposeMounted = () => block.dispose()
-        } else if (factory && typeof factory === 'object' && '__rue_compiled_mount' in factory) {
-          const handle = factory as CompactCompiledRootHandle
-          const staging = createDocumentFragment(target.parent)
-          handle.__rue_compiled_mount(staging)
-          if (staging.firstChild == null) appendChild(staging, createComment('rue:empty-slot'))
-          insertBefore(target.parent, staging, target.before)
-          disposeMounted = () => {
-            handle.dispose()
-            disposeOwner(owner)
-          }
-        } else {
-          const text = createTextNode(factory == null ? '' : String(factory))
-          insertBefore(target.parent, text, target.before)
-          disposeMounted = () => {
-            if (text.parentNode) removeChild(text.parentNode, text)
-            disposeOwner(owner)
-          }
-        }
-      })
-    } catch (error) {
-      disposeOwner(owner)
-      throw error
-    }
-    mountedFactory = factory
-    mountedProps = props
-  })
-  onOwnerCleanup(() => disposeMounted?.())
-}
+export { _$mountCompiledSlotFactory, _$mountCompiledSlotAt } from './block-factory'

@@ -311,10 +311,10 @@ export default HelloWorld;
     assert!(normalized.contains("themes.map((name)=>_$compiledRoot("));
     assert!(normalized.contains("_$createDocumentFragment()"));
     assert!(!normalized.contains(concat!("direct", "Root:")));
-    assert!(normalized.contains("_$setValue(_el2, name)"));
+    assert!(normalized.contains("_$setValue(_el4, name)"));
     assert!(
         normalized.contains("const __slot = labels[name] ? `${labels[name]} (${name})` : name")
     );
-    assert!(normalized.contains("renderAnchor(__slot, _el4, _el3)"));
+    assert!(normalized.contains("renderAnchor(__slot, _el4, _list1)"));
     assert!(normalized.contains("_$createComponent(ThemePicker, ()=>({"));
 }

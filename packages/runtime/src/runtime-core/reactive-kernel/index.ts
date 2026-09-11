@@ -84,7 +84,7 @@ export const createReactiveKernel = (
         onRenderTriggered: (effectId, event, owner) => {
           options.onRenderTriggered?.(effectId, event, owner)
           if (renderTriggeredActive) {
-            globalThis.__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
+            ;(globalThis as any).__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
               effectId,
               event,
               owner,
@@ -102,7 +102,7 @@ export const createReactiveKernel = (
       renderTriggeredActive = true
       if (sharedRuntime) {
         sharedRuntime.storage.onRenderTriggered = (id, event, owner) =>
-          globalThis.__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
+          (globalThis as any).__rue_compiled_runtime_bridge?.dispatchRenderTriggeredForEffect?.(
             id,
             event,
             owner,

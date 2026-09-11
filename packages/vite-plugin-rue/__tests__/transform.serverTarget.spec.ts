@@ -1,3 +1,5 @@
+import { Worker } from 'node:worker_threads'
+import { resolve } from 'node:path'
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
@@ -16,10 +18,9 @@ describe('vite-plugin-rue server JSX target', () => {
     )
 
     expect(output).toMatch(/^\/\* RUE_TRANSFORMED \*\/\n["']use server["'];/)
-    expect(output).toContain('@rue-js/server-renderer')
-    expect(output).toContain('_$serverElement')
-    expect(output).toContain('_$serverComponent')
-    expect(output).toContain('_$serverFragment')
+    expect(output).toContain('@rue-js/rue/internal/ssr')
+    expect(output).toContain('_$writeElement')
+    expect(output).toContain('_$writeComponent')
     expect(output).not.toMatch(/@rue-js\/rue\/(?:compiled|vapor)/)
     expect(output).not.toContain('@rue-js/rue/internal/compiler')
     expect(output).not.toMatch(/from\s*["']@rue-js\/rue\/internal["']/)
@@ -33,7 +34,7 @@ describe('vite-plugin-rue server JSX target', () => {
       production: false,
     })
 
-    expect(output).toMatch(/from\s*["']@rue-js\/rue\/internal\/compiler["']/)
+    expect(output).toMatch(/from\s*["']@rue-js\/rue\/internal\/dom["']/)
     expect(output).not.toMatch(/from\s*["']@rue-js\/rue\/internal["']/)
     expect(output).not.toContain('@rue-js/rue/vapor')
     expect(output).not.toContain('@rue-js/runtime-vapor')
@@ -67,4 +68,32 @@ describe('vite-plugin-rue server JSX target', () => {
 
     expect(payloads.map(payload => payload.target)).toEqual(['server', 'server'])
   })
+})
+
+it('preserves declared named slots in both inline and worker compilation', async () => {
+  const code = `export const Layout=({team}: {team: import('@rue-js/rue').RenderableOutput})=> <aside>{team}</aside>`
+  const inline = await compileRueStatic(code, {
+    id: '/app/Named.tsx',
+    target: 'server',
+    production: false,
+  })
+  const workerOutput = await new Promise<string>((done, reject) => {
+    const worker = new Worker(resolve('packages/vite-plugin-rue/transform-worker.mjs'), {
+      workerData: {
+        code,
+        id: '/app/Named.tsx',
+        target: 'server',
+        isProduction: false,
+        pluginPath: resolve('packages/swc-plugin-rue/swc-plugin-rue.wasm'),
+      },
+    })
+    worker.once('message', result =>
+      result.error ? reject(new Error(result.error.message)) : done(result.code),
+    )
+    worker.once('error', reject)
+  })
+  for (const output of [inline, workerOutput]) {
+    expect(output).toContain('_$writeSlot')
+    expect(output).not.toContain('_$writeText')
+  }
 })

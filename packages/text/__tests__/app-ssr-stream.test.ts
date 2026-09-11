@@ -2,11 +2,27 @@ import { describe, it, expect } from 'vite-plus/test'
 import {
   createRscEmbedTransform,
   createTickBufferedTransform,
+  ensureDocumentHead,
   fixPreloadAs,
 } from '../src/server/app-ssr-stream.js'
 import { normalizeRscPreloadHintText } from '../src/server/rsc-stream-hints.js'
 
 describe('App SSR stream helpers', () => {
+  describe('ensureDocumentHead', () => {
+    it('adds a head shell when a compiled document goes directly from html to body', () => {
+      expect(ensureDocumentHead('<!doctype html><html lang="en"><body>ok</body></html>')).toBe(
+        '<!doctype html><html lang="en"><head></head><body>ok</body></html>',
+      )
+    })
+
+    it('preserves an existing head and waits for a body opening before repairing', () => {
+      expect(ensureDocumentHead('<html><head><title>x</title></head><body>x</body></html>')).toBe(
+        '<html><head><title>x</title></head><body>x</body></html>',
+      )
+      expect(ensureDocumentHead('<html>')).toBe('<html>')
+    })
+  })
+
   describe('fixPreloadAs', () => {
     it('replaces as="stylesheet" with as="style" for preload links', () => {
       expect(
@@ -191,7 +207,7 @@ describe('createRscEmbedTransform raw buffer (#981)', () => {
 async function runTransform(
   chunks: string[],
   options: {
-    injectHTML?: string
+    injectHTML?: string | (() => string | Promise<string>)
     injectAfterHeadOpenHTML?: string
   } = {},
 ): Promise<string> {
@@ -283,12 +299,12 @@ describe('createTickBufferedTransform pre-head splice', () => {
     expect(out).toBe(html)
   })
 
-  it('ignores the splice when <head> is missing', async () => {
+  it('repairs a missing <head> before applying the splice', async () => {
     const html = '<!DOCTYPE html><html><body>no head</body></html>'
     const out = await runTransform([html], {
       injectAfterHeadOpenHTML: '<script>x</script>',
     })
-    expect(out).not.toContain('<script>x</script>')
+    expect(out).toContain('<head><script>x</script></head>')
   })
 
   it('re-evaluates the insertion getter only when splice runs', async () => {
@@ -315,4 +331,33 @@ describe('createTickBufferedTransform pre-head splice', () => {
     expect(calls).toBeGreaterThanOrEqual(1)
     expect(calls).toBeLessThan(10)
   })
+})
+
+it('awaits compiled inserted HTML and joins split writer tags before inserting head content', async () => {
+  let inserted = false
+  const html = await runTransform(['<html><he', 'ad>', '</head><body>shell</body></html>'], {
+    injectHTML: async () => {
+      await Promise.resolve()
+      if (inserted) return ''
+      inserted = true
+      return '<style>body{color:red}</style>'
+    },
+    injectAfterHeadOpenHTML: '<script>early()</script>',
+  })
+  expect(html).toBe(
+    '<html><head><script>early()</script><style>body{color:red}</style></head><body>shell</body></html>',
+  )
+  expect(html).not.toContain('[object Promise]')
+})
+
+it('normalizes preload attributes emitted as separate writer chunks', async () => {
+  expect(
+    await runTransform([
+      '<head><link',
+      ' rel="preload"',
+      ' as="stylesheet"',
+      ' href="/a.css">',
+      '</head>',
+    ]),
+  ).toBe('<head><link rel="preload" as="style" href="/a.css"></head>')
 })

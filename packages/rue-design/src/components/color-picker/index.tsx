@@ -5,7 +5,16 @@ ColorPicker 组件概述
 - 组件源码保持 TSX 形态，让 Rue 编译器直接参与，不写预转换标记。
 */
 import type { FC } from '@rue-js/rue'
-import { Teleport, onMounted, onUnmounted, ref, useRef, useState, watch } from '@rue-js/rue'
+import {
+  computed,
+  Teleport,
+  onMounted,
+  onUnmounted,
+  ref,
+  useRef,
+  useState,
+  watch,
+} from '@rue-js/rue'
 
 /** FORMAT_HEX 常量。 */
 export const FORMAT_HEX = 'hex'
@@ -184,7 +193,7 @@ export interface ColorPickerProps {
   /** arrow 配置项。 */
   arrow?: ColorPickerArrow
   /** showText 文本内容。 */
-  showText?: boolean | ((color: Color | GradientColor) => any)
+  showText?: boolean | ((color: Color | GradientColor) => string)
   /** 组件尺寸。 */
   size?: ColorPickerSize
   /** disabledAlpha 配置项。 */
@@ -289,7 +298,6 @@ type ColorLike =
 
 /** Rue 全局 runtime 标记，用于组件回调中恢复 active runtime。 */
 type RuntimeGlobalRecord = typeof globalThis & {
-  __rue_active?: unknown
   __rue?: unknown
 }
 
@@ -311,40 +319,12 @@ const appendClassName = (...parts: Array<string | undefined | null | false>) => 
 }
 
 /** 解析当前 active runtime；优先使用临时 active，其次回退全局 runtime。 */
-const resolveActiveRuntime = () => {
-  const globalRecord = globalThis as RuntimeGlobalRecord
-  return globalRecord.__rue_active ?? globalRecord.__rue
-}
 
 /** 在用户回调执行期间恢复捕获到的 active runtime，保证回调内 render/watch 归属正确。 */
-const runWithActiveRuntime = <T,>(runtime: unknown, runner: () => T): T => {
-  if ((typeof runtime !== 'object' && typeof runtime !== 'function') || runtime == null) {
-    return runner()
-  }
-
-  const globalRecord = globalThis as RuntimeGlobalRecord
-  const hadActiveRuntime = Object.prototype.hasOwnProperty.call(globalRecord, '__rue_active')
-  const previousRuntime = globalRecord.__rue_active
-
-  globalRecord.__rue_active = runtime
-  try {
-    return runner()
-  } finally {
-    if (hadActiveRuntime) {
-      globalRecord.__rue_active = previousRuntime
-    } else {
-      delete globalRecord.__rue_active
-    }
-  }
-}
 
 /** 判断是否存在 Renderable Slot Content 的内部工具函数。 */
-const hasRenderableSlotContent = (value: any): boolean => {
-  if (Array.isArray(value)) {
-    return value.some(item => hasRenderableSlotContent(item))
-  }
-  return value !== undefined && value !== null && value !== false && value !== ''
-}
+const hasRenderableSlotContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** clamp Number 的内部工具函数。 */
 const clampNumber = (value: number, min: number, max: number) => {
@@ -674,21 +654,6 @@ const stripAlphaIfNeeded = (color: Color | null, disabledAlpha?: boolean) => {
 }
 
 let gradientStopIdSeed = 0
-
-interface ColorPickerRemountState {
-  format: ColorFormatType
-  popup?: HTMLElement
-}
-
-const colorPickerRemountStates = /*#__PURE__*/ new WeakMap<HTMLElement, ColorPickerRemountState>()
-
-const resolveColorPickerRemountOwner = (element?: HTMLElement | null) => {
-  let current = element ?? null
-  while (current?.parentElement && current.parentElement !== document.body) {
-    current = current.parentElement
-  }
-  return current
-}
 
 /** 判断 Gradient Stop Value 的内部工具函数。 */
 const isGradientStopValue = (value: unknown): value is ColorPickerGradientStop => {
@@ -1142,40 +1107,7 @@ interface PresetsSectionRenderContext {
 
 /** apply Format Value 的内部工具函数。 */
 const applyFormatValue = (event: Event, setFormatValue: (nextFormat: ColorFormatType) => void) => {
-  const popup = (event.currentTarget as HTMLElement | null)?.closest(
-    '[data-rue-color-picker-popup="true"]',
-  ) as HTMLElement | null
   setFormatValue((event.currentTarget as HTMLSelectElement).value as ColorFormatType)
-  if (popup && typeof MutationObserver !== 'undefined') {
-    setTimeout(() => {
-      const snapshot = Array.from(popup.childNodes).map(node => node.cloneNode(true))
-      const snapshotHasChannels = Array.from(popup.querySelectorAll('label > span')).some(
-        label => label.textContent === 'R',
-      )
-      if (!snapshotHasChannels) return
-      const observer = new MutationObserver(() => {
-        const hasChannels = Array.from(popup.querySelectorAll('label > span')).some(
-          label => label.textContent === 'R',
-        )
-        if (hasChannels) return
-        popup.replaceChildren(...snapshot.map(node => node.cloneNode(true)))
-        observer.disconnect()
-      })
-      observer.observe(popup, { childList: true, subtree: true })
-      const keepAlive = setInterval(() => {
-        const hasChannels = Array.from(popup.querySelectorAll('label > span')).some(
-          label => label.textContent === 'R',
-        )
-        if (!hasChannels) {
-          popup.replaceChildren(...snapshot.map(node => node.cloneNode(true)))
-        }
-      }, 4)
-      setTimeout(() => {
-        observer.disconnect()
-        clearInterval(keepAlive)
-      }, 1000)
-    }, 0)
-  }
 }
 
 /** Chevron Icon 的内部工具函数。 */
@@ -1197,7 +1129,7 @@ const ChevronIcon: FC<{ open?: boolean }> = ({ open }) => {
 }
 
 /** 渲染 Picker Section 的内部工具函数。 */
-const renderPickerSection = ({
+const PickerSection = ({
   getColor,
   getGradient,
   currentMode,
@@ -1232,15 +1164,19 @@ const renderPickerSection = ({
     return gradientStops.find(stop => stop.id === activeGradientStopId.value) ?? gradientStops[0]
   }
 
-  const renderDraftInput = (
-    key: keyof ColorChannelDrafts,
-    label: string,
-    inputMode: 'text' | 'numeric' = 'numeric',
-  ) => {
+  const RenderDraftInput = ({
+    arg0: key,
+    arg1: label,
+    arg2: inputMode = 'numeric',
+  }: {
+    arg0: keyof ColorChannelDrafts
+    arg1: string
+    arg2?: 'text' | 'numeric'
+  }) => {
     return (
       <label className="grid gap-0.5">
         <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-base-content/45">
-          {label}
+          {String(label)}
         </span>
         <input
           type="text"
@@ -1356,17 +1292,15 @@ const renderPickerSection = ({
                   }}
                 />
                 <span className="rounded-[0.65rem] border border-base-300 bg-base-100 px-2 py-1 text-center text-xs font-medium text-base-content/85">
-                  {Math.round(resolveActiveGradientStop()?.percent ?? 0)}%
+                  {String(Math.round(resolveActiveGradientStop()?.percent ?? 0))}%
                 </span>
               </div>
 
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] uppercase tracking-[0.16em] text-base-content/45">
-                  色标{' '}
-                  {resolveGradientStops().findIndex(
-                    stop => stop.id === activeGradientStopId.value,
-                  ) + 1}
-                  /{resolveGradientStops().length}
+                  {String(
+                    `色标 ${resolveGradientStops().findIndex(stop => stop.id === activeGradientStopId.value) + 1}/${resolveGradientStops().length}`,
+                  )}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -1518,7 +1452,7 @@ const renderPickerSection = ({
               )}
 
               {currentFormat.value === FORMAT_HEX ? (
-                renderDraftInput('hex', 'HEX', 'text')
+                <RenderDraftInput arg0={'hex'} arg1={'HEX'} arg2={'text'} />
               ) : currentFormat.value === FORMAT_RGB ? (
                 <div
                   className={appendClassName(
@@ -1526,10 +1460,10 @@ const renderPickerSection = ({
                     disabledAlpha ? 'grid-cols-3' : 'grid-cols-4',
                   )}
                 >
-                  {renderDraftInput('r', 'R')}
-                  {renderDraftInput('g', 'G')}
-                  {renderDraftInput('b', 'B')}
-                  {!disabledAlpha ? renderDraftInput('a', 'A') : null}
+                  <RenderDraftInput arg0={'r'} arg1={'R'} />
+                  <RenderDraftInput arg0={'g'} arg1={'G'} />
+                  <RenderDraftInput arg0={'b'} arg1={'B'} />
+                  {!disabledAlpha ? <RenderDraftInput arg0={'a'} arg1={'A'} /> : null}
                 </div>
               ) : (
                 <div
@@ -1538,10 +1472,10 @@ const renderPickerSection = ({
                     disabledAlpha ? 'grid-cols-3' : 'grid-cols-4',
                   )}
                 >
-                  {renderDraftInput('h', 'H')}
-                  {renderDraftInput('s', 'S')}
-                  {renderDraftInput('v', 'B')}
-                  {!disabledAlpha ? renderDraftInput('a', 'A') : null}
+                  <RenderDraftInput arg0={'h'} arg1={'H'} />
+                  <RenderDraftInput arg0={'s'} arg1={'S'} />
+                  <RenderDraftInput arg0={'v'} arg1={'B'} />
+                  {!disabledAlpha ? <RenderDraftInput arg0={'a'} arg1={'A'} /> : null}
                 </div>
               )}
             </div>
@@ -1567,7 +1501,7 @@ const renderPickerSection = ({
 }
 
 /** 渲染 Presets Section 的内部工具函数。 */
-const renderPresetsSection = ({
+const PresetsSection = ({
   presets,
   disabledAlpha,
   currentMode: _currentMode,
@@ -1584,7 +1518,125 @@ const renderPresetsSection = ({
   setModeValue,
   requestRender,
 }: PresetsSectionRenderContext) => {
-  if (!presets.length) return null
+  const CompiledRow2 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const CompiledRow3 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+      const presetColor = rowArg0
+      const colorIndex = rowArg1
+
+      const resolvedGradient = ensureGradientColor(presetColor, disabledAlpha)
+      const resolvedColor = resolvedGradient
+        ? null
+        : ensureColor(presetColor as ColorLike, disabledAlpha)
+      if (!resolvedGradient && !resolvedColor) return <></>
+      void renderVersion
+      const activeColor = getActiveColor()
+      const activeGradient = getActiveGradient()
+      const previewValue = resolvedGradient ?? resolvedColor
+      const isActive = computed(() =>
+        resolvedGradient
+          ? getActiveGradient()?.toCssString() === resolvedGradient.toCssString() ||
+            isSameGradientValue(getActiveGradient(), resolvedGradient)
+          : isSameColorValue(getActiveColor(), resolvedColor),
+      )
+
+      return (
+        <button
+          key={`${groupKey}:${colorIndex}`}
+          type="button"
+          data-rue-color-picker-preset={String(colorIndex)}
+          data-rue-color-picker-preset-group={String(index)}
+          title={
+            resolvedGradient
+              ? resolvedGradient.toCssString()
+              : formatColorText(resolvedColor, currentFormat.value)
+          }
+          className={appendClassName(
+            'relative flex h-9 w-9 items-center justify-center rounded-[0.85rem] border p-0.5 transition hover:-translate-y-0.5 hover:shadow-sm',
+            isActive.get()
+              ? 'border-primary bg-primary/10 ring-2 ring-primary/15'
+              : 'border-base-300/80',
+            classNames?.presetItem,
+          )}
+        >
+          <span
+            className="block h-7 w-7 rounded-[0.55rem]"
+            style={renderPresetSwatchStyle(previewValue)}
+          />
+          {isActive.get() ? (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-content shadow-[0_4px_10px_rgba(15,23,42,0.18)]">
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                className="h-2.5 w-2.5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m3.5 8 2.4 2.4L12.5 4.6" />
+              </svg>
+            </span>
+          ) : null}
+        </button>
+      )
+    }
+
+    const group = rowArg0
+    const index = rowArg1
+
+    const groupKey = String(group.key ?? index)
+    return (
+      <section
+        key={groupKey}
+        className={appendClassName(
+          'rounded-[1rem] border border-base-300/75 bg-base-100/80 p-2.5',
+          (() => {
+            void renderVersion
+            return groupKey === resolveActiveKey() ? '' : 'hidden'
+          })(),
+        )}
+      >
+        {presets.length <= 1 ? (
+          <div className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-base-content/45">
+            {String(group.label)}
+          </div>
+        ) : null}
+        <div className="grid grid-cols-5 gap-1.5 justify-items-start">
+          {group.colors.map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow3 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const group = rowArg0
+    const index = rowArg1
+
+    const key = String(group.key ?? index)
+    return (
+      <button
+        key={key}
+        type="button"
+        className={appendClassName(
+          'rounded-full border px-2.5 py-1 text-xs font-medium transition',
+          (() => {
+            void renderVersion
+            return key === resolveActiveKey()
+              ? 'border-primary bg-primary/10 text-primary shadow-sm'
+              : 'border-base-300/80 bg-base-100 text-base-content/68 hover:border-primary/55'
+          })(),
+        )}
+        onClick={() => {
+          activePresetGroupKey.value = key
+          requestRender()
+        }}
+      >
+        {String(group.label)}
+      </button>
+    )
+  }
+
+  if (!presets.length) return <></>
 
   const resolveActiveKey = () => {
     return presets.find(
@@ -1623,114 +1675,15 @@ const renderPresetsSection = ({
     >
       {presets.length > 1 ? (
         <div className="flex flex-wrap gap-2">
-          {presets.map((group, index) => {
-            const key = String(group.key ?? index)
-            return (
-              <button
-                key={key}
-                type="button"
-                className={appendClassName(
-                  'rounded-full border px-2.5 py-1 text-xs font-medium transition',
-                  (() => {
-                    void renderVersion
-                    return key === resolveActiveKey()
-                      ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                      : 'border-base-300/80 bg-base-100 text-base-content/68 hover:border-primary/55'
-                  })(),
-                )}
-                onClick={() => {
-                  activePresetGroupKey.value = key
-                  requestRender()
-                }}
-              >
-                {group.label}
-              </button>
-            )
-          })}
+          {presets.map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
         </div>
       ) : null}
 
-      {presets.map((group, index) => {
-        const groupKey = String(group.key ?? index)
-        return (
-          <section
-            key={groupKey}
-            className={appendClassName(
-              'rounded-[1rem] border border-base-300/75 bg-base-100/80 p-2.5',
-              (() => {
-                void renderVersion
-                return groupKey === resolveActiveKey() ? '' : 'hidden'
-              })(),
-            )}
-          >
-            {presets.length <= 1 ? (
-              <div className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-base-content/45">
-                {group.label}
-              </div>
-            ) : null}
-            <div className="grid grid-cols-5 gap-1.5 justify-items-start">
-              {group.colors.map((presetColor, colorIndex) => {
-                const resolvedGradient = ensureGradientColor(presetColor, disabledAlpha)
-                const resolvedColor = resolvedGradient
-                  ? null
-                  : ensureColor(presetColor as ColorLike, disabledAlpha)
-                if (!resolvedGradient && !resolvedColor) return null
-                void renderVersion
-                const activeColor = getActiveColor()
-                const activeGradient = getActiveGradient()
-                const previewValue = resolvedGradient ?? resolvedColor
-                const isActive = resolvedGradient
-                  ? activeGradient?.toCssString() === resolvedGradient.toCssString() ||
-                    isSameGradientValue(activeGradient, resolvedGradient)
-                  : isSameColorValue(activeColor, resolvedColor)
-
-                return (
-                  <button
-                    key={`${groupKey}:${colorIndex}`}
-                    type="button"
-                    data-rue-color-picker-preset={String(colorIndex)}
-                    data-rue-color-picker-preset-group={String(index)}
-                    title={
-                      resolvedGradient
-                        ? resolvedGradient.toCssString()
-                        : formatColorText(resolvedColor, currentFormat.value)
-                    }
-                    className={appendClassName(
-                      'relative flex h-9 w-9 items-center justify-center rounded-[0.85rem] border p-0.5 transition hover:-translate-y-0.5 hover:shadow-sm',
-                      isActive
-                        ? 'border-primary bg-primary/10 ring-2 ring-primary/15'
-                        : 'border-base-300/80',
-                      classNames?.presetItem,
-                    )}
-                  >
-                    <span
-                      className="block h-7 w-7 rounded-[0.55rem]"
-                      style={renderPresetSwatchStyle(previewValue)}
-                    />
-                    {isActive ? (
-                      <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-content shadow-[0_4px_10px_rgba(15,23,42,0.18)]">
-                        <svg
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          className="h-2.5 w-2.5"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m3.5 8 2.4 2.4L12.5 4.6"
-                          />
-                        </svg>
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )
-      })}
+      {presets.map((rowArg0: any, rowArg1: number) => (
+        <CompiledRow2 rowArg0={rowArg0} rowArg1={rowArg1} />
+      ))}
     </div>
   )
 }
@@ -1782,8 +1735,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
   const sizeTokens = resolveSizeTokens(size)
   const availableModes = normalizeModes(modeProp)
   // 回调可能在 DOM 事件委托中触发，捕获 runtime 后可在回调里继续使用 Rue API。
-  const callbackRuntime = resolveActiveRuntime()
-  const withCallbackRuntime = <T,>(runner: () => T) => runWithActiveRuntime(callbackRuntime, runner)
+  const withCallbackRuntime = <T,>(runner: () => T) => runner()
   const initialResolvedValue = isControlledValue ? value : defaultValue
   const initialGradientValue = ensureGradientColor(initialResolvedValue, disabledAlpha)
   const resolvedInitialMode =
@@ -1800,28 +1752,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
   const renderRafRef = useRef<number>()
   const renderTimerRef = useRef<number>()
   const hoverCloseTimerRef = useRef<number>()
-  const panelContextRef = useRef<{
-    picker?: PickerSectionRenderContext
-    presets?: PresetsSectionRenderContext
-  }>()
-  const panelComponentsRef = useRef<{
-    Picker: FC
-    Presets: FC
-  }>()
   const draggingRef = ref<{ stop?: () => void }>({})
-
-  if (!panelComponentsRef.current) {
-    panelComponentsRef.current = {
-      Picker: () => {
-        const context = panelContextRef.current?.picker
-        return context ? renderPickerSection(context) : null
-      },
-      Presets: () => {
-        const context = panelContextRef.current?.presets
-        return context ? renderPresetsSection(context) : null
-      },
-    }
-  }
 
   const popupOpen = ref(isControlledOpen ? !!open : !!defaultOpen)
   const currentFormat = ref<ColorFormatType>(format ?? defaultFormat)
@@ -1990,11 +1921,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
       popupOpen.value = nextOpen
     }
     requestRender()
-    syncPopupDom()
-    if (!nextOpen && mergedDestroyOnHidden && popupRef.current) {
-      popupRef.current.remove()
-      popupRef.current = undefined
-    }
+
     if (nextOpen) {
       schedulePopupPositionSync()
     }
@@ -2023,57 +1950,8 @@ const ColorPicker: FC<ColorPickerProps> = ({
     if (nextFormat === currentFormat.value) return
     if (!isControlledFormat) {
       currentFormat.value = nextFormat
-      const visiblePopup = document.body.querySelector(
-        '[data-rue-color-picker-popup="true"]',
-      ) as HTMLElement | null
-      if (visiblePopup) {
-        document.addEventListener(
-          'click',
-          () => {
-            const snapshot = Array.from(visiblePopup.childNodes).map(node => node.cloneNode(true))
-            const restore = () => {
-              const hasChannels = Array.from(visiblePopup.querySelectorAll('label > span')).some(
-                label => label.textContent === 'R',
-              )
-              if (!hasChannels) {
-                visiblePopup.replaceChildren(...snapshot.map(node => node.cloneNode(true)))
-              }
-            }
-            setTimeout(restore, 0)
-            setTimeout(restore, 16)
-          },
-          { capture: true, once: true },
-        )
-      }
-      const owner = resolveColorPickerRemountOwner(rootRef.current)
-      if (owner) {
-        const previous = colorPickerRemountStates.get(owner)
-        colorPickerRemountStates.set(owner, { ...previous, format: nextFormat })
-      }
-      const retainedPopup = popupRef.current
-      if (retainedPopup && typeof MutationObserver !== 'undefined') {
-        setTimeout(() => {
-          const snapshot = Array.from(retainedPopup.childNodes).map(node => node.cloneNode(true))
-          const snapshotHasChannels = snapshot.some(
-            node =>
-              node instanceof Element &&
-              Array.from(node.querySelectorAll('label > span')).some(
-                label => label.textContent === 'R',
-              ),
-          )
-          const observer = new MutationObserver(() => {
-            const stillHasChannels = Array.from(
-              retainedPopup.querySelectorAll('label > span'),
-            ).some(label => label.textContent === 'R')
-            if (stillHasChannels || !snapshotHasChannels) return
-            retainedPopup.replaceChildren(...snapshot.map(node => node.cloneNode(true)))
-            observer.disconnect()
-          })
-          observer.observe(retainedPopup, { childList: true })
-          setTimeout(() => observer.disconnect(), 1000)
-        }, 0)
-      }
     }
+
     syncDraftInputs(true)
     if (onFormatChange) {
       withCallbackRuntime(() => {
@@ -2101,7 +1979,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
     previewGradient.value = nextGradient ? nextGradient.clone() : null
     syncGradientStopState(nextGradient)
     syncDraftInputs(true, true)
-    syncTriggerDom(nextGradient)
+
     requestDeferredRender()
 
     if (onChange) {
@@ -2148,7 +2026,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
 
     previewColor.value = normalizedColor ? normalizedColor.clone() : null
     syncDraftInputs(true, true)
-    syncTriggerDom(normalizedColor)
+
     requestDeferredRender()
     if (onChange) {
       withCallbackRuntime(() => {
@@ -2319,16 +2197,6 @@ const ColorPicker: FC<ColorPickerProps> = ({
     }, 90) as unknown as number
   }
 
-  const syncPopupDom = () => {
-    const popupElement = popupRef.current
-    if (!popupElement) return
-
-    const visible = popupOpen.value && !disabled
-    popupElement.hidden = !visible
-    popupElement.setAttribute('aria-hidden', visible ? 'false' : 'true')
-    popupElement.style.visibility = visible ? 'visible' : 'hidden'
-  }
-
   const syncPopupPosition = () => {
     if (typeof window === 'undefined' || !popupOpen.value) return
 
@@ -2419,7 +2287,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
       previewColor.value = null
     }
     syncDraftInputs(true)
-    syncTriggerDom(null)
+
     if (onChange) {
       withCallbackRuntime(() => {
         onChange(null, '')
@@ -2455,38 +2323,9 @@ const ColorPicker: FC<ColorPickerProps> = ({
       : formatColorText(activeValue, currentFormat.value)
   }
 
-  const syncTriggerDom = (activeValue: Color | GradientColor | null) => {
-    const triggerElement = triggerRef.current
-    if (!triggerElement) return
-
-    const swatch = triggerElement.firstElementChild as HTMLElement | null
-    if (swatch) {
-      Object.assign(swatch.style, renderSwatchStyle(activeValue))
-    }
-
-    if (hasCustomTrigger || !usesShowText) return
-
-    const textContent = renderTriggerText(activeValue)
-    if (typeof textContent !== 'string' && typeof textContent !== 'number') return
-
-    const textHost = triggerElement.querySelector('[aria-label]') as HTMLElement | null
-    if (!textHost) return
-
-    const nextText = String(textContent)
-    textHost.setAttribute('aria-label', nextText)
-    textHost.textContent = nextText
-  }
-
-  const activeColor = (() => {
-    void renderVersion
-    return getActiveColor()
-  })()
-  const activeGradient = (() => {
-    void renderVersion
-    return getActiveGradient()
-  })()
-  const activePreviewValue =
-    currentMode.value === COLOR_PICKER_MODE_GRADIENT ? activeGradient : activeColor
+  const activePreviewValue = computed(() =>
+    currentMode.value === COLOR_PICKER_MODE_GRADIENT ? getActiveGradient() : getActiveColor(),
+  )
   const pickerSectionContext: PickerSectionRenderContext = {
     getColor: getWorkingColor,
     getGradient: () => (previewGradient.value ? previewGradient.value.clone() : null),
@@ -2533,11 +2372,6 @@ const ColorPicker: FC<ColorPickerProps> = ({
     requestRender,
   }
 
-  panelContextRef.current = {
-    picker: pickerSectionContext,
-    presets: presetsSectionContext,
-  }
-
   const clearConfig = typeof allowClear === 'object' ? allowClear : undefined
   const hasCustomTrigger = hasRenderableSlotContent(children)
   const usesShowText = showText === true || typeof showText === 'function'
@@ -2546,55 +2380,22 @@ const ColorPicker: FC<ColorPickerProps> = ({
     getPopupContainer,
     triggerRef.current ?? rootRef.current,
   )
-  const triggerTextContent = renderTriggerText(activePreviewValue)
-  const triggerDisplayText =
-    typeof triggerTextContent === 'string' || typeof triggerTextContent === 'number'
-      ? String(triggerTextContent)
-      : activePreviewValue instanceof GradientColor
-        ? activePreviewValue.toCssString()
-        : formatColorText(activePreviewValue, currentFormat.value) || EMPTY_COLOR_TEXT
+  const triggerDisplayText = computed(() =>
+    String(renderTriggerText(activePreviewValue.get()) ?? EMPTY_COLOR_TEXT),
+  )
 
-  const renderPopupPanel = () => {
-    const basePanel = (
-      <div className={appendClassName('space-y-3', panelClassName)}>
-        {renderPickerSection(pickerSectionContext)}
-        {renderPresetsSection(presetsSectionContext)}
-      </div>
-    )
-
-    return panelRender
-      ? panelRender(basePanel, {
-          components: panelComponentsRef.current!,
-          state: {
-            color: activePreviewValue,
-            format: currentFormat.value,
-            mode: currentMode.value,
-          },
-        })
-      : basePanel
-  }
+  const PopupPanel = () => (
+    <div className={appendClassName('space-y-3', panelClassName)}>
+      <PickerSection {...pickerSectionContext} />
+      <PresetsSection {...presetsSectionContext} />
+    </div>
+  )
 
   const assignPopupElement = (element: HTMLDivElement | null) => {
     const previousElement = popupRef.current
     popupRef.current = element ?? undefined
     if (!element || element === previousElement) return
 
-    const owner = resolveColorPickerRemountOwner(rootRef.current)
-    const retained = owner ? colorPickerRemountStates.get(owner) : undefined
-    if (owner) {
-      colorPickerRemountStates.set(owner, {
-        format: retained?.format ?? currentFormat.value,
-        popup: retained?.popup ?? element,
-      })
-    }
-    if (retained?.popup && retained.popup !== element) {
-      setTimeout(() => {
-        retained.popup?.replaceChildren(
-          ...Array.from(element.childNodes).map(node => node.cloneNode(true)),
-        )
-      }, 0)
-    }
-    syncPopupDom()
     if (popupOpen.value && !disabled) {
       schedulePopupPositionSync()
     }
@@ -2603,7 +2404,6 @@ const ColorPicker: FC<ColorPickerProps> = ({
   onMounted(() => {
     syncPresetState()
     syncValueFromProps()
-    syncPopupDom()
 
     if (typeof window === 'undefined') return
 
@@ -2676,7 +2476,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
       if (open !== undefined) {
         popupOpen.value = !!open
         requestRender()
-        syncPopupDom()
+
         if (open) {
           schedulePopupPositionSync()
         }
@@ -2726,17 +2526,11 @@ const ColorPicker: FC<ColorPickerProps> = ({
     },
   )
 
-  const rootNode = (
+  const RootNodeView = () => (
     <div
       {...rest}
       ref={(element: HTMLDivElement | null) => {
         rootRef.current = element ?? undefined
-        const owner = resolveColorPickerRemountOwner(element)
-        const retained = owner ? colorPickerRemountStates.get(owner) : undefined
-        if (!isControlledFormat && retained && retained.format !== currentFormat.value) {
-          currentFormat.value = retained.format
-          requestRender()
-        }
       }}
       className={appendClassName(
         'relative inline-flex max-w-full align-top',
@@ -2814,7 +2608,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
               ? appendClassName('rounded-[0.45rem]', sizeTokens.compactSwatchSizeClassName)
               : appendClassName('rounded-[0.45rem]', sizeTokens.swatchSizeClassName),
           )}
-          style={renderSwatchStyle(activePreviewValue)}
+          style={renderSwatchStyle(activePreviewValue.get())}
         />
 
         {!compactTrigger ? (
@@ -2824,20 +2618,15 @@ const ColorPicker: FC<ColorPickerProps> = ({
             ) : (
               <span
                 className="flex min-w-0 items-center text-sm leading-5 text-base-content/85"
-                aria-label={triggerDisplayText}
+                aria-label={triggerDisplayText.get()}
               >
-                {typeof triggerTextContent === 'string' ||
-                typeof triggerTextContent === 'number' ? (
-                  <span className="truncate">{String(triggerTextContent)}</span>
-                ) : (
-                  triggerTextContent
-                )}
+                <span className="truncate">{triggerDisplayText.get()}</span>
               </span>
             )}
           </span>
         ) : null}
 
-        {allowClear && activePreviewValue ? (
+        {allowClear && activePreviewValue.get() ? (
           <button
             type="button"
             aria-label="清除颜色"
@@ -2874,6 +2663,8 @@ const ColorPicker: FC<ColorPickerProps> = ({
             }}
             id={popupHostId.value}
             data-rue-color-picker-popup-host="true"
+            hidden={popupOpen.value && !disabled ? undefined : true}
+            aria-hidden={popupOpen.value && !disabled ? 'false' : 'true'}
             data-rue-color-picker-popup-version={String(renderVersion)}
             className={appendClassName(
               'fixed left-0 top-0 z-[1200] pointer-events-auto',
@@ -2881,7 +2672,11 @@ const ColorPicker: FC<ColorPickerProps> = ({
               popupClassName,
               classNames?.popup,
             )}
-            style={{ ...styles?.popup, ...popupFloatingStyle.value }}
+            style={{
+              ...styles?.popup,
+              ...popupFloatingStyle.value,
+              visibility: popupOpen.value && !disabled ? 'visible' : 'hidden',
+            }}
             onMouseEnter={() => {
               clearHoverCloseTimer()
             }}
@@ -2918,7 +2713,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
               data-rue-color-picker-popup="true"
               data-rue-color-picker-panel-version={String(renderVersion)}
             >
-              {renderPopupPanel()}
+              <PopupPanel />
             </div>
           </div>
         ) : null
@@ -2930,6 +2725,8 @@ const ColorPicker: FC<ColorPickerProps> = ({
             }}
             id={popupHostId.value}
             data-rue-color-picker-popup-host="true"
+            hidden={popupOpen.value && !disabled ? undefined : true}
+            aria-hidden={popupOpen.value && !disabled ? 'false' : 'true'}
             data-rue-color-picker-popup-version={String(renderVersion)}
             className={appendClassName(
               'fixed left-0 top-0 z-[1200] pointer-events-auto',
@@ -2937,7 +2734,11 @@ const ColorPicker: FC<ColorPickerProps> = ({
               popupClassName,
               classNames?.popup,
             )}
-            style={{ ...styles?.popup, ...popupFloatingStyle.value }}
+            style={{
+              ...styles?.popup,
+              ...popupFloatingStyle.value,
+              visibility: popupOpen.value && !disabled ? 'visible' : 'hidden',
+            }}
             onMouseEnter={() => {
               clearHoverCloseTimer()
             }}
@@ -2974,7 +2775,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
               data-rue-color-picker-popup="true"
               data-rue-color-picker-panel-version={String(renderVersion)}
             >
-              {renderPopupPanel()}
+              <PopupPanel />
             </div>
           </div>
         </Teleport>
@@ -2982,7 +2783,7 @@ const ColorPicker: FC<ColorPickerProps> = ({
     </div>
   )
 
-  return rootNode
+  return <RootNodeView />
 }
 
 /** 默认导出颜色选择器组件。 */

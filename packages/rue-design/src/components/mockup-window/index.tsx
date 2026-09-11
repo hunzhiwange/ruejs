@@ -4,7 +4,7 @@ MockupWindow 组件概述
 - 新增推荐用法：根组件可通过 title / description / toolbar / actions 自动装配常见窗口结构。
 - 同时暴露 Header / Body / Toolbar / Actions 复合子组件，便于需要更细粒度布局时手动拼装。
 */
-import type { FC } from '@rue-js/rue'
+import { Template, type FC } from '@rue-js/rue'
 
 /** MockupWindowPadding 类型。 */
 export type MockupWindowPadding = 'none' | 'sm' | 'md' | 'lg'
@@ -16,13 +16,9 @@ export interface MockupWindowProps {
   /** background 配置项。 */
   background?: boolean
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** 描述内容。 */
-  description?: any
-  /** toolbar 配置项。 */
-  toolbar?: any
-  /** 操作区内容。 */
-  actions?: any
+  description?: string | number
   /** padding 配置项。 */
   padding?: MockupWindowPadding
   /** bodyClassName 附加类名。 */
@@ -56,11 +52,9 @@ export interface MockupWindowPartProps {
 /** MockupWindowHeaderProps 组件属性。 */
 export interface MockupWindowHeaderProps extends MockupWindowPartProps {
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** 描述内容。 */
-  description?: any
-  /** 额外操作或补充内容。 */
-  extra?: any
+  description?: string | number
 }
 
 /** MockupWindowBodyProps 组件属性。 */
@@ -89,26 +83,12 @@ const resolvePaddingClass = (padding: MockupWindowPadding) => {
   }
 }
 
-/** 判断是否存在 Visible Children 的内部工具函数。 */
-const hasVisibleChildren = (children: any) => {
-  if (Array.isArray(children)) return children.length > 0
-  return children != null
-}
-
-/** 保持外部传入的 JSX / Vapor handle 始终通过插槽锚点渲染。 */
-const RenderableSlot: FC<{ value?: any }> = ({ value }) => <>{value}</>
-
 /** Header 的内部工具函数。 */
-const Header: FC<MockupWindowHeaderProps> = ({
-  title,
-  description,
-  extra,
-  className,
-  style,
-  children,
-  ...rest
-}) => {
-  const hasCustomChildren = hasVisibleChildren(children)
+const Header: FC<MockupWindowHeaderProps> = (
+  { title, description, className, style, children, ...rest },
+  slots: Record<string, any> = {},
+) => {
+  const hasCustomChildren = children != null
 
   return (
     <div
@@ -120,25 +100,19 @@ const Header: FC<MockupWindowHeaderProps> = ({
       style={style}
     >
       {hasCustomChildren ? (
-        <RenderableSlot value={children} />
+        { children }
       ) : (
         <>
           <div className="min-w-0 flex-1">
             {title != null ? (
-              <div className="truncate text-sm font-semibold">
-                <RenderableSlot value={title} />
-              </div>
+              <div className="truncate text-sm font-semibold">{String(title)}</div>
             ) : null}
             {description != null ? (
-              <div className="mt-1 text-xs opacity-70">
-                <RenderableSlot value={description} />
-              </div>
+              <div className="mt-1 text-xs opacity-70">{String(description)}</div>
             ) : null}
           </div>
-          {extra != null ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <RenderableSlot value={extra} />
-            </div>
+          {slots.extra != null ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{slots.extra}</div>
           ) : null}
         </>
       )}
@@ -165,7 +139,7 @@ const Body: FC<MockupWindowBodyProps> = ({
       )}
       style={style}
     >
-      <RenderableSlot value={children} />
+      {children}
     </div>
   )
 }
@@ -181,7 +155,7 @@ const Toolbar: FC<MockupWindowPartProps> = ({ className, style, children, ...res
       )}
       style={style}
     >
-      <RenderableSlot value={children} />
+      {children}
     </div>
   )
 }
@@ -197,30 +171,31 @@ const Actions: FC<MockupWindowPartProps> = ({ className, style, children, ...res
       )}
       style={style}
     >
-      <RenderableSlot value={children} />
+      {children}
     </div>
   )
 }
 
 /** Root 的内部工具函数。 */
-const Root: FC<MockupWindowProps> = ({
-  bordered,
-  background,
-  title,
-  description,
-  toolbar,
-  actions,
-  padding,
-  bodyClassName,
-  headerClassName,
-  actionsClassName,
-  className,
-  style,
-  children,
-  ...rest
-}) => {
-  const hasHeader = title != null || description != null || toolbar != null
-  const hasActions = actions != null
+const Root: FC<MockupWindowProps> = (
+  {
+    bordered,
+    background,
+    title,
+    description,
+    padding,
+    bodyClassName,
+    headerClassName,
+    actionsClassName,
+    className,
+    style,
+    children,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
+  const hasHeader = title != null || description != null || slots.toolbar != null
+  const hasActions = slots.actions != null
   const hasStructuredSlots =
     hasHeader ||
     hasActions ||
@@ -237,7 +212,7 @@ const Root: FC<MockupWindowProps> = ({
   if (!hasStructuredSlots) {
     return (
       <div {...rest} className={rootClassName} style={style}>
-        <RenderableSlot value={children} />
+        {children}
       </div>
     )
   }
@@ -245,17 +220,14 @@ const Root: FC<MockupWindowProps> = ({
   return (
     <div {...rest} className={rootClassName} style={style}>
       {hasHeader ? (
-        <Header
-          title={title}
-          description={description}
-          extra={toolbar}
-          className={headerClassName}
-        />
+        <Header title={title} description={description} className={headerClassName}>
+          <Template slot="extra">{slots.toolbar}</Template>
+        </Header>
       ) : null}
       <Body padding={padding ?? 'md'} className={bodyClassName}>
         {children}
       </Body>
-      {hasActions ? <Actions className={actionsClassName}>{actions}</Actions> : null}
+      {hasActions ? <Actions className={actionsClassName}>{slots.actions}</Actions> : null}
     </div>
   )
 }

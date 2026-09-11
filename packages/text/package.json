@@ -236,6 +236,7 @@
     "ipaddr.js": "catalog:",
     "jiti": "catalog:",
     "magic-string": "catalog:",
+    "parse5": "^8.0.1",
     "vite-plugin-commonjs": "catalog:",
     "vite-tsconfig-paths": "catalog:",
     "web-vitals": "catalog:"
@@ -269,7 +270,6 @@
       "esm-bundler"
     ],
     "preserveModules": true,
-    "rueTransform": true,
     "external": [
       "@rue-js/rsc",
       "@rue-js/server-renderer",
@@ -279,6 +279,7 @@
       "virtual:text-rsc",
       "virtual:text-rsc-entry",
       "virtual:text-server-entry"
-    ]
+    ],
+    "rueTransform": true
   }
 }

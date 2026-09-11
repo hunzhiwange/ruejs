@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { MockupCode } from '@rue-js/design'
+import MockupCode from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,13 +19,15 @@ describe('MockupCode', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupCode className="w-full bg-base-200" data-testid="mockup-code-root">
-        <pre data-prefix="$">
-          <code>npm i daisyui</code>
-        </pre>
-      </MockupCode>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupCode className="w-full bg-base-200" data-testid="mockup-code-root">
+          <pre data-prefix="$">
+            <code>npm i daisyui</code>
+          </pre>
+        </MockupCode>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -41,19 +44,21 @@ describe('MockupCode', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupCode
-        data-testid="mockup-code-items"
-        prefix="$"
-        lineNumbers
-        start={7}
-        items={[
-          { code: 'pnpm add @rue-js/design' },
-          { prefix: '>', code: 'Resolving packages...', tone: 'warning' },
-          { code: 'Done!', highlight: true, tone: 'success' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupCode
+          data-testid="mockup-code-items"
+          prefix="$"
+          lineNumbers
+          start={7}
+          items={[
+            { code: 'pnpm add @rue-js/design' },
+            { prefix: '>', code: 'Resolving packages...', tone: 'warning' },
+            { code: 'Done!', highlight: true, tone: 'success' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -74,14 +79,16 @@ describe('MockupCode', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupCode data-testid="mockup-code-line">
-        <MockupCode.Line lineNumber={21} code="const answer = 42" />
-        <MockupCode.Line prefix=">" className="text-info">
-          <code>console.log(answer)</code>
-        </MockupCode.Line>
-      </MockupCode>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupCode data-testid="mockup-code-line">
+          <MockupCode.Line lineNumber={21} code="const answer = 42" />
+          <MockupCode.Line prefix=">" className="text-info">
+            <code>console.log(answer)</code>
+          </MockupCode.Line>
+        </MockupCode>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -100,16 +107,18 @@ describe('MockupCode', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupCode aria-label="terminal" id="terminal-block">
-        <pre data-prefix=">" className="text-success">
-          <code>Done!</code>
-        </pre>
-        <pre>
-          <code>without prefix</code>
-        </pre>
-      </MockupCode>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupCode aria-label="terminal" id="terminal-block">
+          <pre data-prefix=">" className="text-success">
+            <code>Done!</code>
+          </pre>
+          <pre>
+            <code>without prefix</code>
+          </pre>
+        </MockupCode>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

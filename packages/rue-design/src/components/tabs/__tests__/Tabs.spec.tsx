@@ -1,7 +1,9 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Tabs } from '@rue-js/design'
+import Tabs from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -35,16 +37,18 @@ describe('Tabs', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tabs
-        style={'lift'}
-        activeKey={'metrics'}
-        items={[
-          { key: 'overview', label: 'Overview', children: 'Overview panel' },
-          { key: 'metrics', label: 'Metrics', children: 'Metrics panel' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          style={'lift'}
+          activeKey={'metrics'}
+          items={[
+            { key: 'overview', label: 'Overview', content: 'Overview panel' },
+            { key: 'metrics', label: 'Metrics', content: 'Metrics panel' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -67,16 +71,18 @@ describe('Tabs', () => {
     resetActiveRuntime()
     const spy = vi.fn()
 
-    render(
-      <Tabs
-        defaultActiveKey={'guide'}
-        onChange={spy}
-        items={[
-          { key: 'guide', label: 'Guide', children: 'Guide panel' },
-          { key: 'api', label: 'API', children: 'API panel' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          defaultActiveKey={'guide'}
+          onChange={spy}
+          items={[
+            { key: 'guide', label: 'Guide', content: 'Guide panel' },
+            { key: 'api', label: 'API', content: 'API panel' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -105,15 +111,18 @@ describe('Tabs', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tabs
-        items={[{ key: 'overview', label: 'Overview' }]}
-        tabBarExtraContent={{
-          left: <span id={'tabs-left-extra'}>{'Left'}</span>,
-          right: <span id={'tabs-right-extra'}>{'Right'}</span>,
-        }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs items={[{ key: 'overview', label: 'Overview' }]}>
+          <Template slot="left">
+            <span id="tabs-left-extra">Left</span>
+          </Template>
+          <Template slot="right">
+            <span id="tabs-right-extra">Right</span>
+          </Template>
+        </Tabs>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -127,16 +136,18 @@ describe('Tabs', () => {
     resetActiveRuntime()
     const spy = vi.fn()
 
-    render(
-      <Tabs
-        type={'editable-card'}
-        onEdit={spy}
-        items={[
-          { key: 'todo', label: 'Todo' },
-          { key: 'done', label: 'Done', closable: false },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          type={'editable-card'}
+          onEdit={spy}
+          items={[
+            { key: 'todo', label: 'Todo' },
+            { key: 'done', label: 'Done', closable: false },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -159,16 +170,18 @@ describe('Tabs', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tabs
-        defaultActiveKey={'overview'}
-        destroyOnHidden={true}
-        items={[
-          { key: 'overview', label: 'Overview', children: 'Overview panel' },
-          { key: 'metrics', label: 'Metrics', children: 'Metrics panel' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          defaultActiveKey={'overview'}
+          destroyOnHidden={true}
+          items={[
+            { key: 'overview', label: 'Overview', content: 'Overview panel' },
+            { key: 'metrics', label: 'Metrics', content: 'Metrics panel' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -204,24 +217,31 @@ describe('Tabs', () => {
       </div>
     )
 
-    render(
-      <Tabs
-        defaultActiveKey={'overview'}
-        destroyOnHidden={true}
-        items={[
-          {
-            key: 'overview',
-            label: 'Overview',
-            children: <OverviewPanel />,
-          },
-          {
-            key: 'activity',
-            label: 'Activity',
-            children: <ActivityPanel />,
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          defaultActiveKey={'overview'}
+          destroyOnHidden={true}
+          items={[
+            {
+              key: 'overview',
+              label: 'Overview',
+            },
+            {
+              key: 'activity',
+              label: 'Activity',
+            },
+          ]}
+        >
+          <Template slot="overview">
+            <OverviewPanel />
+          </Template>
+          <Template slot="activity">
+            <ActivityPanel />
+          </Template>
+        </Tabs>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -229,19 +249,30 @@ describe('Tabs', () => {
       expect(findPanelByText(c, 'Activity title')).toBeNull()
     })
 
+    const initialOverview = findPanelByText(c, 'Velocity') as HTMLElement
+    const initialOverviewContent = initialOverview.firstElementChild
+    expect(initialOverview.textContent).toBe('VelocityOverview body')
+
     ;(findTabByLabel(c, 'Activity') as HTMLButtonElement).click()
 
     await waitForContent(() => {
       expect(findPanelByText(c, 'Velocity')).toBeNull()
-      expect(findPanelByText(c, 'Activity title')).not.toBeNull()
+      expect(findPanelByText(c, 'Activity title')?.textContent).toBe('Activity titleActivity body')
+      expect(initialOverview.isConnected).toBe(false)
+      expect(c.querySelectorAll('[role="tabpanel"]').length).toBe(1)
     })
+    const initialActivity = findPanelByText(c, 'Activity title') as HTMLElement
 
     ;(findTabByLabel(c, 'Overview') as HTMLButtonElement).click()
 
     await waitForContent(() => {
       const overviewPanel = findPanelByText(c, 'Velocity') as HTMLElement | null
       expect(overviewPanel).not.toBeNull()
-      expect(overviewPanel?.textContent).toContain('Overview body')
+      expect(overviewPanel?.textContent).toBe('VelocityOverview body')
+      expect(overviewPanel).not.toBe(initialOverview)
+      expect(overviewPanel?.firstElementChild).not.toBe(initialOverviewContent)
+      expect(initialActivity.isConnected).toBe(false)
+      expect(c.querySelectorAll('[role="tabpanel"]').length).toBe(1)
       expect(findPanelByText(c, 'Activity title')).toBeNull()
     })
   })
@@ -250,17 +281,19 @@ describe('Tabs', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tabs
-        type={'line'}
-        activeKey={'metrics'}
-        indicator={{ align: 'center', size: 24 }}
-        items={[
-          { key: 'overview', label: 'Overview' },
-          { key: 'metrics', label: 'Metrics' },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          type={'line'}
+          activeKey={'metrics'}
+          indicator={{ align: 'center', size: 24 }}
+          items={[
+            { key: 'overview', label: 'Overview' },
+            { key: 'metrics', label: 'Metrics' },
+          ]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {

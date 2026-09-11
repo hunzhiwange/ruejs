@@ -1,11 +1,16 @@
-import createHomeSplitExamplePage from './createHomeSplitExamplePage'
+import HomeSplitExamplePage from './createHomeSplitExamplePage'
 import ShallowRefDemo from './home-demos/ShallowRefDemo'
 import source from './home-demos/ShallowRefDemo.tsx?raw'
 
-const ShallowRef = createHomeSplitExamplePage({
-  title: 'shallowRef 浅层 ref',
-  source,
-  Demo: ShallowRefDemo,
-})
+const ShallowRef = () => (
+  <HomeSplitExamplePage
+    options={{
+      title: 'shallowRef 浅层 ref',
+      source,
+    }}
+  >
+    <ShallowRefDemo />
+  </HomeSplitExamplePage>
+)
 
 export default ShallowRef

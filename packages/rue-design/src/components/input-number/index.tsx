@@ -712,7 +712,11 @@ const InputNumberControls: FC<InputNumberControlsProps> = ({
         onClick={(event: MouseEvent) => onClickStep('up', event)}
       >
         <InputNumberControlIcon>
-          {controlsConfig?.upIcon ?? <DefaultUpIcon className={visualConfig.iconClassName} />}
+          {controlsConfig?.upIcon != null ? (
+            <>{String(controlsConfig.upIcon)}</>
+          ) : (
+            <DefaultUpIcon className={visualConfig.iconClassName} />
+          )}
         </InputNumberControlIcon>
       </button>
       <button
@@ -727,7 +731,11 @@ const InputNumberControls: FC<InputNumberControlsProps> = ({
         onClick={(event: MouseEvent) => onClickStep('down', event)}
       >
         <InputNumberControlIcon>
-          {controlsConfig?.downIcon ?? <DefaultDownIcon className={visualConfig.iconClassName} />}
+          {controlsConfig?.downIcon != null ? (
+            <>{String(controlsConfig.downIcon)}</>
+          ) : (
+            <DefaultDownIcon className={visualConfig.iconClassName} />
+          )}
         </InputNumberControlIcon>
       </button>
     </span>
@@ -1203,9 +1211,9 @@ const InputNumber: FC<InputNumberProps> = ({
       maxLength: readMaxLength(inputProps),
     }),
   )
-  const renderSuffix = () => {
+  const RenderSuffix = () => {
     if (suffix === undefined && !showControls) {
-      return undefined
+      return <></>
     }
 
     return (
@@ -1259,7 +1267,95 @@ const InputNumber: FC<InputNumberProps> = ({
     inputElement?.focus()
   }
 
-  const renderInputNode = (shell = false) => {
+  const handleNativeWheel = (event: WheelEvent) => {
+    rememberInputElement(resolveInputElementFromEvent(event))
+    onWheel?.(event)
+    if (
+      (event as any).defaultPrevented ||
+      !changeOnWheel ||
+      disabled ||
+      readOnly ||
+      document.activeElement !== inputElement
+    ) {
+      return
+    }
+
+    if ((event as any).deltaY === 0) return
+
+    ;(event as any).preventDefault?.()
+    stepValueBy((event as any).deltaY < 0 ? 'up' : 'down', 'wheel', event)
+  }
+
+  const handleNativeBlur = (event: FocusEvent) => {
+    rememberInputElement(resolveInputElementFromEvent(event))
+    const target = event.target as HTMLInputElement | null
+    const parsed = parseInputValue(target?.value ?? draftText.value, parser, decimalSeparator)
+
+    composing.value = false
+    userTyping.value = false
+    draftText.value = parsed.display
+    commitParsedValue(parsed, changeOnBlur)
+    syncInputElement()
+    onBlur?.(event)
+  }
+
+  const handleNativeCompositionEnd = (event: CompositionEvent) => {
+    rememberInputElement(resolveInputElementFromEvent(event))
+    composing.value = false
+    handleDraftInput((event.target as HTMLInputElement | null)?.value ?? draftText.value)
+    onCompositionEnd?.(event)
+  }
+
+  const handleNativeCompositionStart = (event: CompositionEvent) => {
+    rememberInputElement(resolveInputElementFromEvent(event))
+    composing.value = true
+    syncComposingDraft((event.target as HTMLInputElement | null)?.value ?? draftText.value)
+    onCompositionStart?.(event)
+  }
+
+  const handleNativeFocus = (event: FocusEvent) => {
+    rememberInputElement(resolveInputElementFromEvent(event))
+    syncInputElement()
+    onFocus?.(event)
+  }
+
+  const handleNativeKeyDown = (event: KeyboardEvent) => {
+    rememberInputElement(resolveInputElementFromEvent(event))
+    onKeyDown?.(event)
+    if ((event as any).key === 'Enter') {
+      onPressEnter?.(event)
+    }
+    if ((event as any).defaultPrevented || !keyboard) return
+
+    if ((event as any).key === 'ArrowUp') {
+      ;(event as any).preventDefault?.()
+      stepValueBy('up', 'keydown', event)
+      return
+    }
+
+    if ((event as any).key === 'ArrowDown') {
+      ;(event as any).preventDefault?.()
+      stepValueBy('down', 'keydown', event)
+    }
+  }
+
+  const handleNativeInput = (event: Event) => {
+    const target = event.target as HTMLInputElement | null
+    rememberInputElement(target)
+    const rawInput = target?.value ?? ''
+
+    if (composing.value || !!(event as any).isComposing) {
+      syncComposingDraft(rawInput)
+      onInput?.(event)
+      return
+    }
+
+    handleDraftInput(rawInput)
+
+    onInput?.(event)
+  }
+
+  const RenderInputNode = ({ arg0: shell = false }: { arg0?: any }) => {
     return (
       <input
         {...inputProps}
@@ -1287,94 +1383,20 @@ const InputNumber: FC<InputNumberProps> = ({
         value={displayText}
         aria-valuenow={ariaValueNow.get()}
         aria-valuetext={ariaValueText.get()}
-        onInput={(event: Event) => {
-          const target = event.target as HTMLInputElement | null
-          rememberInputElement(target)
-          const rawInput = target?.value ?? ''
-
-          if (composing.value || !!(event as any).isComposing) {
-            syncComposingDraft(rawInput)
-            onInput?.(event)
-            return
-          }
-
-          handleDraftInput(rawInput)
-
-          onInput?.(event)
-        }}
-        onKeyDown={(event: KeyboardEvent) => {
-          rememberInputElement(resolveInputElementFromEvent(event))
-          onKeyDown?.(event)
-          if ((event as any).key === 'Enter') {
-            onPressEnter?.(event)
-          }
-          if ((event as any).defaultPrevented || !keyboard) return
-
-          if ((event as any).key === 'ArrowUp') {
-            ;(event as any).preventDefault?.()
-            stepValueBy('up', 'keydown', event)
-            return
-          }
-
-          if ((event as any).key === 'ArrowDown') {
-            ;(event as any).preventDefault?.()
-            stepValueBy('down', 'keydown', event)
-          }
-        }}
-        onFocus={(event: FocusEvent) => {
-          rememberInputElement(resolveInputElementFromEvent(event))
-          syncInputElement()
-          onFocus?.(event)
-        }}
-        onCompositionStart={(event: CompositionEvent) => {
-          rememberInputElement(resolveInputElementFromEvent(event))
-          composing.value = true
-          syncComposingDraft((event.target as HTMLInputElement | null)?.value ?? draftText.value)
-          onCompositionStart?.(event)
-        }}
-        onCompositionEnd={(event: CompositionEvent) => {
-          rememberInputElement(resolveInputElementFromEvent(event))
-          composing.value = false
-          handleDraftInput((event.target as HTMLInputElement | null)?.value ?? draftText.value)
-          onCompositionEnd?.(event)
-        }}
-        onBlur={(event: FocusEvent) => {
-          rememberInputElement(resolveInputElementFromEvent(event))
-          const target = event.target as HTMLInputElement | null
-          const parsed = parseInputValue(target?.value ?? draftText.value, parser, decimalSeparator)
-
-          composing.value = false
-          userTyping.value = false
-          draftText.value = parsed.display
-          commitParsedValue(parsed, changeOnBlur)
-          syncInputElement()
-          onBlur?.(event)
-        }}
-        onWheel={(event: WheelEvent) => {
-          rememberInputElement(resolveInputElementFromEvent(event))
-          onWheel?.(event)
-          if (
-            (event as any).defaultPrevented ||
-            !changeOnWheel ||
-            disabled ||
-            readOnly ||
-            document.activeElement !== inputElement
-          ) {
-            return
-          }
-
-          if ((event as any).deltaY === 0) return
-
-          ;(event as any).preventDefault?.()
-          stepValueBy((event as any).deltaY < 0 ? 'up' : 'down', 'wheel', event)
-        }}
+        onInput={handleNativeInput}
+        onKeyDown={handleNativeKeyDown}
+        onFocus={handleNativeFocus}
+        onCompositionStart={handleNativeCompositionStart}
+        onCompositionEnd={handleNativeCompositionEnd}
+        onBlur={handleNativeBlur}
+        onWheel={handleNativeWheel}
       />
     )
   }
 
-  const renderControlNode = () => {
+  const RenderControlNode = () => {
     if (!usesShell) {
-      return renderInputNode()
+      return <RenderInputNode />
     }
 
     return (
@@ -1387,7 +1409,7 @@ const InputNumber: FC<InputNumberProps> = ({
         {prefix !== undefined ? (
           <span className="shrink-0 text-sm text-base-content/60">{prefix}</span>
         ) : null}
-        {renderInputNode(true)}
+        <RenderInputNode arg0={true} />
         {clearable && !disabled && !readOnly ? (
           <button
             type="button"
@@ -1399,16 +1421,16 @@ const InputNumber: FC<InputNumberProps> = ({
             }}
             onClick={handleClear}
           >
-            {(clearConfig as InputAllowClearConfig | undefined)?.clearIcon ?? <DefaultClearIcon />}
+            <DefaultClearIcon />
           </button>
         ) : null}
-        {renderSuffix()}
+        <RenderSuffix />
       </div>
     )
   }
 
-  const renderGroupedControlNode = () => {
-    if (!usesAddonGroup) return renderControlNode()
+  const RenderGroupedControlNode = () => {
+    if (!usesAddonGroup) return <RenderControlNode />
     return (
       <div className="join w-full items-stretch">
         {addonBefore !== undefined ? (
@@ -1418,7 +1440,7 @@ const InputNumber: FC<InputNumberProps> = ({
             <InputNumberAddon>{addonBefore}</InputNumberAddon>
           )
         ) : null}
-        {renderControlNode()}
+        <RenderControlNode />
         {addonAfter !== undefined ? (
           addonAfterBare ? (
             addonAfter
@@ -1431,7 +1453,7 @@ const InputNumber: FC<InputNumberProps> = ({
   }
 
   if (!showCount && !rootClassName) {
-    return renderGroupedControlNode()
+    return <RenderGroupedControlNode />
   }
 
   return (
@@ -1439,7 +1461,7 @@ const InputNumber: FC<InputNumberProps> = ({
       className={mergeClassName(showCount ? 'flex flex-col gap-2' : undefined, rootClassName)}
       data-rue-input-root="true"
     >
-      {renderGroupedControlNode()}
+      <RenderGroupedControlNode />
       {showCount ? (
         <div
           className={mergeClassName(

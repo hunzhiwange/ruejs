@@ -106,6 +106,12 @@ export function parseImageParams(
   if (!normalizedUrl.startsWith('/') || normalizedUrl.startsWith('//')) {
     return null
   }
+  // URLSearchParams.get() has already decoded the query value once. Validate
+  // traversal against that decoded representation and return it unchanged;
+  // callers receive the local asset path at the single-decoding boundary.
+  if (normalizedUrl.split('/').includes('..')) {
+    return null
+  }
   // Double-check: after URL construction, the origin must not change.
   // This catches any remaining parser differentials.
   try {

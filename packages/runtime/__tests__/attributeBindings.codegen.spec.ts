@@ -39,7 +39,6 @@ describe('AttributeBindings actual page codegen', () => {
     expect(generated).toContain('_$compiledBranchAt')
     expect(generated).toMatch(/\beffect\(/)
     expect(generated).toContain('_$compiledRoot')
-    expect(generated).toContain('__rue_compiled_explicit_roots')
-    expect(generated).toContain('__rue_compiled_roots')
+    expect(generated).toContain('_$compiledStaticRoot')
   })
 })

@@ -22,6 +22,7 @@ const APP_FIXTURE = path.resolve(import.meta.dirname, './fixtures/app-basic')
 function decodeHtmlText(text: string): string {
   return text
     .replaceAll('<!-- -->', '')
+    .replace(/<!--\/?r:[\s\S]*?-->/g, '')
     .replaceAll('&quot;', '"')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')

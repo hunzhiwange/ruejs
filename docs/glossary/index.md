@@ -18,15 +18,13 @@ Rue Router [路由组件的延迟加载](/page/routing) 也使用 Rue 的异步�
 
 组件是 Rue 提供的主要机制，用于将 UI 分割成较小的部分，既可以提高可维护性，也可以实现代码重用。
 
-Rue 组件是一个对象。所有属性都是可选的，但组件要渲染，需要模板或渲染函数。例如，以下对象将是一个有效的组件：
+Rue 组件是经过编译器处理的静态函数工厂。例如：
 
 ```js
-const HelloWorldComponent = {
-  render() {
-    return 'Hello world!'
-  },
-}
+const HelloWorldComponent = () => <p>Hello world!</p>
 ```
+
+运行时组件对象和手写 `render()` 配置不属于 compiler-only 公共能力面。
 
 组件这个术语也可以更宽松地用于指代组件实例。
 
@@ -84,7 +82,7 @@ Rue 内置支持渲染自定义元素，并允许它们直接在 Rue 组件模�
 
 ## 动态组件 {#dynamic-component}
 
-*动态组件*这个术语用于描述需要动态决定渲染哪个子组件的情况。通常，这是使用 `<Component :is="type">` 实现的。
+*动态组件*这个术语用于描述需要从编译期可枚举的组件集合中选择子组件的情况。Rue 使用 `<Component is={type} registry={{ Home, About }} />` 表达这种有限选择；任意运行时组件或标签不受支持。
 
 动态组件不是一种特殊类型的组件。任何组件都可以用作动态组件。动态的是组件的选择，而不是组件本身。
 
@@ -264,7 +262,7 @@ Rue 通过 Signal 路径读取建立依赖。SWC 将组件 useState 成员读写
 
 `ref` 是 Rue 响应式系统的一部分。它是一个具有单个响应式属性（称为 `value`）的对象。
 
-有各种不同类型的 ref。例如，可以使用 `ref()`、`shallowRef()`、`computed()` 和 `customRef()` 创建 ref。函数 `isRef()` 可用于检查对象是否为 ref，`isReadonly()` 可用于检查 ref 是否允许直接重新赋值其值。
+可使用 `ref()`、`shallowRef()` 和 `computed()` 创建 ref。函数 `isRef()` 可用于检查对象是否为 ref，`isReadonly()` 可用于检查 ref 是否允许直接重新赋值其值。
 
 更多详情请参见：
 

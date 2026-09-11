@@ -49,7 +49,8 @@ describe('vite-plugin-rue hook import bindings', () => {
 
     expect(code).toContain('/* RUE_TRANSFORMED */')
     expect(code).toContain('@rue-js/rue/internal')
-    expect(code).toContain('watch, useState, ref')
+    expect(code).toContain('watch, ref, _$compiledScalarRoot')
+    expect(code).toContain('_$compiledUseState')
     expect(code).toContain('_$compiledUseState("Demo:hook:0"')
     expect(code).not.toContain('watch as watch1')
     expect(code).not.toContain('useState as useState1')

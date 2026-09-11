@@ -222,15 +222,16 @@ const tabs = {
 const App: FC = () => {
   const currentTab = ref<keyof typeof tabs>('HomeTab')
 
-  return <Component is={tabs[currentTab.value]} />
+  return (
+    <Component
+      is={currentTab.value}
+      registry={{ HomeTab, PostsTab, ArchiveTab }}
+    />
+  )
 }
 ```
 
-在上面的示例中，传给 `is` 的值可以是：
-
-- 已注册组件的名称字符串，或
-- 实际导入的组件对象
-- 原生 HTML 标签名字符串
+在上面的示例中，`registry` 是字面量有限 registry，`is` 只能选择其中的静态组件工厂。任意组件函数、全局注册名和动态原生标签不受支持。
 
 当使用 `<Component is={...} />` 在多个组件间切换时，被切换掉的组件将会被卸载。我们可以通过内置的 [`<KeepAlive>` 组件](/guide/guide/built-ins/keep-alive)强制不活跃的组件保持"存活"状态。
 

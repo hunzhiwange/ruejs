@@ -1,4 +1,4 @@
-import type { CompiledOwner } from '../reactive-core'
+import type { CompiledOwner } from '../runtime-core/compiled'
 
 export interface CompiledTarget {
   parent: ParentNode
@@ -17,11 +17,7 @@ export type CompiledGetterProps<Props extends object> = {
   readonly [Key in keyof Props]: () => Props[Key]
 }
 
-export type CompiledComponent<Props extends object = Record<string, never>> = (
-  target: CompiledTarget,
-  props: CompiledGetterProps<Props>,
-  owner: CompiledOwner,
-) => CompiledBlock
+export type { CompiledComponentFactory as CompiledComponent } from './component'
 
 export interface CompiledRange {
   readonly first: Node

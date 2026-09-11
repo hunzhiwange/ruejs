@@ -68,7 +68,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vite-plus/test'
 import type { ViteDevServer } from 'vite-plus'
-import { APP_FIXTURE_DIR, startFixtureServer } from '../helpers.js'
+import { APP_FIXTURE_DIR, startFixtureServer, stripRueSsrMarkers } from '../helpers.js'
 
 // ── Shared server ─────────────────────────────────────────────────────────────
 //
@@ -116,7 +116,7 @@ describe('RSC lazy stream: headers() context survives until stream is consumed',
       headers: { 'x-rsc-context-test': SENTINEL },
     })
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The layout reads x-rsc-context-test from headers() and puts it in
     // data-request-id. Confirms the fixture works on the HTML path.
     expect(html).toContain(`data-request-id="${SENTINEL}"`)
@@ -222,7 +222,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
   it('HTML contains a navigation runtime nav bootstrap payload', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain(RSC_BOOTSTRAP_PREFIX)
     expect(html).toContain(',nav:')
@@ -231,7 +231,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
   it('HTML contains a navigation runtime params bootstrap payload', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     expect(html).toContain(RSC_BOOTSTRAP_PREFIX)
     expect(html).toContain('{params:')
@@ -241,7 +241,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime pathname matches the request pathname', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 
@@ -250,7 +250,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime pathname agrees with SSR-rendered usePathname() output', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // The "use client" NavInfo component renders usePathname() into #nav-pathname.
     // During SSR this is resolved from the navigation context (same source as
@@ -268,7 +268,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime searchParams is empty array when no query string', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 
@@ -280,7 +280,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('SSR-rendered useSearchParams() returns empty string when no query string', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // #nav-search-q renders searchParams.get("q") ?? "" — should be ""
     expect(html).toContain('<span id="nav-search-q"></span>')
@@ -303,7 +303,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime searchParams carries query params from request URL', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}?q=hello&page=3`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 
@@ -316,7 +316,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime searchParams agrees with SSR-rendered useSearchParams() output', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}?q=hello&page=3`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // SSR-rendered output from the "use client" component
     expect(html).toContain('<span id="nav-search-q">hello</span>')
@@ -333,7 +333,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('SSR-rendered useSearchParams() reflects query params (confirms parity source)', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}?q=hello&page=3`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // The SSR path: RSC environment sets navigation context from request URL,
     // passes it to SSR environment via handleSsr(rscStream, navContext, ...).
@@ -353,7 +353,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
     // The server uses safeJsonStringify which encodes < > & / to unicode escapes.
     const specialQ = 'foo<bar>&baz'
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}?q=${encodeURIComponent(specialQ)}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // The raw string must NOT appear literally inside the <script> tag —
     // safeJsonStringify encodes < and > as \u003c / \u003e.
@@ -378,7 +378,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
   it('navigation runtime params contains dynamic segment value for [id] route', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}/hello`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { params } = extractRscBootstrap(html)
 
@@ -388,7 +388,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
   it('navigation runtime pathname is correct for dynamic segment route', async () => {
     const dynamicPath = `${NAV_ROUTE}/hello`
     const res = await fetch(`${_baseUrl}${dynamicPath}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 
@@ -398,7 +398,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
   it('navigation runtime pathname agrees with SSR-rendered usePathname() for dynamic route', async () => {
     const dynamicPath = `${NAV_ROUTE}/hello`
     const res = await fetch(`${_baseUrl}${dynamicPath}`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     // The "use client" NavInfo component also renders on the dynamic page.
     // Its usePathname() output must match __TEXT_RSC_NAV__.pathname.
@@ -418,7 +418,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime nav and params are injected before </head>', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}?q=timing`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const headEnd = html.indexOf('</head>')
     expect(headEnd).toBeGreaterThan(-1)
@@ -437,7 +437,7 @@ describe('navigation runtime RSC bootstrap: nav context embedded for hydration s
 
   it('navigation runtime pathname does not include query string', async () => {
     const res = await fetch(`${_baseUrl}${NAV_ROUTE}?q=shouldnotbehere`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
 
     const { nav } = extractRscBootstrap(html)
 

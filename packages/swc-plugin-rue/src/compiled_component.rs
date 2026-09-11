@@ -17,8 +17,7 @@ pub(crate) struct CompiledComponentCandidate {
     rest_prop: Option<String>,
     branching: bool,
     hook_aware: bool,
-    render_reactive: bool,
-    use_state_names: HashSet<String>,
+    hook_names: HashMap<String, String>,
 }
 
 fn is_regional_setup_helper(name: &str) -> bool {
@@ -56,6 +55,297 @@ fn is_regional_setup_helper(name: &str) -> bool {
 
 pub(crate) type CompiledComponentCandidates = HashMap<String, CompiledComponentCandidate>;
 
+struct StaticRootRewriter;
+impl VisitMut for StaticRootRewriter {
+    fn visit_mut_ident(&mut self, ident: &mut Ident) {
+        if ident.sym.as_ref() == "_$compiledRoot" {
+            ident.sym = "_$compiledStaticRoot".into();
+        }
+    }
+}
+
+#[derive(Default)]
+struct RootOwnershipDetector {
+    text: bool,
+    other: bool,
+}
+impl Visit for RootOwnershipDetector {
+    fn visit_ident(&mut self, ident: &Ident) {
+        let name = ident.sym.as_ref();
+        if name == "_$compiledText" {
+            self.text = true;
+        } else if (name.starts_with("_$compiled")
+            && !matches!(
+                name,
+                "_$compiledCreateElement"
+                    | "_$compiledCreateDocumentFragment"
+                    | "_$compiledCreateTextNode"
+                    | "_$compiledCreateComment"
+                    | "_$compiledAppendChild"
+            ))
+            || matches!(
+                name,
+                "_$compiledRenderEffect"
+                    | "_$compiledBranchAt"
+                    | "_$mountCompiledComponent"
+                    | "_$mountCompiledSlotFactory"
+                    | "_$mountCompiledSlotAt"
+                    | "_$reconcileKeyed"
+                    | "_$reconcileKeyedSingle"
+                    | "_$compiledDelegateEvent"
+                    | "_$setRef"
+                    | "onOwnerCleanup"
+                    | "effect"
+            )
+        {
+            self.other = true;
+        }
+    }
+}
+
+#[derive(Default)]
+struct StaticCompiledRootPass;
+impl VisitMut for StaticCompiledRootPass {
+    fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+        call.visit_mut_children_with(self);
+        let range = crate::compiled_invariants::compiled_root_range_proof(call);
+        let Callee::Expr(callee) = &mut call.callee else {
+            return;
+        };
+        let Expr::Ident(helper) = callee.as_mut() else {
+            return;
+        };
+        if helper.sym.as_ref() != "_$compiledRoot" {
+            return;
+        }
+        let mut detector = RootOwnershipDetector::default();
+        call.args.visit_with(&mut detector);
+        if !detector.other
+            && (!detector.text
+                || range == crate::compiled_invariants::CompiledRootRangeProof::Single)
+        {
+            helper.sym = if detector.text
+                && range == crate::compiled_invariants::CompiledRootRangeProof::Single
+            {
+                "_$compiledScalarRoot".into()
+            } else {
+                "_$compiledStaticRoot".into()
+            };
+            if detector.text {
+                call.args.visit_mut_with(&mut ScalarTextOnlyLowerer);
+            }
+        }
+    }
+}
+
+struct ScalarTextOnlyLowerer;
+impl VisitMut for ScalarTextOnlyLowerer {
+    fn visit_mut_ident(&mut self, ident: &mut Ident) {
+        if ident.sym.as_ref() == "_$compiledText" {
+            ident.sym = "_$compiledScalarText".into();
+        }
+    }
+}
+
+pub(crate) fn rewrite_static_roots(module: &mut Module) {
+    module.visit_mut_with(&mut ScalarFunctionRewriter);
+    module.visit_mut_with(&mut StaticCompiledRootPass);
+    let mut bridge = BridgeSignalDetector::default();
+    module.visit_with(&mut bridge);
+    if bridge.scalar_text {
+        module.visit_mut_with(&mut BridgeSignalRewriter);
+    }
+    let mut list = ScalarListDetector::default();
+    module.visit_with(&mut list);
+    if list.single && !list.general {
+        module.visit_mut_with(&mut BridgeSignalRewriter);
+        module.visit_mut_with(&mut ScalarListRootPass);
+    }
+}
+
+#[derive(Default)]
+struct BridgeSignalDetector {
+    scalar_text: bool,
+}
+impl Visit for BridgeSignalDetector {
+    fn visit_ident(&mut self, ident: &Ident) {
+        if ident.sym.as_ref() == "_$compiledScalarText" {
+            self.scalar_text = true;
+        }
+    }
+}
+
+struct BridgeSignalRewriter;
+impl VisitMut for BridgeSignalRewriter {
+    fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+        call.visit_mut_children_with(self);
+        if let Callee::Expr(callee) = &mut call.callee
+            && let Expr::Ident(ident) = callee.as_mut()
+            && ident.sym.as_ref() == "signal"
+        {
+            ident.sym = "_$compiledBridgeSignal".into();
+        }
+    }
+}
+
+#[derive(Default)]
+struct ScalarListDetector {
+    single: bool,
+    general: bool,
+}
+impl Visit for ScalarListDetector {
+    fn visit_ident(&mut self, ident: &Ident) {
+        match ident.sym.as_ref() {
+            "_$reconcileKeyedSingle" => self.single = true,
+            "_$reconcileKeyed" | "createSelector" => self.general = true,
+            _ => {}
+        }
+    }
+}
+
+struct ScalarListEffectLowerer;
+impl VisitMut for ScalarListEffectLowerer {
+    fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+        if matches!(&call.callee, Callee::Expr(callee)
+            if matches!(crate::utils::unwrap_expr(callee), Expr::Ident(helper)
+                if matches!(helper.sym.as_ref(), "_$compiledRoot" | "_$compiledScalarOwnedRoot" | "_$compiledScalarRoot" | "_$compiledStaticRoot")))
+        {
+            return;
+        }
+        call.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_ident(&mut self, ident: &mut Ident) {
+        ident.sym = match ident.sym.as_ref() {
+            "_$compiledRenderEffect" => "_$compiledScalarEffect".into(),
+            "onOwnerCleanup" => "_$compiledScalarCleanup".into(),
+            _ => return,
+        };
+    }
+}
+
+/// Scalar list cleanup storage is only valid for roots whose public range is a
+/// single node. Applying this lowering at module scope turns unrelated fragment
+/// roots into scalar roots and silently drops every node after the first one.
+struct ScalarListRootPass;
+impl VisitMut for ScalarListRootPass {
+    fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+        call.visit_mut_children_with(self);
+        let range = crate::compiled_invariants::compiled_root_range_proof(call);
+        let Callee::Expr(callee) = &mut call.callee else {
+            return;
+        };
+        let Expr::Ident(helper) = callee.as_mut() else {
+            return;
+        };
+        if helper.sym.as_ref() != "_$compiledRoot" {
+            return;
+        }
+
+        if range != crate::compiled_invariants::CompiledRootRangeProof::Single {
+            return;
+        }
+
+        helper.sym = "_$compiledScalarOwnedRoot".into();
+        call.args.visit_mut_with(&mut ScalarListEffectLowerer);
+    }
+}
+
+#[derive(Default)]
+struct ScalarSetupDetector {
+    signal: bool,
+    other: bool,
+}
+impl Visit for ScalarSetupDetector {
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if let Callee::Expr(callee) = &call.callee
+            && let Expr::Ident(ident) = crate::utils::unwrap_expr(callee.as_ref())
+        {
+            let name = ident.sym.as_ref();
+            if name == "signal" {
+                self.signal = true;
+            } else if is_regional_setup_helper(name) {
+                self.other = true;
+            }
+        }
+        call.visit_children_with(self);
+    }
+}
+
+struct ScalarFunctionRewriter;
+impl VisitMut for ScalarFunctionRewriter {
+    fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
+        arrow.visit_mut_children_with(self);
+        let mut scalar = ScalarFunctionDetector::default();
+        arrow.visit_with(&mut scalar);
+        if scalar.text && scalar.signal && !scalar.other {
+            arrow.visit_mut_children_with(&mut ScalarFunctionLowerer);
+        }
+    }
+
+    fn visit_mut_function(&mut self, function: &mut Function) {
+        function.visit_mut_children_with(self);
+        let mut scalar = ScalarFunctionDetector::default();
+        function.visit_with(&mut scalar);
+        if scalar.text && scalar.signal && !scalar.other {
+            function.visit_mut_children_with(&mut ScalarFunctionLowerer);
+        }
+    }
+}
+
+#[derive(Default)]
+struct ScalarFunctionDetector {
+    text: bool,
+    signal: bool,
+    other: bool,
+}
+impl Visit for ScalarFunctionDetector {
+    fn visit_ident(&mut self, ident: &Ident) {
+        let name = ident.sym.as_ref();
+        match name {
+            "_$compiledText" => self.text = true,
+            "_$compiledRenderEffect" | "effect" | "computed" | "watch" | "watchEffect" => {
+                self.other = true
+            }
+            _ => {}
+        }
+        if name.starts_with("_$compiled")
+            && !matches!(
+                name,
+                "_$compiledText"
+                    | "_$compiledCreateElement"
+                    | "_$compiledCreateDocumentFragment"
+                    | "_$compiledCreateTextNode"
+                    | "_$compiledCreateComment"
+                    | "_$compiledAppendChild"
+            )
+        {
+            self.other = true
+        }
+    }
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if let Callee::Expr(callee) = &call.callee
+            && let Expr::Ident(ident) = crate::utils::unwrap_expr(callee.as_ref())
+            && ident.sym.as_ref() == "signal"
+        {
+            self.signal = true;
+        }
+        call.visit_children_with(self);
+    }
+}
+
+struct ScalarFunctionLowerer;
+impl VisitMut for ScalarFunctionLowerer {
+    fn visit_mut_ident(&mut self, ident: &mut Ident) {
+        ident.sym = match ident.sym.as_ref() {
+            "signal" => "_$compiledScalarSignal".into(),
+            "_$compiledText" => "_$compiledScalarText".into(),
+            "_$compiledRoot" => "_$compiledScalarRoot".into(),
+            _ => return,
+        };
+    }
+}
+
 pub(crate) fn imported_component_names(module: &Module) -> HashSet<String> {
     module
         .body
@@ -73,6 +363,122 @@ pub(crate) fn imported_component_names(module: &Module) -> HashSet<String> {
             _ => None,
         })
         .filter(|name| name.chars().next().is_some_and(|character| character.is_ascii_uppercase()))
+        .collect()
+}
+
+pub(crate) fn compound_component_names(module: &Module) -> HashSet<String> {
+    fn collect_var(var: &VarDecl, names: &mut HashSet<String>) {
+        for declarator in &var.decls {
+            let Pat::Ident(binding) = &declarator.name else {
+                continue;
+            };
+            if !binding.id.sym.chars().next().is_some_and(char::is_uppercase) {
+                continue;
+            }
+            let Some(Expr::Call(call)) = declarator.init.as_deref().map(crate::utils::unwrap_expr)
+            else {
+                continue;
+            };
+            let Callee::Expr(callee) = &call.callee else {
+                continue;
+            };
+            let Expr::Member(member) = crate::utils::unwrap_expr(callee.as_ref()) else {
+                continue;
+            };
+            let Expr::Ident(object) = crate::utils::unwrap_expr(member.obj.as_ref()) else {
+                continue;
+            };
+            let MemberProp::Ident(property) = &member.prop else {
+                continue;
+            };
+            let Some(first) = call.args.first() else {
+                continue;
+            };
+            let Expr::Ident(root) = crate::utils::unwrap_expr(first.expr.as_ref()) else {
+                continue;
+            };
+            if object.sym == "Object"
+                && property.sym == "assign"
+                && root.sym.chars().next().is_some_and(char::is_uppercase)
+            {
+                names.insert(binding.id.sym.to_string());
+            }
+        }
+    }
+
+    let mut names = HashSet::new();
+    for item in &module.body {
+        match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Var(var),
+                ..
+            })) => collect_var(var, &mut names),
+            _ => {}
+        }
+    }
+    names
+}
+
+fn async_component_factory_names(module: &Module) -> HashSet<String> {
+    let mut use_component_names = HashSet::new();
+    for item in &module.body {
+        let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+            continue;
+        };
+        if import.type_only
+            || !matches!(
+                import.src.value.to_string_lossy().as_ref(),
+                "@rue-js/rue" | "@rue-js/rue/internal" | "@rue-js/runtime"
+            )
+        {
+            continue;
+        }
+        for specifier in &import.specifiers {
+            let ImportSpecifier::Named(named) = specifier else {
+                continue;
+            };
+            let imported = named
+                .imported
+                .as_ref()
+                .map(|name| match name {
+                    ModuleExportName::Ident(id) => id.sym.to_string(),
+                    ModuleExportName::Str(value) => value.value.to_string_lossy().into_owned(),
+                })
+                .unwrap_or_else(|| named.local.sym.to_string());
+            if imported == "useComponent" {
+                use_component_names.insert(named.local.sym.to_string());
+            }
+        }
+    }
+
+    module
+        .body
+        .iter()
+        .filter_map(|item| match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Var(var),
+                ..
+            })) => Some(var),
+            _ => None,
+        })
+        .flat_map(|var| &var.decls)
+        .filter_map(|declarator| {
+            let Pat::Ident(binding) = &declarator.name else {
+                return None;
+            };
+            let Some(Expr::Call(call)) = declarator.init.as_deref() else {
+                return None;
+            };
+            let Callee::Expr(callee) = &call.callee else {
+                return None;
+            };
+            let Expr::Ident(factory) = crate::utils::unwrap_expr(callee.as_ref()) else {
+                return None;
+            };
+            use_component_names.contains(factory.sym.as_ref()).then(|| binding.id.sym.to_string())
+        })
         .collect()
 }
 
@@ -441,12 +847,12 @@ struct PropsUsageAnalyzer {
     control_depth: usize,
     nested_function_depth: usize,
     uses_compiled_hooks: bool,
-    use_state_names: HashSet<String>,
+    hook_names: HashMap<String, String>,
 }
 
 impl PropsUsageAnalyzer {
-    fn new(props_name: String, use_state_names: HashSet<String>) -> Self {
-        Self { props_name, use_state_names, ..Self::default() }
+    fn new(props_name: String, hook_names: HashMap<String, String>) -> Self {
+        Self { props_name, hook_names, ..Self::default() }
     }
 }
 
@@ -463,13 +869,12 @@ impl Visit for PropsUsageAnalyzer {
         {
             let name = ident.sym.as_ref();
             let is_regional_helper =
-                is_regional_setup_helper(name) || self.use_state_names.contains(name);
+                is_regional_setup_helper(name) || self.hook_names.contains_key(name);
             if is_regional_helper && (self.control_depth > 0 || self.nested_function_depth > 0) {
                 self.uses_vapor = true;
             } else if is_regional_helper {
                 self.uses_compiled_hooks = true;
-            } else if crate::compiled_capabilities::runtime_tier_for_helper(name)
-                == Some(crate::compiled_capabilities::RuntimeTier::Vapor)
+            } else if crate::compiled_capabilities::requires_component_context(name)
                 && !is_regional_setup_helper(name)
             {
                 self.uses_vapor = true;
@@ -566,19 +971,19 @@ fn analyze_candidate(
     body: &impl VisitWith<PropsUsageAnalyzer>,
     render: &Expr,
     branching: bool,
-    render_reactive: bool,
-    use_state_names: &HashSet<String>,
+    _render_reactive: bool,
+    hook_names: &HashMap<String, String>,
 ) -> Option<CompiledComponentCandidate> {
     if !render_expr_is_safe(render) {
         return None;
     }
 
-    let mut usage = PropsUsageAnalyzer::new(props_name.clone(), use_state_names.clone());
+    let mut usage = PropsUsageAnalyzer::new(props_name.clone(), hook_names.clone());
     body.visit_with(&mut usage);
     if let Some(bindings) = &destructured_props {
         usage.keys.extend(bindings.bindings.values().map(|(key, _)| key.clone()));
     }
-    if usage.invalid || usage.shadowed || usage.uses_vapor {
+    if usage.invalid || usage.shadowed {
         return None;
     }
 
@@ -590,15 +995,121 @@ fn analyze_candidate(
         destructured_props: destructured_props.map(|props| props.bindings).unwrap_or_default(),
         branching,
         hook_aware: usage.uses_compiled_hooks,
-        render_reactive,
-        use_state_names: use_state_names.clone(),
+        hook_names: hook_names.clone(),
     })
+}
+
+pub(crate) fn default_exported_identifier_names(module: &Module) -> HashSet<String> {
+    module
+        .body
+        .iter()
+        .filter_map(|item| match item {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export)) => {
+                match crate::utils::unwrap_expr(export.expr.as_ref()) {
+                    Expr::Ident(ident) => Some(ident.sym.to_string()),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+pub(crate) fn default_exported_component_spans(module: &Module) -> Vec<swc_core::common::Span> {
+    let component_names = function_component_names(&Program::Module(module.clone()));
+    let exported = default_exported_identifier_names(module)
+        .into_iter()
+        .filter(|name| component_names.contains(name))
+        .collect::<HashSet<_>>();
+    let mut spans = Vec::new();
+    for item in &module.body {
+        match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Fn(decl)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Fn(decl),
+                ..
+            })) if exported.contains(decl.ident.sym.as_ref()) => spans.push(decl.function.span),
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Var(var),
+                ..
+            })) => {
+                for decl in &var.decls {
+                    if let Pat::Ident(binding) = &decl.name
+                        && exported.contains(binding.id.sym.as_ref())
+                        && let Some(Expr::Arrow(arrow)) = decl.init.as_deref()
+                    {
+                        spans.push(arrow.span);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    spans
+}
+
+/// JSX lowering turns a source-level Provider child factory into a render plan.
+/// Plan contexts already call `children(target)`, so keeping the source factory
+/// around would return the plan instead of executing it.
+pub(crate) fn flatten_provider_child_plans(module: &mut Module) {
+    struct FlattenProviderChildPlans;
+
+    fn is_provider_call(call: &CallExpr) -> bool {
+        let Callee::Expr(callee) = &call.callee else { return false };
+        let Expr::Member(member) = crate::utils::unwrap_expr(callee) else { return false };
+        matches!(&member.prop, MemberProp::Ident(prop) if prop.sym == *"Provider")
+    }
+
+    fn is_children_key(key: &PropName) -> bool {
+        matches!(key, PropName::Ident(name) if name.sym == *"children")
+            || matches!(key, PropName::Str(name) if name.value == *"children")
+    }
+
+    fn lowered_plan(expr: &Expr) -> Option<Box<Expr>> {
+        let Expr::Arrow(factory) = crate::utils::unwrap_expr(expr) else { return None };
+        if !factory.params.is_empty() {
+            return None;
+        }
+        let BlockStmtOrExpr::Expr(body) = factory.body.as_ref() else { return None };
+        let plan = crate::utils::unwrap_expr(body);
+        let is_plan = matches!(plan, Expr::Arrow(_) | Expr::Fn(_))
+            || matches!(plan, Expr::Call(call)
+                if matches!(&call.callee, Callee::Expr(callee)
+                    if matches!(crate::utils::unwrap_expr(callee), Expr::Ident(helper)
+                        if matches!(helper.sym.as_ref(), "_$compiledRoot" | "_$compiledScalarRoot" | "_$compiledStaticRoot" | "_$compiledScalarOwnedRoot"))));
+        is_plan.then(|| Box::new(plan.clone()))
+    }
+
+    impl VisitMut for FlattenProviderChildPlans {
+        fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+            call.visit_mut_children_with(self);
+            if !is_provider_call(call) {
+                return;
+            }
+            let Some(first) = call.args.first_mut() else { return };
+            let Expr::Object(props) = first.expr.as_mut() else {
+                return;
+            };
+            for prop in &mut props.props {
+                let PropOrSpread::Prop(prop) = prop else { continue };
+                let Prop::KeyValue(prop) = prop.as_mut() else { continue };
+                if is_children_key(&prop.key)
+                    && let Some(plan) = lowered_plan(prop.value.as_ref())
+                {
+                    prop.value = plan;
+                }
+            }
+        }
+    }
+
+    module.visit_mut_with(&mut FlattenProviderChildPlans);
 }
 
 pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
     let mut candidates = HashMap::new();
     let mut imported = HashSet::new();
-    let mut use_state_names = HashSet::from(["useState".to_string()]);
+    let hook_names = imported_hook_names(module);
     for item in &module.body {
         if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
             for specifier in &import.specifiers {
@@ -608,25 +1119,6 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
                     ImportSpecifier::Namespace(namespace) => &namespace.local,
                 };
                 imported.insert(local.sym.to_string());
-                if matches!(
-                    specifier,
-                    ImportSpecifier::Named(named)
-                        if !named.is_type_only
-                            && match &named.imported {
-                                Some(ModuleExportName::Ident(imported)) => {
-                                    imported.sym.as_ref() == "useState"
-                                }
-                                Some(ModuleExportName::Str(imported)) => {
-                                    imported.value.to_string_lossy() == "useState"
-                                }
-                                None => named.local.sym.as_ref() == "useState",
-                            }
-                ) && matches!(
-                    import.src.value.to_string_lossy().as_ref(),
-                    "@rue-js/rue" | "@rue-js/rue/internal" | "@rue-js/rue/internal/compiler"
-                ) {
-                    use_state_names.insert(local.sym.to_string());
-                }
             }
         }
     }
@@ -663,7 +1155,7 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
                     &render,
                     branching,
                     crate::pre::block_requires_custom_composable_render_effect(body),
-                    &use_state_names,
+                    &hook_names,
                 ) {
                     candidates.insert(name, candidate);
                 }
@@ -711,7 +1203,7 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
                     &render,
                     branching,
                     render_reactive,
-                    &use_state_names,
+                    &hook_names,
                 ) {
                     candidates.insert(name, candidate);
                 }
@@ -772,6 +1264,15 @@ fn collect_pattern_names(pat: &Pat, names: &mut HashSet<String>) {
 }
 
 impl VisitMut for PropsSlotRewriter<'_> {
+    fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
+        let previous = self.shadowed.clone();
+        for stmt in &block.stmts {
+            self.shadowed.extend(declared_names(stmt));
+        }
+        block.visit_mut_children_with(self);
+        self.shadowed = previous;
+    }
+
     fn visit_mut_function(&mut self, function: &mut Function) {
         let previous = self.shadowed.clone();
         for parameter in &function.params {
@@ -961,7 +1462,7 @@ fn prop_member(object: Ident, key: &str) -> Expr {
     })
 }
 
-fn omitted_props_expr(props: Ident, prop_keys: &[String]) -> Expr {
+pub(crate) fn omitted_props_expr(props: Ident, prop_keys: &[String]) -> Expr {
     let keys = Expr::Array(ArrayLit {
         span: DUMMY_SP,
         elems: prop_keys
@@ -1028,7 +1529,16 @@ fn updater_expr(
 
 fn wrap_render_expr(render: Expr, updater: Expr, props_name: Option<&str>) -> Expr {
     let Some(props_name) = props_name else {
-        return crate::emit::call_ident("_$withCompiledPropsUpdater", vec![render, updater]);
+        let empty = matches!(&updater, Expr::Arrow(arrow)
+            if matches!(arrow.body.as_ref(), BlockStmtOrExpr::Expr(expr)
+                if matches!(expr.as_ref(), Expr::Call(call)
+                    if call.args.first().is_some_and(|arg| matches!(arg.expr.as_ref(), Expr::Arrow(batch)
+                        if matches!(batch.body.as_ref(), BlockStmtOrExpr::BlockStmt(body) if body.stmts.is_empty()))))));
+        return if empty {
+            render
+        } else {
+            crate::emit::call_ident("_$withCompiledPropsUpdater", vec![render, updater])
+        };
     };
     let read_props = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
@@ -1234,13 +1744,33 @@ fn lower_setup_region(
 struct CompiledHookLowerer<'a> {
     component_name: &'a str,
     next_slot: usize,
-    use_state_names: &'a HashSet<String>,
+    hook_names: &'a HashMap<String, String>,
 }
 
 impl VisitMut for CompiledHookLowerer<'_> {
     fn visit_mut_function(&mut self, _: &mut Function) {}
 
     fn visit_mut_arrow_expr(&mut self, _: &mut ArrowExpr) {}
+
+    // Conditional/repeated calls cannot be assigned a static owner slot. Leave
+    // their source identifiers intact so finalize_hooks reports the diagnostic.
+    fn visit_mut_if_stmt(&mut self, _: &mut IfStmt) {}
+    fn visit_mut_switch_stmt(&mut self, _: &mut SwitchStmt) {}
+    fn visit_mut_for_stmt(&mut self, _: &mut ForStmt) {}
+    fn visit_mut_for_in_stmt(&mut self, _: &mut ForInStmt) {}
+    fn visit_mut_for_of_stmt(&mut self, _: &mut ForOfStmt) {}
+    fn visit_mut_while_stmt(&mut self, _: &mut WhileStmt) {}
+    fn visit_mut_do_while_stmt(&mut self, _: &mut DoWhileStmt) {}
+    fn visit_mut_cond_expr(&mut self, _: &mut CondExpr) {}
+    fn visit_mut_catch_clause(&mut self, _: &mut CatchClause) {}
+    fn visit_mut_bin_expr(&mut self, expr: &mut BinExpr) {
+        if !matches!(
+            expr.op,
+            BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing
+        ) {
+            expr.visit_mut_children_with(self);
+        }
+    }
 
     fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
         call.visit_mut_children_with(self);
@@ -1251,11 +1781,14 @@ impl VisitMut for CompiledHookLowerer<'_> {
             return;
         };
         let helper = match ident.sym.as_ref() {
-            "useSetup" => "_$compiledUseSetup",
-            "useRef" => "_$compiledUseRef",
-            "useState" => "_$compiledUseState",
-            "useEffect" => "_$compiledUseEffect",
-            name if self.use_state_names.contains(name) => "_$compiledUseState",
+            name if self.hook_names.contains_key(name) => match self.hook_names[name].as_str() {
+                "useState" => "_$compiledUseState",
+                "useActionState" => "_$compiledUseActionState",
+                "useEffect" => "_$compiledUseEffect",
+                "useRef" => "_$compiledUseRef",
+                "useSetup" => "_$compiledUseSetup",
+                _ => unreachable!(),
+            },
             _ => return,
         };
         let slot = format!("{}:hook:{}", self.component_name, self.next_slot);
@@ -1297,16 +1830,19 @@ impl VisitMut for ReactStateBindingCollector<'_> {
         let Expr::Call(call) = crate::utils::unwrap_expr(init) else { return };
         let Callee::Expr(callee) = &call.callee else { return };
         let Expr::Ident(callee) = crate::utils::unwrap_expr(callee.as_ref()) else { return };
-        if callee.sym.as_ref() != "_$compiledUseState" {
+        if !matches!(callee.sym.as_ref(), "_$compiledUseState" | "_$compiledUseActionState") {
             return;
         }
         let Pat::Array(pattern) = &mut declarator.name else { return };
-        let Some(Some(Pat::Ident(binding))) = pattern.elems.first_mut() else { return };
-
-        let source_name = binding.id.sym.to_string();
-        let hidden = unique_ident("_$state", self.used_names);
-        binding.id = hidden.clone();
-        self.bindings.insert(source_name, hidden);
+        let indices: &[usize] =
+            if callee.sym.as_ref() == "_$compiledUseActionState" { &[0, 2] } else { &[0] };
+        for &index in indices {
+            let Some(Some(Pat::Ident(binding))) = pattern.elems.get_mut(index) else { continue };
+            let source_name = binding.id.sym.to_string();
+            let hidden = unique_ident("_$state", self.used_names);
+            binding.id = hidden.clone();
+            self.bindings.insert(source_name, hidden);
+        }
     }
 }
 
@@ -1572,6 +2108,9 @@ fn lower_branch_render(
 }
 
 fn rewrite_block(block: &mut BlockStmt, candidate: &CompiledComponentCandidate) {
+    let mut scalar_detector = ScalarSetupDetector::default();
+    block.visit_with(&mut scalar_detector);
+    let scalar_only = scalar_detector.signal && !scalar_detector.other && !candidate.branching;
     let mut used = UsedIdentCollector::default();
     block.visit_with(&mut used);
     let mut slots = HashMap::new();
@@ -1599,7 +2138,7 @@ fn rewrite_block(block: &mut BlockStmt, candidate: &CompiledComponentCandidate) 
     block.visit_mut_with(&mut CompiledHookLowerer {
         component_name: &candidate.name,
         next_slot: 0,
-        use_state_names: &candidate.use_state_names,
+        hook_names: &candidate.hook_names,
     });
 
     let mut state_collector =
@@ -1625,13 +2164,26 @@ fn rewrite_block(block: &mut BlockStmt, candidate: &CompiledComponentCandidate) 
     let updater = updater_expr(next_props, &candidate.prop_keys, &slots, rest_slot.as_ref());
     for stmt in &mut block.stmts {
         if let Stmt::Return(ReturnStmt { arg: Some(render), .. }) = stmt {
-            let wrapped = wrap_render_expr(
+            if candidate.name.chars().next().is_some_and(char::is_uppercase)
+                && crate::utils::is_static_empty_like(render)
+            {
+                **render = Expr::JSXFragment(JSXFragment {
+                    span: DUMMY_SP,
+                    opening: JSXOpeningFragment { span: DUMMY_SP },
+                    closing: JSXClosingFragment { span: DUMMY_SP },
+                    children: vec![],
+                });
+            }
+            let mut wrapped = wrap_render_expr(
                 render.as_ref().clone(),
                 updater.clone(),
                 (!candidate.prop_keys.is_empty() || candidate.rest_prop.is_some())
                     .then_some(candidate.props_name.as_str()),
             );
-            **render = if candidate.hook_aware {
+            if !candidate.hook_aware {
+                wrapped.visit_mut_with(&mut StaticRootRewriter);
+            }
+            **render = if candidate.hook_aware && !scalar_only {
                 let factory = Expr::Arrow(ArrowExpr {
                     span: DUMMY_SP,
                     params: vec![],
@@ -1744,15 +2296,6 @@ pub(crate) fn transform_module(module: &mut Module, candidates: &CompiledCompone
             _ => {}
         }
     }
-    for candidate in candidates.values().filter(|candidate| candidate.render_reactive) {
-        module.body.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-            span: DUMMY_SP,
-            expr: Box::new(crate::emit::call_ident(
-                "_$compiledMarkComponentRenderReactive",
-                vec![Expr::Ident(crate::emit::ident(&candidate.name))],
-            )),
-        })));
-    }
 }
 
 #[derive(Default)]
@@ -1818,4 +2361,430 @@ pub(crate) fn transformed_candidate_names(module: &Module) -> HashSet<String> {
         }
     }
     names
+}
+
+/// Reject source shapes that cannot denote a closed, static function component.
+pub(crate) fn assert_closed_component_shapes(program: &Program) {
+    struct Shapes {
+        known: HashSet<String>,
+    }
+    impl Visit for Shapes {
+        fn visit_array_lit(&mut self, array: &ArrayLit) {
+            if array.elems.iter().flatten().any(|item| {
+                item.spread.is_some()
+                    && match crate::utils::unwrap_expr(&item.expr) {
+                        Expr::Ident(id) => id.sym == "children",
+                        Expr::Member(member) => {
+                            matches!(&member.prop, MemberProp::Ident(id) if id.sym == "children")
+                        }
+                        _ => false,
+                    }
+            }) {
+                panic!(
+                    "Rue children is a slot factory, not an array; express ordering in the parent JSX"
+                );
+            }
+            array.visit_children_with(self);
+        }
+        fn visit_jsx_element(&mut self, element: &JSXElement) {
+            if let JSXElementName::Ident(id) = &element.opening.name
+                && id.sym.chars().next().is_some_and(char::is_uppercase)
+                && !self.known.contains(id.sym.as_ref())
+            {
+                panic!(
+                    "Rue component must reference a statically known function factory: {}",
+                    id.sym
+                );
+            }
+            if let JSXElementName::JSXMemberExpr(member) = &element.opening.name {
+                fn root_ident(object: &JSXObject) -> &Ident {
+                    match object {
+                        JSXObject::Ident(ident) => ident,
+                        JSXObject::JSXMemberExpr(member) => root_ident(&member.obj),
+                    }
+                }
+                let root = root_ident(&member.obj);
+                if !self.known.contains(root.sym.as_ref()) {
+                    panic!(
+                        "Rue member component must be rooted in a statically known function factory: {}",
+                        root.sym
+                    );
+                }
+            }
+            element.visit_children_with(self);
+        }
+    }
+    let mut known = function_component_names(program);
+    if let Program::Module(module) = program {
+        known.extend(analyze_module(module).into_keys());
+        known.extend(imported_component_names(module));
+        known.extend(compound_component_names(module));
+        known.extend(async_component_factory_names(module));
+    }
+    known.extend(
+        [
+            "Component",
+            "Fragment",
+            "Template",
+            "Teleport",
+            "KeepAlive",
+            "Suspense",
+            "Transition",
+            "TransitionGroup",
+            "Slot",
+        ]
+        .into_iter()
+        .map(str::to_string),
+    );
+    program.visit_with(&mut Shapes { known });
+}
+
+/// A component with dynamic prop keys still uses the closed ABI; only its props
+/// specialization is omitted. Never route it through the legacy preprocessor.
+pub(crate) fn function_component_names(program: &Program) -> HashSet<String> {
+    #[derive(Default)]
+    struct Names(HashSet<String>);
+    impl Visit for Names {
+        fn visit_fn_decl(&mut self, decl: &FnDecl) {
+            if decl.ident.sym.chars().next().is_some_and(char::is_uppercase)
+                || decl
+                    .function
+                    .body
+                    .as_ref()
+                    .is_some_and(crate::pre::has_component_render_return_in_block)
+            {
+                self.0.insert(decl.ident.sym.to_string());
+            }
+            decl.visit_children_with(self);
+        }
+        fn visit_var_declarator(&mut self, decl: &VarDeclarator) {
+            if let Pat::Ident(id) = &decl.name
+                && (crate::pre::is_untyped_arrow_component_decl(decl)
+                    || (id.id.sym.chars().next().is_some_and(char::is_uppercase)
+                        && matches!(decl.init.as_deref(), Some(Expr::Arrow(_) | Expr::Fn(_)))))
+            {
+                self.0.insert(id.id.sym.to_string());
+            }
+            decl.visit_children_with(self);
+        }
+    }
+    let mut names = Names::default();
+    program.visit_with(&mut names);
+    names.0
+}
+
+/// A local custom hook executes once per call under a child owner. Returned state
+/// fields are live getters; no component rerender or runtime hook table is needed.
+pub(crate) fn lower_custom_hooks(module: &mut Module) {
+    let names = imported_hook_names(module);
+    for item in &mut module.body {
+        let decl = match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Fn(decl)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Fn(decl),
+                ..
+            })) => decl,
+            _ => continue,
+        };
+        if !decl.ident.sym.starts_with("use") {
+            continue;
+        }
+        let Some(body) = decl.function.body.as_mut() else { continue };
+        let mut lowerer = CompiledHookLowerer {
+            component_name: decl.ident.sym.as_ref(),
+            next_slot: 0,
+            hook_names: &names,
+        };
+        body.visit_mut_children_with(&mut lowerer);
+        if lowerer.next_slot == 0 {
+            continue;
+        }
+        let mut used = UsedIdentCollector::default();
+        body.visit_with(&mut used);
+        let mut collector =
+            ReactStateBindingCollector { used_names: &mut used.names, bindings: HashMap::new() };
+        body.visit_mut_children_with(&mut collector);
+
+        // Preserve a source-level value API when a custom hook returns state fields.
+        for stmt in &mut body.stmts {
+            if let Stmt::Return(ReturnStmt { arg: Some(value), .. }) = stmt
+                && let Expr::Object(object) = value.as_mut()
+            {
+                for prop in &mut object.props {
+                    if let PropOrSpread::Prop(prop) = prop
+                        && let Prop::Shorthand(name) = prop.as_ref()
+                        && let Some(state) = collector.bindings.get(name.sym.as_ref())
+                    {
+                        **prop = Prop::Getter(GetterProp {
+                            span: DUMMY_SP,
+                            key: PropName::Ident(name.clone().into()),
+                            type_ann: None,
+                            body: Some(BlockStmt {
+                                span: DUMMY_SP,
+                                ctxt: SyntaxContext::empty(),
+                                stmts: vec![Stmt::Return(ReturnStmt {
+                                    span: DUMMY_SP,
+                                    arg: Some(Box::new(crate::emit::call_member(
+                                        state.clone(),
+                                        "get",
+                                        vec![],
+                                    ))),
+                                })],
+                            }),
+                        });
+                    }
+                }
+            }
+        }
+        body.visit_mut_children_with(&mut ReactStateUsageRewriter {
+            bindings: &collector.bindings,
+            suspend_path: false,
+            scope_stack: Vec::new(),
+        });
+        let run = Expr::Arrow(ArrowExpr {
+            span: DUMMY_SP,
+            ctxt: SyntaxContext::empty(),
+            params: vec![],
+            body: Box::new(BlockStmtOrExpr::BlockStmt(body.clone())),
+            is_async: false,
+            is_generator: false,
+            type_params: None,
+            return_type: None,
+        });
+        body.stmts = vec![Stmt::Return(ReturnStmt {
+            span: DUMMY_SP,
+            arg: Some(Box::new(crate::emit::call_ident(
+                "_$compiledRunWithOwner",
+                vec![crate::emit::call_ident("_$compiledCreateOwner", vec![]), run],
+            ))),
+        })];
+    }
+}
+
+/// Erase preprocessor Hook-ID runners after provenance/lowering has consumed
+/// them. Source hooks that cannot become static slots are a compile error.
+pub(crate) fn finalize_hooks(module: &mut Module) {
+    struct Finalize {
+        source_hooks: HashSet<String>,
+        namespaces: HashSet<String>,
+    }
+    impl VisitMut for Finalize {
+        fn visit_mut_expr(&mut self, expr: &mut Expr) {
+            if let Expr::Call(call) = expr
+                && matches!(&call.callee, Callee::Expr(callee) if matches!(callee.as_ref(), Expr::Ident(id) if id.sym == *"_$compiledWithHookId"))
+                && call.args.len() == 2
+                && let Expr::Arrow(runner) = call.args[1].expr.as_ref()
+                && runner.params.is_empty()
+                && let BlockStmtOrExpr::Expr(body) = runner.body.as_ref()
+            {
+                *expr = *body.clone();
+            }
+            if let Expr::Member(member) = expr
+                && let Expr::Ident(namespace) = member.obj.as_ref()
+                && self.namespaces.contains(namespace.sym.as_ref())
+                && match &member.prop {
+                    MemberProp::Ident(name) => {
+                        matches!(name.sym.as_ref(), "useState" | "useEffect")
+                    }
+                    MemberProp::Computed(_) => true,
+                    _ => false,
+                }
+            {
+                panic!(
+                    "Rue hooks require a statically compiled call; namespace hook access is unsupported"
+                );
+            }
+            if let Expr::Ident(ident) = expr
+                && self.source_hooks.contains(ident.sym.as_ref())
+            {
+                panic!(
+                    "Rue hooks require a statically compiled call; dynamic or unsupported hook use: {}",
+                    ident.sym
+                );
+            }
+            expr.visit_mut_children_with(self);
+        }
+    }
+    let mut source_hooks = HashSet::new();
+    let mut namespaces = HashSet::new();
+    for item in &module.body {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item
+            && matches!(
+                import.src.value.to_string_lossy().as_ref(),
+                "text/form"
+                    | "@rue-js/text/form"
+                    | "@rue-js/runtime"
+                    | "@rue-js/runtime/internal"
+                    | "@rue-js/runtime/internal/reactive"
+                    | "@rue-js/runtime/internal/compiler"
+                    | "@rue-js/rue"
+                    | "@rue-js/rue/internal"
+                    | "@rue-js/rue/internal/reactive"
+                    | "@rue-js/rue/internal/compiler"
+            )
+        {
+            for specifier in &import.specifiers {
+                if let ImportSpecifier::Namespace(namespace) = specifier {
+                    namespaces.insert(namespace.local.sym.to_string());
+                }
+                if let ImportSpecifier::Named(named) = specifier {
+                    let imported = named
+                        .imported
+                        .as_ref()
+                        .map(|name| match name {
+                            ModuleExportName::Ident(id) => id.sym.to_string(),
+                            ModuleExportName::Str(value) => {
+                                value.value.to_string_lossy().into_owned()
+                            }
+                        })
+                        .unwrap_or_else(|| named.local.sym.to_string());
+                    if matches!(imported.as_str(), "useState" | "useEffect") {
+                        source_hooks.insert(named.local.sym.to_string());
+                    }
+                }
+            }
+        }
+    }
+    module.visit_mut_with(&mut Finalize { source_hooks, namespaces });
+    for item in &mut module.body {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
+            import.specifiers.retain(|specifier| !matches!(specifier, ImportSpecifier::Named(named) if named.local.sym == *"_$compiledWithHookId"));
+        }
+    }
+}
+
+fn imported_hook_names(module: &Module) -> HashMap<String, String> {
+    let mut names: HashMap<String, String> = HashMap::new();
+    for item in &module.body {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item
+            && matches!(
+                import.src.value.to_string_lossy().as_ref(),
+                "text/form"
+                    | "@rue-js/text/form"
+                    | "@rue-js/runtime"
+                    | "@rue-js/runtime/internal"
+                    | "@rue-js/runtime/internal/reactive"
+                    | "@rue-js/runtime/internal/compiler"
+                    | "@rue-js/rue"
+                    | "@rue-js/rue/internal"
+                    | "@rue-js/rue/internal/reactive"
+                    | "@rue-js/rue/internal/compiler"
+            )
+        {
+            for specifier in &import.specifiers {
+                if let ImportSpecifier::Named(named) = specifier {
+                    let name = named
+                        .imported
+                        .as_ref()
+                        .map(|name| match name {
+                            ModuleExportName::Ident(id) => id.sym.to_string(),
+                            ModuleExportName::Str(value) => {
+                                value.value.to_string_lossy().into_owned()
+                            }
+                        })
+                        .unwrap_or_else(|| named.local.sym.to_string());
+                    if matches!(
+                        name.as_str(),
+                        "useState" | "useActionState" | "useEffect" | "useRef" | "useSetup"
+                    ) {
+                        names.insert(named.local.sym.to_string(), name);
+                    }
+                }
+            }
+        }
+    }
+    names
+}
+
+/// Reuse owner-slot and React-state lowering without introducing a DOM Block ABI.
+/// The server/claim compiler supplies its own node instructions after this pass.
+pub(crate) fn lower_node_plan_hooks(module: &mut Module) {
+    lower_unspecialized_hooks(module, &HashMap::new());
+}
+
+/// Hook lowering is required even when dynamic props prevent slot specialization.
+pub(crate) fn lower_unspecialized_hooks(
+    module: &mut Module,
+    candidates: &CompiledComponentCandidates,
+) {
+    let mut spans = crate::compiled_props::components(&Program::Module(module.clone()));
+    let default_exported = default_exported_component_spans(module);
+    for item in &module.body {
+        match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Fn(decl)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Fn(decl),
+                ..
+            })) => {
+                if candidates.contains_key(decl.ident.sym.as_ref()) {
+                    spans.retain(|span| *span != decl.function.span);
+                } else if default_exported.contains(&decl.function.span) {
+                    if !spans.contains(&decl.function.span) {
+                        spans.push(decl.function.span);
+                    }
+                }
+            }
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var)))
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: Decl::Var(var),
+                ..
+            })) => {
+                for decl in &var.decls {
+                    if let Pat::Ident(binding) = &decl.name
+                        && let Some(Expr::Arrow(arrow)) = decl.init.as_deref()
+                    {
+                        if candidates.contains_key(binding.id.sym.as_ref()) {
+                            spans.retain(|span| *span != arrow.span);
+                        } else if default_exported.contains(&arrow.span) {
+                            if !spans.contains(&arrow.span) {
+                                spans.push(arrow.span);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let names = imported_hook_names(module);
+    fn lower(body: &mut BlockStmt, name: &str, names: &HashMap<String, String>) {
+        body.visit_mut_children_with(&mut CompiledHookLowerer {
+            component_name: name,
+            next_slot: 0,
+            hook_names: names,
+        });
+        let mut used = UsedIdentCollector::default();
+        body.visit_with(&mut used);
+        let mut collector =
+            ReactStateBindingCollector { used_names: &mut used.names, bindings: HashMap::new() };
+        body.visit_mut_children_with(&mut collector);
+        body.visit_mut_children_with(&mut ReactStateUsageRewriter {
+            bindings: &collector.bindings,
+            suspend_path: false,
+            scope_stack: Vec::new(),
+        });
+    }
+    struct Lower<'a> {
+        spans: Vec<swc_core::common::Span>,
+        names: &'a HashMap<String, String>,
+    }
+    impl VisitMut for Lower<'_> {
+        fn visit_mut_function(&mut self, function: &mut Function) {
+            if self.spans.contains(&function.span)
+                && let Some(body) = &mut function.body
+            {
+                lower(body, &format!("plan:{}", function.span.lo.0), self.names);
+            }
+            function.visit_mut_children_with(self);
+        }
+        fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
+            if self.spans.contains(&arrow.span)
+                && let BlockStmtOrExpr::BlockStmt(body) = arrow.body.as_mut()
+            {
+                lower(body, &format!("plan:{}", arrow.span.lo.0), self.names);
+            }
+            arrow.visit_mut_children_with(self);
+        }
+    }
+    module.visit_mut_with(&mut Lower { spans, names: &names });
 }

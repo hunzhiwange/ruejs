@@ -8,7 +8,7 @@
  * be bundled for the browser.
  */
 
-import { _registerRouterStateAccessors } from './router.js'
+import { _registerRouterStateAccessors } from './router-context-state.js'
 import { getOrCreateAls } from './internal/als-registry.js'
 import {
   getRequestContext,

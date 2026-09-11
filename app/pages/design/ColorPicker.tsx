@@ -188,7 +188,6 @@ const apiRows: ApiRow[] = [
 
 const basicCode = `import { ref } from '@rue-js/rue'
 import { ColorPicker } from '@rue-js/design'
-
 const value = ref('#1677ff')
 const cssText = ref('rgb(22, 119, 255)')
 
@@ -202,9 +201,7 @@ const cssText = ref('rgb(22, 119, 255)')
   }}
 />`
 
-const sizeCode = `import { ColorPicker } from '@rue-js/design'
-
-<div className="flex flex-col gap-4">
+const sizeCode = `import { ColorPicker } from '@rue-js/design'<div className="flex flex-col gap-4">
   <ColorPicker size="xs" defaultValue="#06b6d4" showText />
   <ColorPicker size="sm" defaultValue="#22c55e" showText />
   <ColorPicker size="md" defaultValue="#1677ff" showText />
@@ -220,7 +217,6 @@ const sizeCode = `import { ColorPicker } from '@rue-js/design'
 
 const formatCode = `import { ref } from '@rue-js/rue'
 import { ColorPicker } from '@rue-js/design'
-
 const value = ref('rgba(56, 189, 248, 0.72)')
 const formatMode = ref('rgb')
 const brand = ref('#22c55e')
@@ -249,7 +245,6 @@ const brand = ref('#22c55e')
 
 const presetCode = `import { ref } from '@rue-js/rue'
 import { ColorPicker } from '@rue-js/design'
-
 const value = ref('#f97316')
 const presets = [
   {
@@ -281,7 +276,6 @@ const presets = [
 
 const panelCode = `import { ref } from '@rue-js/rue'
 import { ColorPicker } from '@rue-js/design'
-
 const value = ref('#7c3aed')
 const openState = ref('closed')
 
@@ -553,20 +547,6 @@ const ColorPickerDesign: FC = () => {
                 }}
                 onChange={(_color, css) => {
                   panelValue.value = css || ''
-                }}
-                panelRender={(_panel, extra) => {
-                  const PickerPanel = extra.components.Picker
-                  const PresetsPanel = extra.components.Presets
-
-                  return (
-                    <div className="space-y-4">
-                      <PickerPanel />
-                      <div className="rounded-[1.25rem] border border-base-300/75 bg-base-100 px-4 py-3 text-sm text-base-content/75">
-                        当前色值：{extra.state.color ? extra.state.color.toCssString() : '未选择'}
-                      </div>
-                      <PresetsPanel />
-                    </div>
-                  )
                 }}
               />
 

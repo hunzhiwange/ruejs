@@ -1,184 +1,124 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { KeepAlive, Template, Transition, TransitionGroup } from '../src/compiler-runtime/builtins'
-import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
+import { afterEach, expect, it, vi } from 'vitest'
+import { evaluateComponent } from './compiled-component-test-utils'
+import { setReactiveScheduling } from '../src/runtime-core/compiled'
 
-const elementSlot =
-  (tag: string, text: string, cleanup?: () => void): CompiledSlotFactory =>
-  (target, _props, owner) => {
-    const node = document.createElement(tag)
-    node.textContent = text
-    target.parent.insertBefore(node, target.before)
-    return createCompiledBlock(target, owner, { first: node, last: node }, cleanup)
-  }
+afterEach(() => {
+  document.body.innerHTML = ''
+  setReactiveScheduling('frame')
+  vi.useRealTimers()
+})
+it('compiled Transition preserves keyed identity and runs leave and cancellation hooks', async () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { Transition, signal } from '@rue-js/rue';
+    export const key = signal('a'); export const trace = [];
+    export const View = () => <Transition name="fade" duration={20} onAfterLeave={() => trace.push('left')} onEnterCancelled={() => trace.push('cancel')}><p key={key.get()}>{key.get()}</p></Transition>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  const first = document.querySelector('p')!
+  expect(first.textContent).toBe('a')
+  app.key.set('b')
+  expect(app.trace).toContain('cancel')
+  expect(document.body.textContent).toContain('a')
+  expect(document.body.textContent).toContain('b')
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.textContent).toBe('b')
+  expect(app.trace).toContain('left')
+  root.dispose()
+  expect(document.body.childNodes).toHaveLength(0)
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.childNodes).toHaveLength(0)
+})
+it.each(['out-in', 'in-out'])('compiled Transition honors %s ordering', async mode => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { Transition, signal } from '@rue-js/rue'; export const key = signal('a');
+    export const View = () => <Transition mode="${mode}" duration={20}><p key={key.get()}>{key.get()}</p></Transition>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  await new Promise(resolve => setTimeout(resolve, 30))
+  app.key.set('b')
+  expect(document.body.textContent).toBe(mode === 'out-in' ? 'a' : 'ab')
+  await new Promise(resolve => setTimeout(resolve, 60))
+  expect(document.body.textContent).toBe('b')
+  root.dispose()
+})
+it('Template is erased and keeps its children in the owned compiled range', () => {
+  const { code, exports: app } = evaluateComponent(
+    `import { Template } from '@rue-js/rue'; export const View = () => <Template><b>owned</b><i>tail</i></Template>;`,
+  )
+  expect(code).not.toContain('internal/builtin')
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  expect(document.body.textContent).toBe('ownedtail')
+  root.dispose()
+  expect(document.body.childNodes).toHaveLength(0)
+})
+it('compiled TransitionGroup retains keyed DOM moves and delays removal through leave', async () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { TransitionGroup, signal } from '@rue-js/rue'; export const rows = signal(['a','b']);
+    export const View = () => <TransitionGroup tag="ul" name="rows" duration={20}>{rows.get().map(row => <li key={row}>{String(row)}</li>)}</TransitionGroup>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  const original = Array.from(document.querySelectorAll('li'))
+  expect(original.map(node => node.textContent)).toEqual(['a', 'b'])
+  app.rows.set(['b', 'a'])
+  await Promise.resolve()
+  await Promise.resolve()
+  const reordered = Array.from(document.querySelectorAll('li'))
+  expect(reordered).toEqual([original[1], original[0]])
+  app.rows.set(['b', 'c'])
+  await Promise.resolve()
+  await Promise.resolve()
+  expect(document.body.textContent).toContain('a')
+  expect(
+    Array.from(document.querySelectorAll('li')).find(node => node.textContent === 'c')!.className,
+  ).toContain('rows-enter-active')
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.textContent).toBe('bc')
+  root.dispose()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.childNodes).toHaveLength(0)
+})
+it('recognizes imported builtin aliases and preserves a same-named local component', () => {
+  const alias = evaluateComponent(
+    `import { Teleport as Portal } from '@rue-js/rue'; export const View = () => <Portal to="#destination"><b>portal</b></Portal>;`,
+  )
+  expect(alias.code).toContain('_$teleport')
+  expect(alias.code).not.toContain('internal/builtin')
+  document.body.innerHTML = '<aside id="destination"></aside>'
+  const root = alias.exports.View()
+  root.__rue_compiled_mount(document.body)
+  expect(document.querySelector('aside')!.textContent).toBe('portal')
+  root.dispose()
+  const local = evaluateComponent(
+    `const Teleport = () => <b>local</b>; export const View = () => <Teleport/>;`,
+  )
+  expect(local.code).not.toContain('_$teleport')
+  const localRoot = local.exports.View()
+  localRoot.__rue_compiled_mount(document.body)
+  expect(document.body.textContent).toBe('local')
+  localRoot.dispose()
+})
 
-afterEach(() => vi.useRealTimers())
-
-describe('compiled control builtins', () => {
-  it('mounts Template, Transition and TransitionGroup as owned blocks', () => {
-    for (const factory of [Template, Transition, TransitionGroup]) {
-      const host = document.createElement('div')
-      const handle = factory({ children: elementSlot('b', 'owned') })
-      handle.__rue_compiled_mount(host)
-      expect(host.textContent).toBe('owned')
-      handle.dispose()
-      expect(host.textContent).toBe('')
-    }
-  })
-
-  it('keeps cached blocks alive while switching keys', () => {
-    const host = document.createElement('div')
-    const a = elementSlot('input', '')
-    const b = elementSlot('input', '')
-    const handle = KeepAlive({ cacheKey: 'a', children: a })
-    handle.__rue_compiled_mount(host)
-    const first = host.querySelector('input')!
-    first.value = 'edited'
-    handle.__rue_compiled_update_props__({ cacheKey: 'b', children: b })
-    expect(host.querySelector('input')).not.toBe(first)
-    handle.__rue_compiled_update_props__({ cacheKey: 'a', children: a })
-    expect(host.querySelector('input')).toBe(first)
-    expect(first.value).toBe('edited')
-  })
-
-  it('applies KeepAlive include and LRU limits without portable metadata', () => {
-    const host = document.createElement('div')
-    const a = elementSlot('input', '')
-    const b = elementSlot('input', '')
-    const handle = KeepAlive({
-      cacheKey: 'a',
-      cacheName: 'Panel',
-      include: 'Panel',
-      max: 1,
-      children: a,
-    })
-    handle.__rue_compiled_mount(host)
-    const first = host.querySelector('input')!
-    handle.__rue_compiled_update_props__({
-      cacheKey: 'b',
-      cacheName: 'Panel',
-      include: 'Panel',
-      max: 1,
-      children: b,
-    })
-    handle.__rue_compiled_update_props__({
-      cacheKey: 'a',
-      cacheName: 'Panel',
-      include: 'Panel',
-      max: 1,
-      children: a,
-    })
-    expect(host.querySelector('input')).not.toBe(first)
-
-    const uncached = host.querySelector('input')!
-    handle.__rue_compiled_update_props__({
-      cacheKey: 'x',
-      cacheName: 'Skip',
-      include: 'Panel',
-      children: a,
-    })
-    handle.__rue_compiled_update_props__({
-      cacheKey: 'y',
-      cacheName: 'Skip',
-      include: 'Panel',
-      children: b,
-    })
-    handle.__rue_compiled_update_props__({
-      cacheKey: 'x',
-      cacheName: 'Skip',
-      include: 'Panel',
-      children: a,
-    })
-    expect(host.querySelector('input')).not.toBe(uncached)
-    handle.dispose()
-  })
-
-  it('runs range-based enter and leave phases and cancels them on cleanup', async () => {
-    vi.useFakeTimers()
-    const host = document.createElement('div')
-    const afterLeave = vi.fn()
-    const handle = Transition({
-      name: 'fade',
-      duration: 20,
-      children: elementSlot('p', 'first'),
-      onAfterLeave: afterLeave,
-    })
-    handle.__rue_compiled_mount(host)
-    await Promise.resolve()
-    expect(host.querySelector('p')?.classList.contains('fade-enter-active')).toBe(true)
-    await vi.advanceTimersByTimeAsync(20)
-
-    handle.__rue_compiled_update_props__({
-      name: 'fade',
-      duration: 20,
-      children: elementSlot('p', 'second'),
-      onAfterLeave: afterLeave,
-    })
-    expect(host.textContent).toContain('first')
-    expect(host.textContent).toContain('second')
-    await vi.advanceTimersByTimeAsync(20)
-    expect(host.textContent).toBe('second')
-    expect(afterLeave).toHaveBeenCalledTimes(1)
-    handle.dispose()
-    expect(host.textContent).toBe('')
-  })
-
-  it('animates keyed-slot DOM additions and preserves removals until leave completes', async () => {
-    vi.useFakeTimers()
-    const host = document.createElement('div')
-    let list!: HTMLUListElement
-    const children: CompiledSlotFactory = (target, _props, owner) => {
-      list = document.createElement('ul')
-      list.innerHTML = '<li data-key="a">a</li>'
-      target.parent.insertBefore(list, target.before)
-      return createCompiledBlock(target, owner, { first: list, last: list })
-    }
-    const handle = TransitionGroup({ name: 'rows', duration: 30, children })
-    handle.__rue_compiled_mount(host)
-
-    const added = document.createElement('li')
-    added.dataset.key = 'b'
-    added.textContent = 'b'
-    list.appendChild(added)
-    await Promise.resolve()
-    expect(added.classList.contains('rows-enter-active')).toBe(true)
-    await vi.advanceTimersByTimeAsync(30)
-
-    const removed = list.querySelector('[data-key="a"]') as HTMLElement
-    removed.remove()
-    await Promise.resolve()
-    expect(list.contains(removed)).toBe(true)
-    expect(removed.classList.contains('rows-leave-active')).toBe(true)
-    await vi.advanceTimersByTimeAsync(30)
-    expect(list.contains(removed)).toBe(false)
-    handle.dispose()
-  })
-
-  it('disconnects TransitionGroup phases and cleans its owned range exactly once', async () => {
-    vi.useFakeTimers()
-    const host = document.createElement('div')
-    const cleanup = vi.fn()
-    let list!: HTMLUListElement
-    const children: CompiledSlotFactory = (target, _props, owner) => {
-      list = document.createElement('ul')
-      list.innerHTML = '<li data-key="a">a</li>'
-      target.parent.insertBefore(list, target.before)
-      return createCompiledBlock(target, owner, { first: list, last: list }, cleanup)
-    }
-    const handle = TransitionGroup({ name: 'rows', duration: 30, children })
-    handle.__rue_compiled_mount(host)
-    const removed = list.querySelector('[data-key="a"]') as HTMLElement
-
-    removed.remove()
-    await Promise.resolve()
-    expect(list.contains(removed)).toBe(true)
-    expect(host.querySelectorAll('[data-key="a"]')).toHaveLength(1)
-
-    handle.dispose()
-    handle.dispose()
-    await vi.advanceTimersByTimeAsync(30)
-
-    expect(host.childNodes).toHaveLength(0)
-    expect(removed.isConnected).toBe(false)
-    expect(cleanup).toHaveBeenCalledTimes(1)
-  })
+it('compiled Transition schedules leave for conditional children', async () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { Transition, signal } from '@rue-js/rue'; export const shown = signal(true); export const trace = [];
+    export const View = () => <Transition duration={20} onAfterLeave={() => trace.push('left')}>{shown.get() && <b>visible</b>}</Transition>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  app.shown.set(false)
+  expect(document.body.textContent).toBe('visible')
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.textContent).toBe('')
+  expect(app.trace).toEqual(['left'])
+  app.shown.set(true)
+  expect(document.body.textContent).toBe('visible')
+  root.dispose()
 })

@@ -1,11 +1,16 @@
-import createHomeSplitExamplePage from './createHomeSplitExamplePage'
+import HomeSplitExamplePage from './createHomeSplitExamplePage'
 import BasicChildrenBoxDemo from './home-demos/BasicChildrenBoxDemo'
 import source from './home-demos/BasicChildrenBoxDemo.tsx?raw'
 
-const BasicChildrenBox = createHomeSplitExamplePage({
-  title: '基础 children Box',
-  source,
-  Demo: BasicChildrenBoxDemo,
-})
+const BasicChildrenBox = () => (
+  <HomeSplitExamplePage
+    options={{
+      title: '基础 children Box',
+      source,
+    }}
+  >
+    <BasicChildrenBoxDemo />
+  </HomeSplitExamplePage>
+)
 
 export default BasicChildrenBox

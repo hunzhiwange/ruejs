@@ -3,7 +3,7 @@ Avatar 组件概述
 - 在保留 daisyUI 原子组合能力的前提下，补齐图片、图标、文字、尺寸、形状与失败回退等语义化 API。
 - Avatar.Group 支持 children 或 items 两种组织方式，并提供 max 溢出聚合能力。
 */
-import type { FC } from '@rue-js/rue'
+import { ref, type FC } from '@rue-js/rue'
 
 /** AvatarStatus 状态类型。 */
 export type AvatarStatus = 'online' | 'offline' | 'placeholder'
@@ -55,7 +55,7 @@ export interface AvatarProps {
   /** 组件子内容。 */
   children?: any
   /** src 配置项。 */
-  src?: any
+  src?: string
   /** srcSet 配置项。 */
   srcSet?: string
   /** alt 配置项。 */
@@ -218,22 +218,6 @@ const resolveTextFontSize = (content: string, avatarPixels: number, gap: number)
 }
 
 /** flatten Children 的内部工具函数。 */
-const flattenChildren = (value: any) => {
-  const result: any[] = []
-  const walk = (item: any) => {
-    if (Array.isArray(item)) {
-      item.forEach(walk)
-      return
-    }
-    if (item == null || item === false) {
-      return
-    }
-    result.push(item)
-  }
-
-  walk(value)
-  return result
-}
 
 /** 归一化 Max 的内部工具函数。 */
 const normalizeMax = (max?: number | AvatarGroupMaxConfig) => {
@@ -302,7 +286,8 @@ const Avatar: FC<AvatarProps> = ({
   const customBodyMode = !hasSemanticProps && primitiveChildText == null && children != null
   const sizeConfig = resolveSizeConfig(size)
   const textContent = text ?? primitiveChildText
-  const fallbackContent = icon ?? (textContent ? null : children) ?? <DefaultAvatarIcon />
+  const FallbackContent = () =>
+    icon != null ? <>{String(icon)}</> : children ? <>{children}</> : <DefaultAvatarIcon />
   const rootClassName = mergeClassName(
     status ? `avatar not-prose avatar-${status}` : 'avatar not-prose',
     className,
@@ -317,8 +302,8 @@ const Avatar: FC<AvatarProps> = ({
   }
 
   const hasStringImage = typeof src === 'string' && src.length > 0
-  const hasCustomMediaNode = !hasStringImage && src != null
-  const fallbackVisible = !hasStringImage && !hasCustomMediaNode
+
+  const fallbackVisible = !hasStringImage
   const bodyClassNames = mergeClassName(
     mergeClassName(
       `relative inline-flex shrink-0 items-center justify-center overflow-hidden ${resolveShapeClass(shape)} ${resolveColorClasses(color, status === 'placeholder')}`,
@@ -334,26 +319,14 @@ const Avatar: FC<AvatarProps> = ({
         }
       : undefined
 
+  const imageFailed = ref(false)
   const handleImageError = (event: Event) => {
     const shouldContinue = onError ? onError(event) : undefined
     if (shouldContinue === false) {
       return
     }
 
-    const target = ((event as any).currentTarget ??
-      (event as any).target) as HTMLImageElement | null
-    if (!target) {
-      return
-    }
-
-    target.classList.add('hidden')
-    const fallback = target.parentElement?.querySelector(
-      '[data-rue-avatar-fallback="true"]',
-    ) as HTMLElement | null
-    if (fallback) {
-      fallback.classList.remove('hidden')
-      fallback.classList.add('flex')
-    }
+    imageFailed.value = true
   }
 
   return (
@@ -362,7 +335,10 @@ const Avatar: FC<AvatarProps> = ({
         {hasStringImage ? (
           <img
             data-rue-avatar-image="true"
-            className={mergeClassName(`h-full w-full ${resolveFitClass(fit)}`, imgClassName)}
+            className={mergeClassName(
+              `h-full w-full ${resolveFitClass(fit)}`,
+              mergeClassName(imageFailed.value ? 'hidden' : '', imgClassName),
+            )}
             src={src}
             srcSet={srcSet}
             alt={alt ?? textContent ?? 'Avatar'}
@@ -371,10 +347,10 @@ const Avatar: FC<AvatarProps> = ({
             onError={handleImageError}
           />
         ) : null}
-        {hasCustomMediaNode ? src : null}
+
         <span
           className={
-            fallbackVisible
+            fallbackVisible || imageFailed.value
               ? 'flex h-full w-full items-center justify-center'
               : 'hidden h-full w-full items-center justify-center'
           }
@@ -385,10 +361,10 @@ const Avatar: FC<AvatarProps> = ({
               className="inline-flex max-w-full items-center justify-center px-[0.08em] font-semibold uppercase tracking-[0.02em]"
               style={fallbackTextStyle}
             >
-              {textContent}
+              {String(textContent)}
             </span>
           ) : (
-            fallbackContent
+            <FallbackContent />
           )}
         </span>
       </div>
@@ -406,6 +382,21 @@ const Group: FC<AvatarGroupProps> = ({ className, children, items, size, shape, 
   const rootClassName = mergeClassName('avatar-group', className)
 
   if (items && items.length) {
+    const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+      const item = rowArg0
+      const index = rowArg1
+
+      const { key, ...itemProps } = item
+      return (
+        <Avatar
+          key={key ?? index}
+          size={item.size ?? size}
+          shape={item.shape ?? shape}
+          {...itemProps}
+        />
+      )
+    }
+
     const hiddenCount =
       maxCount !== undefined && items.length > maxCount ? items.length - maxCount : 0
     const visibleItems =
@@ -413,17 +404,9 @@ const Group: FC<AvatarGroupProps> = ({ className, children, items, size, shape, 
 
     return (
       <div className={rootClassName} data-rue-avatar-group="true">
-        {visibleItems.map((item, index) => {
-          const { key, ...itemProps } = item
-          return (
-            <Avatar
-              key={key ?? index}
-              size={item.size ?? size}
-              shape={item.shape ?? shape}
-              {...itemProps}
-            />
-          )
-        })}
+        {visibleItems.map((rowArg0: any, rowArg1: number) => (
+          <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+        ))}
         {hiddenCount > 0 ? (
           <Avatar
             status="placeholder"
@@ -431,34 +414,16 @@ const Group: FC<AvatarGroupProps> = ({ className, children, items, size, shape, 
             shape={shape}
             className={maxConfig?.className}
             bodyClassName={maxConfig?.bodyClassName}
-          >
-            {maxConfig?.placeholder ?? `+${hiddenCount}`}
-          </Avatar>
+            text={String(maxConfig?.placeholder ?? `+${hiddenCount}`)}
+          />
         ) : null}
       </div>
     )
   }
 
-  const childNodes = flattenChildren(children)
-  const hiddenCount =
-    maxCount !== undefined && childNodes.length > maxCount ? childNodes.length - maxCount : 0
-  const visibleChildren =
-    hiddenCount > 0 && maxCount !== undefined ? childNodes.slice(0, maxCount) : childNodes
-
   return (
     <div className={rootClassName} data-rue-avatar-group="true">
-      {visibleChildren}
-      {hiddenCount > 0 ? (
-        <Avatar
-          status="placeholder"
-          size={size}
-          shape={shape}
-          className={maxConfig?.className}
-          bodyClassName={maxConfig?.bodyClassName}
-        >
-          {maxConfig?.placeholder ?? `+${hiddenCount}`}
-        </Avatar>
-      ) : null}
+      {children}
     </div>
   )
 }

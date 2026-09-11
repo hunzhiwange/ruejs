@@ -43,11 +43,11 @@ export default Hello;
     std::fs::write("target/vapor_outputs/spec8.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$template(\"<div><h1>Rue 响应式框架示例</h1></div>\")"));
-    assert!(normalized.contains("_$compiledRoot(Object.assign("));
+    assert!(normalized.contains("_$compiledRoot("));
     assert!(
         normalized
             .contains("Object.assign(_el1.style, { textAlign: 'center', color: '#e07721ff' })")
     );
-    assert!(normalized.contains("__rue_compiled_explicit_roots: true"));
+    assert!(normalized.contains("return [ _root, _root ]"));
     assert!(!normalized.contains("vapor("));
 }

@@ -36,10 +36,10 @@ describe('ServerInsertedHTMLContext', () => {
 
     function ContextReader() {
       received = useTextCompatContext(ServerInsertedHTMLContext!)
-      return null
+      return () => {}
     }
 
-    renderAppServerElementToHtml(
+    await renderAppServerElementToHtml(
       createElement(
         ServerInsertedHTMLContext!.Provider,
         { value: register },
@@ -58,9 +58,9 @@ describe('ServerInsertedHTMLContext', () => {
     let contextValue: unknown = 'not-set'
     function ContextReader() {
       contextValue = useTextCompatContext(ServerInsertedHTMLContext!)
-      return null
+      return () => {}
     }
-    renderAppServerElementToHtml(createElement(ContextReader))
+    await renderAppServerElementToHtml(createElement(ContextReader))
     expect(contextValue).toBeNull()
   })
 
@@ -85,7 +85,7 @@ describe('ServerInsertedHTMLContext', () => {
       createElement(ContextReader),
     )
 
-    renderAppServerElementToHtml(tree)
+    await renderAppServerElementToHtml(tree)
     expect(contextValue).toBe(addCallback)
     expect(typeof contextValue).toBe('function')
   })
@@ -120,7 +120,7 @@ describe('ServerInsertedHTMLContext', () => {
       createElement(ApolloSSRComponent),
     )
 
-    const html = renderAppServerElementToHtml(tree)
+    const html = await renderAppServerElementToHtml(tree)
 
     // Apollo should NOT throw
     expect(apolloError).toBeNull()
@@ -157,7 +157,7 @@ describe('ServerInsertedHTMLContext', () => {
       createElement(StyledComponentsRegistry, null, createElement(ApolloRegistry)),
     )
 
-    renderAppServerElementToHtml(tree)
+    await renderAppServerElementToHtml(tree)
 
     // Both callbacks should be in the same array
     const flushed = flushServerInsertedHTML()
@@ -177,7 +177,7 @@ describe('ServerInsertedHTMLContext', () => {
     }
 
     // Render WITHOUT Provider — simulates using outside App Router
-    renderAppServerElementToHtml(createElement(ComponentWithoutProvider))
+    await renderAppServerElementToHtml(createElement(ComponentWithoutProvider))
 
     // Context value should be null (the default)
     expect(contextValue).toBeNull()
@@ -203,7 +203,7 @@ describe('ServerInsertedHTMLContext', () => {
       createElement(MultiCallbackComponent),
     )
 
-    renderAppServerElementToHtml(tree)
+    await renderAppServerElementToHtml(tree)
 
     const flushed = flushServerInsertedHTML()
     expect(flushed).toHaveLength(3)

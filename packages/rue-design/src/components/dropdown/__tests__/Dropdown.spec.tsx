@@ -1,6 +1,8 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
-import { Dropdown } from '@rue-js/design'
+import Dropdown from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,11 +20,13 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown align="end" direction="top" hover forceOpen className="mb-4">
-        content
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown align="end" direction="top" hover forceOpen className="mb-4">
+          content
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -39,14 +43,16 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown as="details" open>
-        <summary>Open</summary>
-        <Dropdown.Content as="ul" data-testid="menu">
-          <li>Item</li>
-        </Dropdown.Content>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown as="details" open>
+          <summary>Open</summary>
+          <Dropdown.Content as="ul" data-testid="menu">
+            <li>Item</li>
+          </Dropdown.Content>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -61,11 +67,13 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown>
-        <Dropdown.Trigger className="btn">Click</Dropdown.Trigger>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown>
+          <Dropdown.Trigger className="btn">Click</Dropdown.Trigger>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -81,18 +89,20 @@ describe('Dropdown', () => {
     resetActiveRuntime()
     const openChanges: string[] = []
 
-    render(
-      <Dropdown
-        trigger="click"
-        items={[
-          { key: 'edit', label: 'Edit' },
-          { key: 'archive', label: 'Archive' },
-        ]}
-        onOpenChange={(nextOpen, info) => openChanges.push(`${info.source}:${nextOpen}`)}
-      >
-        <button type="button">Actions</button>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown
+          trigger="click"
+          items={[
+            { key: 'edit', label: 'Edit' },
+            { key: 'archive', label: 'Archive' },
+          ]}
+          onOpenChange={(nextOpen, info) => openChanges.push(`${info.source}:${nextOpen}`)}
+        >
+          <button type="button">Actions</button>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -153,7 +163,7 @@ describe('Dropdown', () => {
       )
     }
 
-    render(<SelectableDropdownCase />, container)
+    mountTestApp(container, () => render(<SelectableDropdownCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('.dropdown')?.classList.contains('dropdown-open')).toBe(false)
@@ -201,25 +211,27 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown
-        trigger="click"
-        items={[
-          { key: 'overview', label: 'Overview' },
-          {
-            type: 'submenu',
-            key: 'publish',
-            label: 'Publish',
-            children: [
-              { key: 'draft', label: 'Save Draft' },
-              { key: 'live', label: 'Publish Now' },
-            ],
-          },
-        ]}
-      >
-        <button type="button">Workspace</button>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown
+          trigger="click"
+          items={[
+            { key: 'overview', label: 'Overview' },
+            {
+              type: 'submenu',
+              key: 'publish',
+              label: 'Publish',
+              children: [
+                { key: 'draft', label: 'Save Draft' },
+                { key: 'live', label: 'Publish Now' },
+              ],
+            },
+          ]}
+        >
+          <button type="button">Workspace</button>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -291,7 +303,7 @@ describe('Dropdown', () => {
       )
     }
 
-    render(<ControlledDropdownCase />, container)
+    mountTestApp(container, () => render(<ControlledDropdownCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelectorAll('[data-testid="controlled-trigger-button"]')).toHaveLength(
@@ -331,11 +343,16 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown trigger="contextMenu" overlay={<div className="px-3 py-2">Context actions</div>}>
-        <div data-testid="context-area">Right click here</div>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown trigger="contextMenu">
+          <Template slot="overlay">
+            <div className="px-3 py-2">Context actions</div>
+          </Template>
+          <div data-testid="context-area">Right click here</div>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -368,19 +385,21 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown
-        trigger="contextMenu"
-        items={[
-          { key: 'copy', label: 'Copy link' },
-          { key: 'rename', label: 'Rename block' },
-          { type: 'divider' },
-          { key: 'delete', label: 'Delete block', danger: true },
-        ]}
-      >
-        <div data-testid="context-items-area">Right click actions</div>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown
+          trigger="contextMenu"
+          items={[
+            { key: 'copy', label: 'Copy link' },
+            { key: 'rename', label: 'Rename block' },
+            { type: 'divider' },
+            { key: 'delete', label: 'Delete block', danger: true },
+          ]}
+        >
+          <div data-testid="context-items-area">Right click actions</div>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -414,17 +433,19 @@ describe('Dropdown', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Dropdown
-        trigger="contextMenu"
-        items={[
-          { key: 'copy', label: 'Copy link' },
-          { key: 'rename', label: 'Rename block' },
-        ]}
-      >
-        <div data-testid="context-edge-area">Right click near edge</div>
-      </Dropdown>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Dropdown
+          trigger="contextMenu"
+          items={[
+            { key: 'copy', label: 'Copy link' },
+            { key: 'rename', label: 'Rename block' },
+          ]}
+        >
+          <div data-testid="context-edge-area">Right click near edge</div>
+        </Dropdown>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

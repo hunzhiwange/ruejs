@@ -453,7 +453,7 @@ fn rewrites_textarea_single_select_radio_default_checkbox_and_default_input_mode
     transform_opening(&mut textarea);
     assert_eq!(attr_src(&textarea, "value"), normalize("form.bio"));
     let textarea_handler = attr_src(&textarea, "onChange");
-    assert!(textarea_handler.contains("HTMLTextAreaElement"));
+    assert!(textarea_handler.contains("$event.target"));
     assert!(textarea_handler.contains("parseFloat(value)"));
     assert!(textarea_handler.contains("form.bio = value"));
 
@@ -461,14 +461,14 @@ fn rewrites_textarea_single_select_radio_default_checkbox_and_default_input_mode
     transform_opening(&mut single_select);
     assert_eq!(attr_src(&single_select, "value"), normalize("form.choice"));
     let select_handler = attr_src(&single_select, "onChange");
-    assert!(select_handler.contains("HTMLSelectElement"));
+    assert!(select_handler.contains("$event.target"));
     assert!(select_handler.contains("value.trim()"));
     assert!(select_handler.contains("form.choice = value"));
 
     let mut eager_textarea = parse_jsx_opening("<textarea v-model={form.notes} />");
     transform_opening(&mut eager_textarea);
     assert_eq!(attr_src(&eager_textarea, "value"), normalize("form.notes"));
-    assert!(attr_src(&eager_textarea, "onInput").contains("HTMLTextAreaElement"));
+    assert!(attr_src(&eager_textarea, "onInput").contains("$event.target"));
     assert!(eager_textarea.attrs.iter().all(|attr| {
         !matches!(
             attr,
@@ -495,7 +495,7 @@ fn rewrites_textarea_single_select_radio_default_checkbox_and_default_input_mode
     let mut input = parse_jsx_opening("<input {...props} v-model={message} />");
     transform_opening(&mut input);
     assert_eq!(attr_src(&input, "value"), normalize("message"));
-    assert!(attr_src(&input, "onInput").contains("HTMLInputElement"));
+    assert!(attr_src(&input, "onInput").contains("$event.target"));
     assert!(input.attrs.iter().any(|attr| matches!(attr, JSXAttrOrSpread::SpreadElement(_))));
 }
 

@@ -5,7 +5,9 @@ Transfer 组件概述
 - 数据模型保持 `dataSource + targetKeys + selectedKeys` 主线，便于延续常见穿梭框组件的使用心智。
 */
 import type { FC } from '@rue-js/rue'
-import { onMounted, ref, render as renderRue, useRef, watch } from '@rue-js/rue'
+import { computed, ref, useRef } from '@rue-js/rue'
+
+const TransferText: FC<{ value: string }> = ({ value }) => <span>{String(value)}</span>
 
 /** TransferKey 标识键类型。 */
 export type TransferKey = string | number
@@ -21,9 +23,9 @@ export interface TransferItem {
   /** 数据项唯一标识。 */
   key?: TransferKey
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** 描述内容。 */
-  description?: any
+  description?: string | number
   /** 是否禁用交互。 */
   disabled?: boolean
   /** 允许透传原生属性或扩展字段。 */
@@ -33,15 +35,15 @@ export interface TransferItem {
 /** TransferRenderResultObject 接口。 */
 export interface TransferRenderResultObject {
   /** 展示标签。 */
-  label: any
+  label: string | number
   /** 受控值。 */
   value?: string
   /** 描述内容。 */
-  description?: any
+  description?: string | number
 }
 
 /** TransferRenderResult 类型。 */
-export type TransferRenderResult = TransferRenderResultObject | string | number | any | null
+export type TransferRenderResult = TransferRenderResultObject | string | number | null
 /** TransferRender 自定义渲染函数类型。 */
 export type TransferRender<RecordType> = (item: RecordType) => TransferRenderResult
 
@@ -152,9 +154,9 @@ export interface TransferRenderListItem<RecordType = TransferItem> {
   /** 是否禁用交互。 */
   disabled: boolean
   /** 展示标签。 */
-  label: any
+  label: string | number
   /** 描述内容。 */
-  description?: any
+  description?: string | number
   /** searchText 文本内容。 */
   searchText: string
 }
@@ -224,12 +226,18 @@ export interface TransferProps<RecordType = TransferItem> {
   /** locale 配置项。 */
   locale?: TransferLocale
   /** 底部区域内容。 */
+  footerFormatter?: (
+    props: TransferRenderListProps<RecordType>,
+    info: { direction: TransferDirection },
+  ) => string | number
   footer?: (
     props: TransferRenderListProps<RecordType>,
     info: { direction: TransferDirection },
   ) => any
-  /** renderList 配置项。 */
+  children?: (props: TransferRenderListProps<RecordType>) => any
   renderList?: (props: TransferRenderListProps<RecordType>) => any
+  /** listVariant 配置项。 */
+  listVariant?: 'checkboxes' | 'buttons'
   /** rowKey 标识键。 */
   rowKey?: (record: RecordType) => TransferKey
   /** 搜索文本变化时触发的回调。 */
@@ -237,7 +245,7 @@ export interface TransferProps<RecordType = TransferItem> {
   /** onScroll 事件回调。 */
   onScroll?: (direction: TransferDirection, event: Event) => void
   /** 组件子内容。 */
-  children?: (props: TransferRenderListProps<RecordType>) => any
+
   /** showSelectAll 配置项。 */
   showSelectAll?: boolean
   /** selectAllLabels 配置项。 */
@@ -669,7 +677,7 @@ interface TransferManagedPanelProps {
   currentPage: number
   disabled?: boolean
   filterOption?: TransferProps<any>['filterOption']
-  footer?: TransferProps<any>['footer']
+  footerFormatter?: TransferProps<any>['footerFormatter']
   listStyle?: TransferProps<any>['listStyle']
   oneWay?: boolean
   onScroll?: TransferProps<any>['onScroll']
@@ -684,7 +692,7 @@ interface TransferManagedPanelProps {
   mergedLocale: Required<TransferLocale>
   title: any
   sharedSearchPlaceholder: string
-  customListRenderer?: (props: TransferRenderListProps<any>) => any
+  listVariant: 'checkboxes' | 'buttons'
   getTransferStateSnapshot: () => TransferStateSnapshot<any>
   onItemSelect: (key: TransferKey, selected: boolean) => void
   onItemSelectAll: (keys: TransferKey[], selected: boolean) => void
@@ -693,7 +701,6 @@ interface TransferManagedPanelProps {
   onSearchInput: (value: string) => void
   assignSearchInputRef: (element: HTMLInputElement | null) => void
   searchComposingRef: { current: boolean | undefined }
-  runManagedRenderCallback: <T>(runner: () => T) => T
   setCurrentPage: (nextPage: number) => void
 }
 
@@ -706,7 +713,7 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
   currentPage,
   disabled,
   filterOption,
-  footer,
+  footerFormatter,
   listStyle,
   oneWay,
   onScroll,
@@ -721,7 +728,7 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
   mergedLocale,
   title,
   sharedSearchPlaceholder,
-  customListRenderer,
+  listVariant,
   getTransferStateSnapshot,
   onItemSelect,
   onItemSelectAll,
@@ -730,44 +737,150 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
   onSearchInput,
   assignSearchInputRef,
   searchComposingRef,
-  runManagedRenderCallback,
   setCurrentPage,
 }) => {
-  const sideIndex = direction === 'left' ? 0 : 1
-  const safeRawItems = Array.isArray(rawItems) ? rawItems : []
-  const safeSideSelectedKeys = Array.isArray(sideSelectedKeys) ? sideSelectedKeys : []
-  const safeSelectAllLabels = Array.isArray(selectAllLabels) ? selectAllLabels : []
-  const safeSizeConfig = sizeConfig ?? resolveSizeConfig()
-  const safeLocale = { ...defaultLocale, ...mergedLocale }
-  const safeSearchComposingRef = searchComposingRef ?? { current: false }
-  const filteredItems = filterItems(safeRawItems, searchValue, direction, filterOption)
-  const pagedItems = paginateItems(filteredItems, currentPage, paginationPageSize)
+  const CompiledRow1 = ({
+    rowArg0,
+    variant,
+  }: {
+    rowArg0: any
+    variant: 'checkboxes' | 'buttons'
+  }) => {
+    const item = rowArg0
 
-  const visibleItems = pagedItems.items
-  const visibleSelectableKeys = visibleItems
-    .filter(item => !disabled && !item.disabled)
-    .map(item => item.key)
-  const visibleSelectedCount = visibleSelectableKeys.filter(key =>
-    hasKey(safeSideSelectedKeys, key),
-  ).length
-  const visibleAllSelected =
-    visibleSelectableKeys.length > 0 && visibleSelectedCount === visibleSelectableKeys.length
-  const visiblePartiallySelected = visibleSelectedCount > 0 && !visibleAllSelected
-  const filteredSelectableKeys = filteredItems
-    .filter(item => !disabled && !item.disabled)
-    .map(item => item.key)
-  const snapshot = getTransferStateSnapshot()
-  const removableSelectedKeys =
+    const checked = hasKey(safeSideSelectedKeys.get(), item.key)
+    const removable = oneWay && direction === 'right' && !disabled && !item.disabled
+
+    return (
+      <li key={item.keyText}>
+        {variant === 'buttons' ? (
+          <button
+            type="button"
+            data-rue-transfer-choice={item.keyText}
+            aria-pressed={checked ? 'true' : 'false'}
+            disabled={disabled || item.disabled}
+            onClick={() => onItemSelect(item.key, !checked)}
+          >
+            <TransferText value={String(resolveDisplayLabel(item) ?? '')} />
+          </button>
+        ) : (
+          <label
+            className={appendClassName(
+              appendClassName(
+                appendClassName(
+                  `flex w-full items-start gap-3 rounded-2xl border border-base-300/75 bg-base-100/80 ${safeSizeConfig.get().itemClass} transition duration-200 ease-out hover:border-base-300 hover:bg-base-100 hover:shadow-sm`,
+                  checked
+                    ? 'border-primary/45 bg-primary/6 shadow-[0_14px_28px_-24px_rgba(59,130,246,0.75)]'
+                    : '',
+                ),
+                disabled || item.disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer',
+              ),
+              classNames?.item,
+            )}
+            style={styles?.item}
+          >
+            <span className="shrink-0 pt-0.5">
+              <input
+                type="checkbox"
+                className={resolveCheckboxClassName(safeSizeConfig.get().checkboxSize)}
+                checked={checked}
+                disabled={disabled || item.disabled}
+                onChange={(event: Event) =>
+                  onItemSelect(item.key, (event.currentTarget as HTMLInputElement).checked)
+                }
+              />
+            </span>
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="min-w-0 truncate font-medium leading-5 text-base-content">
+                  <TransferText value={String(resolveDisplayLabel(item) ?? '')} />
+                </div>
+                {item.description ? (
+                  <div className="mt-1 text-xs leading-5 text-base-content/60">
+                    <TransferText value={String(item.description ?? '')} />
+                  </div>
+                ) : null}
+              </div>
+              {removable ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs -mt-1 -mr-1 rounded-full text-base-content/55 hover:text-base-content"
+                  aria-label={String(safeLocale.get().remove)}
+                  onClick={(event: MouseEvent) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    onMoveItems('left', [item.key])
+                  }}
+                >
+                  <CloseIcon />
+                </button>
+              ) : null}
+            </div>
+          </label>
+        )}
+      </li>
+    )
+  }
+
+  const panelVariant = computed(() => listVariant)
+  const sideIndex = computed(() => (direction === 'left' ? 0 : 1))
+  const safeRawItems = computed(() => (Array.isArray(rawItems) ? rawItems : []))
+  const safeSideSelectedKeys = computed(() =>
+    Array.isArray(sideSelectedKeys) ? sideSelectedKeys : [],
+  )
+  const safeSelectAllLabels = computed(() =>
+    Array.isArray(selectAllLabels) ? selectAllLabels : [],
+  )
+  const safeSizeConfig = computed(() => sizeConfig ?? resolveSizeConfig())
+  const safeLocale = computed(() => ({ ...defaultLocale, ...mergedLocale }))
+  const safeSearchComposingRef = computed(() => searchComposingRef ?? { current: false })
+  const filteredItems = computed(() =>
+    filterItems(safeRawItems.get(), searchValue, direction, filterOption),
+  )
+  const pagedItems = computed(() =>
+    paginateItems(filteredItems.get(), currentPage, paginationPageSize),
+  )
+
+  const visibleItems = computed(() => pagedItems.get().items)
+  const visibleSelectableKeys = computed(() =>
+    visibleItems
+      .get()
+      .filter(item => !disabled && !item.disabled)
+      .map(item => item.key),
+  )
+  const visibleSelectedCount = computed(
+    () => visibleSelectableKeys.get().filter(key => hasKey(safeSideSelectedKeys.get(), key)).length,
+  )
+  const visibleAllSelected = computed(
+    () =>
+      visibleSelectableKeys.get().length > 0 &&
+      visibleSelectedCount.get() === visibleSelectableKeys.get().length,
+  )
+  const visiblePartiallySelected = computed(
+    () => visibleSelectedCount.get() > 0 && !visibleAllSelected.get(),
+  )
+  const filteredSelectableKeys = computed(() =>
+    filteredItems
+      .get()
+      .filter(item => !disabled && !item.disabled)
+      .map(item => item.key),
+  )
+  const snapshot = computed(() => getTransferStateSnapshot())
+  const removableSelectedKeys = computed(() =>
     direction === 'right'
-      ? snapshot.targetItems
-          .filter(item => hasKey(snapshot.targetSelectedKeys, item.key) && !item.disabled)
+      ? snapshot
+          .get()
+          .targetItems.filter(
+            item => hasKey(snapshot.get().targetSelectedKeys, item.key) && !item.disabled,
+          )
           .map(item => item.key)
-      : []
+      : [],
+  )
 
-  const listRenderProps: TransferRenderListProps<any> = {
+  const listRenderProps = computed(() => ({
     direction,
     disabled: !!disabled,
-    items: visibleItems.map(item => ({
+    items: visibleItems.get().map(item => ({
       key: item.key,
       record: item.record,
       disabled: item.disabled,
@@ -775,7 +888,7 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
       description: item.description,
       searchText: item.searchText,
     })),
-    filteredItems: filteredItems.map(item => ({
+    filteredItems: filteredItems.get().map(item => ({
       key: item.key,
       record: item.record,
       disabled: item.disabled,
@@ -783,127 +896,102 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
       description: item.description,
       searchText: item.searchText,
     })),
-    selectedKeys: safeSideSelectedKeys,
+    selectedKeys: safeSideSelectedKeys.get(),
     searchValue,
     onItemSelect,
     onItemSelectAll,
-  }
+  }))
 
-  const selectionBadge = resolveSelectAllLabel(safeSelectAllLabels[sideIndex], {
-    selectedCount: visibleSelectedCount,
-    totalCount: visibleSelectableKeys.length,
-  })
-
-  const panelClassName = appendClassName(
-    appendClassName(
-      `relative overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-gradient-to-b from-base-100 via-base-100 to-base-200/35 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.35)] ${safeSizeConfig.panelMinHeightClass}`,
-      resolveStatusClassName(status),
-    ),
-    classNames?.panel,
+  const selectionBadge = computed(() =>
+    resolveSelectAllLabel(safeSelectAllLabels.get()[sideIndex.get()], {
+      selectedCount: visibleSelectedCount.get(),
+      totalCount: visibleSelectableKeys.get().length,
+    }),
   )
 
-  const panelStyle = {
+  const panelClassName = computed(() =>
+    appendClassName(
+      appendClassName(
+        `relative overflow-hidden rounded-[1.35rem] border border-base-300/70 bg-gradient-to-b from-base-100 via-base-100 to-base-200/35 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.35)] ${safeSizeConfig.get().panelMinHeightClass}`,
+        resolveStatusClassName(status),
+      ),
+      classNames?.panel,
+    ),
+  )
+
+  const panelStyle = computed(() => ({
     ...styles?.panel,
     ...resolveListStyle(listStyle, direction),
-  }
+  }))
 
-  const defaultListContent = visibleItems.length ? (
-    <ul role="listbox" aria-multiselectable="true" className="space-y-2">
-      {visibleItems.map(item => {
-        const checked = hasKey(safeSideSelectedKeys, item.key)
-        const removable = oneWay && direction === 'right' && !disabled && !item.disabled
-
-        return (
-          <li key={item.keyText}>
-            <label
-              className={appendClassName(
-                appendClassName(
-                  appendClassName(
-                    `flex w-full items-start gap-3 rounded-2xl border border-base-300/75 bg-base-100/80 ${safeSizeConfig.itemClass} transition duration-200 ease-out hover:border-base-300 hover:bg-base-100 hover:shadow-sm`,
-                    checked
-                      ? 'border-primary/45 bg-primary/6 shadow-[0_14px_28px_-24px_rgba(59,130,246,0.75)]'
-                      : '',
-                  ),
-                  disabled || item.disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer',
-                ),
-                classNames?.item,
-              )}
-              style={styles?.item}
-            >
-              <span className="shrink-0 pt-0.5">
-                <input
-                  type="checkbox"
-                  className={resolveCheckboxClassName(safeSizeConfig.checkboxSize)}
-                  checked={checked}
-                  disabled={disabled || item.disabled}
-                  onChange={(event: Event) =>
-                    onItemSelect(item.key, (event.currentTarget as HTMLInputElement).checked)
-                  }
-                />
-              </span>
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="min-w-0 truncate font-medium leading-5 text-base-content">
-                    {resolveDisplayLabel(item)}
-                  </div>
-                  {item.description ? (
-                    <div className="mt-1 text-xs leading-5 text-base-content/60">
-                      {item.description}
-                    </div>
-                  ) : null}
-                </div>
-                {removable ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-xs -mt-1 -mr-1 rounded-full text-base-content/55 hover:text-base-content"
-                    aria-label={String(safeLocale.remove)}
-                    onClick={(event: MouseEvent) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onMoveItems('left', [item.key])
-                    }}
-                  >
-                    <CloseIcon />
-                  </button>
-                ) : null}
-              </div>
-            </label>
-          </li>
+  const footerText = computed(() =>
+    footerFormatter
+      ? String(
+          footerFormatter(
+            {
+              ...listRenderProps.get(),
+              items: [...listRenderProps.get().items],
+              filteredItems: [...listRenderProps.get().filteredItems],
+              selectedKeys: [...listRenderProps.get().selectedKeys],
+            },
+            { direction },
+          ) ?? '',
         )
-      })}
-    </ul>
-  ) : (
-    <div
-      className={appendClassName(
-        'grid h-full place-items-center px-6 py-8 text-center text-sm text-base-content/55',
-        classNames?.empty,
-      )}
-      style={styles?.empty}
-    >
-      <div>
-        <div className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-base-200/80 text-base-content/35">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            className="size-5"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M7 4h10l1 3H6l1-3Z" />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 10v7a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-7"
-            />
-          </svg>
+      : '',
+  )
+  const DefaultListContentView = () => (
+    <>
+      {' '}
+      {visibleItems.get().length ? (
+        <ul role="listbox" aria-multiselectable="true" className="space-y-2">
+          {visibleItems.get().map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow1 key={rowArg0.keyText} rowArg0={rowArg0} variant={panelVariant.get()} />
+          ))}
+        </ul>
+      ) : (
+        <div
+          className={appendClassName(
+            'grid h-full place-items-center px-6 py-8 text-center text-sm text-base-content/55',
+            classNames?.empty,
+          )}
+          style={styles?.empty}
+        >
+          <div>
+            <div className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-base-200/80 text-base-content/35">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                className="size-5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M7 4h10l1 3H6l1-3Z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 10v7a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-7"
+                />
+              </svg>
+            </div>
+            <div>
+              <TransferText
+                value={String(
+                  resolveNotFoundContent(safeLocale.get().notFoundContent, direction) ?? '',
+                )}
+              />
+            </div>
+          </div>
         </div>
-        <div>{resolveNotFoundContent(safeLocale.notFoundContent, direction)}</div>
-      </div>
-    </div>
+      )}{' '}
+    </>
   )
 
   return (
-    <section className={panelClassName} style={panelStyle} data-rue-transfer-panel={direction}>
+    <section
+      className={panelClassName.get()}
+      style={panelStyle.get()}
+      data-rue-transfer-panel={direction}
+    >
       <div
         className={appendClassName(
           'flex min-h-16 flex-wrap items-start justify-between gap-3 border-b border-base-300/70 px-4 py-4',
@@ -920,23 +1008,23 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
               <label
                 className={appendClassName(
                   'mr-1 inline-flex items-center',
-                  disabled || visibleSelectableKeys.length === 0
+                  disabled || visibleSelectableKeys.get().length === 0
                     ? 'cursor-not-allowed opacity-50'
                     : 'cursor-pointer',
                 )}
               >
                 <input
                   ref={(element: HTMLInputElement | null) => {
-                    if (element) element.indeterminate = visiblePartiallySelected
+                    if (element) element.indeterminate = visiblePartiallySelected.get()
                   }}
                   type="checkbox"
-                  className={resolveCheckboxClassName(safeSizeConfig.checkboxSize)}
-                  checked={visibleAllSelected}
-                  disabled={disabled || visibleSelectableKeys.length === 0}
+                  className={resolveCheckboxClassName(safeSizeConfig.get().checkboxSize)}
+                  checked={visibleAllSelected.get()}
+                  disabled={disabled || visibleSelectableKeys.get().length === 0}
                   aria-label={`${String(title)}全选`}
                   onChange={(event: Event) =>
                     onItemSelectAll(
-                      visibleSelectableKeys,
+                      visibleSelectableKeys.get(),
                       (event.currentTarget as HTMLInputElement).checked,
                     )
                   }
@@ -944,55 +1032,62 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
               </label>
             ) : null}
             <h3 className="m-0 truncate text-sm font-semibold text-base-content md:text-[0.95rem]">
-              {title}
+              <TransferText value={String(title)} />
             </h3>
             <span className="badge badge-ghost badge-sm rounded-full px-2.5">
-              {safeSideSelectedKeys.length}/{safeRawItems.length}{' '}
-              {resolveUnitLabel(safeRawItems.length, safeLocale)}
+              <TransferText value={String(safeSideSelectedKeys.get().length)} />/
+              <TransferText value={String(safeRawItems.get().length)} />{' '}
+              <TransferText
+                value={String(resolveUnitLabel(safeRawItems.get().length, safeLocale.get()) ?? '')}
+              />
             </span>
-            {filteredItems.length !== safeRawItems.length ? (
-              <span className="text-xs text-base-content/55">匹配 {filteredItems.length}</span>
+            {filteredItems.get().length !== safeRawItems.get().length ? (
+              <span className="text-xs text-base-content/55">
+                匹配 <TransferText value={String(filteredItems.get().length)} />
+              </span>
             ) : null}
           </div>
         </div>
 
         <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1.5 text-xs md:w-auto md:justify-end">
-          {selectionBadge ? (
-            <span className="badge badge-outline badge-sm">{selectionBadge}</span>
+          {selectionBadge.get() ? (
+            <span className="badge badge-outline badge-sm">
+              <TransferText value={String(selectionBadge.get() ?? '')} />
+            </span>
           ) : null}
-          {showSelectAll && visibleSelectableKeys.length > 0 ? (
+          {showSelectAll && visibleSelectableKeys.get().length > 0 ? (
             <>
               <button
                 type="button"
                 className="btn btn-ghost btn-xs min-h-0 rounded-full px-2"
                 disabled={disabled}
-                onClick={() => onItemSelectAll(filteredSelectableKeys, true)}
+                onClick={() => onItemSelectAll(filteredSelectableKeys.get(), true)}
               >
-                {safeLocale.selectAll}
+                <TransferText value={String(safeLocale.get().selectAll ?? '')} />
               </button>
               <button
                 type="button"
                 className="btn btn-ghost btn-xs min-h-0 rounded-full px-2"
                 disabled={disabled}
                 onClick={() => {
-                  const invertedKeys = filteredSelectableKeys.filter(
-                    key => !hasKey(safeSideSelectedKeys, key),
-                  )
+                  const invertedKeys = filteredSelectableKeys
+                    .get()
+                    .filter(key => !hasKey(safeSideSelectedKeys.get(), key))
                   onReplaceSideSelection([
-                    ...removeKeys(safeSideSelectedKeys, filteredSelectableKeys),
+                    ...removeKeys(safeSideSelectedKeys.get(), filteredSelectableKeys.get()),
                     ...invertedKeys,
                   ])
                 }}
               >
-                {safeLocale.selectInvert}
+                <TransferText value={String(safeLocale.get().selectInvert ?? '')} />
               </button>
               <button
                 type="button"
                 className="btn btn-ghost btn-xs min-h-0 rounded-full px-2"
-                disabled={disabled || safeSideSelectedKeys.length === 0}
-                onClick={() => onItemSelectAll(safeSideSelectedKeys, false)}
+                disabled={disabled || safeSideSelectedKeys.get().length === 0}
+                onClick={() => onItemSelectAll(safeSideSelectedKeys.get(), false)}
               >
-                {safeLocale.clearSelection}
+                <TransferText value={String(safeLocale.get().clearSelection ?? '')} />
               </button>
             </>
           ) : null}
@@ -1000,10 +1095,10 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
             <button
               type="button"
               className="btn btn-ghost btn-xs min-h-0 rounded-full px-2"
-              disabled={disabled || removableSelectedKeys.length === 0}
-              onClick={() => onMoveItems('left', removableSelectedKeys)}
+              disabled={disabled || removableSelectedKeys.get().length === 0}
+              onClick={() => onMoveItems('left', removableSelectedKeys.get())}
             >
-              {safeLocale.removeSelected}
+              <TransferText value={String(safeLocale.get().removeSelected ?? '')} />
             </button>
           ) : null}
         </div>
@@ -1031,18 +1126,18 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
               value={searchValue}
               placeholder={sharedSearchPlaceholder}
               className={appendClassName(
-                `grow bg-transparent ${safeSizeConfig.inputClass}`,
+                `grow bg-transparent ${safeSizeConfig.get().inputClass}`,
                 'border-none px-0 outline-none',
               )}
               onCompositionStart={() => {
-                safeSearchComposingRef.current = true
+                safeSearchComposingRef.get().current = true
               }}
               onCompositionEnd={(event: Event) => {
-                safeSearchComposingRef.current = false
+                safeSearchComposingRef.get().current = false
                 onSearchInput((event.currentTarget as HTMLInputElement).value)
               }}
               onInput={(event: Event) =>
-                safeSearchComposingRef.current
+                safeSearchComposingRef.get().current
                   ? undefined
                   : onSearchInput((event.currentTarget as HTMLInputElement).value)
               }
@@ -1059,14 +1154,10 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
             if (onScroll) onScroll(direction, event)
           }}
         >
-          {customListRenderer ? (
-            <>{runManagedRenderCallback(() => customListRenderer(listRenderProps))}</>
-          ) : (
-            <>{defaultListContent}</>
-          )}
+          <DefaultListContentView />
         </div>
 
-        {paginationPageSize != null && filteredItems.length > 0 ? (
+        {paginationPageSize != null && filteredItems.get().length > 0 ? (
           <div
             className={appendClassName(
               'flex items-center justify-between border-t border-base-300/70 px-4 py-3 text-xs text-base-content/65',
@@ -1075,22 +1166,23 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
             style={styles?.pager}
           >
             <span>
-              第 {pagedItems.currentPage} / {pagedItems.pageCount} 页
+              第 <TransferText value={String(pagedItems.get().currentPage)} /> /{' '}
+              <TransferText value={String(pagedItems.get().pageCount)} /> 页
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 className="btn btn-ghost btn-xs rounded-full"
-                disabled={pagedItems.currentPage <= 1}
-                onClick={() => setCurrentPage(pagedItems.currentPage - 1)}
+                disabled={pagedItems.get().currentPage <= 1}
+                onClick={() => setCurrentPage(pagedItems.get().currentPage - 1)}
               >
                 上一页
               </button>
               <button
                 type="button"
                 className="btn btn-ghost btn-xs rounded-full"
-                disabled={pagedItems.currentPage >= pagedItems.pageCount}
-                onClick={() => setCurrentPage(pagedItems.currentPage + 1)}
+                disabled={pagedItems.get().currentPage >= pagedItems.get().pageCount}
+                onClick={() => setCurrentPage(pagedItems.get().currentPage + 1)}
               >
                 下一页
               </button>
@@ -1098,24 +1190,13 @@ const TransferManagedPanel: FC<TransferManagedPanelProps> = ({
           </div>
         ) : null}
 
-        {footer ? (
+        {footerFormatter ? (
           <div
             className={appendClassName('border-t border-base-300/70 px-4 py-3', classNames?.footer)}
             style={styles?.footer}
+            data-rue-transfer-footer={direction}
           >
-            <>
-              {runManagedRenderCallback(() =>
-                footer(
-                  {
-                    ...listRenderProps,
-                    items: [...listRenderProps.items],
-                    filteredItems: [...listRenderProps.filteredItems],
-                    selectedKeys: [...listRenderProps.selectedKeys],
-                  },
-                  { direction },
-                ),
-              )}
-            </>
+            <TransferText value={footerText.get()} />
           </div>
         ) : null}
       </div>
@@ -1144,12 +1225,12 @@ const Transfer: FC<TransferProps<any>> = ({
   showSearch,
   filterOption,
   locale,
-  footer,
-  renderList,
+  footerFormatter,
+  listVariant = 'checkboxes',
   rowKey,
   onSearch,
   onScroll,
-  children: _children,
+
   showSelectAll = true,
   selectAllLabels = [],
   oneWay,
@@ -1182,9 +1263,7 @@ const Transfer: FC<TransferProps<any>> = ({
   const rightSearchInputRef = useRef<HTMLInputElement>()
   const leftSearchComposingRef = useRef(false)
   const rightSearchComposingRef = useRef(false)
-  const activeManagedRenderRef = useRef<TransferDirection | 'operations' | null>(null)
   const leftPanelHostRef = useRef<HTMLElement>()
-  const operationsHostRef = useRef<HTMLElement>()
   const rightPanelHostRef = useRef<HTMLElement>()
   const pendingSearchFocusRef = useRef<TransferDirection | null>(null)
 
@@ -1201,13 +1280,6 @@ const Transfer: FC<TransferProps<any>> = ({
   const moveRightLabel = mergedActions[0] ?? defaultLocale.selectAll
   const moveLeftLabel = mergedActions[1] ?? defaultLocale.remove
   const sharedSearchPlaceholder = searchConfig.placeholder || String(mergedLocale.searchPlaceholder)
-  const customListRenderer =
-    typeof renderList === 'function'
-      ? renderList
-      : typeof _children === 'function' &&
-          (_children as { kind?: unknown }).kind !== 'block-factory'
-        ? (_children as (props: TransferRenderListProps<any>) => any)
-        : undefined
 
   const getTransferStateSnapshot = () => {
     const mergedTargetKeys = (
@@ -1246,7 +1318,7 @@ const Transfer: FC<TransferProps<any>> = ({
   const managedPanelSharedProps = {
     disabled,
     filterOption,
-    footer,
+    footerFormatter,
     listStyle,
     oneWay,
     onScroll,
@@ -1255,20 +1327,6 @@ const Transfer: FC<TransferProps<any>> = ({
     status,
     classNames,
     styles,
-  }
-
-  const renderManagedTarget = (
-    region: TransferDirection | 'operations',
-    node: any,
-    host: HTMLElement,
-  ) => {
-    const previousRegion = activeManagedRenderRef.current
-    activeManagedRenderRef.current = region
-    try {
-      renderRue(node, host)
-    } finally {
-      activeManagedRenderRef.current = previousRegion
-    }
   }
 
   const focusSearchInput = (direction: TransferDirection) => {
@@ -1302,219 +1360,97 @@ const Transfer: FC<TransferProps<any>> = ({
     })
   }
 
-  const runManagedRenderCallback = <T,>(region: TransferDirection, runner: () => T) => {
-    const previousRegion = activeManagedRenderRef.current
-    activeManagedRenderRef.current = region
-    try {
-      return runner()
-    } finally {
-      activeManagedRenderRef.current = previousRegion
-    }
-  }
-
-  const renderManagedRegions = () => {
-    const activeElement =
-      typeof document !== 'undefined' ? (document.activeElement as HTMLInputElement | null) : null
-    const restoreFocusState =
-      activeElement === leftSearchInputRef.current
-        ? {
-            direction: 'left' as const,
-            selectionStart: activeElement.selectionStart,
-            selectionEnd: activeElement.selectionEnd,
-          }
-        : activeElement === rightSearchInputRef.current
-          ? {
-              direction: 'right' as const,
-              selectionStart: activeElement.selectionStart,
-              selectionEnd: activeElement.selectionEnd,
-            }
-          : null
-
-    const snapshot = getTransferStateSnapshot()
-
-    if (leftPanelHostRef.current) {
-      renderManagedTarget(
-        'left',
-        <TransferManagedPanel
-          {...managedPanelSharedProps}
-          direction="left"
-          rawItems={snapshot.sourceItems}
-          sideSelectedKeys={snapshot.sourceSelectedKeys}
-          searchValue={leftSearchValueRef.value}
-          currentPage={leftPageRef.value}
-          paginationPageSize={paginationConfig?.pageSize}
-          searchEnabled={searchConfig.enabled}
-          sizeConfig={sizeConfig}
-          mergedLocale={mergedLocale}
-          title={sourceTitle}
-          sharedSearchPlaceholder={sharedSearchPlaceholder}
-          customListRenderer={customListRenderer}
-          getTransferStateSnapshot={getTransferStateSnapshot}
-          onItemSelect={(key: TransferKey, selected: boolean) =>
-            handleItemSelect('left', key, selected)
-          }
-          onItemSelectAll={(keys: TransferKey[], selected: boolean) =>
-            handleItemSelectAll('left', keys, selected)
-          }
-          onReplaceSideSelection={(nextSideSelectedKeys: TransferKey[]) =>
-            mergeSideSelection('left', nextSideSelectedKeys)
-          }
-          onMoveItems={moveItems}
-          onSearchInput={(value: string) => handleSearchInput('left', value)}
-          assignSearchInputRef={(element: HTMLInputElement | null) => {
-            leftSearchInputRef.current = element ?? undefined
-            if (element && pendingSearchFocusRef.current === 'left') {
-              requestSearchInputFocus('left')
-            }
-          }}
-          searchComposingRef={leftSearchComposingRef}
-          runManagedRenderCallback={<T,>(runner: () => T) =>
-            runManagedRenderCallback('left', runner)
-          }
-          setCurrentPage={(nextPage: number) => {
+  const SourcePanel = () => {
+    const snapshot = computed(getTransferStateSnapshot)
+    return (
+      <TransferManagedPanel
+        {...managedPanelSharedProps}
+        direction="left"
+        rawItems={snapshot.get().sourceItems}
+        sideSelectedKeys={snapshot.get().sourceSelectedKeys}
+        searchValue={leftSearchValueRef.value}
+        currentPage={leftPageRef.value}
+        paginationPageSize={paginationConfig?.pageSize}
+        searchEnabled={searchConfig.enabled}
+        sizeConfig={sizeConfig}
+        mergedLocale={mergedLocale}
+        title={sourceTitle}
+        sharedSearchPlaceholder={sharedSearchPlaceholder}
+        listVariant={listVariant}
+        getTransferStateSnapshot={getTransferStateSnapshot}
+        onItemSelect={(key: TransferKey, selected: boolean) =>
+          handleItemSelect('left', key, selected)
+        }
+        onItemSelectAll={(keys: TransferKey[], selected: boolean) =>
+          handleItemSelectAll('left', keys, selected)
+        }
+        onReplaceSideSelection={(nextSideSelectedKeys: TransferKey[]) =>
+          mergeSideSelection('left', nextSideSelectedKeys)
+        }
+        onMoveItems={moveItems}
+        onSearchInput={(value: string) => handleSearchInput('left', value)}
+        assignSearchInputRef={(element: HTMLInputElement | null) => {
+          leftSearchInputRef.current = element ?? undefined
+          if (element && pendingSearchFocusRef.current === 'left') {
             requestSearchInputFocus('left')
-            leftPageRef.value = nextPage
-          }}
-        />,
-        leftPanelHostRef.current,
-      )
-    }
-
-    if (operationsHostRef.current) {
-      renderManagedTarget('operations', renderOperations(), operationsHostRef.current)
-    }
-
-    if (rightPanelHostRef.current) {
-      renderManagedTarget(
-        'right',
-        <TransferManagedPanel
-          {...managedPanelSharedProps}
-          direction="right"
-          rawItems={snapshot.targetItems}
-          sideSelectedKeys={snapshot.targetSelectedKeys}
-          searchValue={rightSearchValueRef.value}
-          currentPage={rightPageRef.value}
-          paginationPageSize={paginationConfig?.pageSize}
-          searchEnabled={searchConfig.enabled}
-          sizeConfig={sizeConfig}
-          mergedLocale={mergedLocale}
-          title={targetTitle}
-          sharedSearchPlaceholder={sharedSearchPlaceholder}
-          customListRenderer={customListRenderer}
-          getTransferStateSnapshot={getTransferStateSnapshot}
-          onItemSelect={(key: TransferKey, selected: boolean) =>
-            handleItemSelect('right', key, selected)
           }
-          onItemSelectAll={(keys: TransferKey[], selected: boolean) =>
-            handleItemSelectAll('right', keys, selected)
-          }
-          onReplaceSideSelection={(nextSideSelectedKeys: TransferKey[]) =>
-            mergeSideSelection('right', nextSideSelectedKeys)
-          }
-          onMoveItems={moveItems}
-          onSearchInput={(value: string) => handleSearchInput('right', value)}
-          assignSearchInputRef={(element: HTMLInputElement | null) => {
-            rightSearchInputRef.current = element ?? undefined
-            if (element && pendingSearchFocusRef.current === 'right') {
-              requestSearchInputFocus('right')
-            }
-          }}
-          searchComposingRef={rightSearchComposingRef}
-          runManagedRenderCallback={<T,>(runner: () => T) =>
-            runManagedRenderCallback('right', runner)
-          }
-          setCurrentPage={(nextPage: number) => {
-            requestSearchInputFocus('right')
-            rightPageRef.value = nextPage
-          }}
-        />,
-        rightPanelHostRef.current,
-      )
-    }
-
-    if (restoreFocusState) {
-      const restoreManagedSearchFocus = () => {
-        const nextInput =
-          restoreFocusState.direction === 'left'
-            ? leftSearchInputRef.current
-            : rightSearchInputRef.current
-        if (!nextInput) {
-          return false
-        }
-
-        nextInput.focus()
-        if (restoreFocusState.selectionStart != null && restoreFocusState.selectionEnd != null) {
-          try {
-            nextInput.setSelectionRange(
-              restoreFocusState.selectionStart,
-              restoreFocusState.selectionEnd,
-            )
-          } catch {
-            // Ignore selection restore failures for browsers that do not support it.
-          }
-        }
-
-        return document.activeElement === nextInput
-      }
-
-      queueMicrotask(() => {
-        if (restoreManagedSearchFocus()) {
-          return
-        }
-
-        setTimeout(() => {
-          restoreManagedSearchFocus()
-        }, 0)
-      })
-    }
-
-    const pendingSearchFocus = pendingSearchFocusRef.current
-    if (pendingSearchFocus) {
-      queueMicrotask(() => {
-        if (focusSearchInput(pendingSearchFocus)) return
-        setTimeout(() => {
-          focusSearchInput(pendingSearchFocus)
-        }, 0)
-      })
-    }
+        }}
+        searchComposingRef={leftSearchComposingRef}
+        setCurrentPage={(nextPage: number) => {
+          requestSearchInputFocus('left')
+          leftPageRef.value = nextPage
+        }}
+      />
+    )
   }
 
-  onMounted(() => {
-    renderManagedRegions()
-  })
-
-  watch(
-    () => [
-      readNormalizedItems()
-        .map(item => item.keyText)
-        .join('|'),
-      uncontrolledTargetKeysRef.value.map(toKeyText).join('|'),
-      uncontrolledSelectedKeysRef.value.map(toKeyText).join('|'),
-      targetKeys ? uniqKeys(targetKeys).map(toKeyText).join('|') : '',
-      selectedKeys ? uniqKeys(selectedKeys).map(toKeyText).join('|') : '',
-      leftSearchValueRef.value,
-      rightSearchValueRef.value,
-      leftPageRef.value,
-      rightPageRef.value,
-      disabled,
-      oneWay,
-      showSelectAll,
-      paginationConfig?.pageSize ?? 0,
-    ],
-    () => {
-      renderManagedRegions()
-    },
-  )
-
+  const TargetPanel = () => {
+    const snapshot = computed(getTransferStateSnapshot)
+    return (
+      <TransferManagedPanel
+        {...managedPanelSharedProps}
+        direction="right"
+        rawItems={snapshot.get().targetItems}
+        sideSelectedKeys={snapshot.get().targetSelectedKeys}
+        searchValue={rightSearchValueRef.value}
+        currentPage={rightPageRef.value}
+        paginationPageSize={paginationConfig?.pageSize}
+        searchEnabled={searchConfig.enabled}
+        sizeConfig={sizeConfig}
+        mergedLocale={mergedLocale}
+        title={targetTitle}
+        sharedSearchPlaceholder={sharedSearchPlaceholder}
+        listVariant={listVariant}
+        getTransferStateSnapshot={getTransferStateSnapshot}
+        onItemSelect={(key: TransferKey, selected: boolean) =>
+          handleItemSelect('right', key, selected)
+        }
+        onItemSelectAll={(keys: TransferKey[], selected: boolean) =>
+          handleItemSelectAll('right', keys, selected)
+        }
+        onReplaceSideSelection={(nextSideSelectedKeys: TransferKey[]) =>
+          mergeSideSelection('right', nextSideSelectedKeys)
+        }
+        onMoveItems={moveItems}
+        onSearchInput={(value: string) => handleSearchInput('right', value)}
+        assignSearchInputRef={(element: HTMLInputElement | null) => {
+          rightSearchInputRef.current = element ?? undefined
+          if (element && pendingSearchFocusRef.current === 'right') {
+            requestSearchInputFocus('right')
+          }
+        }}
+        searchComposingRef={rightSearchComposingRef}
+        setCurrentPage={(nextPage: number) => {
+          requestSearchInputFocus('right')
+          rightPageRef.value = nextPage
+        }}
+      />
+    )
+  }
   const commitSelectedKeys = (
     nextSelectedKeys: TransferKey[],
     nextTargetKeys = getTransferStateSnapshot().mergedTargetKeys,
   ) => {
-    if (activeManagedRenderRef.current) {
-      // renderList 只负责投影输出；渲染期间触发选择写入时保持为无副作用操作。
-      return
-    }
-
     const cleanedKeys = uniqKeys(nextSelectedKeys).filter(key => itemMap.has(toKeyText(key)))
     if (selectedKeys === undefined) {
       uncontrolledSelectedKeysRef.value = cleanedKeys
@@ -1626,11 +1562,15 @@ const Transfer: FC<TransferProps<any>> = ({
     if (onSearch) onSearch(direction, value)
   }
 
-  const renderOperationButton = (
-    direction: TransferDirection,
-    content: any,
-    buttonDisabled: boolean,
-  ) => {
+  const RenderOperationButton = ({
+    arg0: direction,
+    arg1: content,
+    arg2: buttonDisabled,
+  }: {
+    arg0: TransferDirection
+    arg1: any
+    arg2: boolean
+  }) => {
     const baseClassName = appendClassName(
       `btn btn-outline ${sizeConfig.buttonClass} min-w-24 rounded-2xl shadow-sm`,
       direction === 'right'
@@ -1647,21 +1587,27 @@ const Transfer: FC<TransferProps<any>> = ({
       >
         <span className="inline-flex items-center gap-2">
           {direction === 'left' && !oneWay ? <ArrowLeftIcon /> : null}
-          <span>{content}</span>
+          <span>
+            <TransferText value={String(content ?? '')} />
+          </span>
           {direction === 'right' ? <ArrowRightIcon /> : null}
         </span>
       </button>
     )
   }
 
-  const renderOperations = () => {
-    const snapshot = getTransferStateSnapshot()
-    const canMoveRight = snapshot.sourceItems.some(
-      item => hasKey(snapshot.sourceSelectedKeys, item.key) && !item.disabled,
-    )
-    const canMoveLeft = snapshot.targetItems.some(
-      item => hasKey(snapshot.targetSelectedKeys, item.key) && !item.disabled,
-    )
+  const RenderOperations = () => {
+    const snapshot = computed(getTransferStateSnapshot)
+    const canMoveRight = snapshot
+      .get()
+      .sourceItems.some(
+        item => hasKey(snapshot.get().sourceSelectedKeys, item.key) && !item.disabled,
+      )
+    const canMoveLeft = snapshot
+      .get()
+      .targetItems.some(
+        item => hasKey(snapshot.get().targetSelectedKeys, item.key) && !item.disabled,
+      )
 
     return (
       <div
@@ -1671,8 +1617,18 @@ const Transfer: FC<TransferProps<any>> = ({
         )}
         style={{ ...styles?.operations, ...operationStyle }}
       >
-        {renderOperationButton('right', moveRightLabel, disabled || !canMoveRight)}
-        {!oneWay ? renderOperationButton('left', moveLeftLabel, disabled || !canMoveLeft) : null}
+        <RenderOperationButton
+          arg0={'right'}
+          arg1={moveRightLabel}
+          arg2={disabled || !canMoveRight}
+        />
+        {!oneWay ? (
+          <RenderOperationButton
+            arg0={'left'}
+            arg1={moveLeftLabel}
+            arg2={disabled || !canMoveLeft}
+          />
+        ) : null}
       </div>
     )
   }
@@ -1690,9 +1646,13 @@ const Transfer: FC<TransferProps<any>> = ({
       style={{ ...styles?.root, ...style }}
       data-rue-transfer="true"
     >
-      <div ref={leftPanelHostRef} />
-      <div ref={operationsHostRef} />
-      <div ref={rightPanelHostRef} />
+      <div ref={leftPanelHostRef}>
+        <SourcePanel />
+      </div>
+      <RenderOperations />
+      <div ref={rightPanelHostRef}>
+        <TargetPanel />
+      </div>
     </div>
   )
 }

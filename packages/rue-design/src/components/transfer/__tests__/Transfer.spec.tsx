@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { onError, render, setReactiveScheduling } from '@rue-js/rue'
+import { render, setReactiveScheduling } from '@rue-js/rue'
 import Transfer from '../index'
 import Steps from '../../steps'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -66,16 +67,18 @@ describe('Transfer', () => {
     const handleClick = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Steps
-        as="nav"
-        ref={(element: HTMLElement | null) => {
-          rootElement = element
-        }}
-        data-testid="dynamic-steps-root"
-        onClick={handleClick}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Steps
+          as="nav"
+          ref={(element: HTMLElement | null) => {
+            rootElement = element
+          }}
+          data-testid="dynamic-steps-root"
+          onClick={handleClick}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -92,15 +95,17 @@ describe('Transfer', () => {
     const handleSelectChange = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        defaultSelectedKeys={['alpha']}
-        defaultTargetKeys={['beta']}
-        onChange={handleChange}
-        onSelectChange={handleSelectChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          defaultSelectedKeys={['alpha']}
+          defaultTargetKeys={['beta']}
+          onChange={handleChange}
+          onSelectChange={handleSelectChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -130,7 +135,9 @@ describe('Transfer', () => {
     const handleSelectChange = vi.fn()
     resetActiveRuntime()
 
-    render(<Transfer dataSource={dataSource} onSelectChange={handleSelectChange} />, container)
+    mountTestApp(container, () =>
+      render(<Transfer dataSource={dataSource} onSelectChange={handleSelectChange} />, container),
+    )
 
     await waitForContent(() => {
       expect(getSelectAllCheckbox(container, 'left')).toBeTruthy()
@@ -149,14 +156,16 @@ describe('Transfer', () => {
     const handleSearch = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        showSearch={{ placeholder: 'Search items' }}
-        pagination={{ pageSize: 1 }}
-        onSearch={handleSearch}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          showSearch={{ placeholder: 'Search items' }}
+          pagination={{ pageSize: 1 }}
+          onSearch={handleSearch}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -196,13 +205,15 @@ describe('Transfer', () => {
     const handleSearch = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        showSearch={{ placeholder: 'Search items' }}
-        onSearch={handleSearch}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          showSearch={{ placeholder: 'Search items' }}
+          onSearch={handleSearch}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -242,13 +253,15 @@ describe('Transfer', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        showSearch={{ placeholder: 'Search items' }}
-        pagination={{ pageSize: 1 }}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          showSearch={{ placeholder: 'Search items' }}
+          pagination={{ pageSize: 1 }}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -271,17 +284,19 @@ describe('Transfer', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        targetKeys={['beta']}
-        selectedKeys={[]}
-        titles={['素材池', '上线包']}
-        showSearch={{ placeholder: '搜索标签、频道、负责人' }}
-        pagination={{ pageSize: 1 }}
-        footer={(listProps, { direction }) => <div>{`${direction}:${listProps.items.length}`}</div>}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          targetKeys={['beta']}
+          selectedKeys={[]}
+          titles={['素材池', '上线包']}
+          showSearch={{ placeholder: '搜索标签、频道、负责人' }}
+          pagination={{ pageSize: 1 }}
+          footerFormatter={(listProps, { direction }) => `${direction}:${listProps.items.length}`}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -309,20 +324,22 @@ describe('Transfer', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={[
-          { key: 'alpha', title: 'Alpha' },
-          { key: 'locked', title: 'Accessibility Review', disabled: true },
-          { key: 'beta', title: 'Stakeholder Sign-off' },
-        ]}
-        targetKeys={['locked', 'beta']}
-        selectedKeys={[]}
-        titles={['待加入能力', '当前方案']}
-        oneWay
-        showSearch
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={[
+            { key: 'alpha', title: 'Alpha' },
+            { key: 'locked', title: 'Accessibility Review', disabled: true },
+            { key: 'beta', title: 'Stakeholder Sign-off' },
+          ]}
+          targetKeys={['locked', 'beta']}
+          selectedKeys={[]}
+          titles={['待加入能力', '当前方案']}
+          oneWay
+          showSearch
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -347,53 +364,57 @@ describe('Transfer', () => {
 
   it('re-renders paginated panels only once per page change', async () => {
     const container = mountContainer()
-    const renderList = vi.fn(listProps => (
-      <div data-testid={`render-list-${listProps.direction}`}>{listProps.items.length}</div>
-    ))
+    const footerFormatter = vi.fn(listProps => String(listProps.items.length))
     resetActiveRuntime()
 
-    render(
-      <Transfer dataSource={dataSource} pagination={{ pageSize: 1 }} renderList={renderList} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          pagination={{ pageSize: 1 }}
+          footerFormatter={footerFormatter}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
-      expect(renderList).toHaveBeenCalledTimes(2)
+      expect(footerFormatter).toHaveBeenCalledTimes(2)
       expect(getPanel(container, 'left').textContent).toContain('第 1 / 3 页')
     })
 
     press(findButtonByText(getPanel(container, 'left'), '下一页'))
 
     await waitForContent(() => {
-      expect(renderList).toHaveBeenCalledTimes(4)
+      expect(footerFormatter).toHaveBeenCalledTimes(3)
       expect(getPanel(container, 'left').textContent).toContain('第 2 / 3 页')
     })
   })
 
-  it('renders JSX footer content together with search and pagination', async () => {
+  it('renders formatted footer text together with search and pagination', async () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        showSearch={{ placeholder: 'Search items' }}
-        pagination={{ pageSize: 1 }}
-        footer={(listProps, info) => (
-          <div data-testid={`footer-${info.direction}`}>
-            {`${info.direction}:${listProps.filteredItems.length}:${listProps.items.length}`}
-          </div>
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          showSearch={{ placeholder: 'Search items' }}
+          pagination={{ pageSize: 1 }}
+          footerFormatter={(listProps, info) =>
+            `${info.direction}:${listProps.filteredItems.length}:${listProps.items.length}`
+          }
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
       const leftFooter = container.querySelector(
-        '[data-testid="footer-left"]',
+        '[data-rue-transfer-footer="left"]',
       ) as HTMLElement | null
       const rightFooter = container.querySelector(
-        '[data-testid="footer-right"]',
+        '[data-rue-transfer-footer="right"]',
       ) as HTMLElement | null
       expect(leftFooter?.textContent).toContain('left:3:1')
       expect(rightFooter?.textContent).toContain('right:0:0')
@@ -408,64 +429,52 @@ describe('Transfer', () => {
 
     await waitForContent(() => {
       const leftFooter = container.querySelector(
-        '[data-testid="footer-left"]',
+        '[data-rue-transfer-footer="left"]',
       ) as HTMLElement | null
       expect(leftFooter?.textContent).toContain('left:1:1')
       expect(container.textContent).not.toContain('[object Object]')
     })
   })
 
-  it('renders custom renderList bodies and allows custom selection flow', async () => {
+  it('renders button choices and allows selection flow', async () => {
     const container = mountContainer()
     const handleSelectChange = vi.fn()
     const handleChange = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        onChange={handleChange}
-        onSelectChange={handleSelectChange}
-        renderList={listProps => (
-          <div data-testid={`custom-${listProps.direction}`}>
-            {listProps.items.map(item => {
-              const active = listProps.selectedKeys.includes(item.key)
-              return (
-                <button
-                  key={String(item.key)}
-                  type="button"
-                  data-testid={`custom-item-${listProps.direction}-${String(item.key)}`}
-                  data-active={active ? 'true' : 'false'}
-                  onClick={() => listProps.onItemSelect(item.key, !active)}
-                >
-                  {String(item.label)}
-                </button>
-              )
-            })}
-          </div>
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          onChange={handleChange}
+          onSelectChange={handleSelectChange}
+          listVariant="buttons"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
-      expect(container.querySelector('[data-testid="custom-left"]')).toBeTruthy()
-      expect(container.querySelector('[data-testid="custom-right"]')).toBeTruthy()
+      expect(getPanel(container, 'left')).toBeTruthy()
+      expect(getPanel(container, 'right')).toBeTruthy()
       expect(
-        container.querySelector('[data-testid="custom-item-left-alpha"]')?.textContent,
+        getPanel(container, 'left').querySelector('[data-rue-transfer-choice="string:alpha"]')
+          ?.textContent,
       ).toContain('Alpha')
     })
 
     press(
-      container.querySelector('[data-testid="custom-item-left-alpha"]') as HTMLButtonElement | null,
+      getPanel(container, 'left').querySelector(
+        '[data-rue-transfer-choice="string:alpha"]',
+      ) as HTMLButtonElement | null,
     )
 
     await waitForContent(() => {
       expect(handleSelectChange).toHaveBeenLastCalledWith(['alpha'], [])
       expect(
-        container
-          .querySelector('[data-testid="custom-item-left-alpha"]')
-          ?.getAttribute('data-active'),
+        getPanel(container, 'left')
+          .querySelector('[data-rue-transfer-choice="string:alpha"]')
+          ?.getAttribute('aria-pressed'),
       ).toBe('true')
     })
 
@@ -474,7 +483,8 @@ describe('Transfer', () => {
     await waitForContent(() => {
       expect(handleChange).toHaveBeenLastCalledWith(['alpha'], 'right', ['alpha'])
       expect(
-        container.querySelector('[data-testid="custom-item-right-alpha"]')?.textContent,
+        getPanel(container, 'right').querySelector('[data-rue-transfer-choice="string:alpha"]')
+          ?.textContent,
       ).toContain('Alpha')
     })
   })
@@ -484,14 +494,16 @@ describe('Transfer', () => {
     const handleChange = vi.fn()
     resetActiveRuntime()
 
-    render(
-      <Transfer
-        dataSource={dataSource}
-        defaultTargetKeys={['beta']}
-        oneWay
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          defaultTargetKeys={['beta']}
+          oneWay
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -519,36 +531,28 @@ describe('Transfer', () => {
     })
   })
 
-  it('blocks renderList selection mutation during render without breaking custom output', async () => {
+  it('isolates footer formatter data from selection and list state', async () => {
     const container = mountContainer()
-    const reportedErrors: Error[] = []
-    resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
-      reportedErrors.push(error)
-    })
-
-    render(
-      <Transfer
-        dataSource={dataSource}
-        renderList={listProps => {
-          const firstItem = listProps.items[0]
-          if (listProps.direction === 'left' && firstItem) {
-            const active = listProps.selectedKeys.includes(firstItem.key)
-            listProps.onItemSelect(firstItem.key, !active)
-          }
-
-          return <div data-testid={`unsafe-${listProps.direction}`}>{listProps.direction}</div>
-        }}
-      />,
-      container,
+    const onSelectChange = vi.fn()
+    mountTestApp(container, () =>
+      render(
+        <Transfer
+          dataSource={dataSource}
+          onSelectChange={onSelectChange}
+          footerFormatter={(panel, info) => {
+            panel.items.length = 0
+            panel.selectedKeys.push('alpha')
+            return info.direction
+          }}
+        />,
+        container,
+      ),
     )
-
     await waitForContent(() => {
-      expect(container.querySelector('[data-testid="unsafe-left"]')?.textContent).toBe('left')
-      expect(container.querySelector('[data-testid="unsafe-right"]')?.textContent).toBe('right')
-      expect(reportedErrors).toHaveLength(0)
+      expect(getPanel(container, 'left').textContent).toContain('Alpha')
+      expect(getItemCheckbox(container, 'left', 'Alpha')?.checked).toBe(false)
+      expect(container.querySelector('[data-rue-transfer-footer="left"]')?.textContent).toBe('left')
+      expect(onSelectChange).not.toHaveBeenCalled()
     })
-
-    stopListening?.()
   })
 })

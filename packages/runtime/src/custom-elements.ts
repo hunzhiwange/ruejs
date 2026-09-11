@@ -15,7 +15,11 @@ import { _$compiledRoot } from './compiled-root'
 import { onOwnerCleanup } from './internal-reactive'
 import { getCurrentInstance, ref } from './reactivity'
 import { useSetup } from './compiler-runtime/hooks'
-import { appendChild, createComment, createElement as createDomElement } from './dom'
+import {
+  appendChild,
+  createComment,
+  createElement as createDomElement,
+} from './compiler-runtime/dom.browser'
 import {
   CUSTOM_ELEMENT_EMIT_BRIDGE_KEY,
   CUSTOM_ELEMENT_SYNC_PROPS_KEY,
@@ -368,7 +372,7 @@ export function useCustomElement<P = Record<string, unknown>>(
             typeof component.setup === 'function' ? useSetup(() => component.setup!(props)) : props
           return typeof component.render === 'function'
             ? component.render(ctx)
-            : _$compiledRoot(() => null)
+            : _$compiledRoot(() => [null, null])
         }
 
   const mountHost = (host: HTMLElement) => {
@@ -424,10 +428,10 @@ export function useCustomElement<P = Record<string, unknown>>(
         })
         component.__rue_compiled_mount(root)
         onOwnerCleanup(() => component.dispose())
-        return root as any
+        return [root, root] as const
       })) as unknown as ComponentInstance
 
-    const app = useApp(wrapper)
+    const app = useApp(wrapper as any)
     configureApp?.(app)
     setApp(host, app)
     app.mount(target as any)

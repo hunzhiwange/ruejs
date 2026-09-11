@@ -4,15 +4,20 @@ Notification 模块概述
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
 import type { FC } from '@rue-js/rue'
-import {
-  Component as DynamicComponent,
-  onUnmounted,
-  ref,
-  render,
-  useRef,
-  useState,
-  watch,
-} from '@rue-js/rue'
+import { computed, onUnmounted, ref, render, useRef, watch } from '@rue-js/rue'
+
+const Surface: FC<{ as?: 'div' | 'section' | 'span'; children?: any; [key: string]: any }> = ({
+  as = 'div',
+  children,
+  ...rest
+}) =>
+  as === 'section' ? (
+    <section {...rest}>{children}</section>
+  ) : as === 'span' ? (
+    <span {...rest}>{children}</span>
+  ) : (
+    <div {...rest}>{children}</div>
+  )
 
 /** NotificationPlacements 常量。 */
 export const NotificationPlacements = [
@@ -290,14 +295,9 @@ const mergeClassNames = (...parts: Array<string | false | null | undefined>) =>
   parts.filter(Boolean).join(' ')
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) return children.flatMap(item => toChildArray(item))
-  if (children == null || children === false) return []
-  return [children]
-}
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any) => toChildArray(value).length > 0
+const hasRenderableContent = (value: unknown) => value != null && value !== false && value !== ''
 
 /** 归一化 Space Value 的内部工具函数。 */
 const normalizeSpaceValue = (value?: number | string) => {
@@ -548,7 +548,7 @@ const CloseIcon: FC<GlyphProps> = ({ className }) => (
 )
 
 /** 渲染 Default Icon 的内部工具函数。 */
-const renderDefaultIcon = (type?: NotificationType) => {
+const RenderDefaultIcon = ({ arg0: type }: { arg0?: NotificationType }) => {
   const className = 'h-5 w-5'
   switch (type) {
     case 'info':
@@ -582,40 +582,46 @@ const resolveClosable = (closable?: NotificationClosable, closeIcon?: any) => {
 const NotificationSlot: FC<{ children?: any }> = ({ children }) => <>{children}</>
 
 /** Notification Item 的内部工具函数。 */
-const NotificationItem: FC<NotificationItemProps> = ({
-  as = 'div',
-  open,
-  defaultOpen = true,
-  type,
-  variant = 'soft',
-  icon,
-  showIcon,
-  title,
-  message,
-  description,
-  actions,
-  btn,
-  closable,
-  closeIcon,
-  duration,
-  pauseOnHover = true,
-  showProgress = false,
-  className,
-  style,
-  classNames,
-  styles,
-  props: itemProps,
-  children,
-  onClose,
-  onOpenChange,
-  onClick,
-  ...rest
-}) => {
+const NotificationItem: FC<NotificationItemProps> = (
+  {
+    as = 'div',
+    open,
+    defaultOpen = true,
+    type,
+    variant = 'soft',
+    icon,
+    showIcon,
+    title,
+    message,
+    description,
+    actions,
+    btn,
+    closable,
+    closeIcon,
+    duration,
+    pauseOnHover = true,
+    showProgress = false,
+    className,
+    style,
+    classNames,
+    styles,
+    props: itemProps,
+    children,
+    onClose,
+    onOpenChange,
+    onClick,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const Component = as as any
   const uncontrolledOpen = ref(!!defaultOpen)
   const lastDefaultOpen = ref(!!defaultOpen)
   const isControlled = typeof open === 'boolean'
-  const [currentOpen, setCurrentOpen] = useState(isControlled ? !!open : uncontrolledOpen.value)
+  const currentOpenState = ref(isControlled ? !!open : uncontrolledOpen.value)
+  const setCurrentOpen = (value: boolean) => {
+    currentOpenState.value = value
+  }
   const hovered = ref(false)
   const closeTimerRef = createCell<number | undefined>(undefined)
   const timerStartedAtRef = createCell<number | undefined>(undefined)
@@ -631,7 +637,7 @@ const NotificationItem: FC<NotificationItemProps> = ({
     ...forwardedComponentProps
   }: Record<string, any> = { ...itemProps, ...rest }
   const rootElement = createCell<HTMLElement | null>(null)
-  const visible = isControlled ? !!open : currentOpen
+  const visible = isControlled ? !!open : currentOpenState.value
 
   const tone = resolveTone(type)
   const toneStyles = toneStyleMap[tone]
@@ -649,7 +655,14 @@ const NotificationItem: FC<NotificationItemProps> = ({
   const resolvedClosableIcon = resolvedClosable?.icon
   const resolvedClosableOnClose = resolvedClosable?.onClose
   const resolvedShowIcon = showIcon ?? (icon !== undefined || type !== undefined)
-  const resolvedIcon = resolvedShowIcon ? (icon ?? renderDefaultIcon(type)) : null
+  const ItemIcon = () =>
+    slots.icon ? (
+      <>{slots.icon}</>
+    ) : icon != null ? (
+      <>{String(icon)}</>
+    ) : (
+      <RenderDefaultIcon arg0={type} />
+    )
   const notificationMarker = providedNotificationMarker ?? 'true'
   const notificationType = providedNotificationType ?? tone
   const componentProps: Record<string, any> = {
@@ -661,24 +674,6 @@ const NotificationItem: FC<NotificationItemProps> = ({
   }
 
   const notificationTestId = componentProps['data-testid']
-
-  const syncItemDom = (nextOpen: boolean) => {
-    const element = rootElement.value
-    if (!element) return
-    element.style.display = nextOpen ? '' : 'none'
-    if (nextOpen) {
-      element.removeAttribute('aria-hidden')
-      element.setAttribute('data-rue-notification-item', String(notificationMarker))
-      element.setAttribute('data-rue-notification-type', String(notificationType))
-      if (notificationTestId != null)
-        element.setAttribute('data-testid', String(notificationTestId))
-      return
-    }
-    element.setAttribute('aria-hidden', 'true')
-    element.removeAttribute('data-rue-notification-item')
-    element.removeAttribute('data-rue-notification-type')
-    if (notificationTestId != null) element.removeAttribute('data-testid')
-  }
 
   const clearAutoCloseTimer = (captureRemaining = false) => {
     if (closeTimerRef.value == null) return
@@ -694,9 +689,9 @@ const NotificationItem: FC<NotificationItemProps> = ({
   const requestClose = (source: NotificationCloseSource, event?: Event) => {
     clearAutoCloseTimer()
     remainingDurationRef.value = 0
-    if (!currentOpen) return
+    if (!currentOpenState.value) return
     setCurrentOpen(false)
-    syncItemDom(false)
+
     if (!isControlled) uncontrolledOpen.value = false
     const meta = { source, event }
     if (source === 'close' && resolvedClosableOnClose) resolvedClosableOnClose(meta)
@@ -706,7 +701,7 @@ const NotificationItem: FC<NotificationItemProps> = ({
 
   const startAutoCloseTimer = () => {
     clearAutoCloseTimer()
-    if (!currentOpen) return
+    if (!currentOpenState.value) return
     if (pauseOnHover && hovered.value) return
     if (remainingDurationRef.value == null || remainingDurationRef.value <= 0) return
     timerStartedAtRef.value = Date.now()
@@ -750,14 +745,14 @@ const NotificationItem: FC<NotificationItemProps> = ({
   )
 
   watch(
-    () => (isControlled ? !!open : currentOpen),
+    () => (isControlled ? !!open : currentOpenState.value),
     nextOpen => {
       if (!nextOpen) {
         clearAutoCloseTimer()
-        syncItemDom(false)
+
         return
       }
-      syncItemDom(true)
+
       refreshAutoCloseTimer(true)
     },
     { immediate: true },
@@ -766,7 +761,7 @@ const NotificationItem: FC<NotificationItemProps> = ({
   watch(
     () => duration,
     () => {
-      if (!currentOpen) {
+      if (!currentOpenState.value) {
         remainingDurationRef.value = resolveDurationMs(duration)
         return
       }
@@ -777,12 +772,10 @@ const NotificationItem: FC<NotificationItemProps> = ({
   watch(
     () => pauseOnHover,
     () => {
-      if (!currentOpen) return
+      if (!currentOpenState.value) return
       refreshAutoCloseTimer(false)
     },
   )
-
-  if (!visible) return null
 
   const mergedRootStyle: Record<string, any> = {
     maxWidth: 'var(--rue-notification-max-width, 26rem)',
@@ -792,131 +785,297 @@ const NotificationItem: FC<NotificationItemProps> = ({
 
   return (
     <div style={{ display: 'contents' }}>
-      <DynamicComponent
-        is={Component}
-        {...componentProps}
-        className={mergeClassNames(ITEM_BASE_CLASS, rootToneClass, classNames?.root, className)}
-        style={mergedRootStyle}
-        ref={(element: HTMLElement | null) => {
-          rootElement.value = element
-          syncItemDom(!!currentOpen)
-        }}
-        onClick={(event: MouseEvent) => {
-          if (typeof userOnClick === 'function') userOnClick(event)
-          if (event.defaultPrevented) return
-          if (typeof onClick === 'function') onClick(event)
-        }}
-        onMouseEnter={(event: MouseEvent) => {
-          hovered.value = true
-          if (pauseOnHover) clearAutoCloseTimer(true)
-          if (typeof userOnMouseEnter === 'function') userOnMouseEnter(event)
-        }}
-        onMouseLeave={(event: MouseEvent) => {
-          hovered.value = false
-          if (pauseOnHover) startAutoCloseTimer()
-          if (typeof userOnMouseLeave === 'function') userOnMouseLeave(event)
-        }}
-      >
-        <div className={mergeClassNames('absolute inset-x-0 top-0 h-1', toneStyles.accent)} />
-        <div className="flex items-start gap-3">
-          {hasRenderableContent(resolvedIcon) ? (
-            <div
+      {currentOpenState.value ? (
+        <>
+          {Component === 'section' ? (
+            <section
+              {...componentProps}
               className={mergeClassNames(
-                'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
-                toneStyles.icon,
-                classNames?.icon,
+                ITEM_BASE_CLASS,
+                rootToneClass,
+                classNames?.root,
+                className,
               )}
-              style={styles?.icon}
+              style={mergedRootStyle}
+              ref={(element: HTMLElement | null) => {
+                rootElement.value = element
+              }}
+              onClick={(event: MouseEvent) => {
+                if (typeof userOnClick === 'function') userOnClick(event)
+                if (event.defaultPrevented) return
+                if (typeof onClick === 'function') onClick(event)
+              }}
+              onMouseEnter={(event: MouseEvent) => {
+                hovered.value = true
+                if (pauseOnHover) clearAutoCloseTimer(true)
+                if (typeof userOnMouseEnter === 'function') userOnMouseEnter(event)
+              }}
+              onMouseLeave={(event: MouseEvent) => {
+                hovered.value = false
+                if (pauseOnHover) startAutoCloseTimer()
+                if (typeof userOnMouseLeave === 'function') userOnMouseLeave(event)
+              }}
             >
-              <NotificationSlot>{resolvedIcon}</NotificationSlot>
-            </div>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1">
-                {hasRenderableContent(resolvedTitle) ? (
+              <div className={mergeClassNames('absolute inset-x-0 top-0 h-1', toneStyles.accent)} />
+              <div className="flex items-start gap-3">
+                {resolvedShowIcon ? (
                   <div
                     className={mergeClassNames(
-                      'text-sm font-semibold leading-6',
-                      classNames?.title,
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
+                      toneStyles.icon,
+                      classNames?.icon,
                     )}
-                    style={styles?.title}
+                    style={styles?.icon}
                   >
-                    <NotificationSlot>{resolvedTitle}</NotificationSlot>
+                    <NotificationSlot>
+                      <ItemIcon />
+                    </NotificationSlot>
                   </div>
                 ) : null}
-                {hasRenderableContent(description) ? (
-                  <div
-                    className={mergeClassNames(
-                      hasRenderableContent(resolvedTitle)
-                        ? 'mt-1 text-sm leading-6 opacity-75'
-                        : 'text-sm leading-6 opacity-80',
-                      classNames?.description,
-                    )}
-                    style={styles?.description}
-                  >
-                    <NotificationSlot>{description}</NotificationSlot>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      {hasRenderableContent(resolvedTitle) ? (
+                        <div
+                          className={mergeClassNames(
+                            'text-sm font-semibold leading-6',
+                            classNames?.title,
+                          )}
+                          style={styles?.title}
+                        >
+                          <NotificationSlot>{String(resolvedTitle)}</NotificationSlot>
+                        </div>
+                      ) : null}
+                      {hasRenderableContent(description) ? (
+                        <div
+                          className={mergeClassNames(
+                            hasRenderableContent(resolvedTitle)
+                              ? 'mt-1 text-sm leading-6 opacity-75'
+                              : 'text-sm leading-6 opacity-80',
+                            classNames?.description,
+                          )}
+                          style={styles?.description}
+                        >
+                          <NotificationSlot>{String(description)}</NotificationSlot>
+                        </div>
+                      ) : null}
+                    </div>
+                    {resolvedClosableEnabled ? (
+                      <button
+                        type="button"
+                        aria-label={resolvedClosableLabel}
+                        className={mergeClassNames(
+                          'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition',
+                          toneStyles.close,
+                          classNames?.close,
+                        )}
+                        style={styles?.close}
+                        onClick={(event: MouseEvent) => requestClose('close', event)}
+                      >
+                        <NotificationSlot>
+                          {resolvedClosableIcon != null ? (
+                            <>{String(resolvedClosableIcon)}</>
+                          ) : (
+                            <CloseIcon className="h-4 w-4" />
+                          )}
+                        </NotificationSlot>
+                      </button>
+                    ) : null}
                   </div>
-                ) : null}
+                  {hasRenderableContent(children) ? (
+                    <div
+                      className={mergeClassNames(
+                        hasRenderableContent(resolvedTitle) || hasRenderableContent(description)
+                          ? 'mt-3'
+                          : '',
+                      )}
+                    >
+                      {children}
+                    </div>
+                  ) : null}
+                  {slots.actions != null || hasRenderableContent(resolvedActions) ? (
+                    <div
+                      className={mergeClassNames(
+                        hasRenderableContent(resolvedTitle) ||
+                          hasRenderableContent(description) ||
+                          hasRenderableContent(children)
+                          ? 'mt-4 flex flex-wrap items-center gap-2'
+                          : 'flex flex-wrap items-center gap-2',
+                        classNames?.actions,
+                      )}
+                      style={styles?.actions}
+                    >
+                      <NotificationSlot>
+                        {slots.actions ? (
+                          <>{slots.actions}</>
+                        ) : (
+                          <>{String(resolvedActions ?? '')}</>
+                        )}
+                      </NotificationSlot>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              {resolvedClosableEnabled ? (
-                <button
-                  type="button"
-                  aria-label={resolvedClosableLabel}
+              {showProgress && resolveDurationMs(duration) != null ? (
+                <div
                   className={mergeClassNames(
-                    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition',
-                    toneStyles.close,
-                    classNames?.close,
+                    'mt-4 h-1 overflow-hidden rounded-full bg-base-content/10',
+                    classNames?.progress,
                   )}
-                  style={styles?.close}
-                  onClick={(event: MouseEvent) => requestClose('close', event)}
+                  style={styles?.progress}
                 >
-                  <NotificationSlot>
-                    {resolvedClosableIcon ?? <CloseIcon className="h-4 w-4" />}
-                  </NotificationSlot>
-                </button>
+                  <div
+                    className={mergeClassNames('h-full w-full rounded-full', toneStyles.progress)}
+                  />
+                </div>
+              ) : null}
+            </section>
+          ) : (
+            <div
+              {...componentProps}
+              className={mergeClassNames(
+                ITEM_BASE_CLASS,
+                rootToneClass,
+                classNames?.root,
+                className,
+              )}
+              style={mergedRootStyle}
+              ref={(element: HTMLElement | null) => {
+                rootElement.value = element
+              }}
+              onClick={(event: MouseEvent) => {
+                if (typeof userOnClick === 'function') userOnClick(event)
+                if (event.defaultPrevented) return
+                if (typeof onClick === 'function') onClick(event)
+              }}
+              onMouseEnter={(event: MouseEvent) => {
+                hovered.value = true
+                if (pauseOnHover) clearAutoCloseTimer(true)
+                if (typeof userOnMouseEnter === 'function') userOnMouseEnter(event)
+              }}
+              onMouseLeave={(event: MouseEvent) => {
+                hovered.value = false
+                if (pauseOnHover) startAutoCloseTimer()
+                if (typeof userOnMouseLeave === 'function') userOnMouseLeave(event)
+              }}
+            >
+              <div className={mergeClassNames('absolute inset-x-0 top-0 h-1', toneStyles.accent)} />
+              <div className="flex items-start gap-3">
+                {resolvedShowIcon ? (
+                  <div
+                    className={mergeClassNames(
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
+                      toneStyles.icon,
+                      classNames?.icon,
+                    )}
+                    style={styles?.icon}
+                  >
+                    <NotificationSlot>
+                      <ItemIcon />
+                    </NotificationSlot>
+                  </div>
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      {hasRenderableContent(resolvedTitle) ? (
+                        <div
+                          className={mergeClassNames(
+                            'text-sm font-semibold leading-6',
+                            classNames?.title,
+                          )}
+                          style={styles?.title}
+                        >
+                          <NotificationSlot>{String(resolvedTitle)}</NotificationSlot>
+                        </div>
+                      ) : null}
+                      {hasRenderableContent(description) ? (
+                        <div
+                          className={mergeClassNames(
+                            hasRenderableContent(resolvedTitle)
+                              ? 'mt-1 text-sm leading-6 opacity-75'
+                              : 'text-sm leading-6 opacity-80',
+                            classNames?.description,
+                          )}
+                          style={styles?.description}
+                        >
+                          <NotificationSlot>{String(description)}</NotificationSlot>
+                        </div>
+                      ) : null}
+                    </div>
+                    {resolvedClosableEnabled ? (
+                      <button
+                        type="button"
+                        aria-label={resolvedClosableLabel}
+                        className={mergeClassNames(
+                          'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition',
+                          toneStyles.close,
+                          classNames?.close,
+                        )}
+                        style={styles?.close}
+                        onClick={(event: MouseEvent) => requestClose('close', event)}
+                      >
+                        <NotificationSlot>
+                          {resolvedClosableIcon != null ? (
+                            <>{String(resolvedClosableIcon)}</>
+                          ) : (
+                            <CloseIcon className="h-4 w-4" />
+                          )}
+                        </NotificationSlot>
+                      </button>
+                    ) : null}
+                  </div>
+                  {hasRenderableContent(children) ? (
+                    <div
+                      className={mergeClassNames(
+                        hasRenderableContent(resolvedTitle) || hasRenderableContent(description)
+                          ? 'mt-3'
+                          : '',
+                      )}
+                    >
+                      {children}
+                    </div>
+                  ) : null}
+                  {slots.actions != null || hasRenderableContent(resolvedActions) ? (
+                    <div
+                      className={mergeClassNames(
+                        hasRenderableContent(resolvedTitle) ||
+                          hasRenderableContent(description) ||
+                          hasRenderableContent(children)
+                          ? 'mt-4 flex flex-wrap items-center gap-2'
+                          : 'flex flex-wrap items-center gap-2',
+                        classNames?.actions,
+                      )}
+                      style={styles?.actions}
+                    >
+                      <NotificationSlot>
+                        {slots.actions ? (
+                          <>{slots.actions}</>
+                        ) : (
+                          <>{String(resolvedActions ?? '')}</>
+                        )}
+                      </NotificationSlot>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              {showProgress && resolveDurationMs(duration) != null ? (
+                <div
+                  className={mergeClassNames(
+                    'mt-4 h-1 overflow-hidden rounded-full bg-base-content/10',
+                    classNames?.progress,
+                  )}
+                  style={styles?.progress}
+                >
+                  <div
+                    className={mergeClassNames('h-full w-full rounded-full', toneStyles.progress)}
+                  />
+                </div>
               ) : null}
             </div>
-            {hasRenderableContent(children) ? (
-              <div
-                className={mergeClassNames(
-                  hasRenderableContent(resolvedTitle) || hasRenderableContent(description)
-                    ? 'mt-3'
-                    : '',
-                )}
-              >
-                {children}
-              </div>
-            ) : null}
-            {hasRenderableContent(resolvedActions) ? (
-              <div
-                className={mergeClassNames(
-                  hasRenderableContent(resolvedTitle) ||
-                    hasRenderableContent(description) ||
-                    hasRenderableContent(children)
-                    ? 'mt-4 flex flex-wrap items-center gap-2'
-                    : 'flex flex-wrap items-center gap-2',
-                  classNames?.actions,
-                )}
-                style={styles?.actions}
-              >
-                <NotificationSlot>{resolvedActions}</NotificationSlot>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        {showProgress && resolveDurationMs(duration) != null ? (
-          <div
-            className={mergeClassNames(
-              'mt-4 h-1 overflow-hidden rounded-full bg-base-content/10',
-              classNames?.progress,
-            )}
-            style={styles?.progress}
-          >
-            <div className={mergeClassNames('h-full w-full rounded-full', toneStyles.progress)} />
-          </div>
-        ) : null}
-      </DynamicComponent>
+          )}
+        </>
+      ) : null}
     </div>
   )
 }
@@ -948,8 +1107,8 @@ const NotificationRoot: FC<NotificationProps> = ({
   }
 
   return (
-    <DynamicComponent
-      is={Component}
+    <Surface
+      as={Component}
       {...rest}
       className={mergeClassNames(
         inline ? 'absolute' : 'fixed',
@@ -960,8 +1119,8 @@ const NotificationRoot: FC<NotificationProps> = ({
       )}
       style={mergedStyle}
     >
-      {toChildArray(children)}
-    </DynamicComponent>
+      {children}
+    </Surface>
   )
 }
 
@@ -982,91 +1141,69 @@ const groupRecords = (records: NotificationRecord[], fallbackPlacement: Notifica
   return grouped
 }
 
-/** Notification Viewport 的内部工具函数。 */
+const NotificationRecordView: FC<{
+  record: NotificationRecord
+  defaults: NotificationUseOptions
+  onDestroy: (key?: NotificationKey) => void
+}> = ({ record, defaults, onDestroy }) => {
+  return (
+    <NotificationItem
+      {...defaults}
+      {...record.config}
+      classNames={mergeSemanticClassNames(defaults.classNames, record.config.classNames)}
+      styles={mergeSemanticStyles(defaults.styles, record.config.styles)}
+      onClose={record.config.onClose}
+      onOpenChange={(nextOpen, meta) => {
+        if (!nextOpen) onDestroy(record.key)
+        record.config.onOpenChange?.(nextOpen, meta)
+      }}
+    />
+  )
+}
+
+const NotificationPlacementView: FC<{
+  records: NotificationRecord[]
+  placement: NotificationPlacement
+  defaults: NotificationUseOptions
+  inline?: boolean
+  onDestroy: (key?: NotificationKey) => void
+}> = ({ records, placement, defaults, inline, onDestroy }) => {
+  const ordered = computed(() =>
+    placementLayoutMap[placement].top ? [...records].reverse() : records,
+  )
+  return (
+    <NotificationRoot {...defaults} inline={inline} placement={placement}>
+      {ordered.get().map(record => (
+        <NotificationRecordView
+          key={record.key}
+          record={record}
+          defaults={defaults}
+          onDestroy={onDestroy}
+        />
+      ))}
+    </NotificationRoot>
+  )
+}
+
 const NotificationViewport: FC<NotificationViewportProps> = ({
   records,
   inline = false,
   onDestroy,
-  placement = DEFAULT_PLACEMENT,
-  duration = DEFAULT_DURATION,
-  closable = true,
-  pauseOnHover = true,
-  showProgress = false,
-  showIcon,
-  variant = 'soft',
-  type,
-  closeIcon,
-  classNames,
-  styles,
-  props,
-  ...containerProps
+  ...defaults
 }) => {
-  if (records.length === 0) return <div style={{ display: 'contents' }} />
-  const grouped = groupRecords(records, placement)
-
+  const grouped = computed(() => groupRecords(records, defaults.placement ?? DEFAULT_PLACEMENT))
   return (
     <>
-      {NotificationPlacements.map(currentPlacement => {
-        const placementRecords = grouped[currentPlacement]
-        if (placementRecords.length === 0) return null
-        const ordered = placementLayoutMap[currentPlacement].top
-          ? [...placementRecords].reverse()
-          : placementRecords
-        return (
-          <NotificationRoot
-            key={currentPlacement}
-            {...containerProps}
-            inline={inline}
-            placement={currentPlacement}
-          >
-            {ordered.map(record => {
-              const {
-                key: _key,
-                placement: _placement,
-                duration: itemDuration = duration,
-                closable: itemClosable = closable,
-                pauseOnHover: itemPauseOnHover = pauseOnHover,
-                showProgress: itemShowProgress = showProgress,
-                showIcon: itemShowIcon = showIcon,
-                variant: itemVariant = variant,
-                type: itemType = type,
-                closeIcon: itemCloseIcon = closeIcon,
-                classNames: itemClassNames,
-                styles: itemStyles,
-                props: itemProps,
-                onClose,
-                onOpenChange,
-                ...itemConfig
-              } = record.config
-
-              return (
-                <NotificationItem
-                  key={record.key}
-                  {...itemConfig}
-                  props={{ ...props, ...itemProps }}
-                  duration={itemDuration}
-                  closable={itemClosable}
-                  pauseOnHover={itemPauseOnHover}
-                  showProgress={itemShowProgress}
-                  showIcon={itemShowIcon}
-                  variant={itemVariant}
-                  type={itemType}
-                  closeIcon={itemCloseIcon}
-                  classNames={mergeSemanticClassNames(classNames, itemClassNames)}
-                  styles={mergeSemanticStyles(styles, itemStyles)}
-                  onClose={(meta: NotificationCloseMeta) => {
-                    if (onClose) onClose(meta)
-                  }}
-                  onOpenChange={(nextOpen: boolean, meta: NotificationCloseMeta) => {
-                    if (!nextOpen) onDestroy(record.key)
-                    if (onOpenChange) onOpenChange(nextOpen, meta)
-                  }}
-                />
-              )
-            })}
-          </NotificationRoot>
-        )
-      })}
+      {NotificationPlacements.map(placement => (
+        <NotificationPlacementView
+          key={placement}
+          records={grouped.get()[placement]}
+          placement={placement}
+          defaults={defaults}
+          inline={inline}
+          onDestroy={onDestroy}
+        />
+      ))}
     </>
   )
 }
@@ -1117,17 +1254,29 @@ export const useNotification = (options: NotificationUseOptions = {}) => {
     }
   }
 
+  const revision = ref(0)
+  let viewportApp: { dispose(): void } | undefined
+  const readRecords = () => {
+    void revision.value
+    return store.records ?? []
+  }
+  const readOptions = () => {
+    void revision.value
+    return store.options ?? {}
+  }
   const syncViewport = () => {
     const currentRecords = store.records ?? []
     if (currentRecords.length === 0 && store.viewportElement == null) return
     const viewportElement = ensureViewportElement()
     if (!viewportElement) return
-    render(
+    revision.value += 1
+    if (viewportApp) return
+    viewportApp = render(
       <NotificationViewport
-        records={currentRecords}
+        records={readRecords()}
         onDestroy={destroy}
         inline={(store.options ?? {}).getContainer === false}
-        {...(store.options ?? {})}
+        {...readOptions()}
       />,
       viewportElement,
     )
@@ -1163,6 +1312,8 @@ export const useNotification = (options: NotificationUseOptions = {}) => {
   }
 
   onUnmounted(() => {
+    viewportApp?.dispose()
+    viewportApp = undefined
     store.records = []
     if (store.viewportElement) {
       store.viewportElement.remove()
@@ -1171,20 +1322,17 @@ export const useNotification = (options: NotificationUseOptions = {}) => {
     store.holderElement = undefined
   })
 
-  const contextHolder = (
-    <div
-      style={{ display: 'contents' }}
-      ref={(element: HTMLDivElement | null) => {
-        store.holderElement = element ?? undefined
-        if (
-          (store.options ?? {}).getContainer === false &&
-          element &&
-          (store.records ?? []).length > 0
-        )
-          syncViewport()
-      }}
-    />
-  )
+  const contextHolder = {
+    attach: (element: HTMLDivElement | null) => {
+      store.holderElement = element ?? undefined
+      if (
+        (store.options ?? {}).getContainer === false &&
+        element &&
+        (store.records ?? []).length > 0
+      )
+        syncViewport()
+    },
+  }
 
   return [store.api!, contextHolder] as const
 }
@@ -1220,17 +1368,30 @@ const destroyGlobalNotifications = (key?: NotificationKey) => {
   }
 }
 
+const globalRevision = ref(0)
+let globalViewportApp: { dispose(): void } | undefined
+const readGlobalRecords = () => {
+  void globalRevision.value
+  return globalRecords
+}
+const readGlobalOptions = () => {
+  void globalRevision.value
+  return globalOptions
+}
+
 /** sync Global Viewport 的内部工具函数。 */
 const syncGlobalViewport = () => {
   if (typeof document === 'undefined') return
   if (globalRecords.length === 0 && globalViewportElement == null) return
   const viewportElement = ensureGlobalViewport()
   if (!viewportElement) return
-  render(
+  globalRevision.value += 1
+  if (globalViewportApp) return
+  globalViewportApp = render(
     <NotificationViewport
-      records={globalRecords}
+      records={readGlobalRecords()}
       onDestroy={destroyGlobalNotifications}
-      {...globalOptions}
+      {...readGlobalOptions()}
     />,
     viewportElement,
   )
@@ -1291,3 +1452,7 @@ const NotificationCompound: NotificationCompound = /*#__PURE__*/ Object.assign(N
 
 /** 默认导出通知提醒组件。 */
 export default NotificationCompound
+
+export const NotificationHolder: FC<{
+  state: { attach: (element: HTMLDivElement | null) => void }
+}> = ({ state }) => <div style={{ display: 'contents' }} ref={state.attach} />

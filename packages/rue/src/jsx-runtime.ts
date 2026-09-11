@@ -1,15 +1,12 @@
-import { createCompiledFragmentHandle, createJsxComponent } from '@rue-js/runtime'
-
+/** JSX is source syntax only. Install @rue-js/vite-plugin-rue to compile it.
+ * These declarations intentionally have no runtime exports: an automatic JSX
+ * transform that bypasses Rue fails at module linking during the build.
+ */
 export const Fragment = Symbol.for('rue.jsx.fragment')
-
-export const jsx = (type: unknown, props: Record<string, unknown> | null, key?: unknown) => {
-  const resolvedProps = key === undefined ? props : { ...props, key }
-  if (type === Fragment) {
-    const children = resolvedProps?.children
-    return createCompiledFragmentHandle(Array.isArray(children) ? children : [children])
-  }
-  return createJsxComponent(type as any, resolvedProps)
-}
-
-export const jsxs = jsx
-export const jsxDEV = jsx
+export declare function jsx(
+  type: unknown,
+  props: Record<string, unknown> | null,
+  key?: unknown,
+): JSX.Element
+export declare const jsxs: typeof jsx
+export declare const jsxDEV: typeof jsx

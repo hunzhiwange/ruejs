@@ -20,7 +20,7 @@ export { default as Flex } from './components/flex'
 export { default as Footer } from './components/footer'
 export { default as Form } from './components/form'
 export { default as Grid } from './components/grid'
-export { default as Masonry } from './components/masonry'
+export { default as Masonry, MasonryItem } from './components/masonry'
 export { default as Modal } from './components/modal'
 export { default as Tabs } from './components/tabs'
 export { default as Badge } from './components/badge'
@@ -70,7 +70,7 @@ export { default as Pagination } from './components/pagination'
 export { default as Popover } from './components/popover'
 export { default as Select } from './components/select'
 export { default as Segmented } from './components/segmented'
-export { default as TimePicker } from './components/time-picker'
+export { default as TimePicker, TimePickerRangePicker } from './components/time-picker'
 export { default as Transfer } from './components/transfer'
 export { default as Tour } from './components/tour'
 export { default as Popconfirm } from './components/popconfirm'
@@ -88,7 +88,13 @@ export { default as Stack } from './components/stack'
 export { default as Steps } from './components/steps'
 export { default as Swap } from './components/swap'
 export { default as Textarea } from './components/textarea'
-export { ConfigProvider, default as ThemeController, theme } from './components/theme'
+export {
+  ConfigProvider,
+  ThemeProvider,
+  useThemeRuntime,
+  default as ThemeController,
+  theme,
+} from './components/theme'
 export { default as Message } from './components/message'
 export { default as Notification } from './components/notification'
 export { default as Toast } from './components/toast'
@@ -107,3 +113,12 @@ export {
   COLOR_PICKER_MODE_SINGLE,
   COLOR_PICKER_MODE_GRADIENT,
 } from './components/color-picker'
+
+export type { FooterSection } from './components/footer'
+export type { NavbarItem } from './components/navbar'
+export { SpaceItem, SpaceCompactItem } from './components/space'
+
+export type { MasonryDataItem } from './components/masonry'
+export type { SpaceItemProps, SpaceCompactItemProps } from './components/space'
+
+export { createForm, createFormList, useForm, useFormInstance, useWatch } from './components/form'

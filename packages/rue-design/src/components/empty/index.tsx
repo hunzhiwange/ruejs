@@ -3,7 +3,7 @@ Empty 模块概述
 - 汇总空状态组件的公开类型、渲染入口和局部工具逻辑。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
-import { Component, type FC } from '@rue-js/rue'
+import { type FC } from '@rue-js/rue'
 
 /** EmptySize 尺寸类型。 */
 export type EmptySize = 'sm' | 'md' | 'lg' | 'small' | 'default' | 'large'
@@ -49,9 +49,9 @@ export interface EmptyPresentedImageProps {
 /** EmptyProps 组件属性。 */
 export interface EmptyProps {
   /** image 区域配置。 */
-  image?: string | FC<EmptyPresentedImageProps> | any
+  image?: string | typeof DefaultPresentedImage | typeof SimplePresentedImage | null | false
   /** 描述内容。 */
-  description?: any
+  description?: string | number | false | null
   /** imageStyle 内联样式。 */
   imageStyle?: any
   /** imageAlt 配置项。 */
@@ -118,11 +118,8 @@ const svgStrokeMixStyle = (strength: number) => ({
 })
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value === undefined || value === null || value === false || value === '') return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 归一化 Size 的内部工具函数。 */
 const normalizeSize = (size?: EmptySize): 'sm' | 'md' | 'lg' => {
@@ -437,7 +434,7 @@ const Empty = (({
   const imageShellStyle = mergeStyles(styles?.image, imageStyle)
   const descriptionStyle = mergeStyles(styles?.description)
   const footerStyle = mergeStyles(styles?.footer)
-  const imageNode =
+  const ImageContent = () =>
     typeof mergedImage === 'string' ? (
       <img
         src={mergedImage}
@@ -445,12 +442,10 @@ const Empty = (({
         draggable="false"
         className="block h-auto w-full object-contain"
       />
-    ) : mergedImage === DefaultPresentedImage || mergedImage === SimplePresentedImage ? (
-      <Component is={mergedImage as FC<EmptyPresentedImageProps>} size={normalizedSize} />
-    ) : typeof mergedImage === 'function' ? (
-      <Component is={mergedImage as FC<any>} />
+    ) : mergedImage === SimplePresentedImage ? (
+      <SimplePresentedImage size={normalizedSize} />
     ) : (
-      mergedImage
+      <DefaultPresentedImage size={normalizedSize} />
     )
 
   return (
@@ -478,7 +473,9 @@ const Empty = (({
         >
           {hasImage ? (
             <div data-rue-empty-image="true" className={imageShellCls} style={imageShellStyle}>
-              <>{imageNode}</>
+              <>
+                <ImageContent />
+              </>
             </div>
           ) : null}
 
@@ -488,7 +485,7 @@ const Empty = (({
               className={descriptionCls}
               style={descriptionStyle}
             >
-              <>{mergedDescription}</>
+              {String(mergedDescription)}
             </div>
           ) : null}
 

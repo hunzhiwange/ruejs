@@ -13,10 +13,26 @@ export default defineConfig({
     {
       name: 'text:test-client-compile',
       enforce: 'pre',
+      async resolveId(source, importer) {
+        const server = source.endsWith('?text-ssr') || importer?.endsWith('?text-ssr')
+        if (!server || (!source.startsWith('.') && !source.startsWith('/'))) return null
+        const resolved = await this.resolve(
+          source.replace(/\?text-ssr$/, ''),
+          importer?.replace(/\?text-ssr$/, ''),
+          { skipSelf: true },
+        )
+        if (!resolved || !resolved.id.includes('/text/src/') || !/\.[jt]sx?$/.test(resolved.id))
+          return resolved
+        return { ...resolved, id: resolved.id + '?text-ssr' }
+      },
       async transform(code, id) {
         if (!/\.(?:tsx|jsx)(?:\?.*)?$/.test(id)) return null
         return {
-          code: await compileRueStatic(code, { id, target: 'client', production: false }),
+          code: await compileRueStatic(code, {
+            id,
+            target: id.endsWith('?text-ssr') ? 'server' : 'hydrate',
+            production: false,
+          }),
           map: null,
         }
       },
@@ -35,7 +51,10 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: /^text\/head$/, replacement: path.resolve(import.meta.dirname, 'src/shims/head.ts') },
+      {
+        find: /^text\/head$/,
+        replacement: path.resolve(import.meta.dirname, 'src/shims/head.tsx'),
+      },
       {
         find: /^text\/image$/,
         replacement: path.resolve(import.meta.dirname, 'src/shims/image.tsx'),
@@ -46,7 +65,7 @@ export default defineConfig({
       },
       {
         find: /^text\/router$/,
-        replacement: path.resolve(import.meta.dirname, 'src/shims/router.ts'),
+        replacement: path.resolve(import.meta.dirname, 'src/shims/router.tsx'),
       },
       {
         find: /^text\/compat\/router$/,
@@ -62,7 +81,7 @@ export default defineConfig({
       },
       {
         find: /^text\/dynamic$/,
-        replacement: path.resolve(import.meta.dirname, 'src/shims/dynamic.ts'),
+        replacement: path.resolve(import.meta.dirname, 'src/shims/dynamic.tsx'),
       },
       {
         find: /^text\/config$/,

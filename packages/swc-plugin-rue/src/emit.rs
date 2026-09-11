@@ -52,7 +52,11 @@ pub fn member(obj: Ident, prop: &str) -> MemberExpr {
 
 /// 构造对某个标识符的调用表达式 `fn(args...)`
 /// 使用场景：`_$appendChild(...)`、`_$createElement(...)` 等运行时方法调用构造
-pub fn call_ident(name: &str, args: Vec<Expr>) -> Expr {
+pub fn call_ident(name: &str, mut args: Vec<Expr>) -> Expr {
+    if name == "_$compiledRoot" && !args.is_empty() {
+        args[0] = crate::element_children::close_root_setup(args[0].clone());
+        args.truncate(1);
+    }
     Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: Callee::Expr(Box::new(Expr::Ident(ident(name)))),

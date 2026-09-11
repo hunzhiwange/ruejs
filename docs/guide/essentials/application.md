@@ -62,25 +62,24 @@ app.mount('#app')
 
 ## 应用配置 {#app-configurations}
 
-通过 `onError` 订阅 Rue 运行时错误。浏览器错误桥接、控制台报告和开发遮罩可分别安装，它们共享 Rue 错误链，不局限于单个应用实例：
+当 Rue 运行时错误未被组件错误边界处理时，Rue 会默认将其输出到控制台，无需安装或清理额外的错误处理器。祖先组件可以使用 `onErrorCaptured` 捕获后代组件错误；返回 `false` 表示错误已处理，会停止继续传播和默认控制台输出。
+
+如果需要将未被边界处理的 Rue 错误发送到 Sentry 等跟踪服务，可以使用全局 `onError` 订阅：
 
 ```tsx
-import { installBrowserErrorBridge, installErrorConsole, installDevErrorOverlay } from '@rue-js/rue'
+import { onError } from '@rue-js/rue'
 
-const stopBridge = installBrowserErrorBridge()
-const stopConsole = installErrorConsole()
-const stopOverlay =
-  import.meta.env.DEV && !import.meta.env.SSR ? installDevErrorOverlay() : undefined
+const stopTracking = onError((error, instance, info) => {
+  // sentry.captureException(error)
+})
 
 // 在宿主页面销毁或热更新卸载时调用
-function disposeErrorHandling() {
-  stopOverlay?.()
-  stopConsole()
-  stopBridge()
+function disposeErrorTracking() {
+  stopTracking()
 }
 ```
 
-每个安装函数都返回幂等清理函数；浏览器桥接重复安装时共享监听器，最后一个引用释放后才移除监听器。遮罩清理时也会移除现有遮罩。错误上报订阅使用 `onError`。
+`onError` 会在默认控制台输出前收到 Rue 运行时错误，并返回取消订阅函数。它不会自动订阅浏览器原生的 `error` 或 `unhandledrejection` 事件；如果需要跟踪这些错误，请使用跟踪服务提供的浏览器集成。
 
 应用实例还提供了一些用于注册应用范围资源的方法。例如，注册一个插件：
 
@@ -117,22 +116,9 @@ app2.mount('#container-2')
 
 ```tsx
 // main.tsx
-import {
-  type FC,
-  useApp,
-  installBrowserErrorBridge,
-  installErrorConsole,
-  installDevErrorOverlay,
-} from '@rue-js/rue'
+import { type FC, useApp } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
-
-// 接入浏览器错误并启用控制台报告，仅在开发环境显示遮罩
-installBrowserErrorBridge()
-installErrorConsole()
-if (import.meta.env.DEV && !import.meta.env.SSR) {
-  installDevErrorOverlay()
-}
 
 // 根组件
 const App: FC = () => {

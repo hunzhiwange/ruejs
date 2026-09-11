@@ -1,7 +1,6 @@
 import type { PortableHandle } from './runtime-core/protocol'
 import type { StateRef } from './runtime-core/reactive'
 import type { CompiledRootHandle } from './compiled-root'
-import type { DomNodeLike } from './dom'
 
 /** JSX/组件 props 的通用结构，允许任意属性和 children。 */
 export interface ComponentProps {
@@ -16,7 +15,7 @@ export type RuntimeHandle = PortableHandle | CompiledRootHandle
 
 /** 编译运行时可以闭包化挂载的值。 */
 export type RenderOutput =
-  | DomNodeLike
+  | Node
   | RuntimeHandle
   | string
   | number

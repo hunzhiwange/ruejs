@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -142,13 +142,13 @@ describe('image remote pattern matching', () => {
 
 describe('image optimization URL generation', () => {
   it('imageOptimizationUrl generates correct URL', async () => {
-    const { imageOptimizationUrl } = await import('../src/shims/image.js')
+    const { imageOptimizationUrl } = await import('../src/shims/image.js?text-ssr')
     const url = imageOptimizationUrl('/images/hero.webp', 1200, 75)
     expect(url).toBe('/_text/image?url=%2Fimages%2Fhero.webp&w=1200&q=75')
   })
 
   it('imageOptimizationUrl encodes special characters', async () => {
-    const { imageOptimizationUrl } = await import('../src/shims/image.js')
+    const { imageOptimizationUrl } = await import('../src/shims/image.js?text-ssr')
     const url = imageOptimizationUrl('/images/my photo.jpg', 800, 80)
     expect(url).toContain('url=%2Fimages%2Fmy%20photo.jpg')
     expect(url).toContain('w=800')
@@ -156,7 +156,7 @@ describe('image optimization URL generation', () => {
   })
 
   it('imageOptimizationUrl uses default quality of 75', async () => {
-    const { imageOptimizationUrl } = await import('../src/shims/image.js')
+    const { imageOptimizationUrl } = await import('../src/shims/image.js?text-ssr')
     const url = imageOptimizationUrl('/img.png', 640)
     expect(url).toContain('q=75')
   })

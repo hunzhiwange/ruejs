@@ -12,19 +12,17 @@
  *   - "lazyOnload": deferred until window.load + requestIdleCallback
  *   - "worker": sets type="text/partytown" (requires Partytown setup)
  */
-import { useEffect, useRef } from './hooks-adapter.js'
+
+import { useEffect, useRef } from '@rue-js/rue'
 import { hasAppNavigationRuntimeBootstrap } from '../client/navigation-runtime.js'
-import { escapeInlineContent } from './head.js'
+import { escapeInlineContent } from './head-records.js'
 import { useScriptNonce } from './script-nonce-context.js'
 import {
   useBeforeInteractiveRegister,
   type BeforeInteractiveInlineScript,
 } from './before-interactive-context.js'
-import {
-  createTextCompatElement,
-  type TextCompatElement,
-  type TextCompatNode,
-} from './component-adapter.js'
+import { type TextCompatElement, type TextCompatNode } from './component-adapter.js'
+import { getCurrentRequestScriptNonce } from './unified-request-context.js'
 
 export type ScriptProps = {
   /** Script source URL */
@@ -83,7 +81,7 @@ function preloadScriptResource(input: {
   document.head.appendChild(link)
 }
 
-function renderScriptPreload(input: {
+function ScriptPreload(input: {
   src: string
   crossOrigin?: 'anonymous' | 'use-credentials'
   integrity?: string
@@ -97,10 +95,10 @@ function renderScriptPreload(input: {
   if (input.crossOrigin) props.crossorigin = input.crossOrigin
   if (input.integrity) props.integrity = input.integrity
   if (input.nonce) props.nonce = input.nonce
-  return createTextCompatElement('link', props)
+  return <link {...props} />
 }
 
-function renderSsrPreloadElement(input: {
+function SsrPreload(input: {
   src?: string
   strategy: ScriptProps['strategy']
   rest: Record<string, unknown>
@@ -117,19 +115,20 @@ function renderSsrPreloadElement(input: {
       ? rest.crossOrigin
       : undefined
 
-  const preloadElement = renderScriptPreload({
-    src,
-    crossOrigin,
-    integrity,
-    nonce: resolvedNonce,
-  })
   preloadScriptResource({
     src,
     crossOrigin,
     integrity,
     nonce: resolvedNonce,
   })
-  return preloadElement
+  return (
+    <ScriptPreload
+      src={src}
+      crossOrigin={crossOrigin}
+      integrity={integrity}
+      nonce={resolvedNonce}
+    />
+  )
 }
 
 function getClientAutoNonce(): string | undefined {
@@ -419,7 +418,7 @@ export function initScriptLoader(scripts: ScriptProps[]): void {
   }
 }
 
-function Script(props: ScriptProps): TextCompatElement | null {
+function Script(props: ScriptProps) {
   const {
     src,
     id,
@@ -433,17 +432,11 @@ function Script(props: ScriptProps): TextCompatElement | null {
   } = props
 
   if (typeof window === 'undefined') {
-    const contextualNonce = useScriptNonce()
+    const contextualNonce = useScriptNonce() ?? getCurrentRequestScriptNonce()
     const resolvedNonce = resolveScriptNonce(rest.nonce, contextualNonce)
     const registerBeforeInteractive = useBeforeInteractiveRegister()
-    const preloadElement = renderSsrPreloadElement({
-      src,
-      strategy,
-      rest,
-      resolvedNonce,
-    })
-
-    if (strategy !== 'beforeInteractive') return preloadElement
+    if (strategy !== 'beforeInteractive')
+      return <SsrPreload src={src} strategy={strategy} rest={rest} resolvedNonce={resolvedNonce} />
     const inlineContent = src
       ? null
       : extractBeforeInteractiveInlineContent(children, dangerouslySetInnerHTML)
@@ -461,18 +454,26 @@ function Script(props: ScriptProps): TextCompatElement | null {
       return null
     }
 
-    const scriptElement = createTextCompatElement(
-      'script',
-      buildBeforeInteractiveScriptProps({
-        src,
-        id,
-        rest,
-        resolvedNonce,
-        dangerouslySetInnerHTML,
-      }),
-      children,
+    const scriptElement = (
+      <script
+        {...buildBeforeInteractiveScriptProps({
+          src,
+          id,
+          rest,
+          resolvedNonce,
+          dangerouslySetInnerHTML,
+        })}
+      >
+        {children}
+      </script>
     )
-    return preloadElement ? [preloadElement, scriptElement] : scriptElement
+    const InlineScript = () => scriptElement
+    return (
+      <>
+        <SsrPreload src={src} strategy={strategy} rest={rest} resolvedNonce={resolvedNonce} />
+        <InlineScript />
+      </>
+    )
   }
 
   const hasMounted = useRef(false)
@@ -576,21 +577,23 @@ function Script(props: ScriptProps): TextCompatElement | null {
       return null
     }
 
-    return createTextCompatElement(
-      'script',
-      buildBeforeInteractiveScriptProps({
-        src,
-        id,
-        rest,
-        resolvedNonce,
-        dangerouslySetInnerHTML,
-      }),
-      children,
+    return (
+      <script
+        {...buildBeforeInteractiveScriptProps({
+          src,
+          id,
+          rest,
+          resolvedNonce,
+          dangerouslySetInnerHTML,
+        })}
+      >
+        {children}
+      </script>
     )
   }
 
   // The component itself renders nothing — scripts are injected imperatively
-  return null
+  return <></>
 }
 
 export default Script

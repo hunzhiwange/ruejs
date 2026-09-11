@@ -1,21 +1,10 @@
 'use client'
 
-import { useState } from '@rue-js/rue'
+import { useActionState } from 'text/form'
 import { runAction } from './actions'
 
-function useTextActionState<S>(
-  action: (state: S, formData: FormData) => S | Promise<S>,
-  initialState: S,
-): [S, (formData: FormData) => Promise<void>] {
-  const [state, setState] = useState(initialState)
-  const formAction = async (formData: FormData) => {
-    setState(await action(state, formData))
-  }
-  return [state, formAction]
-}
-
 export default function Page() {
-  const [result, formAction] = useTextActionState(runAction, '')
+  const [result, formAction] = useActionState(runAction, '')
 
   return (
     <main>

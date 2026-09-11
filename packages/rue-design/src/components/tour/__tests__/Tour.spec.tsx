@@ -1,3 +1,4 @@
+import { disposeTestApp, mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Tour, { buildSpotlightRect } from '../index'
@@ -21,7 +22,7 @@ beforeEach(() => {
 
 afterEach(() => {
   if (activeContainer) {
-    render(null, activeContainer)
+    disposeTestApp(activeContainer)
     activeContainer = null
   }
 
@@ -67,25 +68,27 @@ describe('Tour', () => {
     const changeSpy = vi.fn()
     const openSpy = vi.fn()
 
-    render(
-      <Tour
-        defaultOpen
-        onChange={changeSpy}
-        onOpenChange={openSpy}
-        steps={[
-          {
-            placement: 'center',
-            title: '第一步',
-            description: '先进入第一步。',
-          },
-          {
-            placement: 'center',
-            title: '第二步',
-            description: '再返回上一页。',
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tour
+          defaultOpen
+          onChange={changeSpy}
+          onOpenChange={openSpy}
+          steps={[
+            {
+              placement: 'center',
+              title: '第一步',
+              description: '先进入第一步。',
+            },
+            {
+              placement: 'center',
+              title: '第二步',
+              description: '再返回上一页。',
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -103,26 +106,28 @@ describe('Tour', () => {
       expect(changeSpy).toHaveBeenCalledWith(1)
     })
 
-    render(
-      <Tour
-        defaultOpen
-        defaultCurrent={1}
-        onChange={changeSpy}
-        onOpenChange={openSpy}
-        steps={[
-          {
-            placement: 'center',
-            title: '第一步',
-            description: '先进入第一步。',
-          },
-          {
-            placement: 'center',
-            title: '第二步',
-            description: '再返回上一页。',
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tour
+          defaultOpen
+          defaultCurrent={1}
+          onChange={changeSpy}
+          onOpenChange={openSpy}
+          steps={[
+            {
+              placement: 'center',
+              title: '第一步',
+              description: '先进入第一步。',
+            },
+            {
+              placement: 'center',
+              title: '第二步',
+              description: '再返回上一页。',
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -154,18 +159,20 @@ describe('Tour', () => {
     activeContainer = container
     resetActiveRuntime()
 
-    render(
-      <Tour
-        open={true}
-        current={0}
-        steps={[
-          {
-            title: '受控第一步',
-            description: '受控模式下也应该正常渲染。',
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tour
+          open={true}
+          current={0}
+          steps={[
+            {
+              title: '受控第一步',
+              description: '受控模式下也应该正常渲染。',
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -185,63 +192,65 @@ describe('Tour', () => {
     const stepClose = vi.fn()
     const globalClose = vi.fn()
 
-    render(
-      <Tour
-        defaultOpen
-        defaultCurrent={1}
-        locale={{
-          previous: '全局上一步',
-          finish: '全局完成',
-          close: '关闭引导',
-        }}
-        classNames={{
-          section: 'section-root',
-          buttons: 'buttons-root',
-          prevButton: 'prev-root',
-          nextButton: 'next-root',
-          body: 'body-root',
-          meta: 'meta-root',
-        }}
-        styles={{
-          section: { borderTop: '1px solid rgb(255, 0, 0)' },
-          buttons: { justifyContent: 'flex-start' },
-          prevButton: { opacity: 0.4 },
-          nextButton: { minWidth: '120px' },
-          body: { paddingBottom: '2px' },
-          meta: { color: 'rgb(0, 128, 0)' },
-        }}
-        steps={[
-          { title: '第一步' },
-          {
-            title: '第二步',
-            description: '需要覆写按钮文案和关闭行为。',
-            onClose: stepClose,
-            locale: {
-              previous: '返回上一步',
-              finish: '提交完成',
-              close: '关闭第二步',
+    mountTestApp(container, () =>
+      render(
+        <Tour
+          defaultOpen
+          defaultCurrent={1}
+          locale={{
+            previous: '全局上一步',
+            finish: '全局完成',
+            close: '关闭引导',
+          }}
+          classNames={{
+            section: 'section-root',
+            buttons: 'buttons-root',
+            prevButton: 'prev-root',
+            nextButton: 'next-root',
+            body: 'body-root',
+            meta: 'meta-root',
+          }}
+          styles={{
+            section: { borderTop: '1px solid rgb(255, 0, 0)' },
+            buttons: { justifyContent: 'flex-start' },
+            prevButton: { opacity: 0.4 },
+            nextButton: { minWidth: '120px' },
+            body: { paddingBottom: '2px' },
+            meta: { color: 'rgb(0, 128, 0)' },
+          }}
+          steps={[
+            { title: '第一步' },
+            {
+              title: '第二步',
+              description: '需要覆写按钮文案和关闭行为。',
+              onClose: stepClose,
+              locale: {
+                previous: '返回上一步',
+                finish: '提交完成',
+                close: '关闭第二步',
+              },
+              classNames: {
+                section: 'section-step',
+                buttons: 'buttons-step',
+                prevButton: 'prev-step',
+                nextButton: 'next-step',
+                body: 'body-step',
+                meta: 'meta-step',
+              },
+              styles: {
+                section: { paddingBottom: '12px' },
+                buttons: { gap: '12px' },
+                prevButton: { letterSpacing: '1px' },
+                nextButton: { letterSpacing: '2px' },
+                body: { paddingTop: '4px' },
+                meta: { backgroundColor: 'rgb(240, 240, 240)' },
+              },
             },
-            classNames: {
-              section: 'section-step',
-              buttons: 'buttons-step',
-              prevButton: 'prev-step',
-              nextButton: 'next-step',
-              body: 'body-step',
-              meta: 'meta-step',
-            },
-            styles: {
-              section: { paddingBottom: '12px' },
-              buttons: { gap: '12px' },
-              prevButton: { letterSpacing: '1px' },
-              nextButton: { letterSpacing: '2px' },
-              body: { paddingTop: '4px' },
-              meta: { backgroundColor: 'rgb(240, 240, 240)' },
-            },
-          },
-        ]}
-        onClose={globalClose}
-      />,
-      container,
+          ]}
+          onClose={globalClose}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

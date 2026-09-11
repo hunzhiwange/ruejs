@@ -104,7 +104,7 @@ const App: FC = () => {
 }
 ```
 
-`ref()`、`computed()` 和 `customRef()` 创建的 Rue Ref 都会在 JSX child 的最终展示位置自动解包。这个规则不会改变普通 JavaScript：上面的 `computed(() => count.value * 2)` 仍需显式读取 `.value`；组件 Props 也保持原对象，例如 `<Child value={count}>` 会把 Ref 本身传给子组件。
+`ref()` 和 `computed()` 创建的 Rue Ref 都会在 JSX child 的最终展示位置自动解包。这个规则不会改变普通 JavaScript：上面的 `computed(() => count.value * 2)` 仍需显式读取 `.value`；组件 Props 也保持原对象，例如 `<Child value={count}>` 会把 Ref 本身传给子组件。
 
 如果你更喜欢 getter / setter 风格，也可以直接使用 `signal`：
 

@@ -11,6 +11,7 @@ import Head, {
   getSSRHeadHTML,
   escapeAttr,
   reduceHeadChildren,
+  createHeadRecord,
   _applyHeadPropsToElement,
 } from '../src/shims/head.js'
 import {
@@ -21,15 +22,15 @@ import {
 
 // ─── SSR rendering (mirrors Text.js test/unit/text-head-rendering.test.ts) ──
 
-describe('Rendering text/head', () => {
-  beforeEach(() => {
+describe('Rendering text/head', async () => {
+  beforeEach(async () => {
     resetSSRHead()
   })
 
-  it('should render outside of Text.js without error', () => {
+  it('should render outside of Text.js without error', async () => {
     // Text.js test: renderToString(<><Head /><p>hello world</p></>)
     // Verifies Head doesn't throw when used standalone
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(
         Fragment,
         null,
@@ -40,24 +41,24 @@ describe('Rendering text/head', () => {
     expect(html).toContain('hello world')
   })
 
-  it('returns null (no rendered output in body)', () => {
-    const html = renderAppServerElementToHtml(
+  it('returns null (no rendered output in body)', async () => {
+    const html = await renderAppServerElementToHtml(
       createElement(Head, null, createElement('title', null, 'My Page')),
     )
     // Head always returns null — elements are collected, not rendered inline
-    expect(html).toBe('')
+    expect(html.replace(/<!--[\s\S]*?-->/g, '')).toBe('')
   })
 })
 
 // ─── SSR head collection ────────────────────────────────────────────────
 
-describe('Head SSR collection', () => {
-  beforeEach(() => {
+describe('Head SSR collection', async () => {
+  beforeEach(async () => {
     resetSSRHead()
   })
 
-  it('collects title element', () => {
-    renderAppServerElementToHtml(
+  it('collects title element', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('title', null, 'My Page Title')),
     )
     const headHtml = getSSRHeadHTML()
@@ -67,8 +68,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('data-text-head=""')
   })
 
-  it('collects meta elements as self-closing', () => {
-    renderAppServerElementToHtml(
+  it('collects meta elements as self-closing', async () => {
+    await renderAppServerElementToHtml(
       createElement(
         Head,
         null,
@@ -81,8 +82,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).not.toContain('</meta>')
   })
 
-  it('collects link elements as self-closing', () => {
-    renderAppServerElementToHtml(
+  it('collects link elements as self-closing', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('link', { rel: 'stylesheet', href: '/styles.css' })),
     )
     const headHtml = getSSRHeadHTML()
@@ -90,8 +91,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('/>') // self-closing
   })
 
-  it('collects style elements', () => {
-    renderAppServerElementToHtml(
+  it('collects style elements', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('style', null, 'body { color: red; }')),
     )
     const headHtml = getSSRHeadHTML()
@@ -100,8 +101,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('body { color: red; }')
   })
 
-  it('collects script elements', () => {
-    renderAppServerElementToHtml(
+  it('collects script elements', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('script', { src: '/analytics.js', async: true })),
     )
     const headHtml = getSSRHeadHTML()
@@ -109,8 +110,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('</script>')
   })
 
-  it('collects base element as self-closing', () => {
-    renderAppServerElementToHtml(
+  it('collects base element as self-closing', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('base', { href: 'https://example.com/' })),
     )
     const headHtml = getSSRHeadHTML()
@@ -118,8 +119,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('/>') // self-closing
   })
 
-  it('collects noscript elements', () => {
-    renderAppServerElementToHtml(
+  it('collects noscript elements', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('noscript', null, 'JavaScript is required')),
     )
     const headHtml = getSSRHeadHTML()
@@ -128,8 +129,8 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('</noscript>')
   })
 
-  it('collects multiple head elements in order', () => {
-    renderAppServerElementToHtml(
+  it('collects multiple head elements in order', async () => {
+    await renderAppServerElementToHtml(
       createElement(
         Head,
         null,
@@ -144,27 +145,31 @@ describe('Head SSR collection', () => {
     expect(headHtml).toContain('favicon.ico')
   })
 
-  it('resets head between renders', () => {
-    renderAppServerElementToHtml(createElement(Head, null, createElement('title', null, 'Page 1')))
+  it('resets head between renders', async () => {
+    await renderAppServerElementToHtml(
+      createElement(Head, null, createElement('title', null, 'Page 1')),
+    )
     expect(getSSRHeadHTML()).toContain('Page 1')
 
     resetSSRHead()
 
-    renderAppServerElementToHtml(createElement(Head, null, createElement('title', null, 'Page 2')))
+    await renderAppServerElementToHtml(
+      createElement(Head, null, createElement('title', null, 'Page 2')),
+    )
     const headHtml = getSSRHeadHTML()
     expect(headHtml).toContain('Page 2')
     expect(headHtml).not.toContain('Page 1')
   })
 
-  it('returns empty string when no head elements', () => {
+  it('returns empty string when no head elements', async () => {
     const headHtml = getSSRHeadHTML()
     expect(headHtml).toBe('')
   })
 
-  it('dedupes keyed tags across multiple Head instances and keeps the last one', () => {
+  it('dedupes keyed tags across multiple Head instances and keeps the last one', async () => {
     // Text.js documents `key` as the dedupe mechanism for text/head tags:
     // https://github.com/vercel/next.js/blob/canary/docs/02-pages/04-api-reference/01-components/head.mdx
-    renderAppServerElementToHtml(
+    await renderAppServerElementToHtml(
       createElement(
         Fragment,
         null,
@@ -195,8 +200,8 @@ describe('Head SSR collection', () => {
     expect(headHtml.match(/property="og:title"/g)).toHaveLength(1)
   })
 
-  it('dedupes keyed tags across Head instances when one Head has multiple children', () => {
-    renderAppServerElementToHtml(
+  it('dedupes keyed tags across Head instances when one Head has multiple children', async () => {
+    await renderAppServerElementToHtml(
       createElement(
         Fragment,
         null,
@@ -234,15 +239,19 @@ describe('Head SSR collection', () => {
   })
 })
 
-describe('Head reduction', () => {
-  it('dedupes keyed tags and keeps the last matching element', () => {
+function record(tag: string, props: Record<string, unknown>) {
+  const { key, ...attributes } = props
+  return createHeadRecord(tag, attributes, key as string)
+}
+describe('Head reduction', async () => {
+  it('dedupes keyed tags and keeps the last matching element', async () => {
     const reduced = reduceHeadChildren([
-      createElement('meta', {
+      record('meta', {
         property: 'og:title',
         content: 'Original Title',
         key: 'og-title',
       }),
-      createElement('meta', {
+      record('meta', {
         property: 'og:title',
         content: 'Updated Title',
         key: 'og-title',
@@ -254,14 +263,14 @@ describe('Head reduction', () => {
     expect(dedupedMeta?.props.content).toBe('Updated Title')
   })
 
-  it('dedupes meta[name] tags without explicit keys using the last value', () => {
+  it('dedupes meta[name] tags without explicit keys using the last value', async () => {
     const reduced = reduceHeadChildren([
       [
-        createElement('meta', {
+        record('meta', {
           name: 'description',
           content: 'Description A',
         }),
-        createElement('meta', {
+        record('meta', {
           name: 'description',
           content: 'Description B',
         }),
@@ -276,23 +285,23 @@ describe('Head reduction', () => {
 
 // ─── Disallowed tags ────────────────────────────────────────────────────
 
-describe('Head disallowed tags', () => {
-  beforeEach(() => {
+describe('Head disallowed tags', async () => {
+  beforeEach(async () => {
     resetSSRHead()
   })
 
-  it('ignores <div> tag (not allowed in head)', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    renderAppServerElementToHtml(createElement(Head, null, createElement('div', null, 'bad')))
+  it('ignores <div> tag (not allowed in head)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(async () => {})
+    await renderAppServerElementToHtml(createElement(Head, null, createElement('div', null, 'bad')))
     const headHtml = getSSRHeadHTML()
     expect(headHtml).not.toContain('<div')
     expect(headHtml).toBe('')
     warn.mockRestore()
   })
 
-  it('ignores <iframe> tag (security concern)', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    renderAppServerElementToHtml(
+  it('ignores <iframe> tag (security concern)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(async () => {})
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('iframe', { src: 'https://evil.com' })),
     )
     const headHtml = getSSRHeadHTML()
@@ -301,19 +310,18 @@ describe('Head disallowed tags', () => {
     warn.mockRestore()
   })
 
-  it('ignores component elements (non-string type)', () => {
+  it('executes compiled components inside Head', async () => {
     function CustomComponent() {
       return createElement('meta', { name: 'custom' })
     }
-    renderAppServerElementToHtml(createElement(Head, null, createElement(CustomComponent)))
+    await renderAppServerElementToHtml(createElement(Head, null, createElement(CustomComponent)))
     const headHtml = getSSRHeadHTML()
-    // Component elements are ignored because child.type is not a string
-    expect(headHtml).toBe('')
+    expect(headHtml).toContain('<meta name="custom"')
   })
 
-  it('keeps allowed tags while ignoring disallowed ones', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    renderAppServerElementToHtml(
+  it('keeps allowed tags while ignoring disallowed ones', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(async () => {})
+    await renderAppServerElementToHtml(
       createElement(
         Head,
         null,
@@ -332,13 +340,13 @@ describe('Head disallowed tags', () => {
 
 // ─── HTML/Attribute escaping ────────────────────────────────────────────
 
-describe('Head escaping', () => {
-  beforeEach(() => {
+describe('Head escaping', async () => {
+  beforeEach(async () => {
     resetSSRHead()
   })
 
-  it('escapes HTML in text content', () => {
-    renderAppServerElementToHtml(
+  it('escapes HTML in text content', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('title', null, 'Page <script>alert("xss")</script>')),
     )
     const headHtml = getSSRHeadHTML()
@@ -346,8 +354,8 @@ describe('Head escaping', () => {
     expect(headHtml).not.toContain('<script>alert')
   })
 
-  it('escapes HTML in attribute values', () => {
-    renderAppServerElementToHtml(
+  it('escapes HTML in attribute values', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('meta', { name: 'test"value', content: 'a<b>c&d' })),
     )
     const headHtml = getSSRHeadHTML()
@@ -356,8 +364,8 @@ describe('Head escaping', () => {
     expect(headHtml).toContain('&amp;')
   })
 
-  it('renders dangerouslySetInnerHTML raw on SSR', () => {
-    renderAppServerElementToHtml(
+  it('renders dangerouslySetInnerHTML raw on SSR', async () => {
+    await renderAppServerElementToHtml(
       createElement(
         Head,
         null,
@@ -370,8 +378,8 @@ describe('Head escaping', () => {
     expect(headHtml).toContain('console.log("hello")')
   })
 
-  it('empty dangerouslySetInnerHTML.__html takes precedence over children on SSR', () => {
-    renderAppServerElementToHtml(
+  it('empty dangerouslySetInnerHTML.__html takes precedence over children on SSR', async () => {
+    await renderAppServerElementToHtml(
       createElement(
         Head,
         null,
@@ -388,8 +396,8 @@ describe('Head escaping', () => {
     expect(headHtml).toMatch(/<style[^>]*><\/style>/)
   })
 
-  it('converts className to class attribute', () => {
-    renderAppServerElementToHtml(
+  it('converts className to class attribute', async () => {
+    await renderAppServerElementToHtml(
       createElement(Head, null, createElement('style', { className: 'critical' }, 'body{}')),
     )
     const headHtml = getSSRHeadHTML()
@@ -397,8 +405,8 @@ describe('Head escaping', () => {
     expect(headHtml).not.toContain('className')
   })
 
-  it('renders boolean true attributes as bare attribute name', () => {
-    renderAppServerElementToHtml(
+  it('renders boolean true attributes as bare attribute name', async () => {
+    await renderAppServerElementToHtml(
       createElement(
         Head,
         null,
@@ -411,7 +419,7 @@ describe('Head escaping', () => {
   })
 })
 
-describe('Head client sync', () => {
+describe('Head client sync', async () => {
   function createElementDouble() {
     const attributes = new Map<string, string>()
     return {
@@ -424,7 +432,7 @@ describe('Head client sync', () => {
     }
   }
 
-  it('applies dangerouslySetInnerHTML to client-managed head elements', () => {
+  it('applies dangerouslySetInnerHTML to client-managed head elements', async () => {
     // Text.js client reference:
     // packages/text/src/client/head-manager.ts rueElementToDOM()
     // sets el.innerHTML from dangerouslySetInnerHTML.__html.
@@ -437,7 +445,7 @@ describe('Head client sync', () => {
     expect(element.innerHTML).toBe('body { color: red; }')
   })
 
-  it('ignores malformed dangerouslySetInnerHTML without __html key', () => {
+  it('ignores malformed dangerouslySetInnerHTML without __html key', async () => {
     // dangerouslySetInnerHTML: {} has no __html key, so getDangerouslySetInnerHTML
     // returns undefined. The client falls through to children (matching SSR behavior).
     const element = createElementDouble()
@@ -451,7 +459,7 @@ describe('Head client sync', () => {
     expect(element.innerHTML).toBe('previous')
   })
 
-  it('falls through to children when dangerouslySetInnerHTML has no __html key', () => {
+  it('falls through to children when dangerouslySetInnerHTML has no __html key', async () => {
     const element = createElementDouble()
 
     _applyHeadPropsToElement(element, {
@@ -463,7 +471,7 @@ describe('Head client sync', () => {
     expect(element.textContent).toBe('fallback')
   })
 
-  it('empty dangerouslySetInnerHTML.__html takes precedence over children on client', () => {
+  it('empty dangerouslySetInnerHTML.__html takes precedence over children on client', async () => {
     const element = createElementDouble()
     _applyHeadPropsToElement(element, {
       children: 'fallback',
@@ -473,7 +481,7 @@ describe('Head client sync', () => {
     expect(element.textContent).toBe('')
   })
 
-  it('prefers dangerouslySetInnerHTML over children on client-managed head elements', () => {
+  it('prefers dangerouslySetInnerHTML over children on client-managed head elements', async () => {
     const element = createElementDouble()
 
     _applyHeadPropsToElement(element, {
@@ -485,14 +493,14 @@ describe('Head client sync', () => {
     expect(element.textContent).toBe('')
   })
 
-  it('sets textContent from children when dangerouslySetInnerHTML is absent', () => {
+  it('sets textContent from children when dangerouslySetInnerHTML is absent', async () => {
     const element = createElementDouble()
     _applyHeadPropsToElement(element, { children: 'hello' })
     expect(element.textContent).toBe('hello')
     expect(element.innerHTML).toBe('')
   })
 
-  it('sets textContent from array children by joining them', () => {
+  it('sets textContent from array children by joining them', async () => {
     const element = createElementDouble()
     _applyHeadPropsToElement(element, { children: ['a', 'b', 'c'] })
     expect(element.textContent).toBe('abc')
@@ -502,24 +510,24 @@ describe('Head client sync', () => {
 
 // ─── escapeAttr utility ─────────────────────────────────────────────────
 
-describe('escapeAttr', () => {
-  it('escapes ampersand', () => {
+describe('escapeAttr', async () => {
+  it('escapes ampersand', async () => {
     expect(escapeAttr('a&b')).toBe('a&amp;b')
   })
 
-  it('escapes double quotes', () => {
+  it('escapes double quotes', async () => {
     expect(escapeAttr('a"b')).toBe('a&quot;b')
   })
 
-  it('escapes angle brackets', () => {
+  it('escapes angle brackets', async () => {
     expect(escapeAttr('a<b>c')).toBe('a&lt;b&gt;c')
   })
 
-  it('returns safe strings unchanged', () => {
+  it('returns safe strings unchanged', async () => {
     expect(escapeAttr('hello world')).toBe('hello world')
   })
 
-  it('escapes all special chars together', () => {
+  it('escapes all special chars together', async () => {
     expect(escapeAttr('&"<>')).toBe('&amp;&quot;&lt;&gt;')
   })
 })

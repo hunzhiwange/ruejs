@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Input from '../index'
@@ -18,9 +19,17 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Input type="email" color="primary" size="lg" placeholder="Email" data-testid="input-root" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Input
+          type="email"
+          color="primary"
+          size="lg"
+          placeholder="Email"
+          data-testid="input-root"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -37,12 +46,14 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Input.Shell className="gap-2" data-testid="input-shell">
-        <span className="label">Search</span>
-        <input type="search" className="grow" />
-      </Input.Shell>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Input.Shell className="gap-2" data-testid="input-shell">
+          <span className="label">Search</span>
+          <input type="search" className="grow" />
+        </Input.Shell>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -61,22 +72,24 @@ describe('Input', () => {
     const handleInput = vi.fn()
     const handleChange = vi.fn()
 
-    render(
-      <Input
-        data-testid="money-input"
-        defaultValue="120"
-        prefix="￥"
-        suffix="RMB"
-        allowClear={true}
-        showCount={true}
-        maxLength={6}
-        status="warning"
-        variant="filled"
-        onClear={handleClear}
-        onInput={handleInput}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Input
+          data-testid="money-input"
+          defaultValue="120"
+          prefix="￥"
+          suffix="RMB"
+          allowClear={true}
+          showCount={true}
+          maxLength={6}
+          status="warning"
+          variant="filled"
+          onClear={handleClear}
+          onInput={handleInput}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -112,13 +125,15 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Input data-testid="plain-input" readOnly={undefined} />
-        <Input data-testid="invalid-input" status="error" />
-        <Input data-testid="readonly-input" defaultValue="42" allowClear={true} readOnly={true} />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Input data-testid="plain-input" readOnly={undefined} />
+          <Input data-testid="invalid-input" status="error" />
+          <Input data-testid="readonly-input" defaultValue="42" allowClear={true} readOnly={true} />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -143,14 +158,16 @@ describe('Input', () => {
     resetActiveRuntime()
     const handleSearch = vi.fn()
 
-    render(
-      <Input.Search
-        data-testid="search-input"
-        defaultValue="rue"
-        allowClear={true}
-        onSearch={handleSearch}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Input.Search
+          data-testid="search-input"
+          defaultValue="rue"
+          allowClear={true}
+          onSearch={handleSearch}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -182,9 +199,11 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Input.Search data-testid="search-with-button" defaultValue="rue" enterButton="发布" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Input.Search data-testid="search-with-button" defaultValue="rue" enterButton="发布" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -203,7 +222,9 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Input.Search data-testid="search-default-action" placeholder="搜索" />, container)
+    mountTestApp(container, () =>
+      render(<Input.Search data-testid="search-default-action" placeholder="搜索" />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector(
@@ -222,7 +243,9 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Input.Password data-testid="password-input" defaultValue="secret" />, container)
+    mountTestApp(container, () =>
+      render(<Input.Password data-testid="password-input" defaultValue="secret" />, container),
+    )
 
     await waitForContent(() => {
       const input = container.querySelector('[data-testid="password-input"]') as HTMLInputElement
@@ -273,7 +296,7 @@ describe('Input', () => {
       />
     )
 
-    render(<ControlledPassword />, container)
+    mountTestApp(container, () => render(<ControlledPassword />, container))
 
     await waitForContent(() => {
       const input = container.querySelector(
@@ -327,15 +350,17 @@ describe('Input', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Input.TextArea
-        data-testid="bio"
-        value="Rue"
-        allowClear={true}
-        showCount={true}
-        maxLength={8}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Input.TextArea
+          data-testid="bio"
+          value="Rue"
+          allowClear={true}
+          showCount={true}
+          maxLength={8}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

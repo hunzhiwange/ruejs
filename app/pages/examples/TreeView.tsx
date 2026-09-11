@@ -19,11 +19,11 @@ const TreeItem: FC<{
 
   const addChild = (e?: any) => {
     e?.stopPropagation()
-    const children = props.model.children ?? []
+    const childNodes = props.model.children ?? []
     props.onChange(props.model.id, {
       children: [
-        ...children,
-        { id: `${props.model.id}-new-${children.length}`, name: 'new stuff' },
+        ...childNodes,
+        { id: `${props.model.id}-new-${childNodes.length}`, name: 'new stuff' },
       ],
       open: true,
     })

@@ -1,17 +1,8 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import {
-  RUE_ELEMENT_SYMBOL,
-  RUE_FRAGMENT_SYMBOL,
-  RUE_SUSPENSE_SYMBOL,
   decodeRuePayloadReadableStream,
   renderRuePayloadToReadableStream,
 } from '@rue-js/rsc/core/payload'
-import {
-  ServerProtocolFragment,
-  ServerProtocolSuspense,
-  createServerProtocolElement,
-  isServerProtocolElement,
-} from '../src/server/element-protocol.js'
 import {
   createAppServerPayloadProtocol,
   createLazyAppServerPayloadProtocol,
@@ -23,33 +14,6 @@ function createTestStream(): ReadableStream<Uint8Array> {
       controller.close()
     },
   })
-}
-
-function renderTestAppPayloadToReadableStream(
-  model: unknown,
-  options?: unknown,
-): ReadableStream<Uint8Array> {
-  return renderRuePayloadToReadableStream(adaptTestAppPayloadModel(model), options as object)
-}
-
-function adaptTestAppPayloadModel(model: unknown): unknown {
-  if (isServerProtocolElement(model)) {
-    return {
-      ...model,
-      $$typeof: RUE_ELEMENT_SYMBOL,
-      type: adaptTestAppPayloadModel(model.type),
-      props: adaptTestAppPayloadModel(model.props ?? {}),
-    }
-  }
-  if (model === ServerProtocolFragment) return RUE_FRAGMENT_SYMBOL
-  if (model === ServerProtocolSuspense) return RUE_SUSPENSE_SYMBOL
-  if (Array.isArray(model)) return model.map(adaptTestAppPayloadModel)
-  if (typeof model !== 'object' || model === null) return model
-  const record: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(model)) {
-    record[key] = adaptTestAppPayloadModel(value)
-  }
-  return record
 }
 
 describe('App server payload protocol', () => {
@@ -92,23 +56,12 @@ describe('App server payload protocol', () => {
     )
   })
 
-  it('round-trips server component output through the Rue payload codec', async () => {
-    function Page() {
-      return createServerProtocolElement('h1', { id: 'title' }, 'Hello Rue')
-    }
-
-    const protocol = createAppServerPayloadProtocol(renderTestAppPayloadToReadableStream)
-    const decoded = await decodeRuePayloadReadableStream<{
-      [key: string]: unknown
-    }>(
-      protocol.renderToReadableStream({
-        'page:/': createServerProtocolElement(Page),
-      }),
+  it('round-trips a compiled frame through the payload codec', async () => {
+    const frame = { version: 1, html: '<h1 id="title">Hello Rue</h1>', references: [] }
+    const protocol = createAppServerPayloadProtocol(renderRuePayloadToReadableStream)
+    const decoded = await decodeRuePayloadReadableStream(
+      protocol.renderToReadableStream({ 'route:/': frame }),
     )
-
-    expect(decoded['page:/']).toMatchObject({
-      type: 'h1',
-      props: { id: 'title', children: 'Hello Rue' },
-    })
+    expect(decoded).toEqual({ 'route:/': frame })
   })
 })

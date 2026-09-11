@@ -320,6 +320,9 @@ export function effectTrackDependency(
   storage: ReactiveEffectRuntimeStorage,
   node: ReactiveNodeId,
 ): boolean {
+  return dispatchTrack(storage, node)
+}
+function trackDependency(storage: ReactiveEffectRuntimeStorage, node: ReactiveNodeId): boolean {
   const effectId = storage.state.currentEffectId
   if (effectId === undefined || !storage.effects.has(effectId)) return false
   const owner = stateCore.stateCurrentRenderDebugOwner(storage.state)
@@ -332,9 +335,16 @@ export function effectTriggerDependency(
   node: ReactiveNodeId,
   event?: ReactiveTriggerEvent,
 ): void {
-  effectScheduleEffects(storage, graphCore.graphTriggerDependency(storage.graph, node), event)
+  dispatchTrigger(storage, [node], event)
 }
 export function effectTriggerDependencies(
+  storage: ReactiveEffectRuntimeStorage,
+  nodes: Iterable<ReactiveNodeId>,
+  event?: ReactiveTriggerEvent,
+): void {
+  dispatchTrigger(storage, nodes, event)
+}
+function triggerDependencies(
   storage: ReactiveEffectRuntimeStorage,
   nodes: Iterable<ReactiveNodeId>,
   event?: ReactiveTriggerEvent,
@@ -346,6 +356,13 @@ export function effectTriggerDependencies(
   }
   effectScheduleEffects(storage, [...effectIds], event)
 }
+let dispatchTrack = (_storage: ReactiveEffectRuntimeStorage, _node: ReactiveNodeId): boolean =>
+  false
+let dispatchTrigger = (
+  _storage: ReactiveEffectRuntimeStorage,
+  _nodes: Iterable<ReactiveNodeId>,
+  _event?: ReactiveTriggerEvent,
+): void => {}
 export function effectInvalidateComputed(
   storage: ReactiveEffectRuntimeStorage,
   node: ReactiveNodeId,
@@ -370,6 +387,10 @@ export function effectInsertEffect(
   options: EffectOptions,
   computed: ComputedEffectBinding | undefined,
 ): void {
+  // Signal-only compiler output does not need kernel effect scheduling.
+  // All entries install the same dispatch when the first kernel effect is allocated.
+  dispatchTrack = trackDependency
+  dispatchTrigger = triggerDependencies
   const scopeId = storage.scopeOps?.current()
   const runner = (): void => effectRunEffect(storage, id)
   const scopeDisposer = (): void => {

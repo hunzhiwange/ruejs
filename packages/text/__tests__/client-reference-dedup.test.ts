@@ -183,7 +183,6 @@ describe('clientReferenceDedupPlugin', () => {
   const plugin = clientReferenceDedupPlugin()
   const resolveId = (plugin.resolveId as any).handler
   const load = (plugin.load as any).handler
-  const transform = (plugin.transform as any).handler
 
   function createContext(envName: string) {
     return { environment: { name: envName } }
@@ -567,63 +566,8 @@ describe('clientReferenceDedupPlugin', () => {
     })
   })
 
-  describe('transform', () => {
-    it("rewrites @rue-js/rue imports in SSR 'use client' modules to the SSR compat shim", () => {
-      ;(plugin.configResolved as any)({
-        root: '/project',
-        environments: {
-          client: { optimizeDeps: { exclude: [] } },
-        },
-        optimizeDeps: {},
-      })
-      const result = transform.call(
-        createContext('ssr'),
-        `'use client'\nimport { createContext } from '@rue-js/rue'\n`,
-        '/project/node_modules/fake-context-lib/internal/context.js',
-      )
-
-      expect(result?.code).toContain('rue-ssr-compat')
-      expect(result?.code).not.toContain("from '@rue-js/rue'")
-    })
-
-    it("rewrites cached SSR 'use client' modules to the SSR compat shim", () => {
-      ;(plugin.configResolved as any)({
-        root: '/project',
-        environments: {
-          client: { optimizeDeps: { exclude: [] } },
-        },
-        optimizeDeps: {},
-      })
-      const result = transform.call(
-        createContext('ssr'),
-        `'use client'\nimport { createContext } from '@rue-js/rue'\n`,
-        '/project/node_modules/fake-context-lib/internal/context.js$$cache=abc123',
-      )
-
-      expect(result?.code).toContain('rue-ssr-compat')
-      expect(result?.code).not.toContain("from '@rue-js/rue'")
-    })
-
-    it("rewrites RSC-loaded 'use client' modules to the SSR compat shim", () => {
-      const result = transform.call(
-        createContext('rsc'),
-        `'use client'\nimport { createContext } from '@rue-js/rue'\n`,
-        '/project/node_modules/fake-context-lib/internal/context.js',
-      )
-
-      expect(result?.code).toContain('rue-ssr-compat')
-      expect(result?.code).not.toContain("from '@rue-js/rue'")
-    })
-
-    it('does not rewrite @rue-js/rue imports in server modules', () => {
-      const result = transform.call(
-        createContext('ssr'),
-        `import { createContext } from '@rue-js/rue'\n`,
-        '/project/app/page.tsx',
-      )
-
-      expect(result).toBeNull()
-    })
+  it('leaves component compilation and Rue imports to the compiler plugin', () => {
+    expect(plugin.transform).toBeUndefined()
   })
 
   describe('plugin metadata', () => {

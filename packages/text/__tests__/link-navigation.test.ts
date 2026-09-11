@@ -11,105 +11,13 @@ import {
 import { APP_RSC_RENDER_MODE_PREFETCH_LOADING_SHELL } from '../src/server/app-rsc-render-mode.js'
 import { TEXT_RSC_RENDER_MODE_HEADER } from '../src/server/headers.js'
 import type { TextLinkPrefetchRoute } from '../src/client/text-text-data.js'
-import { deleteContextRuntime, setContextRuntime } from '../src/shims/context-runtime-global.js'
 
 const compiledDomHarnessState = vi.hoisted(() => ({
   captureAnchor: null as null | ((type: unknown, props: unknown) => void),
 }))
 
-vi.mock('@rue-js/rue/internal/component', async importOriginal => {
-  const actual = await importOriginal<Record<string, unknown>>()
-  const elementProps = new WeakMap<object, Record<string, unknown>>()
-  const propsFor = (element: object) => elementProps.get(element) ?? {}
-  const runRenderable = (value: unknown): unknown =>
-    typeof value === 'function' ? (value as () => unknown)() : value
-
-  return {
-    ...actual,
-    vapor: (setup: () => unknown) => setup(),
-    _$template: () => () => {
-      const element: {
-        childNodes: unknown[]
-        appendChild(): void
-        addEventListener(event: string, listener: unknown): void
-      } = {
-        childNodes: [],
-        appendChild: () => undefined,
-        addEventListener(event, listener) {
-          const prop =
-            event === 'mouseenter'
-              ? 'onMouseEnter'
-              : event === 'touchstart'
-                ? 'onTouchStart'
-                : `on${event[0]?.toUpperCase()}${event.slice(1)}`
-          props[prop] = listener
-        },
-      }
-      element.childNodes = [element]
-      const props: Record<string, unknown> = {}
-      elementProps.set(element, props)
-      return {
-        content: {
-          cloneNode() {
-            compiledDomHarnessState.captureAnchor?.('a', props)
-            return {
-              childNodes: [element],
-              firstChild: element,
-              appendChild: () => undefined,
-            }
-          },
-        },
-      }
-    },
-    _$createDocumentFragment: () => ({ appendChild: () => undefined }),
-    _$createComment: () => ({}),
-    _$createElement(type: string) {
-      const element = {}
-      const props: Record<string, unknown> = {}
-      elementProps.set(element, props)
-      compiledDomHarnessState.captureAnchor?.(type, props)
-      return element
-    },
-    _$appendChild: () => undefined,
-    _$addEventListener(element: object, event: string, listener: unknown) {
-      const prop =
-        event === 'mouseenter'
-          ? 'onMouseEnter'
-          : event === 'touchstart'
-            ? 'onTouchStart'
-            : `on${event[0]?.toUpperCase()}${event.slice(1)}`
-      propsFor(element)[prop] = listener
-    },
-    _$setAttribute(element: object, name: string, value: unknown) {
-      propsFor(element)[name] = value
-    },
-    _$spreadAttributes(element: object, props: Record<string, unknown>) {
-      const target = propsFor(element)
-      for (const [key, value] of Object.entries(props)) {
-        if (value === undefined || key === 'ref' || key in target) continue
-        target[key] = value
-      }
-    },
-    _$compiledBindUseRef(element: object, readRef: () => unknown) {
-      propsFor(element).ref = readRef()
-    },
-    _$createComponent(
-      _type: unknown,
-      props: Record<string, unknown> | (() => Record<string, unknown>),
-    ) {
-      return runRenderable((typeof props === 'function' ? props() : props).children)
-    },
-    _$compiledRenderable: runRenderable,
-    _$compiledRenderableValue: (value: unknown) => value,
-    _$mountCompiledSlotAt(_target: unknown, readFactory: () => unknown, _readProps: () => unknown) {
-      runRenderable(readFactory())
-    },
-    renderAnchor: runRenderable,
-    untrack: runRenderable,
-  }
-})
-
-type CapturedEffect = () => void | (() => void)
+const realDocument = document
+const mountedRoots: Array<{ unmount(): void }> = []
 
 type CapturedClickEvent = {
   altKey?: boolean
@@ -207,134 +115,41 @@ function pingVisibleLinksFromRuntime(): void {
 
 type MockTextAnchorCaptureOptions = {
   captureAnchor(type: unknown, props: unknown): void
-  captureEffect?: (effect: CapturedEffect) => void
-  startTransition?: (callback: () => void) => void
 }
 
-// This is a tactical escape hatch for Link only. It installs the Text hook
-// runtime used by the shim and a narrow compiled-DOM harness that captures
-// anchor attributes and listeners. It cannot test commit scheduling, cleanup,
-// re-renders, or conditional effect execution. Do not reuse it as a component
-// harness.
-function mockTextAnchorCaptureForLinkOnly_DO_NOT_REUSE(
-  options: MockTextAnchorCaptureOptions,
-): void {
+function captureCompiledAnchor(options: MockTextAnchorCaptureOptions): void {
   compiledDomHarnessState.captureAnchor = options.captureAnchor
+  vi.stubGlobal('document', realDocument)
   Reflect.set(globalThis, Symbol.for('text.currentSsrLinkRendering'), { active: false })
-  const createContext = <T>(defaultValue: T) => {
-    const context = {
-      defaultValue,
-      currentValue: defaultValue,
-      Provider(props: { value: T; children?: unknown }) {
-        context.currentValue = props.value
-        return props.children
-      },
-    }
-    return context
-  }
-  setContextRuntime({
-    createContext,
-    createElement() {
-      throw new Error('compiled Link test must not call the legacy element factory')
-    },
-    startTransition: options.startTransition ?? ((callback: () => void) => callback()),
-    useContext<T>(context: { currentValue?: T; defaultValue?: T }) {
-      return context.currentValue ?? context.defaultValue
-    },
-    useEffect(effect: CapturedEffect) {
-      options.captureEffect?.(effect)
-    },
-    useRef: <T>(initialValue: T) => ({ current: initialValue }),
-    useState<T>(initialState: T | (() => T)) {
-      let state = typeof initialState === 'function' ? (initialState as () => T)() : initialState
-      const setState = (value: T | ((previous: T) => T)) => {
-        state = typeof value === 'function' ? (value as (previous: T) => T)(state) : value
-      }
-      return [state, setState] as const
-    },
-  })
-
-  const createNode = () => ({ appendChild: () => undefined })
-  const elementProps = new WeakMap<object, Record<string, unknown>>()
-  const propsFor = (element: object) => elementProps.get(element) ?? {}
-  const domAdapter = new Proxy<Record<string, unknown>>(
-    {
-      createComment: createNode,
-      createDocumentFragment: createNode,
-      createElement(type: string) {
-        const element = createNode()
-        const props: Record<string, unknown> = {}
-        elementProps.set(element, props)
-        options.captureAnchor(type, props)
-        return element
-      },
-      appendChild: () => undefined,
-      addEventListener(element: object, event: string, listener: unknown) {
-        const prop =
-          event === 'mouseenter'
-            ? 'onMouseEnter'
-            : event === 'touchstart'
-              ? 'onTouchStart'
-              : `on${event[0]?.toUpperCase()}${event.slice(1)}`
-        propsFor(element)[prop] = listener
-      },
-      applyRef(element: object, ref: unknown) {
-        if (typeof ref === 'function') ref(element)
-        else if (typeof ref === 'object' && ref !== null) {
-          ;(ref as { current?: unknown }).current = element
-        }
-      },
-      getTagName: () => 'A',
-      removeAttribute(element: object, name: string) {
-        delete propsFor(element)[name]
-      },
-      setAttribute(element: object, name: string, value: unknown) {
-        propsFor(element)[name] = value
-      },
+}
+async function runCompiledLink(
+  Component: (props: any) => any,
+  props: Record<string, unknown>,
+): Promise<HTMLAnchorElement> {
+  const { mountClaimRoot, _$claimText } = await import('@rue-js/runtime/internal/hydrate')
+  const { children, ...attributes } = props
+  const stage = realDocument.createElement('div')
+  const root = mountClaimRoot(
+    stage,
+    input => {
+      const plan = Component(input)
+      return context =>
+        plan({
+          ...context,
+          onElement: (node: Element, props: Record<string, unknown>) =>
+            compiledDomHarnessState.captureAnchor?.(node.localName, props),
+        })
     },
     {
-      get(target, property) {
-        return Reflect.get(target, property) ?? (() => undefined)
+      props: {
+        ...attributes,
+        children: (context: any) => _$claimText(context, 'test-link-child', () => children),
       },
     },
   )
-  vi.stubGlobal('__rue_dom_adapter__', domAdapter)
-  vi.stubGlobal('document', {
-    createComment: createNode,
-    createDocumentFragment: createNode,
-    documentElement: { scrollTop: 0 },
-    createElement(type: string) {
-      const props: Record<string, unknown> = {}
-      const element = {
-        appendChild: () => undefined,
-        addEventListener(event: string, listener: unknown) {
-          const prop = `on${event[0]?.toUpperCase()}${event.slice(1)}`
-          props[prop] = listener
-        },
-        removeAttribute(name: string) {
-          delete props[name]
-        },
-        setAttribute(name: string, value: unknown) {
-          props[name] = value
-        },
-      }
-      options.captureAnchor(type, props)
-      return element
-    },
-  })
-}
-
-function runCompiledLink(renderable: unknown): void {
-  if (typeof renderable === 'function') {
-    ;(renderable as () => unknown)()
-    return
-  }
-  if (typeof renderable === 'object' && renderable !== null) {
-    const setup = (renderable as Record<string, unknown>).__rue_compiled_mount
-    if (typeof setup === 'function') {
-      ;(setup as () => unknown)()
-    }
-  }
+  mountedRoots.push(root)
+  await root.ready
+  return stage.querySelector('a')!
 }
 
 async function flushPrefetchTasks(): Promise<void> {
@@ -530,39 +345,26 @@ describe('Link prefetch pure decisions', () => {
 
 afterEach(() => {
   compiledDomHarnessState.captureAnchor = null
-  deleteContextRuntime()
+  for (const root of mountedRoots.splice(0)) root.unmount()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.resetModules()
 })
 
 describe('Link App Router navigation scheduling', () => {
-  it('clicking an RSC Link starts app-router navigation inside a Text transition', async () => {
+  it('clicking a compiled RSC Link delegates navigation to the App Router', async () => {
     vi.resetModules()
 
     let capturedAnchorProps: CapturedAnchorProps | undefined
-    let transitionActive = false
-    const transitionStates: boolean[] = []
-    const startTransition = vi.fn((callback: () => void) => {
-      transitionActive = true
-      try {
-        callback()
-      } finally {
-        transitionActive = false
-      }
-    })
-
     const captureAnchor = (type: unknown, props: unknown) => {
       if (type === 'a' && props !== null && typeof props === 'object') {
         capturedAnchorProps = props
       }
     }
 
-    mockTextAnchorCaptureForLinkOnly_DO_NOT_REUSE({ captureAnchor, startTransition })
+    captureCompiledAnchor({ captureAnchor })
 
-    const navigate = vi.fn(async () => {
-      transitionStates.push(transitionActive)
-    })
+    const navigate = vi.fn(async () => {})
     vi.stubGlobal('window', {
       [Symbol.for('text.navigationRuntime')]: {
         bootstrap: {
@@ -586,7 +388,7 @@ describe('Link App Router navigation scheduling', () => {
     })
 
     const { default: IsolatedLink } = await import('../src/shims/link.js?text-client-compile')
-    runCompiledLink(IsolatedLink({ href: '/target', prefetch: false, children: 'target' }))
+    await runCompiledLink(IsolatedLink, { href: '/target', prefetch: false, children: 'target' })
 
     const clickEvent = {
       button: 0,
@@ -605,9 +407,7 @@ describe('Link App Router navigation scheduling', () => {
     await flushNavigationTasks()
 
     expect(clickEvent.defaultPrevented).toBe(true)
-    expect(startTransition).toHaveBeenCalledTimes(1)
     expect(navigate).toHaveBeenCalledWith('/target', 0, 'navigate', 'push', undefined, true)
-    expect(transitionStates).toEqual([true])
   })
 
   it('lets the browser handle native URI schemes without app-router navigation', async () => {
@@ -653,9 +453,6 @@ describe('Link App Router navigation scheduling', () => {
     vi.resetModules()
 
     let capturedAnchorProps: CapturedAnchorProps | undefined
-    const startTransition = vi.fn((callback: () => void) => {
-      callback()
-    })
 
     const captureAnchor = (type: unknown, props: unknown) => {
       if (type === 'a' && props !== null && typeof props === 'object') {
@@ -663,7 +460,7 @@ describe('Link App Router navigation scheduling', () => {
       }
     }
 
-    mockTextAnchorCaptureForLinkOnly_DO_NOT_REUSE({ captureAnchor, startTransition })
+    captureCompiledAnchor({ captureAnchor })
 
     const navigate = vi.fn(async () => {})
     vi.stubGlobal('window', {
@@ -694,16 +491,14 @@ describe('Link App Router navigation scheduling', () => {
 
     // Ported from Text.js: test/e2e/link-on-navigate-prop/index.test.ts
     // https://github.com/vercel/next.js/blob/canary/test/e2e/link-on-navigate-prop/index.test.ts
-    runCompiledLink(
-      IsolatedLink({
-        download: true,
-        href: '/file.pdf',
-        onClick,
-        onNavigate,
-        prefetch: false,
-        children: 'download',
-      }),
-    )
+    await runCompiledLink(IsolatedLink, {
+      download: true,
+      href: '/file.pdf',
+      onClick,
+      onNavigate,
+      prefetch: false,
+      children: 'download',
+    })
 
     const clickEvent = {
       button: 0,
@@ -727,7 +522,6 @@ describe('Link App Router navigation scheduling', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
     expect(clickEvent.defaultPrevented).toBe(false)
     expect(onNavigate).not.toHaveBeenCalled()
-    expect(startTransition).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalled()
   })
 })
@@ -773,9 +567,6 @@ describe('Link onNavigate prop', () => {
     vi.resetModules()
 
     let capturedAnchorProps: CapturedAnchorProps | undefined
-    const startTransition = vi.fn((callback: () => void) => {
-      callback()
-    })
 
     const captureAnchor = (type: unknown, props: unknown) => {
       if (type === 'a' && props !== null && typeof props === 'object') {
@@ -783,7 +574,7 @@ describe('Link onNavigate prop', () => {
       }
     }
 
-    mockTextAnchorCaptureForLinkOnly_DO_NOT_REUSE({ captureAnchor, startTransition })
+    captureCompiledAnchor({ captureAnchor })
 
     const navigate = vi.fn(async () => {})
     const locationReplace = vi.fn()
@@ -811,9 +602,12 @@ describe('Link onNavigate prop', () => {
 
     const { default: IsolatedLink } = await import('../src/shims/link.js?text-client-compile')
 
-    runCompiledLink(
-      IsolatedLink({ href: args.href, prefetch: false, ...args.props, children: 'target' }),
-    )
+    await runCompiledLink(IsolatedLink, {
+      href: args.href,
+      prefetch: false,
+      ...args.props,
+      children: 'target',
+    })
 
     const onClickHandler = capturedAnchorProps?.onClick
     if (typeof onClickHandler !== 'function') {
@@ -838,7 +632,6 @@ describe('Link onNavigate prop', () => {
       locationReplace,
       locationAssign,
       navigate,
-      startTransition,
       pushState,
       replaceState,
     }
@@ -1004,7 +797,6 @@ async function renderIsolatedLink(options: {
   }
   vi.stubEnv('NODE_ENV', options.nodeEnv)
 
-  const effects: CapturedEffect[] = []
   let capturedAnchorProps: CapturedAnchorProps | undefined
 
   const captureAnchor = (type: unknown, props: unknown) => {
@@ -1013,12 +805,7 @@ async function renderIsolatedLink(options: {
     }
   }
 
-  mockTextAnchorCaptureForLinkOnly_DO_NOT_REUSE({
-    captureAnchor,
-    captureEffect(effect) {
-      effects.push(effect)
-    },
-  })
+  captureCompiledAnchor({ captureAnchor })
 
   const fetch = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
     Promise.resolve(new Response('')),
@@ -1033,13 +820,9 @@ async function renderIsolatedLink(options: {
     options.appNavigation === false ? undefined : createTestNavigationRuntime(navigate)
 
   vi.stubGlobal('fetch', fetch)
-  vi.stubGlobal('document', {
-    ...(globalThis.document as unknown as Record<string, unknown>),
-    head: {
-      appendChild: vi.fn((node: CapturedPrefetchLinkElement) => {
-        pagePrefetchLinks.push({ as: node.as, href: node.href, rel: node.rel })
-      }),
-    },
+  vi.spyOn(realDocument.head, 'appendChild').mockImplementation((node: any) => {
+    pagePrefetchLinks.push({ as: node.as, href: node.getAttribute('href'), rel: node.rel })
+    return node
   })
   vi.stubGlobal('window', {
     ...(navigationRuntime === undefined
@@ -1064,7 +847,11 @@ async function renderIsolatedLink(options: {
   const { default: IsolatedLink } = await import('../src/shims/link.js?text-client-compile')
 
   try {
-    runCompiledLink(IsolatedLink({ href: options.href, ...options.props, children: 'target' }))
+    const anchor = await runCompiledLink(IsolatedLink, {
+      href: options.href,
+      ...options.props,
+      children: 'target',
+    })
 
     if (capturedAnchorProps === undefined) {
       throw new Error('Expected rendered Link to expose anchor props')
@@ -1072,13 +859,6 @@ async function renderIsolatedLink(options: {
 
     if (options.requireRef !== false && capturedAnchorProps.ref === undefined) {
       throw new Error('Expected rendered Link anchor to expose a ref')
-    }
-
-    const anchor = { href: options.href } as HTMLAnchorElement
-    capturedAnchorProps.ref?.(anchor)
-
-    for (const effect of effects) {
-      effect()
     }
 
     return {

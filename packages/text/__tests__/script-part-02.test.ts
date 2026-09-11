@@ -8,8 +8,8 @@
  */
 import { afterEach, beforeEach, describe, it, expect } from 'vite-plus/test'
 import { createElement, renderToString } from './rue-ssr-test-utils.js'
-import Script, { handleClientScriptLoad, type ScriptProps } from '../src/shims/script.js'
-import { ScriptNonceProvider } from '../src/shims/script-nonce-context.js'
+import Script, { handleClientScriptLoad, type ScriptProps } from '../src/shims/script.js?text-ssr'
+import { ScriptNonceProvider } from '../src/shims/script-nonce-context.js?text-ssr'
 
 const originalDocument = globalThis.document
 const originalWindow = globalThis.window
@@ -74,14 +74,10 @@ describe('Script SSR rendering', () => {
 
   it('does not emit a preload link for inline (no-src) afterInteractive scripts', async () => {
     const html = await renderToString(() =>
-      createElement(
-        'div',
-        null,
-        createElement(Script, {
-          strategy: 'afterInteractive',
-          children: 'console.log("inline")',
-        } as ScriptProps),
-      ),
+      createElement(Script, {
+        strategy: 'afterInteractive',
+        children: 'console.log("inline")',
+      } as ScriptProps),
     )
     expect(html).not.toContain('<script')
     expect(html).not.toContain('rel="preload"')
@@ -89,14 +85,10 @@ describe('Script SSR rendering', () => {
 
   it('does not emit a preload link for lazyOnload scripts on SSR', async () => {
     const html = await renderToString(() =>
-      createElement(
-        'div',
-        null,
-        createElement(Script, {
-          src: '/lazy-preload.js',
-          strategy: 'lazyOnload',
-        } as ScriptProps),
-      ),
+      createElement(Script, {
+        src: '/lazy-preload.js',
+        strategy: 'lazyOnload',
+      } as ScriptProps),
     )
     expect(html).not.toContain('rel="preload"')
     expect(html).not.toContain('<script')

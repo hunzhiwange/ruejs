@@ -33,8 +33,9 @@ export type IndicatorOffset = [number | string, number | string]
 
 /** IndicatorItemProps 组件属性。 */
 export interface IndicatorItemProps {
+  text?: string | number
   /** 自定义渲染的宿主元素。 */
-  as?: any
+  as?: 'div' | 'span'
   /** 弹出层或内容展示位置。 */
   placement?: IndicatorPlacement
   /** horizontal 配置项。 */
@@ -62,13 +63,13 @@ export interface IndicatorItemConfig extends IndicatorItemProps {
 /** IndicatorProps 组件属性。 */
 export interface IndicatorProps {
   /** 自定义渲染的宿主元素。 */
-  as?: any
+  as?: 'div' | 'span'
   /** 根节点附加类名。 */
   className?: string
   /** 根节点内联样式。 */
   style?: Record<string, any> | string
   /** item 区域配置。 */
-  item?: any
+  item?: string | number
   /** itemProps 透传属性。 */
   itemProps?: Omit<IndicatorItemProps, 'children'>
   /** 数据驱动渲染项。 */
@@ -215,30 +216,56 @@ const Indicator: FC<IndicatorProps> = ({
   const Component = as as any
   const hasItems = Array.isArray(items) && items.length > 0
 
-  return (
-    <Component {...rest} className={mergeClassName('indicator', className)} style={style}>
+  return Component === 'div' ? (
+    <div {...rest} className={mergeClassName('indicator', className)} style={style}>
       {hasItems ? (
-        items.map((config, index) => (
-          <Item key={config.key ?? index} {...config}>
-            {config.children}
-          </Item>
-        ))
-      ) : item != null ? (
+        <>
+          {' '}
+          {items.map((config, index) => (
+            <Item key={config.key ?? index} {...config} />
+          ))}{' '}
+        </>
+      ) : null}
+      {!hasItems && item != null ? (
         <Item
-          key="__indicator_item__"
-          {...itemProps}
+          data-testid={itemProps?.['data-testid']}
           placement={itemProps?.placement}
           horizontal={itemProps?.horizontal}
           vertical={itemProps?.vertical}
           offset={itemProps?.offset}
           className={itemProps?.className}
           style={itemProps?.style}
-        >
-          {item}
-        </Item>
+          text={item}
+        />
       ) : null}
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={mergeClassName('indicator', className)} style={style}>
+      {hasItems ? (
+        <>
+          {' '}
+          {items.map((config, index) => (
+            <Item key={config.key ?? index} {...config} />
+          ))}{' '}
+        </>
+      ) : null}
+      {!hasItems && item != null ? (
+        <Item
+          data-testid={itemProps?.['data-testid']}
+          placement={itemProps?.placement}
+          horizontal={itemProps?.horizontal}
+          vertical={itemProps?.vertical}
+          offset={itemProps?.offset}
+          className={itemProps?.className}
+          style={itemProps?.style}
+          text={item}
+        />
+      ) : null}
+      {children}
+    </span>
+  ) : (
+    <></>
   )
 }
 
@@ -252,6 +279,7 @@ const Item: FC<IndicatorItemProps> = ({
   className,
   style,
   children,
+  text,
   ...rest
 }) => {
   const Component = as as any
@@ -260,8 +288,8 @@ const Item: FC<IndicatorItemProps> = ({
   const resolvedVertical = vertical ?? placementPreset.vertical
   const offsetStyle = resolveOffsetStyle(resolvedHorizontal, resolvedVertical, offset)
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       ref={(element: HTMLElement | null) => {
         if (!element || !offsetStyle) return
@@ -272,8 +300,24 @@ const Item: FC<IndicatorItemProps> = ({
       className={buildItemClassName(resolvedHorizontal, resolvedVertical, className)}
       style={mergeItemStyle(style, offsetStyle)}
     >
-      {children}
-    </Component>
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      ref={(element: HTMLElement | null) => {
+        if (!element || !offsetStyle) return
+        Object.entries(offsetStyle).forEach(([name, value]) =>
+          element.style.setProperty(name, value),
+        )
+      }}
+      className={buildItemClassName(resolvedHorizontal, resolvedVertical, className)}
+      style={mergeItemStyle(style, offsetStyle)}
+    >
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </span>
+  ) : (
+    <></>
   )
 }
 

@@ -381,11 +381,11 @@ fn hardens_more_event_suffix_and_hyphen_modifier_fallbacks() {
 
     let mut opening = parse_jsx_opening("<button __rue_on__keyup__mods__enter__once=\"submit\" />");
     transform_opening(&mut opening);
-    let attr = ident_attr(&opening, "onKeyup");
+    let attr = ident_attr(&opening, "onKeyupOnce");
     let out = normalize(&emit_expr(attr_expr(attr).clone()));
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("\"enter\""));
-    assert!(out.contains("\"once\""));
+    assert!(!out.contains("\"once\""));
 }
 
 #[test]
@@ -414,11 +414,11 @@ fn hardens_safe_native_event_names_and_inline_statement_handlers() {
 
     let mut dom = parse_jsx_opening("<button r-on:keyup-enter-once={handle} />");
     transform_opening(&mut dom);
-    let dom_attr = ident_attr(&dom, "onKeyup");
+    let dom_attr = ident_attr(&dom, "onKeyupOnce");
     let dom_out = normalize(&emit_expr(attr_expr(dom_attr).clone()));
     assert!(dom_out.contains("_$compiledWithEventModifiers"), "{dom_out}");
     assert!(dom_out.contains("\"enter\""), "{dom_out}");
-    assert!(dom_out.contains("\"once\""), "{dom_out}");
+    assert!(!dom_out.contains("\"once\""), "{dom_out}");
 }
 
 #[test]

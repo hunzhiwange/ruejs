@@ -162,8 +162,8 @@ const SwapRoot: FC<SwapProps> = ({
     }
   }
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={buildRootClassName(active, rotate, flip, effect, disabled, className)}
       aria-disabled={disabled ? 'true' : rest['aria-disabled']}
@@ -199,37 +199,145 @@ const SwapRoot: FC<SwapProps> = ({
         />
       ) : null}
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={buildRootClassName(active, rotate, flip, effect, disabled, className)}
+      aria-disabled={disabled ? 'true' : rest['aria-disabled']}
+      data-rue-swap-root="true"
+      data-rue-swap-mode={mode}
+      data-rue-swap-disabled={disabled ? 'true' : 'false'}
+    >
+      {shouldRenderAutoInput && isControlledChecked ? (
+        <input
+          {...inputProps}
+          ref={(element: HTMLInputElement | null) => applyIndeterminate(element, isIndeterminate)}
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          autoComplete={inputProps?.autoComplete ?? 'off'}
+          className={inputClassName}
+          aria-checked={inputAriaChecked}
+          data-rue-swap-input="true"
+          onChange={handleChange}
+        />
+      ) : shouldRenderAutoInput ? (
+        <input
+          {...inputProps}
+          ref={(element: HTMLInputElement | null) => applyIndeterminate(element, isIndeterminate)}
+          type="checkbox"
+          defaultChecked={defaultChecked}
+          disabled={disabled}
+          autoComplete={inputProps?.autoComplete ?? 'off'}
+          className={inputClassName}
+          aria-checked={inputAriaChecked}
+          data-rue-swap-input="true"
+          onChange={handleChange}
+        />
+      ) : null}
+      {children}
+    </span>
+  ) : Component === 'label' ? (
+    <label
+      {...rest}
+      className={buildRootClassName(active, rotate, flip, effect, disabled, className)}
+      aria-disabled={disabled ? 'true' : rest['aria-disabled']}
+      data-rue-swap-root="true"
+      data-rue-swap-mode={mode}
+      data-rue-swap-disabled={disabled ? 'true' : 'false'}
+    >
+      {shouldRenderAutoInput && isControlledChecked ? (
+        <input
+          {...inputProps}
+          ref={(element: HTMLInputElement | null) => applyIndeterminate(element, isIndeterminate)}
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          autoComplete={inputProps?.autoComplete ?? 'off'}
+          className={inputClassName}
+          aria-checked={inputAriaChecked}
+          data-rue-swap-input="true"
+          onChange={handleChange}
+        />
+      ) : shouldRenderAutoInput ? (
+        <input
+          {...inputProps}
+          ref={(element: HTMLInputElement | null) => applyIndeterminate(element, isIndeterminate)}
+          type="checkbox"
+          defaultChecked={defaultChecked}
+          disabled={disabled}
+          autoComplete={inputProps?.autoComplete ?? 'off'}
+          className={inputClassName}
+          aria-checked={inputAriaChecked}
+          data-rue-swap-input="true"
+          onChange={handleChange}
+        />
+      ) : null}
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 
 /** On 的内部工具函数。 */
 const On: FC<SwapPartProps> = ({ as = 'div', className, children, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={mergeClassName('swap-on', className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={mergeClassName('swap-on', className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={mergeClassName('swap-on', className)}>
+      {children}
+    </span>
+  ) : Component === 'label' ? (
+    <label {...rest} className={mergeClassName('swap-on', className)}>
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 
 /** Off 的内部工具函数。 */
 const Off: FC<SwapPartProps> = ({ as = 'div', className, children, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={mergeClassName('swap-off', className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={mergeClassName('swap-off', className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={mergeClassName('swap-off', className)}>
+      {children}
+    </span>
+  ) : Component === 'label' ? (
+    <label {...rest} className={mergeClassName('swap-off', className)}>
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 
 /** Indeterminate 的内部工具函数。 */
 const Indeterminate: FC<SwapPartProps> = ({ as = 'div', className, children, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={mergeClassName('swap-indeterminate', className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={mergeClassName('swap-indeterminate', className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={mergeClassName('swap-indeterminate', className)}>
+      {children}
+    </span>
+  ) : Component === 'label' ? (
+    <label {...rest} className={mergeClassName('swap-indeterminate', className)}>
+      {children}
+    </label>
+  ) : (
+    <></>
   )
 }
 

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createContext, ref, render, setReactiveScheduling, type FC } from '../src'
+import { createContext, signal, render, type FC } from '@rue-js/rue'
+import { setReactiveScheduling } from '../src'
+import { provideContext } from '../src/compiler-runtime/context'
 import { mountContainer, waitForContent } from './page-test-utils'
 
 setReactiveScheduling('sync')
@@ -16,34 +18,39 @@ const ChildrenShell: FC<{ children?: unknown }> = props => {
 
 const StableTextContext = createContext('stable')
 
+const StableTextProvider: FC<{ children?: unknown }> = props => {
+  provideContext(StableTextContext, () => 'stable')
+  return <>{props.children}</>
+}
+
 const ControlledInputCase: FC = () => {
-  const text = ref('Alice')
+  const text = signal('Alice')
 
   return (
     <ChildrenShell>
       <input
         data-testid="native-controlled-input"
         className="input"
-        value={text.value}
+        value={text.get()}
         onInput={(event: Event) => {
-          text.value = (event.target as HTMLInputElement).value
+          text.set((event.target as HTMLInputElement).value)
         }}
       />
-      <div data-testid="native-controlled-output">{text.value}</div>
+      <div data-testid="native-controlled-output">{String(text.get())}</div>
     </ChildrenShell>
   )
 }
 
-const ControlledInputField: FC<{ text: { value: string } }> = props => {
+const ControlledInputField: FC<{ text: { get(): string; set(value: string): void } }> = props => {
   return (
     <label className="form-control gap-2">
       <span className="label-text font-medium">用户名</span>
       <input
         data-testid="split-controlled-input"
         className="input"
-        value={props.text.value}
+        value={props.text.get()}
         onInput={(event: Event) => {
-          props.text.value = (event.target as HTMLInputElement).value
+          props.text.set((event.target as HTMLInputElement).value)
         }}
       />
     </label>
@@ -51,47 +58,47 @@ const ControlledInputField: FC<{ text: { value: string } }> = props => {
 }
 
 const SplitControlledInputCase: FC = () => {
-  const text = ref('Alice')
+  const text = signal('Alice')
 
   return (
     <ChildrenShell>
       <ControlledInputField text={text} />
-      <div data-testid="split-controlled-output">{text.value}</div>
+      <div data-testid="split-controlled-output">{String(text.get())}</div>
     </ChildrenShell>
   )
 }
 
 const DirectSplitControlledInputCase: FC = () => {
-  const text = ref('Alice')
+  const text = signal('Alice')
 
   return (
     <>
       <ControlledInputField text={text} />
-      <div data-testid="direct-split-controlled-output">{text.value}</div>
+      <div data-testid="direct-split-controlled-output">{String(text.get())}</div>
     </>
   )
 }
 
 const ProviderControlledInputCase: FC = () => {
-  const text = ref('Alice')
+  const text = signal('Alice')
 
   return (
-    <StableTextContext.Provider value="stable">
+    <StableTextProvider>
       <ChildrenShell>
         <label className="form-control gap-2">
           <span className="label-text font-medium">用户名</span>
           <input
             data-testid="provider-controlled-input"
             className="input"
-            value={text.value}
+            value={text.get()}
             onInput={(event: Event) => {
-              text.value = (event.target as HTMLInputElement).value
+              text.set((event.target as HTMLInputElement).value)
             }}
           />
         </label>
-        <div data-testid="provider-controlled-output">{text.value}</div>
+        <div data-testid="provider-controlled-output">{String(text.get())}</div>
       </ChildrenShell>
-    </StableTextContext.Provider>
+    </StableTextProvider>
   )
 }
 

@@ -1,3 +1,6 @@
+import { Template } from '@rue-js/rue'
+import { NotificationHolder } from '../index'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Notification from '..'
@@ -26,20 +29,25 @@ describe('Notification', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Notification placement="topLeft" data-testid="notification-root">
-        <Notification.Item
-          message="Workspace synced"
-          description="最新变更已经推送到共享工作区。"
-          actions={<button type="button">查看详情</button>}
-          closable
-          showProgress
-          duration={3}
-          classNames={{ progress: 'progress-slot' }}
-          data-testid="notification-item"
-        />
-      </Notification>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Notification placement="topLeft" data-testid="notification-root">
+          <Notification.Item
+            message="Workspace synced"
+            description="最新变更已经推送到共享工作区。"
+            closable
+            showProgress
+            duration={3}
+            classNames={{ progress: 'progress-slot' }}
+            data-testid="notification-item"
+          >
+            <Template slot="actions">
+              <button type="button">查看详情</button>
+            </Template>
+          </Notification.Item>
+        </Notification>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -64,14 +72,16 @@ describe('Notification', () => {
     resetActiveRuntime()
     const onClose = vi.fn()
 
-    render(
-      <Notification.Item
-        duration={1}
-        title="保存完成"
-        data-testid="notification-item"
-        onClose={onClose}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Notification.Item
+          duration={1}
+          title="保存完成"
+          data-testid="notification-item"
+          onClose={onClose}
+        />,
+        container,
+      ),
     )
 
     await flush(5)
@@ -138,7 +148,7 @@ describe('Notification', () => {
           data-testid="box"
           className="relative min-h-64 overflow-hidden rounded-2xl border border-base-300"
         >
-          {holder}
+          <NotificationHolder state={holder} />
           <button
             type="button"
             data-testid="open-local"
@@ -156,7 +166,7 @@ describe('Notification', () => {
       )
     }
 
-    render(<Harness />, container)
+    mountTestApp(container, () => render(<Harness />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="open-local"]')).toBeTruthy()

@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 import Tooltip from '../index'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -18,11 +19,13 @@ describe('Tooltip', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tooltip title="hello" placement="topLeft" className="inline-block" data-testid="tooltip">
-        <button className="btn">Hover me</button>
-      </Tooltip>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tooltip title="hello" placement="topLeft" className="inline-block" data-testid="tooltip">
+          <button className="btn">Hover me</button>
+        </Tooltip>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -39,18 +42,22 @@ describe('Tooltip', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tooltip
-        title={<span className="font-semibold">Advanced</span>}
-        color="#123456"
-        open={true}
-        overlayClassName="max-w-48"
-        overlayStyle={{ letterSpacing: '0.08em' }}
-        data-testid="tooltip"
-      >
-        <button className="btn">Open</button>
-      </Tooltip>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tooltip
+          color="#123456"
+          open={true}
+          overlayClassName="max-w-48"
+          overlayStyle={{ letterSpacing: '0.08em' }}
+          data-testid="tooltip"
+        >
+          <Template slot="content">
+            <span className="font-semibold">Advanced</span>
+          </Template>
+          <button className="btn">Open</button>
+        </Tooltip>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -70,16 +77,18 @@ describe('Tooltip', () => {
     resetActiveRuntime()
     const openStates: boolean[] = []
 
-    render(
-      <Tooltip
-        title="Toggle me"
-        trigger="click"
-        onOpenChange={nextOpen => openStates.push(nextOpen)}
-        data-testid="tooltip"
-      >
-        <button data-testid="tooltip-trigger">Click</button>
-      </Tooltip>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tooltip
+          title="Toggle me"
+          trigger="click"
+          onOpenChange={nextOpen => openStates.push(nextOpen)}
+          data-testid="tooltip"
+        >
+          <button data-testid="tooltip-trigger">Click</button>
+        </Tooltip>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -109,14 +118,16 @@ describe('Tooltip', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tooltip data-testid="tooltip">
-        <Tooltip.Content className="text-xs" data-testid="tooltip-content">
-          Wow!
-        </Tooltip.Content>
-        <button>Hover</button>
-      </Tooltip>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tooltip data-testid="tooltip">
+          <Tooltip.Content className="text-xs" data-testid="tooltip-content">
+            Wow!
+          </Tooltip.Content>
+          <button>Hover</button>
+        </Tooltip>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

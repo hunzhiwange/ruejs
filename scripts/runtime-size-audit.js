@@ -55,7 +55,7 @@ const transitionInput = Object.freeze({
   imports: Object.freeze(['Transition']),
 })
 const hydrateInput = Object.freeze({
-  entry: '@rue-js/rue/island',
+  entry: '@rue-js/rue/internal/hydrate',
   imports: Object.freeze(['hydrateRoot']),
 })
 

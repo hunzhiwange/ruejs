@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { render, setReactiveScheduling } from '@rue-js/rue'
@@ -21,7 +22,7 @@ afterEach(() => {
 describe('Dock', () => {
   it('renders with base class', async () => {
     const c = document.createElement('div')
-    render(<Dock>{'x'}</Dock>, c)
+    mountTestApp(c, () => render(<Dock>{'x'}</Dock>, c))
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
     expect(el).toBeTruthy()
@@ -31,7 +32,7 @@ describe('Dock', () => {
   it('applies size classes', async () => {
     for (const s of ['xs', 'sm', 'md', 'lg', 'xl'] as const) {
       const c = document.createElement('div')
-      render(<Dock size={s}>{'x'}</Dock>, c)
+      mountTestApp(c, () => render(<Dock size={s}>{'x'}</Dock>, c))
       await flushDock()
       const el = c.querySelector('.dock') as HTMLElement
       expect(el.classList.contains('dock')).toBe(true)
@@ -41,7 +42,7 @@ describe('Dock', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Dock className={'relative border'}>{'x'}</Dock>, c)
+    mountTestApp(c, () => render(<Dock className={'relative border'}>{'x'}</Dock>, c))
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
     expect(el.classList.contains('relative')).toBe(true)
@@ -50,14 +51,16 @@ describe('Dock', () => {
 
   it('renders Item and Label subcomponents', async () => {
     const c = document.createElement('div')
-    render(
-      <Dock>
-        <Dock.Item active={true}>
-          <svg className={'size-[1.2em]'} />
-          <Dock.Label>{'Home'}</Dock.Label>
-        </Dock.Item>
-      </Dock>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Dock>
+          <Dock.Item active={true}>
+            <svg className={'size-[1.2em]'} />
+            <Dock.Label>{'Home'}</Dock.Label>
+          </Dock.Item>
+        </Dock>,
+        c,
+      ),
     )
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
@@ -77,7 +80,12 @@ describe('Dock', () => {
       { icon: <svg className={'size-[1.2em]'} />, label: 'Inbox' },
       { icon: <svg className={'size-[1.2em]'} />, label: 'Settings' },
     ]
-    render(<Dock items={items} activeIndex={1} onChange={(i: number) => (changedIndex = i)} />, c)
+    mountTestApp(c, () =>
+      render(
+        <Dock items={items} activeIndex={1} onChange={(i: number) => (changedIndex = i)} />,
+        c,
+      ),
+    )
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
     const btns = el.querySelectorAll('button')
@@ -95,14 +103,16 @@ describe('Dock', () => {
       { key: 'inbox', icon: <span>{'I'}</span>, label: 'Inbox' },
       { key: 'settings', icon: <span>{'S'}</span>, label: 'Settings' },
     ]
-    render(
-      <Dock
-        as={'nav'}
-        items={items}
-        activeKey={'inbox'}
-        onSelect={(key: string | number | null) => (selectedKey = key)}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Dock
+          as={'nav'}
+          items={items}
+          activeKey={'inbox'}
+          onSelect={(key: string | number | null) => (selectedKey = key)}
+        />,
+        c,
+      ),
     )
     await flushDock()
     const nav = c.querySelector('nav.dock') as HTMLElement
@@ -120,7 +130,7 @@ describe('Dock', () => {
       { key: 'home', icon: <span>{'H'}</span>, label: 'Home' },
       { key: 'inbox', icon: <span>{'I'}</span>, label: 'Inbox' },
     ]
-    render(<Dock items={items} defaultActiveKey={'home'} />, c)
+    mountTestApp(c, () => render(<Dock items={items} defaultActiveKey={'home'} />, c))
     await flushDock()
     let buttons = c.querySelectorAll('button')
     expect(buttons[0].classList.contains('dock-active')).toBe(true)
@@ -139,7 +149,7 @@ describe('Dock', () => {
       { icon: <span>{'I'}</span>, label: 'Inbox' },
       { icon: <span>{'S'}</span>, label: 'Settings' },
     ]
-    render(<Dock items={items} defaultActiveIndex={1} />, c)
+    mountTestApp(c, () => render(<Dock items={items} defaultActiveIndex={1} />, c))
     await flushDock()
     let buttons = c.querySelectorAll('button')
     expect(buttons[1].classList.contains('dock-active')).toBe(true)
@@ -154,21 +164,23 @@ describe('Dock', () => {
     const c = document.createElement('div')
     const itemClick = vi.fn()
     resetActiveRuntime()
-    render(
-      <Dock
-        items={[
-          { key: 'docs', href: '/docs', icon: <span>{'D'}</span>, label: 'Docs' },
-          {
-            key: 'locked',
-            href: '/locked',
-            disabled: true,
-            icon: <span>{'L'}</span>,
-            label: 'Locked',
-            onClick: itemClick,
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Dock
+          items={[
+            { key: 'docs', href: '/docs', icon: <span>{'D'}</span>, label: 'Docs' },
+            {
+              key: 'locked',
+              href: '/locked',
+              disabled: true,
+              icon: <span>{'L'}</span>,
+              label: 'Locked',
+              onClick: itemClick,
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await flushDock()
     const anchors = c.querySelectorAll('a')
@@ -182,7 +194,7 @@ describe('Dock', () => {
 
   it('maps size aliases to dock size classes', async () => {
     const c = document.createElement('div')
-    render(<Dock size={'large'}>{'x'}</Dock>, c)
+    mountTestApp(c, () => render(<Dock size={'large'}>{'x'}</Dock>, c))
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
     expect(el.classList.contains('dock-lg')).toBe(true)
@@ -194,7 +206,7 @@ describe('Dock', () => {
       { icon: <span>{'I1'}</span>, label: 'L1' },
       { icon: <span>{'I2'}</span>, label: 'L2' },
     ]
-    render(<Dock items={items} activeIndex={0} />, c)
+    mountTestApp(c, () => render(<Dock items={items} activeIndex={0} />, c))
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
     const labels = el.querySelectorAll('.dock-label')

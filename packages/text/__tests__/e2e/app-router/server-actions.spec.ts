@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { RSC_FORM_STATE_GLOBAL } from '../../../src/server/app-browser-hydration'
+import { RSC_FORM_STATE_GLOBAL } from '../../../src/server/app-browser-form-state'
 import { waitForAppRouterHydration } from '../helpers'
 
 const BASE = 'http://localhost:4174'

@@ -27,7 +27,7 @@ export type {
   RueContext,
   /** Context Provider 组件属性，负责向子树传递 context 值。 */
   ContextProviderProps,
-} from '@rue-js/runtime/public/rendering'
+} from '@rue-js/runtime'
 
 export type {
   /** 异步组件 loader 函数类型。 */
@@ -40,7 +40,7 @@ export type {
   HydrationStrategy,
   /** 异步组件懒水合策略工厂类型。 */
   HydrationStrategyFactory,
-} from '@rue-js/runtime/public/hooks'
+} from '@rue-js/runtime'
 
 export type {
   /** 插槽集合，按插槽名称保存插槽值或渲染函数。 */
@@ -69,7 +69,7 @@ export type {
   TransitionMode,
   /** TransitionGroup 组件属性，用于列表元素过渡。 */
   TransitionGroupProps,
-} from '@rue-js/runtime/public/builtins'
+} from '@rue-js/runtime'
 
 export type {
   /** 响应式信号句柄，提供 value/get/set 等读写能力。 */
@@ -82,8 +82,6 @@ export type {
   WatchOptions,
   /** watch 回调。 */
   WatchCallback,
-  /** customRef 工厂函数类型。 */
-  CustomRefFactory,
   /** 单个侦听来源。 */
   WatchSource,
   /** 多源侦听来源。 */
@@ -98,7 +96,7 @@ export type {
   DebuggerEvent,
   /** 渲染依赖调试回调。 */
   DebuggerHook,
-} from '@rue-js/runtime/public/reactivity'
+} from '@rue-js/runtime'
 
 export type {
   /** defineCustomElement/useCustomElement 的配置项。 */
@@ -107,27 +105,13 @@ export type {
   RueCustomElement,
   /** Rue 自定义元素构造器类型。 */
   RueCustomElementConstructor,
-} from '@rue-js/runtime/public/custom-elements'
+} from '@rue-js/runtime'
 
 export {
   /** 当前 @rue-js/rue 包版本。 */
   version,
-  /** classic JSX 使用的 Fragment 标记。 */
-  Fragment,
   /** 创建跨组件树传值的 Rue context。 */
   createContext,
-  /** 兼容使用 jsxFactory=createElement 的 classic JSX 工具链。 */
-  createElement,
-  /** 将 renderable 挂载到指定容器。 */
-  render,
-  /** 基于锚点渲染内容，适合 Vapor 编译输出插入节点。 */
-  renderAnchor,
-  /** 渲染静态内容并返回标准挂载句柄。 */
-  renderStatic,
-  /** 挂载根组件到 DOM 容器。 */
-  mount,
-  /** 安装 Rue 插件，并把参数透传给插件 install。 */
-  use,
   /** 从组件 props 中创建 emit 事件调用器。 */
   useEmit,
   /** 注册组件创建前生命周期回调。 */
@@ -162,9 +146,7 @@ export {
   onErrorCaptured,
   /** 读取当前渲染上下文正在操作的容器。 */
   getCurrentContainer,
-  /** 创建独立 Rue 应用实例。 */
-  createRue,
-} from '@rue-js/runtime/public/rendering'
+} from '@rue-js/runtime'
 
 export {
   /** 动态组件入口，根据 is/component 参数选择实际组件。 */
@@ -187,7 +169,7 @@ export {
   TransitionGroup,
   /** 渲染命名插槽或默认插槽的内置组件。 */
   Slot,
-} from '@rue-js/runtime/public/builtins'
+} from '@rue-js/runtime'
 
 export {
   /** 读取当前自定义元素宿主实例。 */
@@ -196,47 +178,29 @@ export {
   useHost,
   /** 读取当前自定义元素的 shadowRoot。 */
   useShadowRoot,
-} from '@rue-js/runtime/public/custom-elements'
+} from '@rue-js/runtime'
 
 export {
-  /** 注册渲染依赖收集调试回调。 */
-  onRenderTracked,
   /** 创建响应式副作用，依赖变化时自动重新执行。 */
   effect,
-  /** 创建 effect scope，可批量停止其中创建的 computed/watch/effect。 */
-  effectScope,
   /** 批量执行响应式写入，减少重复调度。 */
   batch,
   /** 在当前 effect 中注册清理回调。 */
   onCleanup,
-  /** 在当前 watcher 中注册失效清理回调。 */
-  onWatcherCleanup,
   /** 在当前 effect scope 停止时注册清理回调。 */
   onScopeDispose,
-  /** 读取当前活动的 effect scope。 */
-  getCurrentScope,
   /** 在不收集依赖的上下文中读取响应式值。 */
   untrack,
-  /** 设置当前 Hook/组件实例，主要供运行时和编译产物使用。 */
-  setCurrentInstance,
   /** 获取当前 Hook/组件实例。 */
   getCurrentInstance,
-  /** 为 Hook 分配临时插槽上下文，保证调用顺序稳定。 */
-  withHookSlot,
   /** 解包函数、ref-like 或普通值为当前值。 */
   toValue,
   /** 监听函数返回值变化。 */
   watchFn,
   /** 立即运行并追踪依赖的 watch effect。 */
   watchEffect,
-  /** 在响应式 flush 后运行并追踪依赖的 watch effect。 */
-  watchPostEffect,
-  /** 响应式变更时同步运行并追踪依赖的 watch effect。 */
-  watchSyncEffect,
   /** 监听单个 signal/ref 的值变化。 */
   watchSignal,
-  /** 深度监听 signal/ref 中对象结构的变化。 */
-  watchDeepSignal,
   /** 按对象路径监听响应式数据。 */
   watchPath,
   /** 创建异步资源状态，封装 loading、error 和 data。 */
@@ -251,8 +215,6 @@ export {
   signal,
   /** 创建 ref-like 可写值。 */
   ref,
-  /** 创建自定义 ref，显式控制依赖收集和触发时机。 */
-  customRef,
   /** 创建浅层 ref，只追踪 value 替换。 */
   shallowRef,
   /** 手动触发 ref 的 value 订阅者。 */
@@ -261,8 +223,6 @@ export {
   computed,
   /** 判断值是否为 Rue ref 或 computed ref。 */
   isRef,
-  isReactive,
-  isReadonly,
   /** 在组件 setup 阶段初始化并缓存值。 */
   useSetup,
   /** 创建稳定引用对象，适合保存 DOM 或可变实例。 */
@@ -273,17 +233,9 @@ export {
   nextTick,
   /** 配置响应式调度策略，例如同步、微任务或帧调度。 */
   setReactiveScheduling,
-} from '@rue-js/runtime/public/reactivity'
+} from '@rue-js/runtime'
 
 export {
-  /** 读取当前 Rue 应用实例和插件上下文。 */
-  useApp,
-  /** 将浏览器全局错误接入 Rue 错误链，返回清理函数。 */
-  installBrowserErrorBridge,
-  /** 安装控制台错误报告，返回清理函数。 */
-  installErrorConsole,
-  /** 安装开发错误遮罩，清理时取消订阅并移除遮罩。 */
-  installDevErrorOverlay,
   /** 按名称或加载器解析组件，支持异步组件。 */
   useComponent,
   /** 在浏览器空闲时激活异步组件。 */
@@ -294,9 +246,22 @@ export {
   hydrateOnMediaQuery,
   /** 当用户触发指定事件时激活异步组件。 */
   hydrateOnInteraction,
-} from '@rue-js/runtime/public/hooks'
+} from '@rue-js/runtime'
 
 export {
   /** 读取指定 Rue context 的当前值。 */
   useContext,
-} from '@rue-js/runtime/public/rendering'
+} from '@rue-js/runtime'
+
+// Source-only compiler macros: deliberately no JavaScript exports. A build without
+// the Rue compiler fails to link instead of silently selecting a runtime renderer.
+export { Fragment } from './jsx-runtime'
+export type { AppHandle } from '@rue-js/runtime/internal/app'
+import type { AppHandle } from '@rue-js/runtime/internal/app'
+import type { ComponentInstance } from '@rue-js/runtime'
+export declare function render(root: JSX.Element, target: ParentNode | string): AppHandle
+export declare function mount(root: ComponentInstance, target: ParentNode | string): AppHandle
+export declare function createRue(
+  root: ComponentInstance,
+): ReturnType<typeof import('@rue-js/runtime/internal/app')._$createApp>
+export declare const useApp: typeof createRue

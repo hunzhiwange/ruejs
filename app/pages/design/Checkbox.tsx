@@ -28,8 +28,6 @@ interface NewsletterOption {
   disabled?: boolean
 }
 
-const ExampleBlock = PreviewBlock as FC<ExampleBlockProps>
-
 const ApiTable: FC<{ rows: ApiRow[] }> = ({ rows }) => {
   return (
     <div className="not-prose overflow-x-auto rounded-box border border-base-300 bg-base-100">
@@ -96,7 +94,6 @@ const checklistOptions = [
 ] as const
 
 const basicCode = `import { Checkbox } from '@rue-js/design'
-
 const checked = ref(true)
 
 <Checkbox
@@ -118,7 +115,6 @@ const fieldsetCode = `<fieldset className="fieldset w-80 rounded-box border bord
 </fieldset>`
 
 const controlledCode = `import { Checkbox } from '@rue-js/design'
-
 const enabled = ref(false)
 
 <div
@@ -664,7 +660,7 @@ const CheckboxPage: FC = () => {
           <li>需要配合“全选/部分选中”状态表达批量操作时。</li>
         </ul>
 
-        <ExampleBlock
+        <PreviewBlock
           title="Checkbox"
           summary="展示基础用法，并支持 children 作为可点击说明区。"
           tab={tabBasic}
@@ -678,7 +674,7 @@ const CheckboxPage: FC = () => {
           code={basicCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="With fieldset and label"
           summary="展示基础 fieldset 场景，适合设置页或表单分区。"
           tab={tabFieldset}
@@ -701,7 +697,7 @@ const CheckboxPage: FC = () => {
           code={fieldsetCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Controlled checkbox"
           summary="通过 onCheckedChange 直接拿到布尔值，适合更简洁的受控写法。"
           tab={tabControlled}
@@ -715,7 +711,7 @@ const CheckboxPage: FC = () => {
           code={controlledCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Sizes"
           summary="使用 Rue 当前的尺寸体系。"
           tab={tabSizes}
@@ -735,7 +731,7 @@ const CheckboxPage: FC = () => {
           code={sizesCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Colors"
           summary="颜色语义保持与当前 Rue 主题一致。"
           tab={tabColors}
@@ -758,7 +754,7 @@ const CheckboxPage: FC = () => {
           code={colorsCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Disabled"
           summary="既支持裸 checkbox，也支持带说明区的禁用态。"
           tab={tabDisabled}
@@ -777,7 +773,7 @@ const CheckboxPage: FC = () => {
           code={disabledCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Indeterminate"
           summary="展示基础半选态场景，但改成组件级 prop，不再需要手动操作 ref。"
           tab={tabIndeterminate}
@@ -791,7 +787,7 @@ const CheckboxPage: FC = () => {
           code={indeterminateCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Checkbox Group"
           summary="参考常见业务表单的核心能力，支持 options 数据驱动和受控值数组。"
           tab={tabGroup}
@@ -805,7 +801,7 @@ const CheckboxPage: FC = () => {
           code={groupCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Check all"
           summary="组合 indeterminate 和 Group，可以快速搭建全选/部分选中逻辑。"
           tab={tabCheckAll}
@@ -819,7 +815,7 @@ const CheckboxPage: FC = () => {
           code={checkAllCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Use with Grid"
           summary="children 模式更适合卡片化说明和响应式栅格布局。"
           tab={tabGrid}
@@ -833,7 +829,7 @@ const CheckboxPage: FC = () => {
           code={gridCode}
         />
 
-        <ExampleBlock
+        <PreviewBlock
           title="Checkbox with custom colors"
           summary="展示基础自定义颜色能力，便于做品牌化演示。"
           tab={tabCustomColors}

@@ -1,3 +1,4 @@
+import { ToastHolder } from '../toast'
 /*
 Message 模块概述
 - 汇总全局消息组件的公开类型、渲染入口和局部工具逻辑。
@@ -167,18 +168,9 @@ const mergeClassNames = (...parts: Array<string | false | null | undefined>) => 
 }
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  if (children == null) return []
-  return [children]
-}
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any) => {
-  return toChildArray(value).length > 0
-}
+const hasRenderableContent = (value: unknown) => value != null && value !== false && value !== ''
 
 /** 判断 Record Like 的内部工具函数。 */
 const isRecordLike = (value: any): value is Record<string, any> => {
@@ -191,8 +183,8 @@ const looksLikeMessageConfig = (value: any): value is MessageOpenConfig => {
 }
 
 /** 渲染 Message Body 的内部工具函数。 */
-const renderMessageBody = (content: any) => {
-  if (!hasRenderableContent(content)) return null
+const RenderMessageBody = ({ arg0: content }: { arg0: any }) => {
+  if (!hasRenderableContent(content)) return <></>
   return <div className={MESSAGE_BODY_CLASS}>{content}</div>
 }
 
@@ -242,7 +234,7 @@ const normalizeMessageConfig = (
     showIcon: showIcon ?? resolvedType !== 'neutral',
     className: mergeClassNames(MESSAGE_ITEM_CLASS, className),
     contentClassName: mergeClassNames('min-w-0', contentClassName),
-    children: renderMessageBody(resolvedChildren),
+    content: resolvedChildren,
   }
 }
 
@@ -383,7 +375,7 @@ const MessageItem: FC<MessageItemProps> = ({
       className={mergeClassNames(MESSAGE_ITEM_CLASS, className)}
       contentClassName={mergeClassNames('min-w-0', contentClassName)}
     >
-      {renderMessageBody(resolvedChildren)}
+      <RenderMessageBody arg0={resolvedChildren} />
     </Toast.Item>
   )
 }
@@ -434,7 +426,7 @@ const ensureGlobalMessageMount = () => {
 const GlobalMessageHolder: FC<{ options: MessageConfigOptions }> = ({ options }) => {
   const [api, holder] = useMessage(options)
   globalMessageApi = api
-  return holder
+  return <ToastHolder state={holder} />
 }
 
 /** sync Global Message Holder 的内部工具函数。 */
@@ -442,7 +434,7 @@ const syncGlobalMessageHolder = () => {
   const mount = ensureGlobalMessageMount()
   if (!mount) return undefined
 
-  render(<GlobalMessageHolder options={globalMessageConfig} />, mount)
+  if (!globalMessageApi) render(<GlobalMessageHolder options={globalMessageConfig} />, mount)
   return globalMessageApi
 }
 

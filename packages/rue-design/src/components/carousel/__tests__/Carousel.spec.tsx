@@ -1,7 +1,9 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
-import { Button, Carousel } from '@rue-js/design'
+import Button from '../../button'
+import Carousel from '..'
 import {
   click,
   mountContainer,
@@ -23,7 +25,7 @@ describe('Carousel', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(<Carousel>{'hello'}</Carousel>, c)
+    mountTestApp(c, () => render(<Carousel>{'hello'}</Carousel>, c))
 
     await waitForContent(() => {
       const el = c.querySelector('.carousel') as HTMLElement
@@ -37,16 +39,18 @@ describe('Carousel', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Carousel align={'end'} direction={'vertical'} className={'rounded-box w-64'}>
-        <Carousel.Item>
-          <img src={'x'} alt={'y'} />
-        </Carousel.Item>
-        <Carousel.Item>
-          <img src={'x2'} alt={'y2'} />
-        </Carousel.Item>
-      </Carousel>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Carousel align={'end'} direction={'vertical'} className={'rounded-box w-64'}>
+          <Carousel.Item>
+            <img src={'x'} alt={'y'} />
+          </Carousel.Item>
+          <Carousel.Item>
+            <img src={'x2'} alt={'y2'} />
+          </Carousel.Item>
+        </Carousel>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -64,18 +68,20 @@ describe('Carousel', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Carousel
-        items={[
-          { content: <div className={'h-24 w-full bg-base-200'}>{'1'}</div> },
-          { content: <div className={'h-24 w-full bg-base-200'}>{'2'}</div> },
-          { content: <div className={'h-24 w-full bg-base-200'}>{'3'}</div> },
-        ]}
-        activeIndex={2}
-        dots
-        speed={0}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Carousel
+          items={[
+            { content: '1', className: 'h-24 w-full bg-base-200' },
+            { content: '2', className: 'h-24 w-full bg-base-200' },
+            { content: '3', className: 'h-24 w-full bg-base-200' },
+          ]}
+          activeIndex={2}
+          dots
+          speed={0}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -92,16 +98,18 @@ describe('Carousel', () => {
 
     const spy = vi.fn()
     const items = [
-      { content: <div className={'h-24 w-full bg-base-200'}>{'1'}</div> },
-      { content: <div className={'h-24 w-full bg-base-200'}>{'2'}</div> },
-      { content: <div className={'h-24 w-full bg-base-200'}>{'3'}</div> },
+      { content: '1', className: 'h-24 w-full bg-base-200' },
+      { content: '2', className: 'h-24 w-full bg-base-200' },
+      { content: '3', className: 'h-24 w-full bg-base-200' },
     ]
 
-    render(
-      <Carousel items={items} arrows={true} dots={true} speed={0} onIndexChange={spy}>
-        {null}
-      </Carousel>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Carousel items={items} arrows={true} dots={true} speed={0} onIndexChange={spy}>
+          {null}
+        </Carousel>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -124,16 +132,18 @@ describe('Carousel', () => {
     const c = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Carousel effect="fade" dots speed={0}>
-        <Carousel.Item className="w-full">
-          <img className="w-full" src="x" alt="Fade 1" />
-        </Carousel.Item>
-        <Carousel.Item className="w-full">
-          <img className="w-full" src="y" alt="Fade 2" />
-        </Carousel.Item>
-      </Carousel>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Carousel slideCount={2} effect="fade" dots speed={0}>
+          <Carousel.Item className="w-full">
+            <img className="w-full" src="x" alt="Fade 1" />
+          </Carousel.Item>
+          <Carousel.Item className="w-full">
+            <img className="w-full" src="y" alt="Fade 2" />
+          </Carousel.Item>
+        </Carousel>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -151,24 +161,26 @@ describe('Carousel', () => {
     const carouselRef: { current?: any } = { current: undefined }
     const spy = vi.fn()
 
-    render(
-      <div>
-        <Button size="sm" onClick={() => carouselRef.current?.goTo(2)}>
-          Go to 3
-        </Button>
-        <Carousel apiRef={carouselRef} dots speed={0} onIndexChange={spy}>
-          <Carousel.Item className="w-full">
-            <div>Slide 1</div>
-          </Carousel.Item>
-          <Carousel.Item className="w-full">
-            <div>Slide 2</div>
-          </Carousel.Item>
-          <Carousel.Item className="w-full">
-            <div>Slide 3</div>
-          </Carousel.Item>
-        </Carousel>
-      </div>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <div>
+          <Button size="sm" onClick={() => carouselRef.current?.goTo(2)}>
+            Go to 3
+          </Button>
+          <Carousel slideCount={3} apiRef={carouselRef} dots speed={0} onIndexChange={spy}>
+            <Carousel.Item className="w-full">
+              <div>Slide 1</div>
+            </Carousel.Item>
+            <Carousel.Item className="w-full">
+              <div>Slide 2</div>
+            </Carousel.Item>
+            <Carousel.Item className="w-full">
+              <div>Slide 3</div>
+            </Carousel.Item>
+          </Carousel>
+        </div>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -198,16 +210,18 @@ describe('Carousel', () => {
       { content: <img src={'x'} alt={'y'} /> },
     ]
 
-    render(
-      <Carousel
-        items={items}
-        align={'center'}
-        direction={'horizontal'}
-        dots={true}
-        speed={0}
-        apiRef={carouselRef}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Carousel
+          items={items}
+          align={'center'}
+          direction={'horizontal'}
+          dots={true}
+          speed={0}
+          apiRef={carouselRef}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {

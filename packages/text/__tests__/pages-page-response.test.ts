@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import { renderPagesPageResponse } from '../src/server/pages-page-response.js'
-import { createElement, isRueRenderableHandle } from './rue-test-utils.js'
+import { createElement } from './rue-ssr-test-utils.js'
 
 function createStream(chunks: string[]): ReadableStream<Uint8Array> {
   return new ReadableStream({
@@ -107,7 +107,7 @@ describe('pages page response', () => {
 
     await renderPagesPageResponse(common.options)
 
-    expect(isRueRenderableHandle(common.renderToReadableStream.mock.calls[0]?.[0])).toBe(true)
+    expect(typeof common.renderToReadableStream.mock.calls[0]?.[0]).toBe('function')
   })
 
   it('renders the document shell, merges gSSP headers, and marks streamed HTML responses', async () => {

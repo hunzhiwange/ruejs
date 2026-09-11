@@ -202,7 +202,7 @@ describe('app page probe helpers', () => {
     const probeError = new ReferenceError('document is not defined')
     probeError.stack = [
       'ReferenceError: document is not defined',
-      '    at BrowserDOMAdapter.createTextNode (runtime.esm-bundler.js:343:3)',
+      '    at browserDOMOperations.createTextNode (runtime.esm-bundler.js:343:3)',
       '    at HomePage (server/index.js:10:1)',
     ].join('\n')
 

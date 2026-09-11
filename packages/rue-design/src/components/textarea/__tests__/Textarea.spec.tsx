@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Textarea from '../index'
@@ -18,9 +19,11 @@ describe('Textarea', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Textarea className="h-24" placeholder="Bio" rows={5} value="Rue" disabled={true} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Textarea className="h-24" placeholder="Bio" rows={5} value="Rue" disabled={true} />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -38,16 +41,18 @@ describe('Textarea', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Textarea
-        color="default"
-        status="warning"
-        size="large"
-        variant="filled"
-        resize="vertical"
-        ghost={true}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Textarea
+          color="default"
+          status="warning"
+          size="large"
+          variant="filled"
+          resize="vertical"
+          ghost={true}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -66,9 +71,11 @@ describe('Textarea', () => {
     const handleInput = vi.fn()
     const handleChange = vi.fn()
 
-    render(
-      <Textarea data-testid="bio" onInput={handleInput} onChange={handleChange} value="Before" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Textarea data-testid="bio" onInput={handleInput} onChange={handleChange} value="Before" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -91,17 +98,19 @@ describe('Textarea', () => {
     const handleInput = vi.fn()
     const handleChange = vi.fn()
 
-    render(
-      <Textarea
-        data-testid="textarea-count"
-        maxLength={10}
-        showCount={true}
-        allowClear={true}
-        onClear={handleClear}
-        onInput={handleInput}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Textarea
+          data-testid="textarea-count"
+          maxLength={10}
+          showCount={true}
+          allowClear={true}
+          onClear={handleClear}
+          onInput={handleInput}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -167,9 +176,11 @@ describe('Textarea', () => {
       },
     })
 
-    render(
-      <Textarea autoSize={{ minRows: 2, maxRows: 4 }} defaultValue={'a\nb\nc\nd\ne'} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Textarea autoSize={{ minRows: 2, maxRows: 4 }} defaultValue={'a\nb\nc\nd\ne'} />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -213,9 +224,11 @@ describe('Textarea', () => {
       },
     })
 
-    render(
-      <Textarea autoSize={true} rows={3} allowClear={true} showCount={true} defaultValue="Rue" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Textarea autoSize={true} rows={3} allowClear={true} showCount={true} defaultValue="Rue" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -245,7 +258,9 @@ describe('Textarea', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Textarea autoSize={true} resize="vertical" defaultValue="Rue" />, container)
+    mountTestApp(container, () =>
+      render(<Textarea autoSize={true} resize="vertical" defaultValue="Rue" />, container),
+    )
 
     await waitForContent(() => {
       const textarea = container.querySelector('textarea.textarea') as HTMLTextAreaElement

@@ -1,10 +1,7 @@
 import { type FC } from '@rue-js/rue'
 import { RouterView, useRoute } from '@rue-js/router'
 import { resolveStaticRenderPath, useStaticRenderContext } from '../../staticRenderContext'
-import {
-  createPersistentSidebarPlayground,
-  type SidebarSection,
-} from './persistentSidebarPlayground'
+import { PersistentSidebarPlayground, type SidebarSection } from './persistentSidebarPlayground'
 
 const readCurrentHashPath = (): string => {
   const hash = globalThis.location?.hash || ''
@@ -273,61 +270,6 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/resources-jsx',
         },
         {
-          id: 'rue-islands',
-          title: 'Rue Islands 总览',
-          href: '/examples/rue-islands',
-        },
-        {
-          id: 'rue-islands-load',
-          title: 'Island：client:load',
-          href: '/examples/rue-islands/load',
-        },
-        {
-          id: 'rue-islands-idle',
-          title: 'Island：client:idle',
-          href: '/examples/rue-islands/idle',
-        },
-        {
-          id: 'rue-islands-visible',
-          title: 'Island：client:visible',
-          href: '/examples/rue-islands/visible',
-        },
-        {
-          id: 'rue-islands-media',
-          title: 'Island：client:media',
-          href: '/examples/rue-islands/media',
-        },
-        {
-          id: 'rue-islands-interaction',
-          title: 'Island：client:interaction',
-          href: '/examples/rue-islands/interaction',
-        },
-        {
-          id: 'rue-islands-none',
-          title: 'Island：client:none',
-          href: '/examples/rue-islands/none',
-        },
-        {
-          id: 'rue-islands-only',
-          title: 'Island：client:only',
-          href: '/examples/rue-islands/only',
-        },
-        {
-          id: 'rue-islands-props',
-          title: 'Island：安全 Props',
-          href: '/examples/rue-islands/props',
-        },
-        {
-          id: 'rue-islands-manifest',
-          title: 'Island：Manifest Props',
-          href: '/examples/rue-islands/manifest',
-        },
-        {
-          id: 'rue-islands-compiler',
-          title: 'Island：client:* 编译',
-          href: '/examples/rue-islands/compiler',
-        },
-        {
           id: 'context',
           title: 'Context',
           href: '/examples/context',
@@ -369,11 +311,6 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/trigger-ref',
         },
         {
-          id: 'custom-ref',
-          title: 'customRef 自定义 ref',
-          href: '/examples/custom-ref',
-        },
-        {
           id: 'on-activated',
           title: 'onActivated 缓存生命周期',
           href: '/examples/on-activated',
@@ -408,46 +345,16 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           title: 'nextTick 真实业务场景',
           href: '/examples/next-tick',
         },
-        // 调度、scope 与渲染调试示例紧邻 nextTick，突出它们都依赖 effect 执行时机。
-        {
-          id: 'watch-post-effect',
-          title: 'watchPostEffect DOM 读取',
-          href: '/examples/watch-post-effect',
-        },
-        {
-          id: 'watch-sync-effect',
-          title: 'watchSyncEffect 同步防线',
-          href: '/examples/watch-sync-effect',
-        },
-        {
-          id: 'on-watcher-cleanup',
-          title: 'onWatcherCleanup 请求清理',
-          href: '/examples/on-watcher-cleanup',
-        },
-        {
-          id: 'effect-scope',
-          title: 'effectScope 批量停止',
-          href: '/examples/effect-scope',
-        },
+        // 保留仍位于编译期能力面的 scope 与渲染调试示例。
         {
           id: 'on-scope-dispose',
           title: 'onScopeDispose 作用域清理',
           href: '/examples/on-scope-dispose',
         },
         {
-          id: 'get-current-scope',
-          title: 'getCurrentScope 作用域探针',
-          href: '/examples/get-current-scope',
-        },
-        {
           id: 'render-counter',
           title: '渲染函数计数器',
           href: '/examples/render-counter',
-        },
-        {
-          id: 'on-render-tracked',
-          title: 'onRenderTracked 调试',
-          href: '/examples/on-render-tracked',
         },
         {
           id: 'on-render-triggered',
@@ -643,22 +550,32 @@ const TEST_SECTIONS: SidebarSection[] = [
 
 const activeSections = isTestEnvironment() ? TEST_SECTIONS : SECTIONS_BY_TYPE.examples
 
-const BaseSidebarPlayground = createPersistentSidebarPlayground({
-  sections: activeSections,
-  showCounts: true,
-  wrapperClassName: 'sidebar-playground-examples',
-  fallbackToRoute: false,
-})
-
-const RouteSidebarPlayground = createPersistentSidebarPlayground({
-  sections: activeSections,
-  showCounts: true,
-  wrapperClassName: 'sidebar-playground-examples',
-})
-
 type SidebarPlaygroundProps = {
   currentPath?: string
 }
+
+const BaseSidebarPlayground: FC<SidebarPlaygroundProps> = props => (
+  <PersistentSidebarPlayground
+    sections={activeSections}
+    showCounts
+    wrapperClassName="sidebar-playground-examples"
+    fallbackToRoute={false}
+    currentPath={props.currentPath}
+  >
+    {props.children}
+  </PersistentSidebarPlayground>
+)
+
+const RouteSidebarPlayground: FC<SidebarPlaygroundProps> = props => (
+  <PersistentSidebarPlayground
+    sections={activeSections}
+    showCounts
+    wrapperClassName="sidebar-playground-examples"
+    currentPath={props.currentPath}
+  >
+    {props.children}
+  </PersistentSidebarPlayground>
+)
 
 const SidebarPlayground: FC<SidebarPlaygroundProps> = props => {
   if (useInsideSidebarRouteLayout()) {

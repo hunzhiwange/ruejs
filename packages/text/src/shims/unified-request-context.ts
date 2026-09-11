@@ -43,6 +43,8 @@ export type UnifiedRequestContext = {
   appRouterRenderPhase: AppRouterRenderPhase
   /** Request-local AppElements reader and rendered-slot bookkeeping for HTML SSR. */
   ssrAppElementsState: unknown
+  /** CSP nonce resolved from request and middleware headers for Script SSR. */
+  scriptNonce: string | undefined
 
   // ── request-context.ts ─────────────────────────────────────────────
   /** Cloudflare Workers ExecutionContext, or null on Node.js dev. */
@@ -94,6 +96,7 @@ export function createRequestContext(opts?: Partial<UnifiedRequestContext>): Uni
   return {
     appRouterRenderPhase: null,
     ssrAppElementsState: null,
+    scriptNonce: undefined,
     headersContext: null,
     actionRevalidationKind: 0,
     dynamicUsageDetected: false,
@@ -203,6 +206,10 @@ export function runWithUnifiedStateMutation<T>(
  */
 export function getRequestContext(): UnifiedRequestContext {
   return _als.getStore() ?? createRequestContext()
+}
+
+export function getCurrentRequestScriptNonce(): string | undefined {
+  return _als.getStore()?.scriptNonce
 }
 
 /**

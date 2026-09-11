@@ -1,105 +1,97 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { TransitionGroup } from '../src/compiler-runtime/builtins'
-import { createCompiledBlock, type CompiledSlotFactory } from '../src/compiler-runtime/mount'
+import { afterEach, expect, it } from 'vitest'
+import { evaluateComponent } from './compiled-component-test-utils'
+import { setReactiveScheduling } from '../src/runtime-core/compiled'
 
-afterEach(() => vi.useRealTimers())
+const flush = async () => {
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+}
+const fixture = () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { TransitionGroup, signal } from '@rue-js/rue'; export const rows = signal(['a','b','c']); export const trace = [];
+    export const View = () => <TransitionGroup tag="ul" name="rows" duration={20} onAfterEnter={() => trace.push('enter')} onAfterLeave={() => trace.push('leave')}>{rows.get().map(row => <li key={row}>{String(row)}</li>)}</TransitionGroup>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  return { app, root }
+}
+afterEach(() => {
+  document.body.innerHTML = ''
+  setReactiveScheduling('frame')
+})
+it('compiled replacement batches retain leave snapshots with detached sibling anchors', async () => {
+  const { app, root } = fixture()
+  app.rows.set(['d', 'e'])
+  await flush()
+  expect(document.querySelectorAll('.rows-leave-active')).toHaveLength(3)
+  expect(document.querySelectorAll('.rows-enter-active')).toHaveLength(2)
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.textContent).toBe('de')
+  expect(app.trace.filter((x: string) => x === 'leave')).toHaveLength(3)
+  root.dispose()
+})
+it('compiled keyed moves do not schedule enter or leave phases', async () => {
+  const { app, root } = fixture()
+  const previous = Array.from(document.querySelectorAll('li'))
+  app.rows.set(['c', 'a', 'b'])
+  await flush()
+  expect(Array.from(document.querySelectorAll('li'))).toEqual([
+    previous[2],
+    previous[0],
+    previous[1],
+  ])
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(app.trace).toEqual([])
+  root.dispose()
+})
+it('compiled group disposal cancels pending phases and disconnects observations', async () => {
+  const { app, root } = fixture()
+  app.rows.set(['d'])
+  await flush()
+  root.dispose()
+  const trace = [...app.trace]
+  app.rows.set(['z'])
+  await flush()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.childNodes).toHaveLength(0)
+  expect(app.trace).toEqual(trace)
+})
 
-describe('compiled TransitionGroup mutations', () => {
-  it('animates nodes inserted and removed by a keyed slot reconciler', async () => {
-    vi.useFakeTimers()
-    const host = document.createElement('div')
-    let list!: HTMLUListElement
-    const children: CompiledSlotFactory = (target, _props, owner) => {
-      list = document.createElement('ul')
-      list.innerHTML = '<li data-key="a">a</li>'
-      target.parent.insertBefore(list, target.before)
-      return createCompiledBlock(target, owner, { first: list, last: list })
-    }
-    const handle = TransitionGroup({ name: 'fade', duration: 12, children })
-    handle.__rue_compiled_mount(host)
-    const added = document.createElement('li')
-    added.textContent = 'b'
-    list.append(added)
-    await Promise.resolve()
-    expect(added.classList.contains('fade-enter-active')).toBe(true)
-    await vi.advanceTimersByTimeAsync(12)
+it('compiled keyed row control flow executes finally without rerunning setup for moved keys', async () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { TransitionGroup, signal } from '@rue-js/rue'; export const rows = signal(['a','b']); export const trace = [];
+    export const View = () => <TransitionGroup tag="ul">{rows.get().map(row => { try { return <li key={row}>{String(row)}</li> } finally { trace.push(row) } })}</TransitionGroup>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  expect(app.trace).toEqual(['a', 'b'])
+  app.rows.set(['b', 'a'])
+  await flush()
+  expect(app.trace).toEqual(['a', 'b'])
+  expect(document.body.textContent).toBe('ba')
+  root.dispose()
+})
 
-    const removed = list.firstElementChild as HTMLElement
-    removed.remove()
-    await Promise.resolve()
-    expect(removed.classList.contains('fade-leave-active')).toBe(true)
-    expect(list.contains(removed)).toBe(true)
-    await vi.advanceTimersByTimeAsync(12)
-    expect(list.contains(removed)).toBe(false)
-    handle.dispose()
-  })
-
-  it('handles a replacement batch whose removal references are no longer attached', async () => {
-    vi.useFakeTimers()
-    const host = document.createElement('div')
-    let list!: HTMLUListElement
-    const children: CompiledSlotFactory = (target, _props, owner) => {
-      list = document.createElement('ul')
-      list.innerHTML = '<li data-key="a">a</li><li data-key="b">b</li><li data-key="c">c</li>'
-      target.parent.insertBefore(list, target.before)
-      return createCompiledBlock(target, owner, { first: list, last: list })
-    }
-    const handle = TransitionGroup({ name: 'fade', duration: 12, children })
-    handle.__rue_compiled_mount(host)
-    const previous = Array.from(list.children) as HTMLElement[]
-
-    for (const element of previous) element.remove()
-    const next = ['d', 'e'].map(key => {
-      const element = document.createElement('li')
-      element.dataset.key = key
-      element.textContent = key
-      list.append(element)
-      return element
-    })
-    await Promise.resolve()
-
-    expect(next.every(element => element.classList.contains('fade-enter-active'))).toBe(true)
-    expect(previous.every(element => element.classList.contains('fade-leave-active'))).toBe(true)
-    await vi.advanceTimersByTimeAsync(12)
-    expect(Array.from(list.children).map(element => element.textContent)).toEqual(['d', 'e'])
-    handle.dispose()
-  })
-
-  it('does not treat keyed moves as fresh enter or leave transitions', async () => {
-    const host = document.createElement('div')
-    let list!: HTMLUListElement
-    const children: CompiledSlotFactory = (target, _props, owner) => {
-      list = document.createElement('ul')
-      list.innerHTML = '<li data-key="a">a</li><li data-key="b">b</li><li data-key="c">c</li>'
-      target.parent.insertBefore(list, target.before)
-      return createCompiledBlock(target, owner, { first: list, last: list })
-    }
-    const handle = TransitionGroup({ name: 'fade', duration: 12, children })
-    handle.__rue_compiled_mount(host)
-    const moved = list.lastElementChild as HTMLElement
-
-    list.insertBefore(moved, list.firstElementChild)
-    await Promise.resolve()
-
-    expect(Array.from(list.children).map(element => element.textContent)).toEqual(['c', 'a', 'b'])
-    expect(moved.classList.contains('fade-enter-active')).toBe(false)
-    expect(moved.classList.contains('fade-leave-active')).toBe(false)
-    handle.dispose()
-  })
-
-  it('disconnects mutation work when its owner is disposed', async () => {
-    const host = document.createElement('div')
-    let list!: HTMLUListElement
-    const children: CompiledSlotFactory = (target, _props, owner) => {
-      list = document.createElement('ul')
-      target.parent.insertBefore(list, target.before)
-      return createCompiledBlock(target, owner, { first: list, last: list })
-    }
-    const handle = TransitionGroup({ children })
-    handle.__rue_compiled_mount(host)
-    handle.dispose()
-    list.append(document.createElement('li'))
-    await Promise.resolve()
-    expect(host.textContent).toBe('')
-  })
+it('tagless groups observe their mounted range, ignore siblings and remove pending leave snapshots', async () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { TransitionGroup, signal } from '@rue-js/rue'; export const rows = signal(['a']); export const trace = [];
+    export const View = () => <><TransitionGroup duration={20} onBeforeEnter={() => trace.push('enter')}>{rows.get().map(row => <b key={row}>{String(row)}</b>)}</TransitionGroup><aside/></>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  await flush()
+  document.querySelector('aside')!.appendChild(document.createElement('i'))
+  await flush()
+  expect(app.trace).toEqual([])
+  app.rows.set(['b'])
+  await flush()
+  expect(document.body.textContent).toContain('a')
+  expect(app.trace).toEqual(['enter'])
+  root.dispose()
+  await new Promise(resolve => setTimeout(resolve, 30))
+  expect(document.body.childNodes).toHaveLength(0)
 })

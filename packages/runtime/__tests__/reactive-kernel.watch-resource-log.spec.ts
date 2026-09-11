@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createResource as createCompiledResource } from '../src/runtime-core/reactive'
+import { createResource as createCompiledResource } from '../src/compiler-runtime/entries/reactive'
 import { signal as createCompiledSignal } from '../src/reactive-core'
 import { nextTick } from '../src/runtime-core/reactive'
 import { ReactiveEffectRuntime, onWatcherCleanup } from '../src/runtime-core/reactive-kernel/effect'
@@ -353,10 +353,13 @@ describe('runtime TypeScript kernel Resource', () => {
     const resolveRequest = (value: string, result: string) =>
       resolvers.get(value)?.shift()?.(result)
 
+    // The public resource entry starts its fetcher in a promise microtask.
+    await flushPromises()
     resolveRequest('main', 'MAIN-1')
     await flushPromises()
     expect(resource.data.get()).toBe('MAIN-1')
 
+    let previousResult = 'MAIN-1'
     for (const [value, result] of [
       ['beta', 'BETA'],
       ['stable', 'STABLE'],
@@ -364,11 +367,13 @@ describe('runtime TypeScript kernel Resource', () => {
     ] as const) {
       source.set(value)
       await nextTick()
-      expect(resource.data.get()).toBeUndefined()
+      // The public Suspense-aware resource retains its last resolved value while loading.
+      expect(resource.data.get()).toBe(previousResult)
       expect(resource.loading.get()).toBe(true)
       resolveRequest(value, result)
       await flushPromises()
       expect(resource.data.get()).toBe(result)
+      previousResult = result
     }
 
     expect(requests).toEqual(['main', 'beta', 'stable', 'main'])

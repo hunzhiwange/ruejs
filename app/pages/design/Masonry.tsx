@@ -143,7 +143,7 @@ const releaseCards: ReleaseCard[] = [
     title: 'Render Anchor Cleanup',
     summary: '替换空 renderable 时先走 clear 路径，避免 beforeUnmount / cleanup 漏掉。',
     featured: true,
-    checkpoints: ['renderBetween', 'renderAnchor', 'Component scope'],
+    checkpoints: ['compiled range', 'anchor cleanup', 'Component scope'],
   },
   {
     id: 'sidebar-nav-pass',
@@ -364,7 +364,7 @@ const dataCode = [
   "    title: 'Render Anchor Cleanup',",
   "    summary: '替换空 renderable 时先走 clear 路径，避免 beforeUnmount / cleanup 漏掉。',",
   '    featured: true,',
-  "    checkpoints: ['renderBetween', 'renderAnchor', 'Component scope'],",
+  "    checkpoints: ['compiled range', 'anchor cleanup', 'Component scope'],",
   '  },',
   '  {',
   "    id: 'sidebar-nav-pass',",

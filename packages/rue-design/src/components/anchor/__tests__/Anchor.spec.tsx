@@ -1,3 +1,5 @@
+import { AnchorLink } from '../index'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -196,19 +198,21 @@ describe('Anchor', () => {
     const handleClick = vi.fn()
     const handleChange = vi.fn()
 
-    render(
-      <Anchor
-        getContainer={() => scrollHost}
-        targetOffset={24}
-        items={[
-          { key: 'intro', href: '#intro', title: '简介' },
-          { key: 'details', href: '#details', title: '细节' },
-          { key: 'api', href: '#api', title: 'API' },
-        ]}
-        onClick={handleClick}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Anchor
+          getContainer={() => scrollHost}
+          targetOffset={24}
+          items={[
+            { key: 'intro', href: '#intro', title: '简介' },
+            { key: 'details', href: '#details', title: '细节' },
+            { key: 'api', href: '#api', title: 'API' },
+          ]}
+          onClick={handleClick}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -238,16 +242,18 @@ describe('Anchor', () => {
     const { globalHost, localHost } = createDuplicateIdScrollScene()
     const container = mountContainer()
 
-    render(
-      <Anchor
-        getContainer={() => localHost}
-        targetOffset={24}
-        items={[
-          { key: 'intro', href: '#intro', title: 'Local Intro' },
-          { key: 'details', href: '#details', title: 'Local Details' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Anchor
+          getContainer={() => localHost}
+          targetOffset={24}
+          items={[
+            { key: 'intro', href: '#intro', title: 'Local Intro' },
+            { key: 'details', href: '#details', title: 'Local Details' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await click(getLink(container, '#details'))
@@ -271,17 +277,19 @@ describe('Anchor', () => {
     )
     const container = mountContainer()
 
-    render(
-      <Anchor
-        getContainer={() => scrollHost}
-        targetOffset={24}
-        items={[
-          { key: 'brief', href: '#brief', title: 'Brief Intake' },
-          { key: 'system', href: '#system', title: 'System Draft' },
-          { key: 'delivery', href: '#delivery', title: 'Delivery Notes' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Anchor
+          getContainer={() => scrollHost}
+          targetOffset={24}
+          items={[
+            { key: 'brief', href: '#brief', title: 'Brief Intake' },
+            { key: 'system', href: '#system', title: 'System Draft' },
+            { key: 'delivery', href: '#delivery', title: 'Delivery Notes' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await click(getLink(container, '#delivery'))
@@ -293,18 +301,20 @@ describe('Anchor', () => {
     })
   })
 
-  it('falls back to rendering Anchor.Link children when compiled children are opaque handles', async () => {
+  it('falls back to rendering AnchorLink children when compiled children are opaque handles', async () => {
     const { scrollHost } = createScrollScene()
     const container = mountContainer()
 
-    render(
-      <Anchor getContainer={() => scrollHost} affix={false}>
-        <Anchor.Link href="#intro" title="Overview">
-          <Anchor.Link href="#details" title="Specs" />
-        </Anchor.Link>
-        <Anchor.Link href="#api" title="API" description="事件与受控用法" />
-      </Anchor>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Anchor getContainer={() => scrollHost} affix={false}>
+          <AnchorLink href="#intro" title="Overview">
+            <AnchorLink href="#details" title="Specs" />
+          </AnchorLink>
+          <AnchorLink href="#api" title="API" description="事件与受控用法" />
+        </Anchor>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -320,18 +330,20 @@ describe('Anchor', () => {
     const { scrollHost } = createScrollScene()
     const container = mountContainer()
 
-    render(
-      <Anchor
-        getContainer={() => scrollHost}
-        direction="horizontal"
-        items={[
-          { key: 'intro', href: '#intro', title: '简介' },
-          { key: 'details', href: '#details', title: '实现细节' },
-          { key: 'api', href: '#api', title: 'API' },
-        ]}
-        getCurrentAnchor={href => (href === '#details' ? '#intro' : href)}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Anchor
+          getContainer={() => scrollHost}
+          direction="horizontal"
+          items={[
+            { key: 'intro', href: '#intro', title: '简介' },
+            { key: 'details', href: '#details', title: '实现细节' },
+            { key: 'api', href: '#api', title: 'API' },
+          ]}
+          getCurrentAnchor={href => (href === '#details' ? '#intro' : href)}
+        />,
+        container,
+      ),
     )
 
     scrollHost.scrollTop = 250
@@ -357,19 +369,21 @@ describe('Anchor', () => {
     )
     const container = mountContainer()
 
-    render(
-      <Anchor
-        getContainer={() => scrollHost}
-        direction="horizontal"
-        items={[
-          { key: 'kickoff', href: '#kickoff', title: 'Kickoff' },
-          { key: 'schema', href: '#schema', title: 'Schema' },
-          { key: 'adapter', href: '#adapter', title: 'Adapter' },
-          { key: 'handoff', href: '#handoff', title: 'Handoff' },
-        ]}
-        getCurrentAnchor={href => (href === '#adapter' ? '#schema' : href)}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Anchor
+          getContainer={() => scrollHost}
+          direction="horizontal"
+          items={[
+            { key: 'kickoff', href: '#kickoff', title: 'Kickoff' },
+            { key: 'schema', href: '#schema', title: 'Schema' },
+            { key: 'adapter', href: '#adapter', title: 'Adapter' },
+            { key: 'handoff', href: '#handoff', title: 'Handoff' },
+          ]}
+          getCurrentAnchor={href => (href === '#adapter' ? '#schema' : href)}
+        />,
+        container,
+      ),
     )
 
     await click(getLink(container, '#handoff'))

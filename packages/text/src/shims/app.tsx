@@ -26,13 +26,7 @@
  * type-check without forcing the caller to supply generic parameters.
  */
 // oxlint-disable typescript/no-explicit-any -- match Text.js's permissive _app.tsx generics
-import {
-  createTextCompatElement,
-  TextCompatComponent,
-  type TextCompatComponentType,
-  type TextCompatNode,
-} from './component-adapter.js'
-import { readTextCompatComponentBase } from './rue-element-compat.js'
+import { type TextCompatComponentType, type TextCompatNode } from './component-adapter.js'
 
 export type AppProps<P = any> = {
   Component: TextCompatComponentType<P> & {
@@ -97,31 +91,10 @@ async function appGetInitialProps({ Component, ctx }: AppContext): Promise<AppIn
   return { pageProps }
 }
 
-export default class App<P = any, CP = any, S = any> extends TextCompatComponent<
-  P & AppProps<CP>,
-  S
-> {
-  static origGetInitialProps = appGetInitialProps
-  static getInitialProps = appGetInitialProps
-
-  render(): TextCompatNode {
-    const { Component, pageProps } = this.props as AppProps<CP>
-    // Cast to ComponentType<any> so the JSX spread type-checks regardless
-    // of the user-supplied `CP` generic. Mirrors how Text.js's _app.tsx
-    // works in practice: callers extending `App` rarely supply explicit
-    // page-prop generics, so the spread has to be permissive here.
-    const PageComponent = Component as TextCompatComponentType<any>
-    return createTextCompatElement(PageComponent, pageProps as Record<string, unknown>)
-  }
+function App<CP = any>({ Component, pageProps }: AppProps<CP>) {
+  return <Component {...(pageProps as Record<string, unknown>)} />
 }
-
-const CompatComponentBase = readTextCompatComponentBase()
-if (
-  CompatComponentBase &&
-  typeof CompatComponentBase === 'function' &&
-  CompatComponentBase.prototype &&
-  typeof CompatComponentBase.prototype === 'object'
-) {
-  Object.setPrototypeOf(App.prototype, CompatComponentBase.prototype)
-  Object.setPrototypeOf(App, CompatComponentBase)
-}
+export default Object.assign(App, {
+  origGetInitialProps: appGetInitialProps,
+  getInitialProps: appGetInitialProps,
+})

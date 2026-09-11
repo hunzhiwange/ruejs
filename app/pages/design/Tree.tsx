@@ -238,7 +238,6 @@ const asyncVirtualTreeSeed: TreeDataNode[] = Array.from({ length: 64 }, (_, inde
 
 const basicCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const selectedKeys = ref(['docs-api'])
 
 <div className="space-y-4">
@@ -281,7 +280,6 @@ const selectedKeys = ref(['docs-api'])
 
 const checkableCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const selectedKeys = ref<string[]>(['release-control'])
 const checkedKeys = ref<string[]>(['site-home'])
 const halfCheckedKeys = ref<string[]>(['release-control', 'release-site'])
@@ -359,7 +357,6 @@ const extractHalfCheckedKeys = (value, info) => {
 
 const checkableDisabledCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const checkedKeys = ref<string[]>(['editable-assets'])
 
 <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem),1fr] lg:items-start">
@@ -395,7 +392,6 @@ const checkedKeys = ref<string[]>(['editable-assets'])
 
 const simpleModeCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const selectedKeys = ref(['workflow'])
 
 <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem),1fr] lg:items-start">
@@ -420,7 +416,6 @@ const selectedKeys = ref(['workflow'])
 
 const asyncCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const treeData = ref([{ title: '发布总线', key: 'release-bus', isLeaf: false }])
 const selectedKeys = ref<string[]>([])
 const expandedKeys = ref<string[]>([])
@@ -493,7 +488,6 @@ const loadData = async node => {
 
 const directoryCode = `import { computed, ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const selectedKeys = ref(['dir-app'])
 const expandAction = ref('click')
 const toggleSelect = ref(true)
@@ -585,7 +579,6 @@ const rangeSelect = computed(() => (toggleSelect.value ? 'append' : false))
 
 const directoryRangeCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const appendSelectedKeys = ref<string[]>([])
 const replaceSelectedKeys = ref<string[]>([])
 const treeVersion = ref(0)
@@ -640,7 +633,6 @@ const reset = () => {
 
 const dragCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const treeData = ref(dragTreeSeed)
 const dragSummary = ref('folder 支持放入；file 只允许插前和插后，悬停时会显示明确占位态。')
 
@@ -692,7 +684,6 @@ const handleDrop = info => {
 
 const virtualCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const treeData = Array.from({ length: 120 }, (_, index) => ({
   title: 'Page ' + String(index + 1).padStart(3, '0'),
   key: 'page-' + index,
@@ -728,7 +719,6 @@ const selectedKeys = ref(['page-3'])
 
 const virtualAsyncCode = `import { ref } from '@rue-js/rue'
 import { Tree } from '@rue-js/design'
-
 const treeData = ref(asyncVirtualTreeSeed)
 const selectedKeys = ref<string[]>([])
 const expandedKeys = ref<string[]>([])
@@ -981,7 +971,7 @@ const insertTreeNode = (
     const currentNode = nodes[index]
     if (toKeyText(currentNode.key as TreeKey) === dropKeyText) {
       if (dropPosition === 0) {
-        const nextChildren = Array.isArray(currentNode.children) ? [...currentNode.children] : []
+        const nextChildren = Array.isArray(currentNode.children) ? currentNode.children.slice() : []
         nextChildren.push(dragNode)
         currentNode.children = nextChildren
       } else {

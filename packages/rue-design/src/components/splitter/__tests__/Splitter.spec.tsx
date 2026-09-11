@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
-import { Splitter } from '@rue-js/design'
+import Splitter from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -36,14 +37,16 @@ describe('Splitter', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Splitter style={{ width: '500px', height: '240px' }} data-testid="splitter-root">
-        <Splitter.Panel defaultSize="40%" min="20%" max="70%" data-testid="panel-a">
-          Left
-        </Splitter.Panel>
-        <Splitter.Panel data-testid="panel-b">Right</Splitter.Panel>
-      </Splitter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Splitter style={{ width: '500px', height: '240px' }} data-testid="splitter-root">
+          <Splitter.Panel defaultSize="40%" min="20%" max="70%" data-testid="panel-a">
+            Left
+          </Splitter.Panel>
+          <Splitter.Panel data-testid="panel-b">Right</Splitter.Panel>
+        </Splitter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -66,18 +69,20 @@ describe('Splitter', () => {
     const onResize = vi.fn()
     const onResizeEnd = vi.fn()
 
-    render(
-      <Splitter
-        style={{ width: '600px', height: '240px' }}
-        data-testid="drag-root"
-        onResizeStart={onResizeStart}
-        onResize={onResize}
-        onResizeEnd={onResizeEnd}
-      >
-        <Splitter.Panel data-testid="left-panel">Alpha</Splitter.Panel>
-        <Splitter.Panel data-testid="right-panel">Beta</Splitter.Panel>
-      </Splitter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Splitter
+          style={{ width: '600px', height: '240px' }}
+          data-testid="drag-root"
+          onResizeStart={onResizeStart}
+          onResize={onResize}
+          onResizeEnd={onResizeEnd}
+        >
+          <Splitter.Panel data-testid="left-panel">Alpha</Splitter.Panel>
+          <Splitter.Panel data-testid="right-panel">Beta</Splitter.Panel>
+        </Splitter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -113,22 +118,24 @@ describe('Splitter', () => {
     resetActiveRuntime()
     const sizes = ref<Array<number | string>>([300, 300])
 
-    render(
-      <Splitter
-        style={{ width: '600px', height: '240px' }}
-        data-testid="controlled-edge-root"
-        onResize={next => {
-          sizes.value = next
-        }}
-      >
-        <Splitter.Panel size={sizes.value[0]} data-testid="controlled-left">
-          Left
-        </Splitter.Panel>
-        <Splitter.Panel size={sizes.value[1]} data-testid="controlled-right">
-          Right
-        </Splitter.Panel>
-      </Splitter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Splitter
+          style={{ width: '600px', height: '240px' }}
+          data-testid="controlled-edge-root"
+          onResize={next => {
+            sizes.value = next
+          }}
+        >
+          <Splitter.Panel size={sizes.value[0]} data-testid="controlled-left">
+            Left
+          </Splitter.Panel>
+          <Splitter.Panel size={sizes.value[1]} data-testid="controlled-right">
+            Right
+          </Splitter.Panel>
+        </Splitter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -170,14 +177,16 @@ describe('Splitter', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Splitter style={{ width: '560px', height: '220px' }} data-testid="simplified-root">
-        <Splitter.Panel defaultSize="40%" min="24%" max="70%" data-testid="navigation-panel">
-          Navigation
-        </Splitter.Panel>
-        <Splitter.Panel data-testid="editor-panel">Editor</Splitter.Panel>
-      </Splitter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Splitter style={{ width: '560px', height: '220px' }} data-testid="simplified-root">
+          <Splitter.Panel defaultSize="40%" min="24%" max="70%" data-testid="navigation-panel">
+            Navigation
+          </Splitter.Panel>
+          <Splitter.Panel data-testid="editor-panel">Editor</Splitter.Panel>
+        </Splitter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -203,19 +212,21 @@ describe('Splitter', () => {
     const onResize = vi.fn()
     const onDraggerDoubleClick = vi.fn()
 
-    render(
-      <Splitter
-        lazy
-        style={{ width: '640px', height: '240px' }}
-        data-testid="lazy-root"
-        onResize={onResize}
-        onDraggerDoubleClick={onDraggerDoubleClick}
-      >
-        <Splitter.Panel data-testid="lazy-left">A</Splitter.Panel>
-        <Splitter.Panel data-testid="lazy-middle">B</Splitter.Panel>
-        <Splitter.Panel data-testid="lazy-right">C</Splitter.Panel>
-      </Splitter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Splitter
+          lazy
+          style={{ width: '640px', height: '240px' }}
+          data-testid="lazy-root"
+          onResize={onResize}
+          onDraggerDoubleClick={onDraggerDoubleClick}
+        >
+          <Splitter.Panel data-testid="lazy-left">A</Splitter.Panel>
+          <Splitter.Panel data-testid="lazy-middle">B</Splitter.Panel>
+          <Splitter.Panel data-testid="lazy-right">C</Splitter.Panel>
+        </Splitter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -245,12 +256,14 @@ describe('Splitter', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Splitter orientation="vertical" data-testid="vertical-root">
-        <Splitter.Panel data-testid="vertical-top">Top</Splitter.Panel>
-        <Splitter.Panel data-testid="vertical-bottom">Bottom</Splitter.Panel>
-      </Splitter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Splitter orientation="vertical" data-testid="vertical-root">
+          <Splitter.Panel data-testid="vertical-top">Top</Splitter.Panel>
+          <Splitter.Panel data-testid="vertical-bottom">Bottom</Splitter.Panel>
+        </Splitter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

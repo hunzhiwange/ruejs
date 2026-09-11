@@ -181,6 +181,13 @@ async function build(target) {
   const pkgDir = path.resolve(`packages/${target}`)
   const pkg = JSON.parse(fs.readFileSync(`${pkgDir}/package.json`, 'utf-8'))
 
+  // Text owns a multi-entry server/client packaging pipeline. Its shims deliberately
+  // accept runtime-selected page factories, which are outside Rue's closed compiler ABI.
+  if (target === 'text') {
+    await exec('pnpm', ['--dir', pkgDir, 'run', 'build'], { stdio: 'inherit' })
+    return
+  }
+
   // if building a specific format, do not remove dist.
   if (!formats && fs.existsSync(`${pkgDir}/dist`)) {
     fs.rmSync(`${pkgDir}/dist`, { recursive: true })

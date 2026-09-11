@@ -2,43 +2,20 @@
 
 > 本页面假设你已经阅读过[组件基础](/guide/guide/essentials/component-basics)。如果你是组件的新手，请先阅读那部分内容。
 
-在 JSX / TSX 中，Rue 组件通常通过普通的 ES 模块导入来使用。只有当你需要通过字符串名称在运行时解析组件时，才需要把组件注册到当前应用的名称表中。
+在 JSX / TSX 中，Rue 组件通过普通的 ES 模块导入来使用。compiler-only 模式不提供运行时全局组件名称表。
 
 ## 全局注册 {#global-registration}
 
-我们可以使用 `app.component()` 方法把组件注册到当前 [Rue 应用](/guide/guide/essentials/application) 的运行时名称表中：
+旧版 `app.component` 全局注册不受支持。有限动态选择应在调用点声明字面量 registry：
 
 ```tsx
-import { Component, useApp } from '@rue-js/rue'
-import App from './App'
-import { MyComponent } from './MyComponent'
+import { Component } from '@rue-js/rue'
+import { Card, Notice } from './surfaces'
 
-const app = useApp(App)
-
-app.component(
-  // 注册名称
-  'MyComponent',
-  // 实现
-  MyComponent,
-)
+;<Component is={kind.value} registry={{ card: Card, notice: Notice }} />
 ```
 
-`.component()` 方法可以链式调用：
-
-```tsx
-app
-  .component('ComponentA', ComponentA)
-  .component('ComponentB', ComponentB)
-  .component('ComponentC', ComponentC)
-```
-
-注册后的名称可以传给 [`Component`](/api/api/built-in-special-elements#component) 的 `is` prop，用于动态组件场景：
-
-```tsx
-<Component is="MyComponent" />
-```
-
-在 TSX 中，`<MyComponent />` 仍然需要通过普通 `import` 得到 `MyComponent` 标识符；运行时注册不会让未导入的 JSX 标签自动可用。
+registry 的键集合和组件工厂都必须能在编译期静态证明。任意字符串名称、运行时函数值和未导入的 JSX 标签会导致构建失败。
 
 ## 局部注册 {#local-registration}
 

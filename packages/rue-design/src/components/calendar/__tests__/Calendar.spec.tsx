@@ -1,3 +1,4 @@
+import { mountTestApp, disposeTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Calendar, { createCalendarSelectabilityResolver } from '../index'
@@ -45,7 +46,7 @@ const slowTestTimeout = 25_000
 afterEach(() => {
   resetActiveRuntime()
   for (const container of mountedContainers) {
-    render(null as any, container)
+    disposeTestApp(container)
   }
   mountedContainers.length = 0
   document.body.innerHTML = ''
@@ -84,7 +85,7 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<ControlledCalendar />, c)
+      mountTestApp(c, () => render(<ControlledCalendar />, c))
 
       await waitForContent(() => {
         const root = c.querySelector('[data-testid="calendar-root"]') as HTMLElement
@@ -133,7 +134,7 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<ControlledCalendar />, c)
+      mountTestApp(c, () => render(<ControlledCalendar />, c))
 
       await waitForContent(() => {
         const root = c.querySelector('[data-testid="calendar-root"]') as HTMLElement
@@ -179,55 +180,7 @@ describe('Calendar', () => {
               locale="zh-CN"
               value={value.value}
               mode={mode.value}
-              headerRender={({
-                value: current,
-                type,
-                yearOptions,
-                monthOptions,
-                onMonthChange,
-                onTypeChange,
-                onYearChange,
-              }) => (
-                <div
-                  data-testid="custom-header"
-                  data-current={`${current.getFullYear()}-${current.getMonth() + 1}`}
-                  data-mode={type}
-                >
-                  <button
-                    type="button"
-                    data-testid="custom-mode-year"
-                    onClick={() => onTypeChange('year')}
-                  >
-                    年视图
-                  </button>
-                  <select
-                    data-testid="custom-year-select"
-                    value={current.getFullYear()}
-                    onChange={(event: Event) =>
-                      onYearChange(Number((event.currentTarget as HTMLSelectElement).value))
-                    }
-                  >
-                    {yearOptions.map(option => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    data-testid="custom-month-select"
-                    value={current.getMonth()}
-                    onChange={(event: Event) =>
-                      onMonthChange(Number((event.currentTarget as HTMLSelectElement).value))
-                    }
-                  >
-                    {monthOptions.map(option => (
-                      <option key={option.value} value={option.value} disabled={option.disabled}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              headerTitleFormatter={date => `${date.getFullYear()}-${date.getMonth() + 1}`}
               onChange={date => {
                 value.value = formatIsoDate(date)
               }}
@@ -242,38 +195,38 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<ControlledCustomHeader />, c)
+      mountTestApp(c, () => render(<ControlledCustomHeader />, c))
 
       await waitForContent(() => {
         const root = c.querySelector('[data-testid="custom-header-calendar"]') as HTMLElement
-        const header = c.querySelector('[data-testid="custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(root.getAttribute('data-rue-calendar-mode')).toBe('month')
         expect(header.getAttribute('data-current')).toBe('2026-7')
         expect(header.getAttribute('data-mode')).toBe('month')
         expect(c.querySelector('[data-testid="external-value"]')?.textContent).toBe('2026-07-04')
       })
 
-      changeSelect(c.querySelector('[data-testid="custom-year-select"]'), '2027')
+      changeSelect(c.querySelector('[data-rue-calendar-year-select="true"]'), '2027')
 
       await waitForContent(() => {
-        const header = c.querySelector('[data-testid="custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(header.getAttribute('data-current')).toBe('2027-7')
         expect(c.querySelector('[data-testid="external-value"]')?.textContent).toBe('2027-07-04')
       })
 
-      changeSelect(c.querySelector('[data-testid="custom-month-select"]'), '10')
+      changeSelect(c.querySelector('[data-rue-calendar-month-select="true"]'), '10')
 
       await waitForContent(() => {
-        const header = c.querySelector('[data-testid="custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(header.getAttribute('data-current')).toBe('2027-11')
         expect(c.querySelector('[data-testid="external-value"]')?.textContent).toBe('2027-11-04')
       })
 
-      await click(c.querySelector('[data-testid="custom-mode-year"]'))
+      await click(c.querySelector('[data-rue-calendar-mode-switch="year"]'))
 
       await waitForContent(() => {
         const root = c.querySelector('[data-testid="custom-header-calendar"]') as HTMLElement
-        const header = c.querySelector('[data-testid="custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(root.getAttribute('data-rue-calendar-mode')).toBe('year')
         expect(header.getAttribute('data-mode')).toBe('year')
         expect(c.querySelector('[data-testid="external-mode"]')?.textContent).toBe('year')
@@ -299,21 +252,7 @@ describe('Calendar', () => {
             value={value.value}
             mode={mode.value}
             onRenderProfile={onRenderProfile}
-            headerRender={({ value: current, type, onTypeChange }) => (
-              <div
-                data-testid="optimized-custom-header"
-                data-current={formatIsoDate(current)}
-                data-mode={type}
-              >
-                <button
-                  type="button"
-                  data-testid="optimized-custom-year"
-                  onClick={() => onTypeChange('year')}
-                >
-                  年视图
-                </button>
-              </div>
-            )}
+            headerTitleFormatter={date => formatIsoDate(date)}
             onChange={date => {
               value.value = formatIsoDate(date)
             }}
@@ -325,13 +264,13 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<ControlledCustomHeader />, c)
+      mountTestApp(c, () => render(<ControlledCustomHeader />, c))
 
       await waitForContent(() => {
         const root = c.querySelector(
           '[data-testid="optimized-custom-header-calendar"]',
         ) as HTMLElement
-        const header = c.querySelector('[data-testid="optimized-custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(root.getAttribute('data-rue-calendar-mode')).toBe('month')
         expect(header.getAttribute('data-current')).toBe('2026-07-04')
         expect(onRenderProfile).toHaveBeenCalled()
@@ -341,7 +280,7 @@ describe('Calendar', () => {
       await click(c.querySelector('[data-rue-calendar-cell="2026-07-12"]'))
 
       await waitForContent(() => {
-        const header = c.querySelector('[data-testid="optimized-custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(header.getAttribute('data-current')).toBe('2026-07-12')
         expect(
           c.querySelector('[data-rue-calendar-cell="2026-07-12"]')?.getAttribute('aria-pressed'),
@@ -353,17 +292,17 @@ describe('Calendar', () => {
       expect(dateProfile).toMatchObject({
         component: 'Calendar',
         mode: 'month',
-        phase: 'html',
+        phase: 'compiled',
       })
 
       onRenderProfile.mockClear()
-      await click(c.querySelector('[data-testid="optimized-custom-year"]'))
+      await click(c.querySelector('[data-rue-calendar-mode-switch="year"]'))
 
       await waitForContent(() => {
         const root = c.querySelector(
           '[data-testid="optimized-custom-header-calendar"]',
         ) as HTMLElement
-        const header = c.querySelector('[data-testid="optimized-custom-header"]') as HTMLElement
+        const header = c.querySelector('[data-rue-calendar-header="true"]') as HTMLElement
         expect(root.getAttribute('data-rue-calendar-mode')).toBe('year')
         expect(header.getAttribute('data-mode')).toBe('year')
         expect(c.querySelectorAll('[data-rue-calendar-month]').length).toBe(12)
@@ -374,7 +313,7 @@ describe('Calendar', () => {
       expect(modeProfile).toMatchObject({
         component: 'Calendar',
         mode: 'year',
-        phase: 'html',
+        phase: 'compiled',
       })
     },
     slowTestTimeout,
@@ -397,7 +336,6 @@ describe('Calendar', () => {
             className="w-[34rem] max-w-none"
             value={value.value}
             mode={mode.value}
-            fullCellRender={(_date, info) => info.originNode}
             onChange={date => {
               value.value = formatIsoDate(date)
             }}
@@ -409,7 +347,7 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<CompactCardCalendar />, c)
+      mountTestApp(c, () => render(<CompactCardCalendar />, c))
 
       let initialClassName = ''
       await waitForContent(() => {
@@ -440,27 +378,27 @@ describe('Calendar', () => {
   it('supports year mode and custom month cell rendering', async () => {
     const c = mountTestContainer()
     resetActiveRuntime()
-    render(
-      <Calendar
-        data-testid="year-calendar"
-        locale="en-US"
-        mode="year"
-        defaultValue={new Date('2026-09-01T00:00:00')}
-        validRange={[new Date('2026-03-01T00:00:00'), new Date('2026-10-31T00:00:00')]}
-        cellRender={(date, info) =>
-          info.type === 'month' && date.getMonth() === 8 ? (
-            <span data-testid="month-backlog">43</span>
-          ) : null
-        }
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Calendar
+          data-testid="year-calendar"
+          locale="en-US"
+          mode="year"
+          defaultValue={new Date('2026-09-01T00:00:00')}
+          validRange={[new Date('2026-03-01T00:00:00'), new Date('2026-10-31T00:00:00')]}
+          cellFormatter={(date, info) =>
+            info.type === 'month' && date.getMonth() === 8 ? '43' : null
+          }
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
       const root = c.querySelector('[data-testid="year-calendar"]') as HTMLElement
       expect(root.getAttribute('data-rue-calendar-mode')).toBe('year')
       expect(c.querySelectorAll('[data-rue-calendar-month]').length).toBe(12)
-      expect(c.querySelector('[data-testid="month-backlog"]')?.textContent).toBe('43')
+      expect(c.querySelector('[data-rue-calendar-detail="2026-09"]')?.textContent).toBe('43')
 
       const january = c.querySelector('[data-rue-calendar-month="2026-01"]') as HTMLButtonElement
       const september = c.querySelector('[data-rue-calendar-month="2026-09"]') as HTMLButtonElement
@@ -473,13 +411,9 @@ describe('Calendar', () => {
     'updates custom date cells through the optimized managed html path',
     async () => {
       const c = mountTestContainer()
-      const cellRender = vi.fn((date: Date, info: any) => {
+      const cellFormatter = vi.fn((date: Date, info: any) => {
         if (info.type !== 'date') return null
-        return (
-          <span data-testid={`custom-${formatIsoDate(date)}`}>
-            {info.selected ? 'selected' : 'idle'}
-          </span>
-        )
+        return info.selected ? 'selected' : 'idle'
       })
       const onRenderProfile = vi.fn()
 
@@ -493,7 +427,7 @@ describe('Calendar', () => {
             locale="en-US"
             value={value.value}
             mode={mode.value}
-            cellRender={cellRender}
+            cellFormatter={cellFormatter}
             onRenderProfile={onRenderProfile}
             onChange={date => {
               value.value = formatIsoDate(date)
@@ -506,22 +440,26 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<ControlledCalendar />, c)
+      mountTestApp(c, () => render(<ControlledCalendar />, c))
 
       await waitForContent(() => {
         expect(c.querySelector('[data-testid="custom-calendar"]')).toBeTruthy()
-        expect(c.querySelector('[data-testid="custom-2026-04-12"]')?.textContent).toBe('selected')
-        expect(cellRender).toHaveBeenCalledTimes(42)
+        expect(c.querySelector('[data-rue-calendar-detail="2026-04-12"]')?.textContent).toBe(
+          'selected',
+        )
+        expect(cellFormatter).toHaveBeenCalledTimes(42)
       })
 
-      cellRender.mockClear()
+      cellFormatter.mockClear()
       onRenderProfile.mockClear()
       await click(c.querySelector('[data-rue-calendar-cell="2026-04-18"]'))
 
       await waitForContent(() => {
-        expect(c.querySelector('[data-testid="custom-2026-04-12"]')?.textContent).toBe('idle')
-        expect(c.querySelector('[data-testid="custom-2026-04-18"]')?.textContent).toBe('selected')
-        expect(cellRender).toHaveBeenCalledTimes(42)
+        expect(c.querySelector('[data-rue-calendar-detail="2026-04-12"]')?.textContent).toBe('idle')
+        expect(c.querySelector('[data-rue-calendar-detail="2026-04-18"]')?.textContent).toBe(
+          'selected',
+        )
+        expect(cellFormatter).toHaveBeenCalledTimes(42)
         expect(onRenderProfile).toHaveBeenCalled()
       })
 
@@ -529,9 +467,9 @@ describe('Calendar', () => {
       expect(profile).toMatchObject({
         component: 'Calendar',
         mode: 'month',
-        phase: 'html',
+        phase: 'compiled',
         customRenderCount: 42,
-        cellRenderCount: 42,
+        cellFormatterCount: 42,
       })
     },
     slowTestTimeout,
@@ -541,15 +479,13 @@ describe('Calendar', () => {
     'renders custom month backlog through the optimized year view path',
     async () => {
       const c = mountTestContainer()
-      const cellRender = vi.fn((date: Date, info: any) => {
+      const cellFormatter = vi.fn((date: Date, info: any) => {
         if (info.type !== 'month') return null
         const backlog: Record<number, number> = {
           3: 28,
           8: 43,
         }
-        return backlog[date.getMonth()] ? (
-          <span data-testid={`backlog-${date.getMonth()}`}>{backlog[date.getMonth()]}</span>
-        ) : null
+        return backlog[date.getMonth()] ? backlog[date.getMonth()] : null
       })
       const onRenderProfile = vi.fn()
 
@@ -563,7 +499,7 @@ describe('Calendar', () => {
             locale="zh-CN"
             value={value.value}
             mode={mode.value}
-            cellRender={cellRender}
+            cellFormatter={cellFormatter}
             onRenderProfile={onRenderProfile}
             onChange={date => {
               value.value = formatIsoDate(date)
@@ -576,14 +512,14 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<ControlledCalendar />, c)
+      mountTestApp(c, () => render(<ControlledCalendar />, c))
 
       await waitForContent(() => {
         expect(c.querySelector('[data-testid="notice-calendar"]')).toBeTruthy()
         expect(c.querySelectorAll('[data-rue-calendar-cell]').length).toBe(42)
       })
 
-      cellRender.mockClear()
+      cellFormatter.mockClear()
       onRenderProfile.mockClear()
       await click(c.querySelector('[data-rue-calendar-mode-switch="year"]'))
 
@@ -591,8 +527,8 @@ describe('Calendar', () => {
         const root = c.querySelector('[data-testid="notice-calendar"]') as HTMLElement
         expect(root.getAttribute('data-rue-calendar-mode')).toBe('year')
         expect(c.querySelectorAll('[data-rue-calendar-month]').length).toBe(12)
-        expect(c.querySelector('[data-testid="backlog-8"]')?.textContent).toBe('43')
-        expect(cellRender).toHaveBeenCalledTimes(12)
+        expect(c.querySelector('[data-rue-calendar-detail="2026-09"]')?.textContent).toBe('43')
+        expect(cellFormatter).toHaveBeenCalledTimes(12)
         expect(onRenderProfile).toHaveBeenCalled()
       })
 
@@ -600,9 +536,9 @@ describe('Calendar', () => {
       expect(profile).toMatchObject({
         component: 'Calendar',
         mode: 'year',
-        phase: 'html',
+        phase: 'compiled',
         customRenderCount: 12,
-        cellRenderCount: 12,
+        cellFormatterCount: 12,
       })
     },
     slowTestTimeout,
@@ -626,10 +562,8 @@ describe('Calendar', () => {
               locale="zh-CN"
               value={noticeValue.value}
               mode={noticeMode.value}
-              cellRender={(date, info) =>
-                info.type === 'month' && date.getMonth() === 8 ? (
-                  <span data-testid="notice-backlog">43</span>
-                ) : null
+              cellFormatter={(date, info) =>
+                info.type === 'month' && date.getMonth() === 8 ? '43' : null
               }
               onChange={date => {
                 noticeValue.value = formatIsoDate(date)
@@ -644,12 +578,8 @@ describe('Calendar', () => {
               fullscreen={false}
               value={cardValue.value}
               mode={cardMode.value}
-              fullCellRender={(date, info) =>
-                info.type === 'date' && formatIsoDate(date) === '2026-09-18' ? (
-                  <span data-testid="card-load">92%</span>
-                ) : (
-                  info.originNode
-                )
+              cellFormatter={(date, info) =>
+                info.type === 'date' && formatIsoDate(date) === '2026-09-18' ? '92%' : null
               }
               onChange={date => {
                 cardValue.value = formatIsoDate(date)
@@ -663,7 +593,7 @@ describe('Calendar', () => {
       }
 
       resetActiveRuntime()
-      render(<DualCalendarPreview />, c)
+      mountTestApp(c, () => render(<DualCalendarPreview />, c))
 
       await waitForContent(() => {
         expect(
@@ -706,7 +636,7 @@ describe('Calendar', () => {
             'data-rue-calendar-mode',
           ),
         ).toBe('year')
-        expect(c.querySelector('[data-testid="notice-backlog"]')?.textContent).toBe('43')
+        expect(c.querySelector('[data-rue-calendar-detail="2026-09"]')?.textContent).toBe('43')
       })
     },
     slowTestTimeout,
@@ -735,14 +665,16 @@ describe('Calendar', () => {
   it('preserves Cally and Pikaday wrapper subcomponents', async () => {
     const c = mountTestContainer()
     resetActiveRuntime()
-    render(
-      <div>
-        <Calendar.Cally data-testid="cally-host">
-          <Calendar.Month className="rounded-box" data-testid="month-host" />
-        </Calendar.Cally>
-        <Calendar.PikaSingle id="picker" className="input input-bordered" value="Pick a day" />
-      </div>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <div>
+          <Calendar.Cally data-testid="cally-host">
+            <Calendar.Month className="rounded-box" data-testid="month-host" />
+          </Calendar.Cally>
+          <Calendar.PikaSingle id="picker" className="input input-bordered" value="Pick a day" />
+        </div>,
+        c,
+      ),
     )
 
     await waitForContent(() => {

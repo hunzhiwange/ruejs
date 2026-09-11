@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -457,7 +457,7 @@ describe('text/amp shim', () => {
 
 describe('text/compat/router shim', () => {
   it('exports useRouter as a function', async () => {
-    const mod = await import('../src/shims/compat-router.js')
+    const mod = await import('../src/shims/compat-router.js?text-ssr')
     // useRouter should be a named export, not a default export (unlike text/router).
     // Returns null in App Router context instead of throwing.
     expect(typeof mod.useRouter).toBe('function')
@@ -465,7 +465,7 @@ describe('text/compat/router shim', () => {
   })
 
   it('useRouter returns null when no RouterContext.Provider wraps the tree', async () => {
-    const { useRouter } = await import('../src/shims/compat-router.js')
+    const { useRouter } = await import('../src/shims/compat-router.js?text-ssr')
 
     let captured: unknown = 'NOT_SET'
     function Probe() {
@@ -478,8 +478,8 @@ describe('text/compat/router shim', () => {
   })
 
   it('useRouter returns the router when wrapWithRouterContext wraps the tree', async () => {
-    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const { wrapWithRouterContext } = await import('../src/shims/router.js')
+    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js?text-ssr')
+    const { wrapWithRouterContext } = await import('../src/shims/router.js?text-ssr')
 
     let captured: unknown = 'NOT_SET'
     function Probe() {
@@ -498,8 +498,8 @@ describe('text/compat/router shim', () => {
   })
 
   it('useRouter returns router reflecting SSR context when set', async () => {
-    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const { setSSRContext } = await import('../src/shims/router.js')
+    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js?text-ssr')
+    const { setSSRContext } = await import('../src/shims/router.js?text-ssr')
     const previousWindow = globalThis.window
 
     setSSRContext({
@@ -529,8 +529,8 @@ describe('text/compat/router shim', () => {
   })
 
   it('preserves array query values from SSR context', async () => {
-    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const { setSSRContext } = await import('../src/shims/router.js')
+    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js?text-ssr')
+    const { setSSRContext } = await import('../src/shims/router.js?text-ssr')
     const previousWindow = globalThis.window
 
     setSSRContext({
@@ -558,8 +558,8 @@ describe('text/compat/router shim', () => {
   })
 
   it('preserves route param arrays, repeated search params, and hash in client router state', async () => {
-    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const { wrapWithRouterContext } = await import('../src/shims/router.js')
+    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js?text-ssr')
+    const { wrapWithRouterContext } = await import('../src/shims/router.js?text-ssr')
 
     const previousWindow = (globalThis as any).window
     ;(globalThis as any).window = {
@@ -602,8 +602,8 @@ describe('text/compat/router shim', () => {
   })
 
   it('prefers dynamic route params over same-key search params in client router state', async () => {
-    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const { wrapWithRouterContext } = await import('../src/shims/router.js')
+    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js?text-ssr')
+    const { wrapWithRouterContext } = await import('../src/shims/router.js?text-ssr')
 
     const previousWindow = (globalThis as any).window
     ;(globalThis as any).window = {
@@ -645,8 +645,8 @@ describe('text/compat/router shim', () => {
   })
 
   it('treats prototype property names as ordinary query keys in client router state', async () => {
-    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js')
-    const { wrapWithRouterContext } = await import('../src/shims/router.js')
+    const { useRouter: useCompatRouter } = await import('../src/shims/compat-router.js?text-ssr')
+    const { wrapWithRouterContext } = await import('../src/shims/router.js?text-ssr')
 
     const previousWindow = (globalThis as any).window
     ;(globalThis as any).window = {

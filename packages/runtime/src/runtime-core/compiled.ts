@@ -69,6 +69,7 @@ const enum OwnerField {
   Lifecycle,
   Effects,
   SetupValues,
+  EffectBoundary,
 }
 type OwnerRecord = [
   CompiledOwner | undefined,
@@ -79,6 +80,7 @@ type OwnerRecord = [
   OwnerLifecycle?,
   Set<EffectHandle>?,
   Map<string, unknown>?,
+  ((run: () => void) => void)?,
 ]
 
 let currentOwner: CompiledOwner | undefined
@@ -265,7 +267,7 @@ export const _$compiledStateMutator = (reference: CompiledStateReference, method
   const target = reference.value
   const fn = target[method]
   if (!Array.isArray(target) || fn !== (Array.prototype as any)[method])
-    throw new TypeError('State mutation requires a native Array method')
+    throw new TypeError('array')
   return (...args: any[]) =>
     reference.state.mutateObservedPath(
       reference.path,
@@ -290,9 +292,21 @@ export const effect = (callback: EffectCallback, options?: EffectOptions | null)
       const previous = currentOwner
       currentOwner = owner
       try {
-        if (owner !== undefined && !scopedAtCreation && runtime.scopeOps)
-          withOwnerContext(owner, run)
-        else run()
+        const invoke = () => {
+          if (owner !== undefined && !scopedAtCreation && runtime.scopeOps)
+            withOwnerContext(owner, run)
+          else run()
+        }
+        let boundaryOwner = owner
+        let boundary: ((run: () => void) => void) | undefined
+        while (boundaryOwner !== undefined) {
+          const boundaryRecord = owners.get(boundaryOwner)
+          boundary = boundaryRecord?.[OwnerField.EffectBoundary]
+          if (boundary) break
+          boundaryOwner = boundaryRecord?.[OwnerField.Parent]
+        }
+        if (boundary) boundary(invoke)
+        else invoke()
       } finally {
         currentOwner = previous
       }
@@ -421,6 +435,15 @@ export const createOwner = (): CompiledOwner => {
   pendingRootLifecycle = undefined
   if (currentOwner !== undefined) owners.get(currentOwner)?.[OwnerField.Children].add(owner)
   return owner
+}
+
+/** Feature-owned effect boundary; the owner kernel does not import component handling. */
+export const setOwnerEffectBoundary = (
+  owner: CompiledOwner,
+  run: (callback: () => void) => void,
+): void => {
+  const record = owners.get(owner)
+  if (record) record[OwnerField.EffectBoundary] = run
 }
 
 export const getCurrentOwner = (): CompiledOwner | undefined => currentOwner
@@ -568,8 +591,7 @@ export const disposeOwner = (owner: CompiledOwner): boolean => {
       owners.get(record[OwnerField.Parent])?.[OwnerField.Children].delete(owner)
     owners.delete(owner)
     if (errors?.length === 1) throw errors[0]
-    if (errors !== undefined && errors.length > 1)
-      throw new AggregateError(errors, '[rue] owner cleanup failed')
+    if (errors !== undefined && errors.length > 1) throw new AggregateError(errors, 'cleanup')
     return true
   } finally {
     ownerDisposalDepth -= 1

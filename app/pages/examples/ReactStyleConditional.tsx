@@ -1,11 +1,16 @@
-import createHomeSplitExamplePage from './createHomeSplitExamplePage'
+import HomeSplitExamplePage from './createHomeSplitExamplePage'
 import ReactStyleConditionalDemo from './home-demos/ReactStyleConditionalDemo'
 import source from './home-demos/ReactStyleConditionalDemo.tsx?raw'
 
-const ReactStyleConditional = createHomeSplitExamplePage({
-  title: '条件渲染',
-  source,
-  Demo: ReactStyleConditionalDemo,
-})
+const ReactStyleConditional = () => (
+  <HomeSplitExamplePage
+    options={{
+      title: '条件渲染',
+      source,
+    }}
+  >
+    <ReactStyleConditionalDemo />
+  </HomeSplitExamplePage>
+)
 
 export default ReactStyleConditional

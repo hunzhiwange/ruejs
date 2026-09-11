@@ -101,7 +101,6 @@ declare module 'text/head' {
 }
 
 declare module 'text/document' {
-  import { TextCompatComponent as Component } from './component-adapter.js'
   import type {
     TextCompatComponentType as ComponentType,
     TextCompatElement as RueElement,
@@ -132,10 +131,12 @@ declare module 'text/document' {
     err?: any
   }
   // eslint-disable-text-line @typescript-eslint/no-empty-object-type
-  export default class Document<P = {}> extends Component<P & { children?: RueNode }> {
-    static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
-    render(): RueNode
+  const Document: ComponentType<{ children?: RueNode }> & {
+    new (props?: { children?: RueNode }): { render(): RueNode }
+    prototype: { render(): RueNode }
+    getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
   }
+  export default Document
 }
 
 declare module 'text/dynamic' {
@@ -625,7 +626,6 @@ declare module 'text/font/local' {
 }
 
 declare module 'text/app' {
-  import { TextCompatComponent as RueComponent } from './component-adapter.js'
   import type {
     TextCompatComponentType as ComponentType,
     TextCompatNode,
@@ -654,17 +654,11 @@ declare module 'text/app' {
     pageProps: PageProps
   }
 
-  /**
-   * Default `App` class component used by Pages Router `_app.js`. Mirrors
-   * Text.js's `packages/text/src/pages/_app.tsx` so userland code can
-   * `import App from "text/app"` and either subclass or call
-   * `App.getInitialProps(appContext)` directly.
-   */
-  export default class App<P = any, CP = any, S = any> extends RueComponent<P & AppProps<CP>, S> {
-    static origGetInitialProps: (ctx: AppContext) => Promise<AppInitialProps>
-    static getInitialProps: (ctx: AppContext) => Promise<AppInitialProps>
-    render(): TextCompatNode
+  const App: ComponentType<AppProps> & {
+    origGetInitialProps: (ctx: AppContext) => Promise<AppInitialProps>
+    getInitialProps: (ctx: AppContext) => Promise<AppInitialProps>
   }
+  export default App
 }
 
 declare module 'text/cache' {

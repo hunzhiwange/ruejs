@@ -3,7 +3,7 @@ import {
   setCurrentSsrLayoutSegmentMap,
   type SegmentMap,
 } from './navigation.js'
-import { createTextCompatElement, type TextCompatNode } from './context-adapter.js'
+import { type TextCompatNode } from './context-adapter.js'
 import { markAppSsrPassthroughComponent } from '../server/app-ssr-passthrough-protocol.js'
 
 export function LayoutSegmentProvider({
@@ -21,7 +21,7 @@ export function LayoutSegmentProvider({
   if (!ctx) {
     return children
   }
-  return createTextCompatElement(ctx.Provider, { value: segmentMap }, children)
+  return ctx.Provider({ value: segmentMap, children: children as any })
 }
 
 markAppSsrPassthroughComponent(LayoutSegmentProvider)

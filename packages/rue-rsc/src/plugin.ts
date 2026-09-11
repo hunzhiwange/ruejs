@@ -191,13 +191,12 @@ function resolvePackage(name: string) {
 
 function createRueClientReferenceRuntimeHelper(): string {
   return `
+import { createCompiledClientReference as $$CompiledClientReference } from '@rue-js/runtime/server';
 const $$RueClientReferenceSymbol = Symbol.for(${JSON.stringify(RUE_CLIENT_REFERENCE_SYMBOL)});
 function $$RueClientReference(proxy, id, name) {
-  const target = (typeof proxy === "object" && proxy !== null) || typeof proxy === "function"
+  const target = typeof proxy === "object" && proxy !== null
     ? proxy
-    : () => {
-        throw new Error("Unexpectedly client reference export '" + name + "' is called on server");
-      };
+    : $$CompiledClientReference(id, name);
   return Object.defineProperties(target, {
     $$typeof: { value: $$RueClientReferenceSymbol },
     $$id: { value: id + "#" + name },
@@ -2530,10 +2529,11 @@ function vitePluginRscCss(
             // use dynamic import during dev to delay crawling and discover css correctly.
             let replacement: string
             if (this.environment.mode === 'dev') {
-              replacement = `__vite_rsc_rue__.createElement(async () => {
+              replacement = `async (__writer) => {
               const __m = await import(${JSON.stringify(importId)});
-              return __vite_rsc_rue__.createElement(__m.Resources);
-            })`
+              const __plan = await __m.Resources({});
+              if (__plan) await __plan(__writer);
+            }`
             } else {
               const hash = hashString(importId)
               if (!importAdded && !code.includes(`__vite_rsc_importer_resources_${hash}`)) {
@@ -2544,15 +2544,15 @@ function vitePluginRscCss(
                   )};`,
                 )
               }
-              replacement = `__vite_rsc_rue__.createElement(__vite_rsc_importer_resources_${hash}.Resources)`
+              replacement = `async (__writer) => {
+                const __plan = await __vite_rsc_importer_resources_${hash}.Resources({});
+                if (__plan) await __plan(__writer);
+              }`
             }
             output.update(start, end, replacement)
           }
 
           if (output.hasChanged()) {
-            if (!code.includes('__vite_rsc_rue__')) {
-              output.prepend(`import * as __vite_rsc_rue__ from "@rue-js/rue";`)
-            }
             return {
               code: output.toString(),
               map: output.generateMap({ hires: 'boundary' }),
@@ -2628,46 +2628,34 @@ function generateResourcesCode(
   options: { cssLinkPrecedence?: boolean } = {},
 ) {
   const usePrecedence = options.cssLinkPrecedence !== false
-  const ResourcesFn = (
-    Rue: typeof import('@rue-js/rue'),
-    deps: ResolvedAssetDeps,
-    RemoveDuplicateServerCss?: unknown,
-    precedence?: string,
-  ) => {
-    return function Resources() {
-      return Rue.createElement(Rue.Fragment, null, [
-        ...deps.css.map((href: string) =>
-          Rue.createElement('link', {
-            key: 'css:' + href,
-            rel: 'stylesheet',
-            ...(precedence ? { precedence } : {}),
-            href: href,
-            'data-rsc-css-href': href,
-          }),
-        ),
-        RemoveDuplicateServerCss &&
-          Rue.createElement(RemoveDuplicateServerCss as never, {
-            key: 'remove-duplicate-css',
-          }),
-      ])
-    }
-  }
-
   return `
-import * as __vite_rsc_rue__ from "@rue-js/rue";
+import { _$writeComponent, _$writeElement } from "@rue-js/rue/internal/ssr";
 
-${
-  manager.config.command === 'serve'
-    ? `import RemoveDuplicateServerCss from "virtual:rue-rsc/remove-duplicate-server-css";`
-    : `const RemoveDuplicateServerCss = undefined;`
+const RemoveDuplicateServerCss = undefined;
+
+const __vite_rsc_deps__ = ${depsCode};
+export function Resources() {
+  return async function __vite_rsc_write_resources__(writer) {
+    for (let index = 0; index < __vite_rsc_deps__.css.length; index += 1) {
+      const href = __vite_rsc_deps__.css[index];
+      await _$writeElement(writer, "vite-rsc-css:" + index, "link", () => ({
+        rel: "stylesheet",
+        ${usePrecedence ? `precedence: "vite-rsc/importer-resources",` : ''}
+        href,
+        "data-rsc-css-href": href,
+      }), async () => {});
+    }
+    if (RemoveDuplicateServerCss) {
+      await _$writeComponent(
+        writer,
+        "vite-rsc-remove-duplicate-css",
+        RemoveDuplicateServerCss,
+        () => ({}),
+        null,
+      );
+    }
+  };
 }
-
-export const Resources = (${ResourcesFn.toString()})(
-  __vite_rsc_rue__,
-  ${depsCode},
-  RemoveDuplicateServerCss,
-  ${usePrecedence ? `"vite-rsc/importer-resources"` : `undefined`},
-);
 `
 }
 
@@ -2690,20 +2678,17 @@ export async function transformRscCssExport(options: {
     ignoreExportAllDeclaration: true,
   })
   if (result.output.hasChanged()) {
-    if (!options.code.includes('__vite_rsc_rue__')) {
-      result.output.prepend(`import * as __vite_rsc_rue__ from "@rue-js/rue";`)
-    }
     result.output.append(`
 function __vite_rsc_wrap_css__(value, name) {
   if (typeof value !== 'function') return value;
 
   function __wrapper(props) {
-    return __vite_rsc_rue__.createElement(
-      __vite_rsc_rue__.Fragment,
-      null,
-      import.meta.viteRsc.loadCss(${options.id ? JSON.stringify(options.id) : ''}),
-      __vite_rsc_rue__.createElement(value, props),
-    );
+    return async function __vite_rsc_write_css_wrapper__(writer) {
+      const resources = import.meta.viteRsc.loadCss(${options.id ? JSON.stringify(options.id) : ''});
+      if (resources) await resources(writer);
+      const plan = await value(props);
+      if (plan) await plan(writer);
+    };
   }
   Object.defineProperty(__wrapper, "name", { value: name });
   return __wrapper;

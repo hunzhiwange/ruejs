@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Badge, Button, Card, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -373,9 +372,7 @@ const cardGridRows: ApiRow[] = [
   },
 ]
 
-const semanticCode = `import { Badge, Button, Card } from '@rue-js/design'
-
-<Card
+const semanticCode = `import { Badge, Button, Card } from '@rue-js/design'<Card
   title="Q2 产品指标"
   extra={<Badge variant="secondary">Live</Badge>}
   cover={<img src="https://picsum.photos/seed/rue-card-workspace/960/640" alt="Workspace dashboard" className="h-56 w-full object-cover" />}
@@ -395,9 +392,7 @@ const semanticCode = `import { Badge, Button, Card } from '@rue-js/design'
   </div>
 </Card>`
 
-const compoundCode = `import { Button, Card } from '@rue-js/design'
-
-<Card className="w-96 bg-base-100 shadow-sm">
+const compoundCode = `import { Button, Card } from '@rue-js/design'<Card className="w-96 bg-base-100 shadow-sm">
   <Card.Figure>
     <img src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp" alt="Shoes" />
   </Card.Figure>
@@ -412,9 +407,7 @@ const compoundCode = `import { Button, Card } from '@rue-js/design'
   </Card.Body>
 </Card>`
 
-const metaCode = `import { Badge, Button, Card } from '@rue-js/design'
-
-<Card
+const metaCode = `import { Badge, Button, Card } from '@rue-js/design'<Card
   cover={<img src="https://picsum.photos/seed/rue-card-report/960/640" alt="Team workspace" className="h-52 w-full object-cover" />}
   actions={[
     <Button type="text" size="sm">收藏</Button>,
@@ -439,7 +432,6 @@ const metaCode = `import { Badge, Button, Card } from '@rue-js/design'
 
 const tabsCode = `import { ref } from '@rue-js/rue'
 import { Badge, Button, Card } from '@rue-js/design'
-
 const activeKey = ref<'overview' | 'milestones' | 'members'>('overview')
 
 <Card
@@ -464,9 +456,7 @@ const activeKey = ref<'overview' | 'milestones' | 'members'>('overview')
   ) : null}
 </Card>`
 
-const loadingCode = `import { Card } from '@rue-js/design'
-
-<div className="grid gap-6 lg:grid-cols-2">
+const loadingCode = `import { Card } from '@rue-js/design'<div className="grid gap-6 lg:grid-cols-2">
   <Card loading title="同步远程指标" className="bg-base-100 shadow-sm" />
   <Card type="inner" title="内嵌提示" className="bg-base-100">
     <p className="text-sm leading-6 opacity-75">
@@ -475,9 +465,7 @@ const loadingCode = `import { Card } from '@rue-js/design'
   </Card>
 </div>`
 
-const gridCode = `import { Card } from '@rue-js/design'
-
-<Card title="常用入口" bodyClassName="!p-0" className="overflow-hidden bg-base-100 shadow-sm">
+const gridCode = `import { Card } from '@rue-js/design'<Card title="常用入口" bodyClassName="!p-0" className="overflow-hidden bg-base-100 shadow-sm">
   <div className="grid gap-px bg-base-300/70 sm:grid-cols-2 xl:grid-cols-4">
     <Card.Grid>文档中心</Card.Grid>
     <Card.Grid>设计 Token</Card.Grid>

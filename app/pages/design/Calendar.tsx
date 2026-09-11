@@ -595,7 +595,6 @@ const CustomHeaderCalendarPreview: FC = () => {
 
 const basicCalendarCode = `import { ref } from '@rue-js/rue'
 import { Calendar } from '@rue-js/design'
-
 const maintenanceDates = new Set(['2026-04-04', '2026-04-05', '2026-05-01'])
 
 const formatIsoDate = (date: Date) => {
@@ -695,7 +694,6 @@ export default function BasicCalendarDemo() {
 
 const noticeCalendarCode = `import { ref } from '@rue-js/rue'
 import { Calendar } from '@rue-js/design'
-
 const agendaByDate = {
   '2026-04-08': [
     { tone: 'warning', label: 'Risk review' },
@@ -816,7 +814,6 @@ export default function NoticeCalendarDemo() {
 
 const cardCalendarCode = `import { ref } from '@rue-js/rue'
 import { Calendar } from '@rue-js/design'
-
 const compactLoad: Record<string, number> = {
   '2026-09-03': 24,
   '2026-09-07': 46,
@@ -920,7 +917,6 @@ export default function CardCalendarDemo() {
 
 const customHeaderCalendarCode = `import { ref } from '@rue-js/rue'
 import { Calendar } from '@rue-js/design'
-
 const formatIsoDate = (date: Date) => {
   const year = date.getFullYear()
   const month = \`\${date.getMonth() + 1}\`.padStart(2, '0')
@@ -1037,7 +1033,6 @@ export default function CustomHeaderCalendarDemo() {
 
 const callyCalendarCode = `import 'cally'
 import { Calendar } from '@rue-js/design'
-
 export default function CallyCalendarDemo() {
   return (
     <Calendar.Cally className="border border-base-300 bg-base-100 shadow-lg rounded-box">
@@ -1067,7 +1062,6 @@ export default function CallyCalendarDemo() {
 const callyDatePickerCode = `import 'cally'
 import { ref } from '@rue-js/rue'
 import { Calendar } from '@rue-js/design'
-
 export default function CallyDatePickerDemo() {
   const open = ref(false)
   const value = ref('')

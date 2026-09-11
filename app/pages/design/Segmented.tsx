@@ -374,7 +374,6 @@ const optionApiRows: ApiRow[] = [
 
 const basicCode = String.raw`import { ref } from '@rue-js/rue'
 import { Segmented } from '@rue-js/design'
-
 const cadence = ref('weekly')
 
 <Segmented
@@ -387,7 +386,6 @@ const cadence = ref('weekly')
 `
 
 const sizeCode = String.raw`import { Segmented } from '@rue-js/design'
-
 const createViewOptions = () => [
   { label: 'List', value: 'list', icon: <span className="text-xs font-semibold">L</span> },
   { label: 'Board', value: 'board', icon: <span className="text-xs font-semibold">B</span> },
@@ -404,7 +402,6 @@ const createViewOptions = () => [
 
 const customCode = String.raw`import { ref } from '@rue-js/rue'
 import { Segmented } from '@rue-js/design'
-
 const season = ref('summer')
 
 const createOptions = () => [
@@ -440,7 +437,6 @@ const createOptions = () => [
 
 const verticalCode = String.raw`import { ref } from '@rue-js/rue'
 import { Segmented } from '@rue-js/design'
-
 const stage = ref('ship')
 
 <Segmented
@@ -472,7 +468,6 @@ const stage = ref('ship')
 
 const formCode = String.raw`import { ref } from '@rue-js/rue'
 import { Segmented } from '@rue-js/design'
-
 const channel = ref('mail')
 const createDensityOptions = () => [
   { value: 'compact', icon: <span className="text-xs font-semibold">C</span>, tooltip: '紧凑布局' },
@@ -505,7 +500,6 @@ const createDensityOptions = () => [
 
 const runtimeCompatCode = String.raw`import { ref } from '@rue-js/rue'
 import { Segmented } from '@rue-js/design'
-
 const channel = ref('mail')
 const panelTone = ref<'calm' | 'sharp'>('calm')
 

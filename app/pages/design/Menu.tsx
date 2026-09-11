@@ -3,13 +3,27 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Badge, Menu, Tabs } from '@rue-js/design'
-
 interface ApiRow {
   prop: string
   description: string
   type: string
   defaultValue: string
 }
+
+const ApiTableRow: FC<{ row: ApiRow }> = ({ row }) => (
+  <tr>
+    <td>
+      <code>{row.prop}</code>
+    </td>
+    <td>{row.description}</td>
+    <td>
+      <code>{row.type}</code>
+    </td>
+    <td>
+      <code>{row.defaultValue}</code>
+    </td>
+  </tr>
+)
 
 const ApiTable: FC<{ rows: ApiRow[] }> = ({ rows }) => {
   return (
@@ -25,18 +39,7 @@ const ApiTable: FC<{ rows: ApiRow[] }> = ({ rows }) => {
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.prop}>
-              <td>
-                <code>{row.prop}</code>
-              </td>
-              <td>{row.description}</td>
-              <td>
-                <code>{row.type}</code>
-              </td>
-              <td>
-                <code>{row.defaultValue}</code>
-              </td>
-            </tr>
+            <ApiTableRow key={row.prop} row={row} />
           ))}
         </tbody>
       </table>
@@ -368,7 +371,7 @@ const MenuDemo: FC = () => {
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { Badge, Menu } from '@rue-js/design';
+              code={`import { Badge, Menu } from '@rue-js/design'
 import { ref } from '@rue-js/rue';
 
 const selectedKey = ref('overview');
@@ -376,39 +379,13 @@ const openKeys = ref(['workspace']);
 
 const items = [
   {
-    type: 'group',
-    label: 'Console',
-    children: [
+    type: 'group', label: 'Console', children: [
       {
-        key: 'overview',
-        label: 'Overview',
-        icon: <span className="inline-flex h-2.5 w-2.5 rounded-full bg-primary" />,
-        extra: <Badge size="xs" variant="info">Live</Badge>,
-      },
-      {
-        type: 'submenu',
-        key: 'workspace',
-        label: 'Workspace',
-        icon: <span className="inline-flex h-2.5 w-2.5 rounded-full bg-secondary" />,
-        children: [
-          { key: 'projects', label: 'Projects' },
-          { key: 'deployments', label: 'Deployments' },
-          { key: 'activity', label: 'Activity Feed', extra: <Badge size="xs" variant="warning">12</Badge> },
-        ],
-      },
-    ],
-  },
-  { type: 'divider' },
-  {
-    type: 'group',
-    label: 'Team',
-    children: [
-      { key: 'billing', label: 'Billing', extra: 'Cmd+B' },
-      { key: 'members', label: 'Members', extra: <Badge size="xs" variant="success">8</Badge> },
-      { key: 'danger-zone', label: 'Danger Zone', danger: true },
-    ],
-  },
-];
+        key: 'overview', label: 'Overview', icon: <span className="inline-flex h-2.5 w-2.5 rounded-full bg-primary" />, extra: <Badge size="xs" variant="info">Live</Badge>, }, {
+        type: 'submenu', key: 'workspace', label: 'Workspace', icon: <span className="inline-flex h-2.5 w-2.5 rounded-full bg-secondary" />, children: [
+          { key: 'projects', label: 'Projects' }, { key: 'deployments', label: 'Deployments' }, { key: 'activity', label: 'Activity Feed', extra: <Badge size="xs" variant="warning">12</Badge> }, ], }, ], }, { type: 'divider' }, {
+    type: 'group', label: 'Team', children: [
+      { key: 'billing', label: 'Billing', extra: 'Cmd+B' }, { key: 'members', label: 'Members', extra: <Badge size="xs" variant="success">8</Badge> }, { key: 'danger-zone', label: 'Danger Zone', danger: true }, ], }, ];
 
 <Menu
   mode="inline"
@@ -452,23 +429,10 @@ const items = [
               lang="tsx"
               code={`const items = [
   {
-    type: 'group',
-    label: 'Inbox',
-    children: [
-      { key: 'mentions', label: 'Mentions', extra: <Badge size="xs" variant="error">3</Badge> },
-      { key: 'reviews', label: 'Code Reviews', extra: <Badge size="xs" variant="warning">5</Badge> },
-    ],
-  },
-  { type: 'divider', dashed: true },
-  {
-    type: 'group',
-    label: 'Archive',
-    children: [
-      { key: 'archived', label: 'Archived Threads' },
-      { key: 'muted', label: 'Muted Channels', disabled: true },
-    ],
-  },
-];
+    type: 'group', label: 'Inbox', children: [
+      { key: 'mentions', label: 'Mentions', extra: <Badge size="xs" variant="error">3</Badge> }, { key: 'reviews', label: 'Code Reviews', extra: <Badge size="xs" variant="warning">5</Badge> }, ], }, { type: 'divider', dashed: true }, {
+    type: 'group', label: 'Archive', children: [
+      { key: 'archived', label: 'Archived Threads' }, { key: 'muted', label: 'Muted Channels', disabled: true }, ], }, ];
 
 <Menu
   className="bg-base-200 rounded-box w-80"
@@ -589,7 +553,7 @@ const openKeys = ref(['settings']);
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { Menu } from '@rue-js/design';
+              code={`import { Menu } from '@rue-js/design'
 <Menu className="bg-base-200 rounded-box w-56">
   <Menu.Item to="/examples/hello-world">路由跳转到 Hello World</Menu.Item>
   <Menu.Item href="https://example.com" target="_blank" rel="noreferrer">跳转到外部网站</Menu.Item>
@@ -613,34 +577,15 @@ const openKeys = ref(['settings']);
             className="mb-3"
           />
           {tArray.value === 'preview' ? (
-            <Menu className="xl:menu-horizontal bg-base-200 rounded-box lg:min-w-max">
-              {menuData.map((g, i) => (
-                <li key={i}>
-                  <Menu.Item>{g.label}</Menu.Item>
-                  <Menu.Submenu>
-                    {g.children.map((c, j) =>
-                      typeof c === 'string' ? (
-                        <Menu.Item key={j}>{c}</Menu.Item>
-                      ) : (
-                        <li key={j}>
-                          <Menu.Item>{c.label}</Menu.Item>
-                          <Menu.Submenu>
-                            {c.children.map((x, k) => (
-                              <Menu.Item key={k}>{x}</Menu.Item>
-                            ))}
-                          </Menu.Submenu>
-                        </li>
-                      ),
-                    )}
-                  </Menu.Submenu>
-                </li>
-              ))}
-            </Menu>
+            <Menu
+              items={menuItems}
+              className="xl:menu-horizontal bg-base-200 rounded-box lg:min-w-max"
+            />
           ) : (
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { Menu } from '@rue-js/design';
+              code={`import { Menu } from '@rue-js/design'
 const menuData = [
   { label: 'Solutions', children: ['Design', 'Development', 'Hosting', 'Domain register'] },
   { label: 'Enterprise', children: ['CRM software', 'Marketing management', 'Security', 'Consulting'] },
@@ -704,7 +649,7 @@ const menuData = [
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { Menu } from '@rue-js/design';
+              code={`import { Menu } from '@rue-js/design'
 const menuItems = [
   { kind: 'title', children: 'Main' },
   { kind: 'item', children: 'Solutions', submenu: { items: ['Design', 'Development', 'Hosting', 'Domain register'].map(t => ({ kind: 'item', children: t })) } },
@@ -1681,7 +1626,7 @@ const menuItems = [
             <Code
               className="mt-2"
               lang="tsx"
-              code={`import { Menu } from '@rue-js/design';
+              code={`import { Menu } from '@rue-js/design'
 
 const toggleDropdownByClass = (event: MouseEvent) => {
   const toggle = event.currentTarget as HTMLElement | null;

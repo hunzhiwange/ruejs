@@ -1,8 +1,9 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ref } from '@rue-js/rue'
 
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Table } from '@rue-js/design'
+import Table from '..'
 import {
   click,
   mountContainer,
@@ -23,7 +24,7 @@ afterEach(() => {
 describe('Table', () => {
   it('renders with base class and children', async () => {
     const c = document.createElement('div')
-    render(<Table>{'hello'}</Table>, c)
+    mountTestApp(c, () => render(<Table>{'hello'}</Table>, c))
     await waitTableRender()
     const el = c.querySelector('table.table') as HTMLElement
     expect(el).toBeTruthy()
@@ -34,7 +35,7 @@ describe('Table', () => {
   it('applies size classes', async () => {
     const c = document.createElement('div')
     ;(['xs', 'sm', 'md', 'lg', 'xl'] as const).forEach(s => {
-      render(<Table size={s}>{'x'}</Table>, c)
+      mountTestApp(c, () => render(<Table size={s}>{'x'}</Table>, c))
     })
     await waitTableRender()
     const el = c.querySelector('table.table') as HTMLElement
@@ -44,11 +45,13 @@ describe('Table', () => {
 
   it('applies zebra, pinRows, pinCols classes', async () => {
     const c = document.createElement('div')
-    render(
-      <Table zebra={true} pinRows={true} pinCols={true}>
-        {'x'}
-      </Table>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table zebra={true} pinRows={true} pinCols={true}>
+          {'x'}
+        </Table>,
+        c,
+      ),
     )
     await waitTableRender()
     const el = c.querySelector('table.table') as HTMLElement
@@ -59,7 +62,7 @@ describe('Table', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Table className={'w-full'}>{'x'}</Table>, c)
+    mountTestApp(c, () => render(<Table className={'w-full'}>{'x'}</Table>, c))
     await waitTableRender()
     const el = c.querySelector('table.table') as HTMLElement
     expect(el.classList.contains('w-full')).toBe(true)
@@ -67,28 +70,30 @@ describe('Table', () => {
 
   it('renders Head, Body, Foot, TR, TH, TD subcomponents', async () => {
     const c = document.createElement('div')
-    render(
-      <Table>
-        <Table.Head>
-          <Table.TR>
-            <Table.TH>{'h1'}</Table.TH>
-            <Table.TH>{'h2'}</Table.TH>
-          </Table.TR>
-        </Table.Head>
-        <Table.Body>
-          <Table.TR>
-            <Table.TD>{'a1'}</Table.TD>
-            <Table.TD>{'a2'}</Table.TD>
-          </Table.TR>
-        </Table.Body>
-        <Table.Foot>
-          <Table.TR>
-            <Table.TH>{'f1'}</Table.TH>
-            <Table.TH>{'f2'}</Table.TH>
-          </Table.TR>
-        </Table.Foot>
-      </Table>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table>
+          <Table.Head>
+            <Table.TR>
+              <Table.TH>{'h1'}</Table.TH>
+              <Table.TH>{'h2'}</Table.TH>
+            </Table.TR>
+          </Table.Head>
+          <Table.Body>
+            <Table.TR>
+              <Table.TD>{'a1'}</Table.TD>
+              <Table.TD>{'a2'}</Table.TD>
+            </Table.TR>
+          </Table.Body>
+          <Table.Foot>
+            <Table.TR>
+              <Table.TH>{'f1'}</Table.TH>
+              <Table.TH>{'f2'}</Table.TH>
+            </Table.TR>
+          </Table.Foot>
+        </Table>,
+        c,
+      ),
     )
     await waitTableRender()
     const head = c.querySelector('thead') as HTMLElement
@@ -116,7 +121,7 @@ describe('Table', () => {
       { title: 'Job', dataIndex: 'job' },
       { title: 'Favorite Color', dataIndex: 'color' },
     ]
-    render(<Table columns={columns} dataSource={dataSource} />, c)
+    mountTestApp(c, () => render(<Table columns={columns} dataSource={dataSource} />, c))
     await waitTableRender()
     const head = c.querySelector('thead') as HTMLElement
     const ths = Array.from(c.querySelectorAll('thead th')).map(el => el.textContent?.trim())
@@ -133,13 +138,15 @@ describe('Table', () => {
       { key: '2', name: 'B' },
     ]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        rowSelection={{ defaultSelectedRowKeys: ['1'] }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          rowSelection={{ defaultSelectedRowKeys: ['1'] }}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const headerCheckbox = c.querySelector(
@@ -158,9 +165,15 @@ describe('Table', () => {
       { key: '3', name: 'C' },
     ]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    render(
-      <Table columns={columns} dataSource={dataSource} pagination={{ current: 1, pageSize: 1 }} />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          pagination={{ current: 1, pageSize: 1 }}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const tds = Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())
@@ -178,7 +191,7 @@ describe('Table', () => {
     const columns = [
       { title: 'Name', dataIndex: 'name', sorter: true, defaultSortOrder: 'ascend' as const },
     ]
-    render(<Table columns={columns} dataSource={dataSource} />, c)
+    mountTestApp(c, () => render(<Table columns={columns} dataSource={dataSource} />, c))
     await waitTableRender()
     const tds = Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())
     expect(tds).toEqual(['A', 'B'])
@@ -201,7 +214,7 @@ describe('Table', () => {
       />
     )
     resetActiveRuntime()
-    render(<Demo />, c)
+    mountTestApp(c, () => render(<Demo />, c))
 
     await waitForContent(() => {
       expect(c.querySelector('button[aria-label="sort-name"]')).toBeTruthy()
@@ -255,7 +268,7 @@ describe('Table', () => {
     }
 
     resetActiveRuntime()
-    render(<Demo />, c)
+    mountTestApp(c, () => render(<Demo />, c))
 
     await waitForContent(() => {
       const names = Array.from(c.querySelectorAll('tbody tr td:first-child')).map(el =>
@@ -290,16 +303,18 @@ describe('Table', () => {
       { key: '2', name: 'B' },
     ]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        expandable={{
-          defaultExpandAllRows: true,
-          expandedRowRender: (r: any) => <div>{`extra-${r.name}`}</div>,
-        }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          expandable={{
+            defaultExpandAllRows: true,
+            expandedRowFormatter: (r: any) => `extra-${r.name}`,
+          }}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const extras = Array.from(c.querySelectorAll('tbody tr td')).map(el => el.textContent || '')
@@ -317,7 +332,7 @@ describe('Table', () => {
       { title: 'Name', dataIndex: 'name', filteredValue: ['A'] },
       { title: 'Job', dataIndex: 'job' },
     ]
-    render(<Table columns={columns} dataSource={dataSource} />, c)
+    mountTestApp(c, () => render(<Table columns={columns} dataSource={dataSource} />, c))
     await waitTableRender()
     const tds = Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())
     expect(tds).toEqual(['A', 'Dev'])
@@ -330,19 +345,21 @@ describe('Table', () => {
       { key: '2', name: 'Jim Green' },
     ]
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[
-          {
-            title: 'Name',
-            dataIndex: 'name',
-            filteredValue: 'Jim' as any,
-            onFilter: (value: any, record: any) => record.name.includes(String(value)),
-          },
-        ]}
-        dataSource={dataSource}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[
+            {
+              title: 'Name',
+              dataIndex: 'name',
+              filteredValue: 'Jim' as any,
+              onFilter: (value: any, record: any) => record.name.includes(String(value)),
+            },
+          ]}
+          dataSource={dataSource}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -360,20 +377,22 @@ describe('Table', () => {
       { key: '3', name: 'Joe Black' },
     ]
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[
-          {
-            title: 'Name',
-            dataIndex: 'name',
-            filters: [{ text: 'Jim', value: 'Jim' }],
-            onFilter: (value: any, record: any) => record.name.includes(String(value)),
-          },
-        ]}
-        dataSource={dataSource}
-        onChange={(_pagination: any, filters: any) => changes.push(filters)}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[
+            {
+              title: 'Name',
+              dataIndex: 'name',
+              filters: [{ text: 'Jim', value: 'Jim' }],
+              onFilter: (value: any, record: any) => record.name.includes(String(value)),
+            },
+          ]}
+          dataSource={dataSource}
+          onChange={(_pagination: any, filters: any) => changes.push(filters)}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -384,7 +403,12 @@ describe('Table', () => {
     await click(filterButton)
 
     await waitForContent(() => {
-      expect(filterButton?.closest('.dropdown')?.classList.contains('dropdown-open')).toBe(true)
+      expect(
+        c
+          .querySelector('button[aria-label="filter-name"]')
+          ?.closest('.dropdown')
+          ?.classList.contains('dropdown-open'),
+      ).toBe(true)
     })
 
     await waitForContent(() => {
@@ -403,7 +427,7 @@ describe('Table', () => {
     })
   })
 
-  it('supports custom filterDropdown panels', async () => {
+  it('supports data-driven filter presets', async () => {
     const c = mountContainer()
     const changes: any[] = []
     const dataSource = [
@@ -412,32 +436,29 @@ describe('Table', () => {
       { key: '3', name: 'Joe Black' },
     ]
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[
-          {
-            title: 'Name',
-            dataIndex: 'name',
-            onFilter: (value: any, record: any) => record.name.includes(String(value)),
-            filterDropdown: ({ setSelectedKeys, confirm }: any) => (
-              <div className="rounded-box border border-base-300 bg-base-100 p-3">
-                <button
-                  className="choose-jim btn btn-ghost btn-xs"
-                  onClick={() => setSelectedKeys(['Jim'])}
-                >
-                  只看 Jim
-                </button>
-                <button className="confirm-filter btn btn-primary btn-xs" onClick={() => confirm()}>
-                  应用
-                </button>
-              </div>
-            ),
-          },
-        ]}
-        dataSource={dataSource}
-        onChange={(_pagination: any, filters: any) => changes.push(filters)}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[
+            {
+              title: 'Name',
+              dataIndex: 'name',
+              onFilter: (value: any, record: any) => record.name.includes(String(value)),
+              filterPresets: [
+                {
+                  label: '只看 Jim',
+                  values: ['Jim'],
+                  className: 'choose-jim btn btn-ghost btn-xs',
+                },
+              ],
+              filterConfirmClassName: 'confirm-filter',
+            },
+          ]}
+          dataSource={dataSource}
+          onChange={(_pagination: any, filters: any) => changes.push(filters)}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -486,7 +507,7 @@ describe('Table', () => {
         },
       },
     ]
-    render(<Table columns={columns} dataSource={dataSource} />, c)
+    mountTestApp(c, () => render(<Table columns={columns} dataSource={dataSource} />, c))
     await waitTableRender()
     const ages = Array.from(c.querySelectorAll('tbody td')).map(el => Number(el.textContent || 0))
     expect(ages).toEqual([42, 40])
@@ -521,7 +542,7 @@ describe('Table', () => {
       },
     ]
     resetActiveRuntime()
-    render(<Table columns={columns} dataSource={dataSource} />, c)
+    mountTestApp(c, () => render(<Table columns={columns} dataSource={dataSource} />, c))
 
     await waitForContent(() => {
       const names = Array.from(c.querySelectorAll('tbody tr td:first-child')).map(el =>
@@ -538,7 +559,7 @@ describe('Table', () => {
       { title: 'Name', dataIndex: 'name' },
       { title: 'Job', dataIndex: 'job', hidden: true },
     ]
-    render(<Table columns={columns} dataSource={dataSource} />, c)
+    mountTestApp(c, () => render(<Table columns={columns} dataSource={dataSource} />, c))
     await waitTableRender()
     const ths = Array.from(c.querySelectorAll('thead th')).map(el => el.textContent?.trim())
     const tds = Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())
@@ -575,7 +596,7 @@ describe('Table', () => {
     }
 
     resetActiveRuntime()
-    render(<Demo />, c)
+    mountTestApp(c, () => render(<Demo />, c))
 
     await waitForContent(() => {
       const ths = Array.from(c.querySelectorAll('thead th')).map(el => el.textContent?.trim())
@@ -630,7 +651,7 @@ describe('Table', () => {
     }
 
     resetActiveRuntime()
-    render(<Demo />, c)
+    mountTestApp(c, () => render(<Demo />, c))
 
     await waitForContent(() => {
       const ths = Array.from(c.querySelectorAll('thead th')).map(el => el.textContent?.trim())
@@ -665,15 +686,17 @@ describe('Table', () => {
       { key: '2', name: 'B' },
     ]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    const summary = (rows: any[]) => <div>{`Total: ${rows.length}`}</div>
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        pagination={{ current: 1, pageSize: 1 }}
-        summary={summary}
-      />,
-      c,
+    const summary = (rows: any[]) => `Total: ${rows.length}`
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          pagination={{ current: 1, pageSize: 1 }}
+          summary={summary}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const foot = c.querySelector('tfoot') as HTMLElement
@@ -685,7 +708,9 @@ describe('Table', () => {
     const c = document.createElement('div')
     const dataSource: any[] = []
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    render(<Table columns={columns} dataSource={dataSource} emptyText={'Empty'} />, c)
+    mountTestApp(c, () =>
+      render(<Table columns={columns} dataSource={dataSource} emptyText={'Empty'} />, c),
+    )
     await waitTableRender()
     const tbody = c.querySelector('tbody') as HTMLElement
     expect(tbody.textContent || '').toContain('Empty')
@@ -696,13 +721,15 @@ describe('Table', () => {
     const spy = { count: 0 }
     const dataSource = [{ key: '1', name: 'A' }]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        onRow={() => ({ onClick: () => (spy.count += 1) })}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          onRow={() => ({ onClick: () => (spy.count += 1) })}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const tr = c.querySelector('tbody tr') as HTMLElement
@@ -718,14 +745,16 @@ describe('Table', () => {
     }))
     const columns = [{ title: 'Name', dataIndex: 'name' }]
     let called = 0
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        scroll={{ y: 100 }}
-        onScroll={() => (called += 1)}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          scroll={{ y: 100 }}
+          onScroll={() => (called += 1)}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const table = c.querySelector('table.table') as HTMLElement
@@ -737,16 +766,18 @@ describe('Table', () => {
   it('renders with horizontal scroll without crashing when no styles are provided', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[
-          { title: 'Name', dataIndex: 'name', width: 120 },
-          { title: 'Address', dataIndex: 'address', width: 240 },
-        ]}
-        dataSource={[{ key: '1', name: 'A', address: 'Hangzhou West Lake Road No. 1' }]}
-        scroll={{ x: true }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[
+            { title: 'Name', dataIndex: 'name', width: 120 },
+            { title: 'Address', dataIndex: 'address', width: 240 },
+          ]}
+          dataSource={[{ key: '1', name: 'A', address: 'Hangzhou West Lake Road No. 1' }]}
+          scroll={{ x: true }}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -761,15 +792,17 @@ describe('Table', () => {
     const dataSource = [{ key: '1', name: 'A' }]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
     resetActiveRuntime()
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        scroll={{ x: true }}
-        title={() => <div>{'CustomTitle'}</div>}
-        footer={() => <div>{'CustomFooter'}</div>}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          scroll={{ x: true }}
+          titleFormatter={() => 'CustomTitle'}
+          footerFormatter={() => 'CustomFooter'}
+        />,
+        c,
+      ),
     )
     await waitForContent(() => {
       expect(c.querySelector('table.table')).toBeTruthy()
@@ -783,14 +816,16 @@ describe('Table', () => {
     const c = document.createElement('div')
     const dataSource = [{ key: '1', name: 'A' }]
     const columns = [{ title: 'Name', dataIndex: 'name' }]
-    render(
-      <Table
-        columns={columns}
-        dataSource={dataSource}
-        rowHoverable={true}
-        rowHoverClass={'hover:bg-red-200'}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          rowHoverable={true}
+          rowHoverClass={'hover:bg-red-200'}
+        />,
+        c,
+      ),
     )
     await waitTableRender()
     const tr = c.querySelector('tbody tr') as HTMLElement
@@ -800,30 +835,32 @@ describe('Table', () => {
   it('supports bordered, loading, locale text, and common size aliases', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Table
-        size={'small' as any}
-        bordered
-        loading
-        locale={{
-          emptyText: '暂无数据',
-          filterConfirm: '确认筛选',
-          filterReset: '清空筛选',
-          triggerAsc: '切换为升序',
-          triggerDesc: '切换为降序',
-          cancelSort: '取消排序',
-        }}
-        columns={[
-          {
-            title: 'Name',
-            dataIndex: 'name',
-            sorter: true,
-            filters: [{ text: 'Jim', value: 'Jim' }],
-          },
-        ]}
-        dataSource={[]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          size={'small' as any}
+          bordered
+          loading
+          locale={{
+            emptyText: '暂无数据',
+            filterConfirm: '确认筛选',
+            filterReset: '清空筛选',
+            triggerAsc: '切换为升序',
+            triggerDesc: '切换为降序',
+            cancelSort: '取消排序',
+          }}
+          columns={[
+            {
+              title: 'Name',
+              dataIndex: 'name',
+              sorter: true,
+              filters: [{ text: 'Jim', value: 'Jim' }],
+            },
+          ]}
+          dataSource={[]}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -845,30 +882,24 @@ describe('Table', () => {
     })
   })
 
-  it('supports rowSelection renderCell, getTitleCheckboxProps and functional columnTitle', async () => {
+  it('supports selection labels, checkbox props and selection classes', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[{ title: 'Name', dataIndex: 'name' }]}
-        dataSource={[{ key: '1', name: 'John Brown' }]}
-        rowSelection={{
-          getTitleCheckboxProps: () => ({ disabled: true, 'data-testid': 'title-checkbox' }),
-          columnTitle: (originNode: any) => (
-            <div className="selection-title">
-              {originNode}
-              <span>批量选择</span>
-            </div>
-          ),
-          renderCell: (checked: boolean, record: any, _index: number, originNode: any) => (
-            <div className="custom-selection-cell" data-checked={String(checked)}>
-              {originNode}
-              <span>{record.name}</span>
-            </div>
-          ),
-        }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[{ key: '1', name: 'John Brown' }]}
+          rowSelection={{
+            getTitleCheckboxProps: () => ({ disabled: true, 'data-testid': 'title-checkbox' }),
+            columnTitle: '批量选择',
+            titleClassName: 'selection-title',
+            cellClassName: 'custom-selection-cell',
+            cellLabelFormatter: (_checked: boolean, record: any) => record.name,
+          }}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -881,36 +912,31 @@ describe('Table', () => {
     })
   })
 
-  it('supports tree data via childrenColumnName, indentSize, and custom expandIcon', async () => {
+  it('supports tree data via childrenColumnName, indentSize, and custom expand labels', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[{ title: 'Name', dataIndex: 'name' }]}
-        dataSource={[
-          {
-            key: '1',
-            name: 'Parent',
-            nodes: [{ key: '1-1', name: 'Child' }],
-          },
-        ]}
-        expandable={{
-          childrenColumnName: 'nodes',
-          defaultExpandedRowKeys: ['1'],
-          indentSize: 24,
-          showExpandColumn: false,
-          expandIcon: ({ expanded, onExpand, record, expandable: canExpand }: any) =>
-            canExpand ? (
-              <button
-                className="tree-expand-icon btn btn-ghost btn-xs"
-                onClick={(event: any) => onExpand(record, event)}
-              >
-                {expanded ? '收起' : '展开'}
-              </button>
-            ) : null,
-        }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[
+            {
+              key: '1',
+              name: 'Parent',
+              nodes: [{ key: '1-1', name: 'Child' }],
+            },
+          ]}
+          expandable={{
+            childrenColumnName: 'nodes',
+            defaultExpandedRowKeys: ['1'],
+            indentSize: 24,
+            showExpandColumn: false,
+            expandButtonClassName: 'tree-expand-icon',
+            expandLabelFormatter: (expanded: boolean) => (expanded ? '收起' : '展开'),
+          }}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -927,24 +953,26 @@ describe('Table', () => {
   it('supports pagination placement and sorter tooltip config', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Table
-        columns={[
-          {
-            title: 'Name',
-            dataIndex: 'name',
-            sorter: true,
-            showSorterTooltip: { target: 'sorter-icon' },
-          },
-        ]}
-        dataSource={[
-          { key: '1', name: 'A' },
-          { key: '2', name: 'B' },
-        ]}
-        locale={{ triggerAsc: '下一次升序', triggerDesc: '下一次降序', cancelSort: '清除排序' }}
-        pagination={{ current: 1, pageSize: 1, placement: ['topStart', 'bottomCenter'] }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[
+            {
+              title: 'Name',
+              dataIndex: 'name',
+              sorter: true,
+              showSorterTooltip: { target: 'sorter-icon' },
+            },
+          ]}
+          dataSource={[
+            { key: '1', name: 'A' },
+            { key: '2', name: 'B' },
+          ]}
+          locale={{ triggerAsc: '下一次升序', triggerDesc: '下一次降序', cancelSort: '清除排序' }}
+          pagination={{ current: 1, pageSize: 1, placement: ['topStart', 'bottomCenter'] }}
+        />,
+        c,
+      ),
     )
 
     await waitForContent(() => {

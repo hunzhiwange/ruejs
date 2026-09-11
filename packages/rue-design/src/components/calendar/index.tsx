@@ -5,7 +5,7 @@ Calendar 组件概述
 - 视觉层继续使用 Rue 当前的 daisyUI/Tailwind 体系，不引入额外样式文件。
 */
 import type { FC } from '@rue-js/rue'
-import { onUnmounted, ref, renderAnchor, useRef, useSetup } from '@rue-js/rue'
+import { computed, ref, useRef } from '@rue-js/rue'
 
 /** CalendarMode 类型。 */
 export type CalendarMode = 'month' | 'year'
@@ -22,12 +22,11 @@ export interface CalendarSelectInfo {
   source: CalendarSelectSource
 }
 
-/** CalendarCellRenderInfo 接口。 */
-export interface CalendarCellRenderInfo {
+/** CalendarCellFormatInfo 接口。 */
+export interface CalendarCellFormatInfo {
   /** 组件类型或语义类型。 */
   type: 'date' | 'month'
-  /** originNode 配置项。 */
-  originNode: any
+  /** originText 配置项。 */
   /** today 配置项。 */
   today: Date
   /** selected 配置项。 */
@@ -99,15 +98,15 @@ export interface CalendarRenderProfileEvent {
   /** 当前视图模式。 */
   mode: CalendarMode
   /** 本次更新阶段。 */
-  phase: 'html' | 'patch' | 'jsx'
+  phase: 'compiled'
   /** 总耗时，单位 ms。 */
   duration: number
   /** 本次参与更新的单元格数量。 */
   cellCount: number
   /** 自定义渲染函数总调用次数。 */
   customRenderCount: number
-  /** cellRender 调用次数。 */
-  cellRenderCount: number
+  /** cellFormatter 调用次数。 */
+  cellFormatterCount: number
   /** fullCellRender 调用次数。 */
   fullCellRenderCount: number
   /** dateCellRender 调用次数。 */
@@ -164,13 +163,17 @@ export interface CalendarProps extends CalendarHostProps {
   monthFullCellRender?: (date: Date) => any
   /** monthCellRender 自定义渲染函数。 */
   monthCellRender?: (date: Date) => any
-  /** cellRender 自定义渲染函数。 */
-  cellRender?: (date: Date, info: CalendarCellRenderInfo) => any
+  /** cellFormatter 自定义渲染函数。 */
+  cellFormatter?: (date: Date, info: CalendarCellFormatInfo) => string | number | null | undefined
   /** fullCellRender 自定义渲染函数。 */
-  fullCellRender?: (date: Date, info: CalendarCellRenderInfo) => any
+  fullCellRender?: (date: Date, info: CalendarCellFormatInfo & { originNode: any }) => any
+  /** cellRender 自定义渲染函数。 */
+  cellRender?: (date: Date, info: CalendarCellFormatInfo & { originNode: any }) => any
   /** headerRender 自定义渲染函数。 */
   headerRender?: (config: CalendarHeaderRenderConfig) => any
-  /** Calendar 渲染诊断回调，可用于定位 cellRender 或面板更新耗时。 */
+  /** headerTitleFormatter 自定义渲染函数。 */
+  headerTitleFormatter?: (value: Date, mode: CalendarMode) => string
+  /** Calendar 渲染诊断回调，可用于定位 cellFormatter 或面板更新耗时。 */
   onRenderProfile?: (event: CalendarRenderProfileEvent) => void
   /** onRenderProfile 的慢渲染阈值，单位 ms。 */
   renderProfileThreshold?: number
@@ -231,7 +234,7 @@ interface CalendarRenderProfileState {
   threshold: number
   cellCount: number
   customRenderCount: number
-  cellRenderCount: number
+  cellFormatterCount: number
   fullCellRenderCount: number
   dateCellRenderCount: number
   dateFullCellRenderCount: number
@@ -249,8 +252,6 @@ interface OptimizedDefaultCalendarSnapshot {
   rest: Record<string, any>
   rootClassName: string
   fullscreen: boolean
-  hasCustomHeader: boolean
-  customHeaderContent: any
   currentMode: CalendarMode
   currentValue: Date
   headerTitle: string
@@ -318,7 +319,7 @@ const createCalendarRenderProfileState = (
   threshold,
   cellCount: 0,
   customRenderCount: 0,
-  cellRenderCount: 0,
+  cellFormatterCount: 0,
   fullCellRenderCount: 0,
   dateCellRenderCount: 0,
   dateFullCellRenderCount: 0,
@@ -330,7 +331,7 @@ const createCalendarRenderProfileState = (
 const countCalendarRender = (
   profile: CalendarRenderProfileState,
   renderName:
-    | 'cellRender'
+    | 'cellFormatter'
     | 'fullCellRender'
     | 'dateCellRender'
     | 'dateFullCellRender'
@@ -342,8 +343,8 @@ const countCalendarRender = (
   }
 
   profile.customRenderCount += 1
-  if (renderName === 'cellRender') {
-    profile.cellRenderCount += 1
+  if (renderName === 'cellFormatter') {
+    profile.cellFormatterCount += 1
   } else if (renderName === 'fullCellRender') {
     profile.fullCellRenderCount += 1
   } else if (renderName === 'dateCellRender') {
@@ -360,7 +361,7 @@ const countCalendarRender = (
 const invokeCalendarRender = <T,>(
   profile: CalendarRenderProfileState,
   renderName:
-    | 'cellRender'
+    | 'cellFormatter'
     | 'fullCellRender'
     | 'dateCellRender'
     | 'dateFullCellRender'
@@ -408,7 +409,7 @@ const emitCalendarRenderProfile = (
     duration,
     cellCount: profile.cellCount,
     customRenderCount: profile.customRenderCount,
-    cellRenderCount: profile.cellRenderCount,
+    cellFormatterCount: profile.cellFormatterCount,
     fullCellRenderCount: profile.fullCellRenderCount,
     dateCellRenderCount: profile.dateCellRenderCount,
     dateFullCellRenderCount: profile.dateFullCellRenderCount,
@@ -475,439 +476,277 @@ const buildMonthButtonClassName = (
 }
 
 /** 渲染 Optimized Date Button Inner HTML 的内部工具函数。 */
-const renderOptimizedDateButtonInnerHTML = (
-  state: DefaultDateCellState,
-  todayMarkerLabel: string,
-) => {
-  const dayClassName = `text-sm font-semibold ${state.inView ? '' : 'opacity-60'}`.trim()
-  const badgeHTML = state.isToday
-    ? `<span class="badge badge-xs ${state.selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}">${todayMarkerLabel}</span>`
-    : ''
-  return `<span class="flex items-start justify-between gap-2"><span class="${dayClassName}">${state.dayNumber}</span>${badgeHTML}</span>`
-}
 
 /** 构建 Month Selection Patch Signature 的内部工具函数。 */
 /** 转义 fast HTML 渲染路径中的文本和属性值，避免用户传入内容破坏结构。 */
-const escapeCalendarHtml = (value: unknown) => {
-  return `${value ?? ''}`.replace(/[&<>"']/g, char => {
-    switch (char) {
-      case '&':
-        return '&amp;'
-      case '<':
-        return '&lt;'
-      case '>':
-        return '&gt;'
-      case '"':
-        return '&quot;'
-      case "'":
-        return '&#39;'
-      default:
-        return char
-    }
-  })
-}
 
 /** 渲染布尔属性；仅 true 时输出属性名。 */
-const renderCalendarBooleanAttr = (name: string, value: boolean | undefined) => {
-  return value ? ` ${name}` : ''
-}
 
 /** 渲染可安全字符串化的 DOM 属性，跳过函数/对象/空值。 */
-const renderCalendarAttr = (name: string, value: unknown) => {
-  if (
-    value == null ||
-    value === false ||
-    typeof value === 'function' ||
-    typeof value === 'object'
-  ) {
-    return ''
-  }
-  if (value === true) {
-    return ` ${name}`
-  }
-  return ` ${name}="${escapeCalendarHtml(value)}"`
-}
 
 /** 渲染透传到 Calendar 根节点的其余属性，排除 children/className 等由组件接管的字段。 */
-const renderCalendarRestAttrs = (rest: Record<string, any>) => {
-  return Object.entries(rest)
-    .map(([name, value]) => {
-      if (name === 'children' || name === 'class' || name === 'className') {
-        return ''
-      }
-      return renderCalendarAttr(name, value)
-    })
-    .join('')
-}
-
-const renderManagedCalendarCellHost = (key: string) =>
-  `<div data-rue-calendar-managed-cell="${escapeCalendarHtml(key)}" style="display: contents;"></div>`
-
-const renderManagedCalendarHeaderHost = () =>
-  '<div data-rue-calendar-managed-header="true" style="display: contents;"></div>'
-
-const clearManagedCalendarMount = (mount: ManagedCalendarMount | null) => {
-  if (mount) {
-    renderAnchor(null, mount.host, mount.anchor as any)
-  }
-}
-
-const syncManagedCalendarHeaderContent = (
-  root: HTMLElement,
-  mount: ManagedCalendarMount | null,
-  snapshot: OptimizedDefaultCalendarSnapshot,
-) => {
-  const host = root.querySelector('[data-rue-calendar-managed-header="true"]') as HTMLElement | null
-
-  if (!snapshot.hasCustomHeader || !host) {
-    clearManagedCalendarMount(mount)
-    return null
-  }
-
-  let nextMount = mount
-  if (!nextMount || nextMount.host !== host) {
-    clearManagedCalendarMount(nextMount)
-    const anchor = (host.ownerDocument ?? document).createComment('rue-calendar-managed-header')
-    host.appendChild(anchor)
-    nextMount = { host, anchor }
-  }
-
-  renderAnchor(
-    snapshot.customHeaderContent == null ? null : <>{snapshot.customHeaderContent}</>,
-    host,
-    nextMount.anchor as any,
-  )
-  return nextMount
-}
-
-const syncManagedCalendarContent = (
-  root: HTMLElement,
-  mounts: Map<string, ManagedCalendarMount>,
-  snapshot: OptimizedDefaultCalendarSnapshot,
-  keys?: Iterable<string>,
-) => {
-  const requestedKeys = keys ? new Set(keys) : null
-  const nextKeys = requestedKeys ?? new Set(snapshot.managedCellContent.keys())
-
-  for (const key of nextKeys) {
-    const managedCell = snapshot.managedCellContent.get(key)
-    const host = Array.from(root.querySelectorAll('[data-rue-calendar-managed-cell]')).find(
-      node => node.getAttribute('data-rue-calendar-managed-cell') === key,
-    ) as HTMLElement | undefined
-
-    if (!managedCell || !host) {
-      const stale = mounts.get(key)
-      if (stale) {
-        renderAnchor(null, stale.host, stale.anchor as any)
-        mounts.delete(key)
-      }
-      continue
-    }
-
-    let mount = mounts.get(key)
-    if (!mount || mount.host !== host) {
-      if (mount) {
-        renderAnchor(null, mount.host, mount.anchor as any)
-      }
-      const anchor = (host.ownerDocument ?? document).createComment('rue-calendar-managed-anchor')
-      host.appendChild(anchor)
-      mount = { host, anchor }
-      mounts.set(key, mount)
-    }
-
-    renderAnchor(
-      managedCell.content == null ? null : <>{managedCell.content}</>,
-      host,
-      mount.anchor as any,
-    )
-  }
-
-  if (!requestedKeys) {
-    for (const [key, mount] of Array.from(mounts.entries())) {
-      if (snapshot.managedCellContent.has(key)) {
-        continue
-      }
-      renderAnchor(null, mount.host, mount.anchor as any)
-      mounts.delete(key)
-    }
-  }
-}
-
-const clearManagedCalendarContent = (mounts: Map<string, ManagedCalendarMount>) => {
-  for (const mount of mounts.values()) {
-    renderAnchor(null, mount.host, mount.anchor as any)
-  }
-  mounts.clear()
-}
-
-/** 将默认 Calendar 快路径 snapshot 序列化为 HTML，降低大面板频繁 diff 的成本。 */
-const renderOptimizedDefaultCalendarHTML = (snapshot: OptimizedDefaultCalendarSnapshot) => {
-  const fullscreen = snapshot.fullscreen
-  const rootAttrs = renderCalendarRestAttrs(snapshot.rest)
-  const headerClass = `border-b border-base-300/70 ${fullscreen ? 'flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between' : 'flex flex-col gap-3 px-3 py-3'}`
-  const bodyClass = fullscreen ? 'space-y-3 px-4 py-4' : 'space-y-3 px-3 py-3'
-  const headerView = snapshot.hasCustomHeader
-    ? renderManagedCalendarHeaderHost()
-    : `<div class="${escapeCalendarHtml(headerClass)}">
-      <div>
-        <div class="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/55">Rue Calendar</div>
-        <div class="mt-1 text-xl font-semibold leading-tight">${escapeCalendarHtml(snapshot.headerTitle)}</div>
-        <div class="mt-1 text-xs text-base-content/60">${escapeCalendarHtml(snapshot.todayLabel)}</div>
-      </div>
-      <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-        <div class="join">
-          <button type="button" class="btn btn-sm join-item" aria-label="Previous" data-rue-calendar-action="previous"${renderCalendarBooleanAttr('disabled', snapshot.previousDisabled)}><span aria-hidden="true">&lt;</span></button>
-          <button type="button" class="btn btn-sm join-item btn-ghost" data-rue-calendar-action="today"${renderCalendarBooleanAttr('disabled', snapshot.todayDisabled)}>${escapeCalendarHtml(snapshot.todayButtonLabel)}</button>
-          <button type="button" class="btn btn-sm join-item" aria-label="Next" data-rue-calendar-action="next"${renderCalendarBooleanAttr('disabled', snapshot.nextDisabled)}><span aria-hidden="true">&gt;</span></button>
-        </div>
-        <select class="select select-sm min-w-24" data-rue-calendar-select="year">
-          ${snapshot.yearOptions
-            .map(
-              option =>
-                `<option value="${option.value}"${renderCalendarBooleanAttr('selected', option.value === snapshot.currentValue.getFullYear())}${renderCalendarBooleanAttr('disabled', option.disabled)}>${option.value}</option>`,
-            )
-            .join('')}
-        </select>
-        <select class="select select-sm min-w-24" data-rue-calendar-select="month"${renderCalendarBooleanAttr('disabled', snapshot.currentMode === 'year')}>
-          ${snapshot.monthOptions
-            .map(
-              option =>
-                `<option value="${option.value}"${renderCalendarBooleanAttr('selected', option.value === snapshot.currentValue.getMonth())}${renderCalendarBooleanAttr('disabled', option.disabled)}>${escapeCalendarHtml(option.label)}</option>`,
-            )
-            .join('')}
-        </select>
-        <div class="join">
-          <button type="button" data-rue-calendar-mode-switch="month" data-rue-calendar-action="mode-month" class="btn btn-sm join-item ${snapshot.currentMode === 'month' ? 'btn-primary' : 'btn-ghost'}">${escapeCalendarHtml(snapshot.monthButtonLabel)}</button>
-          <button type="button" data-rue-calendar-mode-switch="year" data-rue-calendar-action="mode-year" class="btn btn-sm join-item ${snapshot.currentMode === 'year' ? 'btn-primary' : 'btn-ghost'}">${escapeCalendarHtml(snapshot.yearButtonLabel)}</button>
-        </div>
-      </div>
-    </div>`
-  const weekHeader = snapshot.showWeek
-    ? `<div class="px-2 py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-base-content/45">${escapeCalendarHtml(snapshot.weekButtonLabel)}</div>`
-    : ''
-  const weekdayHeaders = snapshot.weekdayLabels
-    .map(
-      label =>
-        `<div class="px-2 py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-base-content/45">${escapeCalendarHtml(label)}</div>`,
-    )
-    .join('')
-  const monthView =
-    snapshot.currentMode === 'month'
-      ? `<div class="space-y-2">
-          <div class="${escapeCalendarHtml(snapshot.rowClassName)}">${weekHeader}${weekdayHeaders}</div>
-          <div role="grid" class="space-y-2">
-            ${snapshot.dateRows
-              .map(
-                row =>
-                  `<div role="row" class="${escapeCalendarHtml(snapshot.rowClassName)}">
-                    ${
-                      snapshot.showWeek
-                        ? `<div class="flex items-center justify-center rounded-[1rem] border border-base-300/70 bg-base-200/60 text-sm font-semibold text-base-content/60" data-rue-calendar-week="${row.week}">${row.week}</div>`
-                        : ''
-                    }
-                    ${row.cells
-                      .map(cell => {
-                        const state = snapshot.dateCellStates.get(cell.key)!
-                        const currentAttr = state.isToday ? ' aria-current="date"' : ''
-                        return `<button
-                          type="button"
-                          role="gridcell"
-                          data-rue-calendar-cell="${escapeCalendarHtml(cell.key)}"
-                          data-rue-calendar-in-view="${state.inView ? 'true' : 'false'}"
-                          aria-pressed="${state.selected ? 'true' : 'false'}"${currentAttr}
-                          ${renderCalendarBooleanAttr('disabled', state.disabled)}
-                          class="${escapeCalendarHtml(
-                            buildDateButtonClassName(
-                              fullscreen,
-                              state.selected,
-                              state.disabled,
-                              state.inView,
-                              state.isToday,
-                            ),
-                          )}"
-                        >${
-                          snapshot.hasDateCustomRender
-                            ? renderManagedCalendarCellHost(cell.key)
-                            : renderOptimizedDateButtonInnerHTML(state, snapshot.todayMarkerLabel)
-                        }</button>`
-                      })
-                      .join('')}
-                  </div>`,
-              )
-              .join('')}
-          </div>
-        </div>`
-      : `<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-          ${snapshot.monthOptions
-            .map(monthOption => {
-              const monthDate = createDate(
-                snapshot.currentValue.getFullYear(),
-                monthOption.value,
-                1,
-              )
-              const selected = isSameMonth(monthDate, snapshot.currentValue)
-              const isToday = isSameMonth(monthDate, startOfDay(new Date()))
-              const disabled = monthOption.disabled === true
-              const monthKey = `${snapshot.currentValue.getFullYear()}-${`${monthOption.value + 1}`.padStart(2, '0')}`
-              return `<button
-                type="button"
-                data-rue-calendar-month="${monthKey}"
-                aria-pressed="${selected ? 'true' : 'false'}"
-                ${renderCalendarBooleanAttr('disabled', disabled)}
-                class="${escapeCalendarHtml(buildMonthButtonClassName(fullscreen, selected, disabled, isToday))}"
-              >
-                ${
-                  snapshot.hasMonthCustomRender
-                    ? renderManagedCalendarCellHost(monthKey)
-                    : `<span class="flex items-center justify-between gap-2">
-                        <span class="text-sm font-semibold">${escapeCalendarHtml(monthOption.label)}</span>
-                        ${
-                          isToday
-                            ? `<span class="badge badge-xs ${selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}">${escapeCalendarHtml(snapshot.todayMarkerLabel)}</span>`
-                            : ''
-                        }
-                      </span>`
-                }
-              </button>`
-            })
-            .join('')}
-        </div>`
-
-  return `<div${rootAttrs} data-rue-calendar-root="true" data-rue-calendar-mode="${snapshot.currentMode}" class="${escapeCalendarHtml(snapshot.rootClassName)}">
-    ${headerView}
-    <div class="${escapeCalendarHtml(bodyClass)}">
-      <div class="flex items-center justify-between gap-3 px-1">
-        <div class="badge badge-outline badge-sm">${escapeCalendarHtml(snapshot.viewLabel)}</div>
-        ${
-          snapshot.showWeek && snapshot.currentMode === 'month'
-            ? `<div class="badge badge-soft badge-sm">${escapeCalendarHtml(snapshot.weekButtonLabel)}</div>`
-            : ''
-        }
-      </div>
-      ${monthView}
-    </div>
-  </div>`
-}
 
 /** 渲染 Optimized Default Calendar View 的内部工具函数。 */
-const renderOptimizedDefaultCalendarView = (snapshot: OptimizedDefaultCalendarSnapshot) => {
-  const fullscreen = snapshot.fullscreen
+const CalendarText: FC<{ value: string }> = ({ value }) => <span>{String(value)}</span>
+
+const RenderOptimizedDefaultCalendarView = ({
+  arg0: snapshot,
+  rootProps,
+}: {
+  rootProps: Record<string, any>
+  arg0: OptimizedDefaultCalendarSnapshot
+}) => {
+  const readSnapshot = () => snapshot
+
+  const CompiledRow101 = ({ rowArg0 }: { rowArg0: any }) => {
+    const CompiledRow102 = ({ rowArg0 }: { rowArg0: any }) => {
+      const cell = rowArg0
+
+      const state = computed(
+        () =>
+          readSnapshot().dateCellStates.get(cell.key) ?? {
+            key: cell.key,
+            dayNumber: cell.date.getDate(),
+            inView: false,
+            selected: false,
+            isToday: false,
+            disabled: true,
+          },
+      )
+      return (
+        <button
+          type="button"
+          key={cell.key}
+          role="gridcell"
+          data-rue-calendar-cell={cell.key}
+          data-rue-calendar-in-view={state.get().inView ? 'true' : 'false'}
+          aria-pressed={state.get().selected ? 'true' : 'false'}
+          aria-current={state.get().isToday ? 'date' : undefined}
+          disabled={state.get().disabled}
+          className={buildDateButtonClassName(
+            fullscreen,
+            state.get().selected,
+            state.get().disabled,
+            state.get().inView,
+            state.get().isToday,
+          )}
+          onClick={() => readSnapshot().onDateSelect(cell.date)}
+        >
+          {readSnapshot().hasDateCustomRender ? (
+            <span data-rue-calendar-detail={cell.key}>
+              <CalendarText
+                value={String(readSnapshot().managedCellContent.get(cell.key)?.content ?? '')}
+              />
+            </span>
+          ) : (
+            <span className="flex items-start justify-between gap-2">
+              <span className={`text-sm font-semibold ${state.get().inView ? '' : 'opacity-60'}`}>
+                <CalendarText value={String(state.get().dayNumber)} />
+              </span>
+              {state.get().isToday ? (
+                <span
+                  className={`badge badge-xs ${state.get().selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
+                >
+                  <CalendarText value={String(readSnapshot().todayMarkerLabel)} />
+                </span>
+              ) : null}
+            </span>
+          )}
+        </button>
+      )
+    }
+
+    const row = rowArg0
+    return (
+      <div key={row.key} role="row" className={readSnapshot().rowClassName}>
+        {readSnapshot().showWeek ? (
+          <div
+            className="flex items-center justify-center rounded-[1rem] border border-base-300/70 bg-base-200/60 text-sm font-semibold text-base-content/60"
+            data-rue-calendar-week={row.week}
+          >
+            <CalendarText value={String(row.week)} />
+          </div>
+        ) : null}
+        {row.cells.map((rowArg0: any, rowIndex: number) => (
+          <CompiledRow102 rowArg0={rowArg0} />
+        ))}
+      </div>
+    )
+  }
+
+  const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+    const monthOption = rowArg0
+
+    const monthDate = createDate(readSnapshot().currentValue.getFullYear(), monthOption.value, 1)
+    const selected = isSameMonth(monthDate, readSnapshot().currentValue)
+    const isToday = isSameMonth(monthDate, startOfDay(new Date()))
+    const disabled = monthOption.disabled === true
+    return (
+      <button
+        type="button"
+        key={`${readSnapshot().currentValue.getFullYear()}-${monthOption.value}`}
+        data-rue-calendar-month={`${readSnapshot().currentValue.getFullYear()}-${`${monthOption.value + 1}`.padStart(2, '0')}`}
+        aria-pressed={selected ? 'true' : 'false'}
+        disabled={disabled}
+        className={buildMonthButtonClassName(fullscreen, selected, disabled, isToday)}
+        onClick={() => readSnapshot().onMonthSelect(monthDate)}
+      >
+        {readSnapshot().hasMonthCustomRender ? (
+          <span
+            data-rue-calendar-detail={`${readSnapshot().currentValue.getFullYear()}-${String(monthOption.value + 1).padStart(2, '0')}`}
+          >
+            <CalendarText
+              value={String(
+                readSnapshot().managedCellContent.get(
+                  `${readSnapshot().currentValue.getFullYear()}-${String(monthOption.value + 1).padStart(2, '0')}`,
+                )?.content ?? '',
+              )}
+            />
+          </span>
+        ) : (
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold">
+              <CalendarText value={String(monthOption.label)} />
+            </span>
+            {isToday ? (
+              <span
+                className={`badge badge-xs ${selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
+              >
+                <CalendarText value={String(readSnapshot().todayMarkerLabel)} />
+              </span>
+            ) : null}
+          </span>
+        )}
+      </button>
+    )
+  }
+
+  const fullscreen = readSnapshot().fullscreen
 
   return (
     <div
-      {...snapshot.rest}
+      {...rootProps}
       data-rue-calendar-root="true"
-      data-rue-calendar-mode={snapshot.currentMode}
-      className={snapshot.rootClassName}
+      data-rue-calendar-mode={readSnapshot().currentMode}
+      className={readSnapshot().rootClassName}
     >
-      {snapshot.hasCustomHeader ? (
-        snapshot.customHeaderContent
-      ) : (
-        <div
-          className={`border-b border-base-300/70 ${fullscreen ? 'flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between' : 'flex flex-col gap-3 px-3 py-3'}`}
-        >
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/55">
-              Rue Calendar
-            </div>
-            <div className="mt-1 text-xl font-semibold leading-tight">{snapshot.headerTitle}</div>
-            <div className="mt-1 text-xs text-base-content/60">{snapshot.todayLabel}</div>
+      <div
+        data-rue-calendar-header="true"
+        data-current={readSnapshot().headerTitle}
+        data-mode={readSnapshot().currentMode}
+        className={`border-b border-base-300/70 ${fullscreen ? 'flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between' : 'flex flex-col gap-3 px-3 py-3'}`}
+      >
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/55">
+            Rue Calendar
           </div>
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <div className="join">
-              <button
-                type="button"
-                className="btn btn-sm join-item"
-                aria-label="Previous"
-                disabled={snapshot.previousDisabled}
-                onClick={snapshot.onPrevious}
-              >
-                <span aria-hidden="true">&lt;</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm join-item btn-ghost"
-                disabled={snapshot.todayDisabled}
-                onClick={snapshot.onToday}
-              >
-                {snapshot.todayButtonLabel}
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm join-item"
-                aria-label="Next"
-                disabled={snapshot.nextDisabled}
-                onClick={snapshot.onNext}
-              >
-                <span aria-hidden="true">&gt;</span>
-              </button>
-            </div>
-            <select
-              className="select select-sm min-w-24"
-              value={snapshot.currentValue.getFullYear()}
-              onChange={(event: Event) =>
-                snapshot.onYearChange(Number((event.currentTarget as HTMLSelectElement).value))
-              }
-            >
-              {snapshot.yearOptions.map(option => (
-                <option key={option.value} value={option.value} disabled={option.disabled}>
-                  {option.value}
-                </option>
-              ))}
-            </select>
-            <select
-              className="select select-sm min-w-24"
-              value={snapshot.currentValue.getMonth()}
-              disabled={snapshot.currentMode === 'year'}
-              onChange={(event: Event) =>
-                snapshot.onMonthChange(Number((event.currentTarget as HTMLSelectElement).value))
-              }
-            >
-              {snapshot.monthOptions.map(option => (
-                <option key={option.value} value={option.value} disabled={option.disabled}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="join">
-              <button
-                type="button"
-                data-rue-calendar-mode-switch="month"
-                className={`btn btn-sm join-item ${snapshot.currentMode === 'month' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={snapshot.onModeMonth}
-              >
-                {snapshot.monthButtonLabel}
-              </button>
-              <button
-                type="button"
-                data-rue-calendar-mode-switch="year"
-                className={`btn btn-sm join-item ${snapshot.currentMode === 'year' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={snapshot.onModeYear}
-              >
-                {snapshot.yearButtonLabel}
-              </button>
-            </div>
+          <div className="mt-1 text-xl font-semibold leading-tight">
+            <CalendarText value={String(readSnapshot().headerTitle)} />
+          </div>
+          <div className="mt-1 text-xs text-base-content/60">
+            <CalendarText value={String(readSnapshot().todayLabel)} />
           </div>
         </div>
-      )}
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <div className="join">
+            <button
+              type="button"
+              className="btn btn-sm join-item"
+              aria-label="Previous"
+              disabled={readSnapshot().previousDisabled}
+              onClick={readSnapshot().onPrevious}
+            >
+              <span aria-hidden="true">&lt;</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm join-item btn-ghost"
+              disabled={readSnapshot().todayDisabled}
+              onClick={readSnapshot().onToday}
+            >
+              <CalendarText value={String(readSnapshot().todayButtonLabel)} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm join-item"
+              aria-label="Next"
+              disabled={readSnapshot().nextDisabled}
+              onClick={readSnapshot().onNext}
+            >
+              <span aria-hidden="true">&gt;</span>
+            </button>
+          </div>
+          <select
+            className="select select-sm min-w-24"
+            data-rue-calendar-year-select="true"
+            value={readSnapshot().currentValue.getFullYear()}
+            onChange={(event: Event) =>
+              readSnapshot().onYearChange(Number((event.currentTarget as HTMLSelectElement).value))
+            }
+          >
+            {readSnapshot().yearOptions.map(option => (
+              <option key={option.value} value={option.value} disabled={option.disabled}>
+                <CalendarText value={String(option.value)} />
+              </option>
+            ))}
+          </select>
+          <select
+            className="select select-sm min-w-24"
+            data-rue-calendar-month-select="true"
+            value={readSnapshot().currentValue.getMonth()}
+            disabled={readSnapshot().currentMode === 'year'}
+            onChange={(event: Event) =>
+              readSnapshot().onMonthChange(Number((event.currentTarget as HTMLSelectElement).value))
+            }
+          >
+            {readSnapshot().monthOptions.map(option => (
+              <option key={option.value} value={option.value} disabled={option.disabled}>
+                <CalendarText value={String(option.label)} />
+              </option>
+            ))}
+          </select>
+          <div className="join">
+            <button
+              type="button"
+              data-rue-calendar-mode-switch="month"
+              className={`btn btn-sm join-item ${readSnapshot().currentMode === 'month' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={readSnapshot().onModeMonth}
+            >
+              <CalendarText value={String(readSnapshot().monthButtonLabel)} />
+            </button>
+            <button
+              type="button"
+              data-rue-calendar-mode-switch="year"
+              className={`btn btn-sm join-item ${readSnapshot().currentMode === 'year' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={readSnapshot().onModeYear}
+            >
+              <CalendarText value={String(readSnapshot().yearButtonLabel)} />
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className={fullscreen ? 'space-y-3 px-4 py-4' : 'space-y-3 px-3 py-3'}>
         <div className="flex items-center justify-between gap-3 px-1">
-          <div className="badge badge-outline badge-sm">{snapshot.viewLabel}</div>
-          {snapshot.showWeek && snapshot.currentMode === 'month' ? (
-            <div className="badge badge-soft badge-sm">{snapshot.weekButtonLabel}</div>
+          <div className="badge badge-outline badge-sm">
+            <CalendarText value={String(readSnapshot().viewLabel)} />
+          </div>
+          {readSnapshot().showWeek && readSnapshot().currentMode === 'month' ? (
+            <div className="badge badge-soft badge-sm">
+              <CalendarText value={String(readSnapshot().weekButtonLabel)} />
+            </div>
           ) : null}
         </div>
 
-        {snapshot.currentMode === 'month' ? (
+        {readSnapshot().currentMode === 'month' ? (
           <div className="space-y-2">
-            <div className={snapshot.rowClassName}>
-              {snapshot.showWeek ? (
+            <div className={readSnapshot().rowClassName}>
+              {readSnapshot().showWeek ? (
                 <div className="px-2 py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-base-content/45">
-                  {snapshot.weekButtonLabel}
+                  <CalendarText value={String(readSnapshot().weekButtonLabel)} />
                 </div>
               ) : null}
-              {snapshot.weekdayLabels.map(label => (
+              {readSnapshot().weekdayLabels.map(label => (
                 <div
                   key={label}
                   className="px-2 py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-base-content/45"
@@ -918,102 +757,16 @@ const renderOptimizedDefaultCalendarView = (snapshot: OptimizedDefaultCalendarSn
             </div>
 
             <div role="grid" className="space-y-2">
-              {snapshot.dateRows.map(row => (
-                <div key={row.key} role="row" className={snapshot.rowClassName}>
-                  {snapshot.showWeek ? (
-                    <div
-                      className="flex items-center justify-center rounded-[1rem] border border-base-300/70 bg-base-200/60 text-sm font-semibold text-base-content/60"
-                      data-rue-calendar-week={row.week}
-                    >
-                      {row.week}
-                    </div>
-                  ) : null}
-                  {row.cells.map(cell => {
-                    const state = snapshot.dateCellStates.get(cell.key)!
-                    return (
-                      <button
-                        type="button"
-                        key={cell.key}
-                        role="gridcell"
-                        data-rue-calendar-cell={cell.key}
-                        data-rue-calendar-in-view={state.inView ? 'true' : 'false'}
-                        aria-pressed={state.selected ? 'true' : 'false'}
-                        aria-current={state.isToday ? 'date' : undefined}
-                        disabled={state.disabled}
-                        className={buildDateButtonClassName(
-                          fullscreen,
-                          state.selected,
-                          state.disabled,
-                          state.inView,
-                          state.isToday,
-                        )}
-                        onClick={() => snapshot.onDateSelect(cell.date)}
-                      >
-                        {snapshot.hasDateCustomRender ? (
-                          (snapshot.managedCellContent.get(cell.key)?.content ?? null)
-                        ) : (
-                          <span className="flex items-start justify-between gap-2">
-                            <span
-                              className={`text-sm font-semibold ${state.inView ? '' : 'opacity-60'}`}
-                            >
-                              {state.dayNumber}
-                            </span>
-                            {state.isToday ? (
-                              <span
-                                className={`badge badge-xs ${state.selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
-                              >
-                                {snapshot.todayMarkerLabel}
-                              </span>
-                            ) : null}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
+              {readSnapshot().dateRows.map((rowArg0: any, rowIndex: number) => (
+                <CompiledRow101 rowArg0={rowArg0} />
               ))}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-            {snapshot.monthOptions.map(monthOption => {
-              const monthDate = createDate(
-                snapshot.currentValue.getFullYear(),
-                monthOption.value,
-                1,
-              )
-              const selected = isSameMonth(monthDate, snapshot.currentValue)
-              const isToday = isSameMonth(monthDate, startOfDay(new Date()))
-              const disabled = monthOption.disabled === true
-              return (
-                <button
-                  type="button"
-                  key={`${snapshot.currentValue.getFullYear()}-${monthOption.value}`}
-                  data-rue-calendar-month={`${snapshot.currentValue.getFullYear()}-${`${monthOption.value + 1}`.padStart(2, '0')}`}
-                  aria-pressed={selected ? 'true' : 'false'}
-                  disabled={disabled}
-                  className={buildMonthButtonClassName(fullscreen, selected, disabled, isToday)}
-                  onClick={() => snapshot.onMonthSelect(monthDate)}
-                >
-                  {snapshot.hasMonthCustomRender ? (
-                    (snapshot.managedCellContent.get(
-                      `${snapshot.currentValue.getFullYear()}-${`${monthOption.value + 1}`.padStart(2, '0')}`,
-                    )?.content ?? null)
-                  ) : (
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{monthOption.label}</span>
-                      {isToday ? (
-                        <span
-                          className={`badge badge-xs ${selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
-                        >
-                          {snapshot.todayMarkerLabel}
-                        </span>
-                      ) : null}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+            {readSnapshot().monthOptions.map((rowArg0: any, rowIndex: number) => (
+              <CompiledRow1 rowArg0={rowArg0} />
+            ))}
           </div>
         )}
       </div>
@@ -1408,13 +1161,8 @@ const CalendarPanelImpl: FC<CalendarProps> = ({
   weekStartsOn,
   validRange,
   disabledDate,
-  dateFullCellRender,
-  dateCellRender,
-  monthFullCellRender,
-  monthCellRender,
-  cellRender,
-  fullCellRender,
-  headerRender,
+  cellFormatter,
+  headerTitleFormatter,
   className,
   onRenderProfile,
   renderProfileThreshold = 16,
@@ -1423,11 +1171,10 @@ const CalendarPanelImpl: FC<CalendarProps> = ({
   onSelect,
   ...rest
 }) => {
-  const renderProfile = createCalendarRenderProfileState(!!onRenderProfile, renderProfileThreshold)
-  const uncontrolledState = useSetup(() => ({
+  const uncontrolledState = {
     value: ref(normalizeDate(value ?? defaultValue ?? new Date())),
     mode: ref<CalendarMode>(mode ?? 'month'),
-  }))
+  }
   const uncontrolledValue = uncontrolledState.value
   const uncontrolledMode = uncontrolledState.mode
   const selectableDateCacheRef = useRef<CalendarSelectabilityCaches['date']>()
@@ -1436,583 +1183,299 @@ const CalendarPanelImpl: FC<CalendarProps> = ({
   const cacheRangeStartRef = useRef<number | null>(null)
   const cacheRangeEndRef = useRef<number | null>(null)
   const cacheDisabledDateSignatureRef = useRef('__none__')
-  const currentValue =
-    value !== undefined ? normalizeDate(value, uncontrolledValue.value) : uncontrolledValue.value
-  const currentMode = mode ?? uncontrolledMode.value
-  const today = startOfDay(new Date())
-  const range = normalizeRange(validRange)
-  const hasSelectabilityConstraints = !!range || !!disabledDate
-  const resolvedLocale =
-    locale ??
-    (typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'zh-CN')
-  const resolvedWeekStart = clampWeekStart(weekStartsOn)
-  const isZhLocale = resolvedLocale.toLowerCase().startsWith('zh')
+  const viewSnapshot = computed(() => {
+    const renderProfile = createCalendarRenderProfileState(
+      !!onRenderProfile,
+      renderProfileThreshold,
+    )
+    const currentValue =
+      value !== undefined ? normalizeDate(value, uncontrolledValue.value) : uncontrolledValue.value
+    const currentMode = mode ?? uncontrolledMode.value
+    const today = startOfDay(new Date())
+    const range = normalizeRange(validRange)
+    const hasSelectabilityConstraints = !!range || !!disabledDate
+    const resolvedLocale =
+      locale ??
+      (typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'zh-CN')
+    const resolvedWeekStart = clampWeekStart(weekStartsOn)
+    const isZhLocale = resolvedLocale.toLowerCase().startsWith('zh')
 
-  if (!selectableDateCacheRef.current) {
-    selectableDateCacheRef.current = createSelectabilityCaches().date
-  }
-  if (!selectableMonthCacheRef.current) {
-    selectableMonthCacheRef.current = createSelectabilityCaches().month
-  }
-  if (!selectableYearCacheRef.current) {
-    selectableYearCacheRef.current = createSelectabilityCaches().year
-  }
-
-  const rangeStart = range ? range.start.getTime() : null
-  const rangeEnd = range ? range.end.getTime() : null
-  const disabledDateSignature = disabledDate ? disabledDate.toString() : '__none__'
-  if (
-    cacheRangeStartRef.current !== rangeStart ||
-    cacheRangeEndRef.current !== rangeEnd ||
-    cacheDisabledDateSignatureRef.current !== disabledDateSignature
-  ) {
-    selectableDateCacheRef.current.clear()
-    selectableMonthCacheRef.current.clear()
-    selectableYearCacheRef.current.clear()
-    cacheRangeStartRef.current = rangeStart
-    cacheRangeEndRef.current = rangeEnd
-    cacheDisabledDateSignatureRef.current = disabledDateSignature
-  }
-
-  const resolveDateSelectable = (date: Date) => {
-    if (!hasSelectabilityConstraints) {
-      return true
+    if (!selectableDateCacheRef.current) {
+      selectableDateCacheRef.current = createSelectabilityCaches().date
+    }
+    if (!selectableMonthCacheRef.current) {
+      selectableMonthCacheRef.current = createSelectabilityCaches().month
+    }
+    if (!selectableYearCacheRef.current) {
+      selectableYearCacheRef.current = createSelectabilityCaches().year
     }
 
-    const cacheKey = formatDateKey(startOfDay(date))
-    const cached = selectableDateCacheRef.current?.get(cacheKey)
-    if (cached !== undefined) {
-      return cached
+    const rangeStart = range ? range.start.getTime() : null
+    const rangeEnd = range ? range.end.getTime() : null
+    const disabledDateSignature = disabledDate ? disabledDate.toString() : '__none__'
+    if (
+      cacheRangeStartRef.current !== rangeStart ||
+      cacheRangeEndRef.current !== rangeEnd ||
+      cacheDisabledDateSignatureRef.current !== disabledDateSignature
+    ) {
+      selectableDateCacheRef.current.clear()
+      selectableMonthCacheRef.current.clear()
+      selectableYearCacheRef.current.clear()
+      cacheRangeStartRef.current = rangeStart
+      cacheRangeEndRef.current = rangeEnd
+      cacheDisabledDateSignatureRef.current = disabledDateSignature
     }
 
-    const selectable = isDateSelectable(date, range, disabledDate)
-    selectableDateCacheRef.current?.set(cacheKey, selectable)
-    return selectable
-  }
+    const resolveDateSelectable = (date: Date) => {
+      if (!hasSelectabilityConstraints) {
+        return true
+      }
 
-  const resolveMonthSelectable = (date: Date) => {
-    if (!hasSelectabilityConstraints) {
-      return true
+      const cacheKey = formatDateKey(startOfDay(date))
+      const cached = selectableDateCacheRef.current?.get(cacheKey)
+      if (cached !== undefined) {
+        return cached
+      }
+
+      const selectable = isDateSelectable(date, range, disabledDate)
+      selectableDateCacheRef.current?.set(cacheKey, selectable)
+      return selectable
     }
 
-    const cacheKey = `${date.getFullYear()}-${date.getMonth()}`
-    const cached = selectableMonthCacheRef.current?.get(cacheKey)
-    if (cached !== undefined) {
-      return cached
+    const resolveMonthSelectable = (date: Date) => {
+      if (!hasSelectabilityConstraints) {
+        return true
+      }
+
+      const cacheKey = `${date.getFullYear()}-${date.getMonth()}`
+      const cached = selectableMonthCacheRef.current?.get(cacheKey)
+      if (cached !== undefined) {
+        return cached
+      }
+
+      const selectable = monthHasSelectableDate(date, range, disabledDate, resolveDateSelectable)
+      selectableMonthCacheRef.current?.set(cacheKey, selectable)
+      return selectable
     }
 
-    const selectable = monthHasSelectableDate(date, range, disabledDate, resolveDateSelectable)
-    selectableMonthCacheRef.current?.set(cacheKey, selectable)
-    return selectable
-  }
+    const resolveYearSelectable = (date: Date) => {
+      if (!hasSelectabilityConstraints) {
+        return true
+      }
 
-  const resolveYearSelectable = (date: Date) => {
-    if (!hasSelectabilityConstraints) {
-      return true
+      const cacheKey = `${date.getFullYear()}`
+      const cached = selectableYearCacheRef.current?.get(cacheKey)
+      if (cached !== undefined) {
+        return cached
+      }
+
+      const selectable = yearHasSelectableDate(date, range, disabledDate, resolveMonthSelectable)
+      selectableYearCacheRef.current?.set(cacheKey, selectable)
+      return selectable
     }
 
-    const cacheKey = `${date.getFullYear()}`
-    const cached = selectableYearCacheRef.current?.get(cacheKey)
-    if (cached !== undefined) {
-      return cached
-    }
-
-    const selectable = yearHasSelectableDate(date, range, disabledDate, resolveMonthSelectable)
-    selectableYearCacheRef.current?.set(cacheKey, selectable)
-    return selectable
-  }
-
-  const isMonthMode = currentMode === 'month'
-  const weekdayLabels = isMonthMode ? getWeekdayLabels(resolvedLocale, resolvedWeekStart) : []
-  const dateRows = isMonthMode ? getVisibleDateRows(currentValue, resolvedWeekStart) : []
-  renderProfile.cellCount = isMonthMode
-    ? dateRows.reduce((count, row) => count + row.cells.length, 0)
-    : 12
-  const yearOptions = getYearOptions(currentValue, range)
-  const monthOptions = getMonthOptions(
-    resolvedLocale,
-    currentValue,
-    hasSelectabilityConstraints ? range : null,
-    hasSelectabilityConstraints ? disabledDate : undefined,
-    hasSelectabilityConstraints ? resolveMonthSelectable : undefined,
-  )
-  const rootClassName = mergeClassName(
-    `overflow-hidden border border-base-300 bg-gradient-to-b from-base-100 via-base-100 to-base-200/70 text-base-content shadow-sm ${fullscreen ? 'rounded-[1.75rem]' : 'w-full max-w-[24rem] rounded-[1.5rem]'}`,
-    className,
-  )
-  const rowClassName = showWeek
-    ? 'grid grid-cols-[3.25rem_repeat(7,minmax(0,1fr))] gap-2'
-    : 'grid grid-cols-7 gap-2'
-  const headerTitle =
-    currentMode === 'month'
-      ? getMonthYearFormatter(resolvedLocale).format(currentValue)
-      : getYearFormatter(resolvedLocale).format(currentValue)
-  const todayLabel = getTodayFormatter(resolvedLocale).format(today)
-  const todayButtonLabel = isZhLocale ? '今天' : 'Today'
-  const monthButtonLabel = isZhLocale ? '月' : 'Month'
-  const yearButtonLabel = isZhLocale ? '年' : 'Year'
-  const weekButtonLabel = isZhLocale ? '周' : 'Week'
-  const todayMarkerLabel = isZhLocale ? '今' : 'Today'
-  const viewLabel =
-    currentMode === 'month'
-      ? isZhLocale
-        ? '月视图'
-        : 'Month view'
-      : isZhLocale
-        ? '年视图'
-        : 'Year view'
-  const previousDisabled = !hasSelectabilityConstraints
-    ? false
-    : currentMode === 'month'
-      ? !resolveMonthSelectable(addMonths(currentValue, -1))
-      : !resolveYearSelectable(addYears(currentValue, -1))
-  const nextDisabled = !hasSelectabilityConstraints
-    ? false
-    : currentMode === 'month'
-      ? !resolveMonthSelectable(addMonths(currentValue, 1))
-      : !resolveYearSelectable(addYears(currentValue, 1))
-  const todayDisabled = hasSelectabilityConstraints ? !resolveDateSelectable(today) : false
-  const hasDateCustomRender = !!(
-    cellRender ||
-    fullCellRender ||
-    dateCellRender ||
-    dateFullCellRender
-  )
-  const hasMonthCustomRender = !!(
-    cellRender ||
-    fullCellRender ||
-    monthCellRender ||
-    monthFullCellRender
-  )
-  const triggerChange = (nextInput: CalendarValue, source: CalendarSelectSource) => {
-    const nextDate = startOfDay(normalizeDate(nextInput, currentValue))
-    const changed = !isSameDate(nextDate, currentValue)
-    const panelChanged =
+    const isMonthMode = currentMode === 'month'
+    const weekdayLabels = isMonthMode ? getWeekdayLabels(resolvedLocale, resolvedWeekStart) : []
+    const dateRows = isMonthMode ? getVisibleDateRows(currentValue, resolvedWeekStart) : []
+    renderProfile.cellCount = isMonthMode
+      ? dateRows.reduce((count, row) => count + row.cells.length, 0)
+      : 12
+    const yearOptions = getYearOptions(currentValue, range)
+    const monthOptions = getMonthOptions(
+      resolvedLocale,
+      currentValue,
+      hasSelectabilityConstraints ? range : null,
+      hasSelectabilityConstraints ? disabledDate : undefined,
+      hasSelectabilityConstraints ? resolveMonthSelectable : undefined,
+    )
+    const rootClassName = mergeClassName(
+      `overflow-hidden border border-base-300 bg-gradient-to-b from-base-100 via-base-100 to-base-200/70 text-base-content shadow-sm ${fullscreen ? 'rounded-[1.75rem]' : 'w-full max-w-[24rem] rounded-[1.5rem]'}`,
+      className,
+    )
+    const rowClassName = showWeek
+      ? 'grid grid-cols-[3.25rem_repeat(7,minmax(0,1fr))] gap-2'
+      : 'grid grid-cols-7 gap-2'
+    const headerTitle = headerTitleFormatter
+      ? headerTitleFormatter(cloneDate(currentValue), currentMode)
+      : currentMode === 'month'
+        ? getMonthYearFormatter(resolvedLocale).format(currentValue)
+        : getYearFormatter(resolvedLocale).format(currentValue)
+    const todayLabel = getTodayFormatter(resolvedLocale).format(today)
+    const todayButtonLabel = isZhLocale ? '今天' : 'Today'
+    const monthButtonLabel = isZhLocale ? '月' : 'Month'
+    const yearButtonLabel = isZhLocale ? '年' : 'Year'
+    const weekButtonLabel = isZhLocale ? '周' : 'Week'
+    const todayMarkerLabel = isZhLocale ? '今' : 'Today'
+    const viewLabel =
       currentMode === 'month'
-        ? !isSameMonth(nextDate, currentValue)
-        : !isSameYear(nextDate, currentValue)
+        ? isZhLocale
+          ? '月视图'
+          : 'Month view'
+        : isZhLocale
+          ? '年视图'
+          : 'Year view'
+    const previousDisabled = !hasSelectabilityConstraints
+      ? false
+      : currentMode === 'month'
+        ? !resolveMonthSelectable(addMonths(currentValue, -1))
+        : !resolveYearSelectable(addYears(currentValue, -1))
+    const nextDisabled = !hasSelectabilityConstraints
+      ? false
+      : currentMode === 'month'
+        ? !resolveMonthSelectable(addMonths(currentValue, 1))
+        : !resolveYearSelectable(addYears(currentValue, 1))
+    const todayDisabled = hasSelectabilityConstraints ? !resolveDateSelectable(today) : false
+    const hasDateCustomRender = !!cellFormatter
+    const hasMonthCustomRender = !!cellFormatter
+    const triggerChange = (nextInput: CalendarValue, source: CalendarSelectSource) => {
+      const nextDate = startOfDay(normalizeDate(nextInput, currentValue))
+      const changed = !isSameDate(nextDate, currentValue)
+      const panelChanged =
+        currentMode === 'month'
+          ? !isSameMonth(nextDate, currentValue)
+          : !isSameYear(nextDate, currentValue)
 
-    if (value === undefined) {
-      uncontrolledValue.value = nextDate
+      if (value === undefined) {
+        uncontrolledValue.value = nextDate
+      }
+
+      if (changed) {
+        onChange?.(cloneDate(nextDate))
+      }
+      if (panelChanged) {
+        onPanelChange?.(cloneDate(nextDate), currentMode)
+      }
+
+      onSelect?.(cloneDate(nextDate), { source })
     }
 
-    if (changed) {
-      onChange?.(cloneDate(nextDate))
-    }
-    if (panelChanged) {
-      onPanelChange?.(cloneDate(nextDate), currentMode)
-    }
-
-    onSelect?.(cloneDate(nextDate), { source })
-  }
-
-  const triggerModeChange = (nextMode: CalendarMode) => {
-    if (nextMode === currentMode) {
-      return
-    }
-    if (mode === undefined) {
-      uncontrolledMode.value = nextMode
-    }
-    onPanelChange?.(cloneDate(currentValue), nextMode)
-  }
-
-  const headerConfig: CalendarHeaderRenderConfig = {
-    value: cloneDate(currentValue),
-    type: currentMode,
-    yearOptions,
-    monthOptions,
-    onChange: nextDate => triggerChange(nextDate, 'customize'),
-    onTypeChange: triggerModeChange,
-    onYearChange: year => triggerChange(setCalendarYear(currentValue, year), 'customize'),
-    onMonthChange: month => triggerChange(setCalendarMonth(currentValue, month), 'customize'),
-  }
-  const hasCustomHeader = !!headerRender
-  const customHeaderContent = headerRender ? headerRender(headerConfig) : null
-
-  const optimizedCtx = useSetup(() => ({
-    host: null as HTMLElement | null,
-    lastSnapshot: null as OptimizedDefaultCalendarSnapshot | null,
-    managedContentMounts: new Map<string, ManagedCalendarMount>(),
-    managedHeaderMount: null as ManagedCalendarMount | null,
-    eventsAttached: false,
-    cleanupVersion: 0,
-  }))
-
-  /** 绑定一次事件委托，把 fast HTML 中的 data 属性还原为 Calendar 交互回调。 */
-  const ensureHostEvents = () => {
-    if (!optimizedCtx.host || optimizedCtx.eventsAttached) {
-      return
+    const triggerModeChange = (nextMode: CalendarMode) => {
+      if (nextMode === currentMode) {
+        return
+      }
+      if (mode === undefined) {
+        uncontrolledMode.value = nextMode
+      }
+      onPanelChange?.(cloneDate(currentValue), nextMode)
     }
 
-    optimizedCtx.host.addEventListener('click', event => {
-      const snapshot = optimizedCtx.lastSnapshot
-      const target = event.target as HTMLElement | null
-      const control = target?.closest(
-        '[data-rue-calendar-action], [data-rue-calendar-cell], [data-rue-calendar-month]',
-      ) as HTMLButtonElement | null
-      if (!snapshot || !control || !optimizedCtx.host?.contains(control) || control.disabled) {
-        return
-      }
-
-      const action = control.getAttribute('data-rue-calendar-action')
-      if (action === 'previous') {
-        snapshot.onPrevious()
-        return
-      }
-      if (action === 'today') {
-        snapshot.onToday()
-        return
-      }
-      if (action === 'next') {
-        snapshot.onNext()
-        return
-      }
-      if (action === 'mode-month') {
-        snapshot.onModeMonth()
-        return
-      }
-      if (action === 'mode-year') {
-        snapshot.onModeYear()
-        return
-      }
-
-      const dateKey = control.getAttribute('data-rue-calendar-cell')
-      if (dateKey) {
-        snapshot.onDateSelect(normalizeDate(dateKey, snapshot.currentValue))
-        return
-      }
-
-      const monthKey = control.getAttribute('data-rue-calendar-month')
-      if (monthKey) {
-        const [year, month] = monthKey.split('-').map(part => Number(part))
-        if (Number.isFinite(year) && Number.isFinite(month)) {
-          snapshot.onMonthSelect(createDate(year, month - 1, 1))
+    const dateCellStates = /*#__PURE__*/ new Map<string, DefaultDateCellState>()
+    if (isMonthMode) {
+      for (const row of dateRows) {
+        for (const cell of row.cells) {
+          dateCellStates.set(cell.key, {
+            key: cell.key,
+            dayNumber: cell.date.getDate(),
+            inView: cell.inView,
+            selected: isSameDate(cell.date, currentValue),
+            isToday: isSameDate(cell.date, today),
+            disabled: !resolveDateSelectable(cell.date),
+          })
         }
       }
-    })
-
-    optimizedCtx.host.addEventListener('change', event => {
-      const snapshot = optimizedCtx.lastSnapshot
-      const target = event.target as HTMLSelectElement | null
-      if (!snapshot || !target || !optimizedCtx.host?.contains(target)) {
-        return
-      }
-
-      const select = target.getAttribute('data-rue-calendar-select')
-      const value = Number(target.value)
-      if (!Number.isFinite(value)) {
-        return
-      }
-      if (select === 'year') {
-        snapshot.onYearChange(value)
-      } else if (select === 'month') {
-        snapshot.onMonthChange(value)
-      }
-    })
-
-    optimizedCtx.eventsAttached = true
-  }
-
-  const dateCellStates = /*#__PURE__*/ new Map<string, DefaultDateCellState>()
-  if (isMonthMode) {
-    for (const row of dateRows) {
-      for (const cell of row.cells) {
-        dateCellStates.set(cell.key, {
-          key: cell.key,
-          dayNumber: cell.date.getDate(),
-          inView: cell.inView,
-          selected: isSameDate(cell.date, currentValue),
-          isToday: isSameDate(cell.date, today),
-          disabled: !resolveDateSelectable(cell.date),
-        })
-      }
     }
-  }
 
-  const snapshotYearOptions = yearOptions.map(year => ({
-    value: year,
-    disabled: !resolveYearSelectable(createDate(year, currentValue.getMonth(), 1)),
-  }))
-  const managedCellContent = /*#__PURE__*/ new Map<string, ManagedCalendarCellContent>()
-  if (isMonthMode && hasDateCustomRender) {
-    dateRows.forEach((row, rowIndex) => {
-      row.cells.forEach((cell, columnIndex) => {
-        const state = dateCellStates.get(cell.key)!
-        const cellMeta = {
-          type: 'date' as const,
-          key: cell.key,
-          row: rowIndex,
-          column: columnIndex,
-        }
-        const bareNode = (
-          <div className="flex h-full flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <span className={`text-sm font-semibold ${cell.inView ? '' : 'opacity-60'}`}>
-                {cell.date.getDate()}
-              </span>
-              {state.isToday ? (
-                <span
-                  className={`badge badge-xs ${state.selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
-                >
-                  {todayMarkerLabel}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        )
-        let content = cellRender
-          ? invokeCalendarRender(renderProfile, 'cellRender', cellMeta, () =>
-              cellRender(cloneDate(cell.date), {
-                type: 'date',
-                originNode: bareNode,
-                today: cloneDate(today),
-                selected: state.selected,
-                isToday: state.isToday,
-                inView: cell.inView,
-                disabled: state.disabled,
-                row: rowIndex,
-                column: columnIndex,
-                week: row.week,
-              }),
-            )
-          : undefined
-        if (content == null && dateCellRender) {
-          content = invokeCalendarRender(renderProfile, 'dateCellRender', cellMeta, () =>
-            dateCellRender(cloneDate(cell.date)),
+    const snapshotYearOptions = yearOptions.map(year => ({
+      value: year,
+      disabled: !resolveYearSelectable(createDate(year, currentValue.getMonth(), 1)),
+    }))
+    const managedCellContent = new Map<string, ManagedCalendarCellContent>()
+    if (cellFormatter) {
+      const cells = isMonthMode
+        ? dateRows.flatMap((row, rowIndex) =>
+            row.cells.map((cell, column) => ({
+              date: cell.date,
+              key: cell.key,
+              inView: cell.inView,
+              row: rowIndex,
+              column,
+              week: row.week,
+            })),
           )
-        }
-        const originNode = (
-          <div className="flex h-full flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <span className={`text-sm font-semibold ${cell.inView ? '' : 'opacity-60'}`}>
-                {cell.date.getDate()}
-              </span>
-              {state.isToday ? (
-                <span
-                  className={`badge badge-xs ${state.selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
-                >
-                  {todayMarkerLabel}
-                </span>
-              ) : null}
-            </div>
-            <div
-              className={`min-h-[1.85rem] text-[0.68rem] leading-4 ${state.selected ? 'opacity-90' : 'opacity-75'}`}
-            >
-              {content}
-            </div>
-          </div>
-        )
-        let rendered = fullCellRender
-          ? invokeCalendarRender(renderProfile, 'fullCellRender', cellMeta, () =>
-              fullCellRender(cloneDate(cell.date), {
-                type: 'date',
-                originNode,
-                today: cloneDate(today),
-                selected: state.selected,
-                isToday: state.isToday,
-                inView: cell.inView,
-                disabled: state.disabled,
-                row: rowIndex,
-                column: columnIndex,
-                week: row.week,
-              }),
-            )
-          : undefined
-        if (rendered == null && dateFullCellRender) {
-          rendered = invokeCalendarRender(renderProfile, 'dateFullCellRender', cellMeta, () =>
-            dateFullCellRender(cloneDate(cell.date)),
-          )
-        }
-        managedCellContent.set(cell.key, {
-          key: cell.key,
-          type: 'date',
-          content: rendered ?? originNode,
-        })
-      })
-    })
-  } else if (!isMonthMode && hasMonthCustomRender) {
-    monthOptions.forEach((monthOption, index) => {
-      const monthDate = createDate(currentValue.getFullYear(), monthOption.value, 1)
-      const selected = isSameMonth(monthDate, currentValue)
-      const isToday = isSameMonth(monthDate, today)
-      const disabled = monthOption.disabled === true
-      const monthKey = `${currentValue.getFullYear()}-${`${monthOption.value + 1}`.padStart(2, '0')}`
-      const cellMeta = {
-        type: 'month' as const,
-        key: monthKey,
-        row: Math.floor(index / 4),
-        column: index % 4,
-      }
-      const bareNode = (
-        <div className="flex h-full flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold">{monthOption.label}</span>
-            {isToday ? (
-              <span
-                className={`badge badge-xs ${selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
-              >
-                {todayMarkerLabel}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      )
-      let content = cellRender
-        ? invokeCalendarRender(renderProfile, 'cellRender', cellMeta, () =>
-            cellRender(cloneDate(monthDate), {
-              type: 'month',
-              originNode: bareNode,
+        : monthOptions.map((month, index) => ({
+            date: createDate(currentValue.getFullYear(), month.value, 1),
+            key: `${currentValue.getFullYear()}-${String(month.value + 1).padStart(2, '0')}`,
+            inView: true,
+            row: Math.floor(index / 4),
+            column: index % 4,
+            week: undefined,
+          }))
+      for (const cell of cells) {
+        const type = isMonthMode ? 'date' : 'month'
+        const selected = isMonthMode
+          ? isSameDate(cell.date, currentValue)
+          : isSameMonth(cell.date, currentValue)
+        const content = invokeCalendarRender(
+          renderProfile,
+          'cellFormatter',
+          { type, key: cell.key, row: cell.row, column: cell.column },
+          () =>
+            cellFormatter(cloneDate(cell.date), {
+              type,
               today: cloneDate(today),
               selected,
-              isToday,
-              inView: true,
-              disabled,
-              row: Math.floor(index / 4),
-              column: index % 4,
+              isToday: isMonthMode ? isSameDate(cell.date, today) : isSameMonth(cell.date, today),
+              inView: cell.inView,
+              disabled: !resolveDateSelectable(cell.date),
+              row: cell.row,
+              column: cell.column,
+              week: cell.week,
             }),
-          )
-        : undefined
-      if (content == null && monthCellRender) {
-        content = invokeCalendarRender(renderProfile, 'monthCellRender', cellMeta, () =>
-          monthCellRender(cloneDate(monthDate)),
         )
+        managedCellContent.set(cell.key, { key: cell.key, type, content: String(content ?? '') })
       }
-      const originNode = (
-        <div className="flex h-full flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold">{monthOption.label}</span>
-            {isToday ? (
-              <span
-                className={`badge badge-xs ${selected ? 'badge-neutral text-neutral-content' : 'badge-primary badge-outline'}`}
-              >
-                {todayMarkerLabel}
-              </span>
-            ) : null}
-          </div>
-          <div
-            className={`min-h-[2.1rem] text-xs leading-5 ${selected ? 'opacity-90' : 'opacity-75'}`}
-          >
-            {content}
-          </div>
-        </div>
-      )
-      let rendered = fullCellRender
-        ? invokeCalendarRender(renderProfile, 'fullCellRender', cellMeta, () =>
-            fullCellRender(cloneDate(monthDate), {
-              type: 'month',
-              originNode,
-              today: cloneDate(today),
-              selected,
-              isToday,
-              inView: true,
-              disabled,
-              row: Math.floor(index / 4),
-              column: index % 4,
-            }),
-          )
-        : undefined
-      if (rendered == null && monthFullCellRender) {
-        rendered = invokeCalendarRender(renderProfile, 'monthFullCellRender', cellMeta, () =>
-          monthFullCellRender(cloneDate(monthDate)),
-        )
-      }
-      managedCellContent.set(monthKey, {
-        key: monthKey,
-        type: 'month',
-        content: rendered ?? originNode,
-      })
-    })
-  }
+    }
 
-  const optimizedSnapshot: OptimizedDefaultCalendarSnapshot = {
-    rest,
-    rootClassName,
-    fullscreen,
-    hasCustomHeader,
-    customHeaderContent,
-    currentMode,
-    currentValue: cloneDate(currentValue),
-    headerTitle,
-    todayLabel,
-    previousDisabled,
-    nextDisabled,
-    todayDisabled,
-    yearOptions: snapshotYearOptions,
-    monthOptions,
-    weekdayLabels,
-    dateRows,
-    rowClassName,
-    showWeek,
-    viewLabel,
-    weekButtonLabel,
-    todayButtonLabel,
-    monthButtonLabel,
-    yearButtonLabel,
-    todayMarkerLabel,
-    dateCellStates,
-    managedCellContent,
-    hasDateCustomRender,
-    hasMonthCustomRender,
-    onPrevious: () =>
-      triggerChange(
-        currentMode === 'month' ? addMonths(currentValue, -1) : addYears(currentValue, -1),
-        'customize',
-      ),
-    onToday: () => triggerChange(today, 'customize'),
-    onNext: () =>
-      triggerChange(
-        currentMode === 'month' ? addMonths(currentValue, 1) : addYears(currentValue, 1),
-        'customize',
-      ),
-    onYearChange: year => triggerChange(setCalendarYear(currentValue, year), 'customize'),
-    onMonthChange: month => triggerChange(setCalendarMonth(currentValue, month), 'customize'),
-    onModeMonth: () => triggerModeChange('month'),
-    onModeYear: () => triggerModeChange('year'),
-    onDateSelect: date => triggerChange(date, 'date'),
-    onMonthSelect: date => triggerChange(date, 'month'),
-  }
+    const optimizedSnapshot: OptimizedDefaultCalendarSnapshot = {
+      rest: {},
+      rootClassName,
+      fullscreen,
+      currentMode,
+      currentValue: cloneDate(currentValue),
+      headerTitle,
+      todayLabel,
+      previousDisabled,
+      nextDisabled,
+      todayDisabled,
+      yearOptions: snapshotYearOptions,
+      monthOptions,
+      weekdayLabels,
+      dateRows,
+      rowClassName,
+      showWeek,
+      viewLabel,
+      weekButtonLabel,
+      todayButtonLabel,
+      monthButtonLabel,
+      yearButtonLabel,
+      todayMarkerLabel,
+      dateCellStates,
+      managedCellContent,
+      hasDateCustomRender,
+      hasMonthCustomRender,
+      onPrevious: () =>
+        triggerChange(
+          currentMode === 'month' ? addMonths(currentValue, -1) : addYears(currentValue, -1),
+          'customize',
+        ),
+      onToday: () => triggerChange(today, 'customize'),
+      onNext: () =>
+        triggerChange(
+          currentMode === 'month' ? addMonths(currentValue, 1) : addYears(currentValue, 1),
+          'customize',
+        ),
+      onYearChange: year => triggerChange(setCalendarYear(currentValue, year), 'customize'),
+      onMonthChange: month => triggerChange(setCalendarMonth(currentValue, month), 'customize'),
+      onModeMonth: () => triggerModeChange('month'),
+      onModeYear: () => triggerModeChange('year'),
+      onDateSelect: date => triggerChange(date, 'date'),
+      onMonthSelect: date => triggerChange(date, 'month'),
+    }
 
-  onUnmounted(() => {
-    const cleanupVersion = ++optimizedCtx.cleanupVersion
-    queueMicrotask(() => {
-      if (optimizedCtx.cleanupVersion !== cleanupVersion) {
-        return
-      }
-      clearManagedCalendarContent(optimizedCtx.managedContentMounts)
-      clearManagedCalendarMount(optimizedCtx.managedHeaderMount)
-      optimizedCtx.managedHeaderMount = null
-      if (optimizedCtx.host) {
-        optimizedCtx.host.replaceChildren()
-      }
-      optimizedCtx.lastSnapshot = null
-    })
+    emitCalendarRenderProfile(onRenderProfile, renderProfile, currentMode, 'compiled')
+    return optimizedSnapshot
   })
-
-  if (typeof document === 'undefined') {
-    emitCalendarRenderProfile(onRenderProfile, renderProfile, currentMode, 'jsx')
-    return renderOptimizedDefaultCalendarView(optimizedSnapshot) as any
-  }
-
-  optimizedCtx.cleanupVersion += 1
-  clearManagedCalendarContent(optimizedCtx.managedContentMounts)
-  clearManagedCalendarMount(optimizedCtx.managedHeaderMount)
-  optimizedCtx.managedHeaderMount = null
-  const host = document.createElement('span')
-  host.style.display = 'contents'
-  optimizedCtx.host = host
-  optimizedCtx.eventsAttached = false
-  optimizedCtx.lastSnapshot = null
-  ensureHostEvents()
-  host.innerHTML = renderOptimizedDefaultCalendarHTML(optimizedSnapshot)
-  syncManagedCalendarContent(host, optimizedCtx.managedContentMounts, optimizedSnapshot)
-  optimizedCtx.managedHeaderMount = syncManagedCalendarHeaderContent(
-    host,
-    optimizedCtx.managedHeaderMount,
-    optimizedSnapshot,
-  )
-  optimizedCtx.lastSnapshot = optimizedSnapshot
-  emitCalendarRenderProfile(onRenderProfile, renderProfile, currentMode, 'html')
-  return host
+  return <RenderOptimizedDefaultCalendarView arg0={viewSnapshot.get()} rootProps={rest} />
 }
 
 const CalendarPanel = CalendarPanelImpl

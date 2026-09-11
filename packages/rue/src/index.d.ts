@@ -229,12 +229,6 @@ export {
   isReadonly,
   /** 读取当前 Rue 应用实例和插件上下文。 */
   useApp,
-  /** 将浏览器全局错误接入 Rue 错误链，返回清理函数。 */
-  installBrowserErrorBridge,
-  /** 安装控制台错误报告，返回清理函数。 */
-  installErrorConsole,
-  /** 安装开发错误遮罩，清理时取消订阅并移除遮罩。 */
-  installDevErrorOverlay,
   /** 按名称或加载器解析组件，支持异步组件。 */
   useComponent,
   /** 在浏览器空闲时激活异步组件。 */

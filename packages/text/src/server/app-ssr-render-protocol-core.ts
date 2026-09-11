@@ -9,7 +9,7 @@ export type AppSsrRenderOptions = {
   bootstrapModules?: string[]
   formState?: AppRscFormState | null
   nonce?: string
-  onError?: (error: unknown) => string | undefined
+  onError?: (error: unknown) => Promise<string> | undefined
 }
 
 export type AppSsrRenderProtocol = {
@@ -17,7 +17,7 @@ export type AppSsrRenderProtocol = {
     node: TextCompatNode,
     options: AppSsrRenderOptions,
   ) => Promise<AppSsrReadableStream>
-  renderToStaticMarkup: (node: TextCompatNode) => string
+  renderToStaticMarkup: (node: TextCompatNode) => Promise<string>
 }
 
 export function createAppSsrRenderProtocol(protocol: AppSsrRenderProtocol): AppSsrRenderProtocol {

@@ -8,7 +8,7 @@
  * be bundled for the browser.
  */
 
-import { _registerHeadStateAccessors } from './head.js'
+import { _registerHeadStateAccessors } from './head-records.js'
 import { getOrCreateAls } from './internal/als-registry.js'
 import {
   getRequestContext,

@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Flex } from '@rue-js/design'
+import Flex from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,12 +19,14 @@ describe('Flex', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Flex className="rounded-box border border-base-300" data-testid="flex-root">
-        <div>A</div>
-        <div>B</div>
-      </Flex>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Flex className="rounded-box border border-base-300" data-testid="flex-root">
+          <div>A</div>
+          <div>B</div>
+        </Flex>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -42,9 +45,11 @@ describe('Flex', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Flex vertical orientation="horizontal" inline data-testid="flex-orientation-override" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Flex vertical orientation="horizontal" inline data-testid="flex-orientation-override" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -62,9 +67,11 @@ describe('Flex', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Flex justify="between" align="middle" wrap gap="medium" data-testid="flex-layout" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Flex justify="between" align="middle" wrap gap="medium" data-testid="flex-layout" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -80,9 +87,11 @@ describe('Flex', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Flex as="section" id="flex-section" flex="1 0 240px" gap={12} data-testid="flex-as" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Flex as="section" id="flex-section" flex="1 0 240px" gap={12} data-testid="flex-as" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -98,7 +107,7 @@ describe('Flex', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Flex vertical data-testid="flex-vertical" />, container)
+    mountTestApp(container, () => render(<Flex vertical data-testid="flex-vertical" />, container))
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="flex-vertical"]') as HTMLElement

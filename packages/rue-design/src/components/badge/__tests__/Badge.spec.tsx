@@ -1,7 +1,8 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { render } from '@rue-js/rue'
-import { Badge } from '@rue-js/design'
+import Badge from '..'
 
 const waitBadgeRender = () => new Promise(resolve => setTimeout(resolve, 0))
 
@@ -12,7 +13,7 @@ afterEach(() => {
 describe('Badge', () => {
   it('renders legacy badge classes and children', async () => {
     const c = document.createElement('div')
-    render(<Badge>Badge</Badge>, c)
+    mountTestApp(c, () => render(<Badge>Badge</Badge>, c))
     await waitBadgeRender()
     const el = c.querySelector('.badge') as HTMLElement
     expect(el).toBeTruthy()
@@ -23,7 +24,7 @@ describe('Badge', () => {
   it('applies size classes', async () => {
     const c = document.createElement('div')
     for (const s of ['xs', 'sm', 'md', 'lg', 'xl'] as const) {
-      render(<Badge size={s}>{'x'}</Badge>, c)
+      mountTestApp(c, () => render(<Badge size={s}>{'x'}</Badge>, c))
       await waitBadgeRender()
       const el = c.querySelector('.badge') as HTMLElement
       expect(el.classList.contains(`badge-${s}`)).toBe(true)
@@ -32,11 +33,13 @@ describe('Badge', () => {
 
   it('applies outline, dash, soft, ghost classes', async () => {
     const c = document.createElement('div')
-    render(
-      <Badge outline={true} dash={true} soft={true} ghost={true}>
-        {'x'}
-      </Badge>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Badge outline={true} dash={true} soft={true} ghost={true}>
+          {'x'}
+        </Badge>,
+        c,
+      ),
     )
     await waitBadgeRender()
     const el = c.querySelector('.badge') as HTMLElement
@@ -48,7 +51,7 @@ describe('Badge', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Badge className={'w-full'}>{'x'}</Badge>, c)
+    mountTestApp(c, () => render(<Badge className={'w-full'}>{'x'}</Badge>, c))
     await waitBadgeRender()
     const el = c.querySelector('.badge') as HTMLElement
     expect(el.classList.contains('w-full')).toBe(true)
@@ -66,7 +69,7 @@ describe('Badge', () => {
       'warning',
       'error',
     ] as const) {
-      render(<Badge variant={v}>{'x'}</Badge>, c)
+      mountTestApp(c, () => render(<Badge variant={v}>{'x'}</Badge>, c))
       await waitBadgeRender()
       const el = c.querySelector('.badge') as HTMLElement
       expect(el.classList.contains('badge')).toBe(true)
@@ -76,14 +79,14 @@ describe('Badge', () => {
 
   it('renders count with overflow and showZero support', async () => {
     const c = document.createElement('div')
-    render(<Badge count={128} overflowCount={99} />, c)
+    mountTestApp(c, () => render(<Badge count={128} overflowCount={99} />, c))
     await waitBadgeRender()
     const overflow = c.querySelector('.badge') as HTMLElement
     expect(overflow.textContent).toBe('99+')
     expect(overflow.classList.contains('badge-error')).toBe(true)
 
     c.innerHTML = ''
-    render(<Badge count={0} showZero={true} />, c)
+    mountTestApp(c, () => render(<Badge count={0} showZero={true} />, c))
     await waitBadgeRender()
     const zero = c.querySelector('.badge') as HTMLElement
     expect(zero.textContent).toBe('0')
@@ -91,11 +94,13 @@ describe('Badge', () => {
 
   it('renders wrapped indicator badge and offset styles', async () => {
     const c = document.createElement('div')
-    render(
-      <Badge count={8} offset={[10, 12]}>
-        <span className={'anchor'}>{'Inbox'}</span>
-      </Badge>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Badge count={8} offset={[10, 12]}>
+          <span className={'anchor'}>{'Inbox'}</span>
+        </Badge>,
+        c,
+      ),
     )
     await waitBadgeRender()
 
@@ -109,7 +114,7 @@ describe('Badge', () => {
 
   it('renders standalone count text in right-top indicator mode', async () => {
     const c = document.createElement('div')
-    render(<Badge count={7} text={'待审核'} color={'#f97316'} />, c)
+    mountTestApp(c, () => render(<Badge count={7} text={'待审核'} color={'#f97316'} />, c))
     await waitBadgeRender()
 
     const wrapper = c.querySelector('.indicator') as HTMLElement
@@ -125,7 +130,7 @@ describe('Badge', () => {
 
   it('renders status dot with text and processing animation', async () => {
     const c = document.createElement('div')
-    render(<Badge status={'processing'} text={'Live'} />, c)
+    mountTestApp(c, () => render(<Badge status={'processing'} text={'Live'} />, c))
     await waitBadgeRender()
     const status = c.querySelector('.status') as HTMLElement
     expect(status).toBeTruthy()
@@ -136,11 +141,13 @@ describe('Badge', () => {
 
   it('supports custom color and dot mode', async () => {
     const c = document.createElement('div')
-    render(
-      <Badge dot={true} color={'#0ea5e9'}>
-        <span>{'Inbox'}</span>
-      </Badge>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Badge dot={true} color={'#0ea5e9'}>
+          <span>{'Inbox'}</span>
+        </Badge>,
+        c,
+      ),
     )
     await waitBadgeRender()
     const dot = c.querySelector('.indicator-item.status') as HTMLElement
@@ -150,11 +157,13 @@ describe('Badge', () => {
 
   it('hides zero count indicator without falling back to label mode', async () => {
     const c = document.createElement('div')
-    render(
-      <Badge count={0}>
-        <span className={'anchor'}>{'Inbox'}</span>
-      </Badge>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Badge count={0}>
+          <span className={'anchor'}>{'Inbox'}</span>
+        </Badge>,
+        c,
+      ),
     )
     await waitBadgeRender()
     expect(c.querySelector('.indicator')).toBeTruthy()
@@ -165,11 +174,13 @@ describe('Badge', () => {
 
   it('exposes Ribbon as compounded component', async () => {
     const c = document.createElement('div')
-    render(
-      <Badge.Ribbon text={'Beta'} placement={'start'} color={'secondary'}>
-        <div className={'panel'}>{'Content'}</div>
-      </Badge.Ribbon>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Badge.Ribbon text={'Beta'} placement={'start'} color={'secondary'}>
+          <div className={'panel'}>{'Content'}</div>
+        </Badge.Ribbon>,
+        c,
+      ),
     )
     await waitBadgeRender()
 
@@ -181,11 +192,13 @@ describe('Badge', () => {
 
   it('uses primary ribbon styling by default when color is omitted', async () => {
     const c = document.createElement('div')
-    render(
-      <Badge.Ribbon text={'Beta'}>
-        <div className={'panel'}>{'Content'}</div>
-      </Badge.Ribbon>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Badge.Ribbon text={'Beta'}>
+          <div className={'panel'}>{'Content'}</div>
+        </Badge.Ribbon>,
+        c,
+      ),
     )
     await waitBadgeRender()
 

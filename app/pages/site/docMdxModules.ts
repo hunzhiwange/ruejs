@@ -35,9 +35,7 @@ export const createDocMdxResolver = (moduleLoaders: DocMdxModuleLoaders) => {
 
   return async (docId: string): Promise<FC | null> => {
     const loader = moduleLoadersByDocId.get(normalizeDocId(docId))
-    if (!loader) {
-      return null
-    }
+    if (!loader) return null
 
     const mod = await loader()
     return typeof mod.default === 'function' ? mod.default : null

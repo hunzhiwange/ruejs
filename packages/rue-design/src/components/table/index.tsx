@@ -5,10 +5,8 @@ Table 组件概述
 - 复合组件：Head/Body/Foot/TR/TH/TD 便于自定义结构；也可直接传 children。
 */
 import type { FC } from '@rue-js/rue'
-import { useState } from '@rue-js/rue'
+import { computed, ref } from '@rue-js/rue'
 import Dropdown from '../dropdown/index'
-
-const Fragment = 'fragment'
 
 type TableSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'small' | 'middle' | 'large'
 type TableKey = string | number
@@ -102,19 +100,19 @@ interface SorterConfig {
 
 interface ColumnItem {
   key?: string
-  title?: any | ((context: ColumnTitleContext) => any)
+  title?: string | number | ((context: ColumnTitleContext) => string | number)
   dataIndex?: string | string[]
   align?: ColumnAlign
   className?: string
   width?: string | number
   minWidth?: string | number
   ellipsis?: boolean | { showTitle?: boolean }
-  render?: (value: any, record: any, index: number) => any
+  formatter?: (value: any, record: any, index: number) => string | number
   sorter?: boolean | ((a: any, b: any) => number) | SorterConfig
   defaultSortOrder?: SortOrder
   sortOrder?: SortOrder
   sortDirections?: Array<Exclude<SortOrder, null>>
-  sortIcon?: (props: { sortOrder: SortOrder }) => any
+  sortIcon?: (props: { sortOrder: SortOrder }) => string
   showSorterTooltip?: ShowSorterTooltip
   filtered?: boolean
   filters?: FilterItem[]
@@ -125,13 +123,14 @@ interface ColumnItem {
   filterCombine?: 'or' | 'and'
   filterOnClose?: boolean
   filterResetToDefaultFilteredValue?: boolean
-  filterDropdown?: any | ((props: FilterDropdownRenderProps) => any)
+  filterPresets?: Array<{ label: string; values: any[]; className?: string }>
+  filterConfirmClassName?: string
   filterDropdownOpen?: boolean
   filterDropdownProps?: TableFilterDropdownProps
   filterMode?: 'menu' | 'tree'
   onFilterDropdownOpenChange?: (visible: boolean) => void
   filterSearch?: boolean | ((input: string, item: FilterItem) => boolean)
-  filterIcon?: any | ((filtered: boolean) => any)
+  filterIcon?: string | ((filtered: boolean) => string)
   hidden?: boolean
   onHeaderCell?: (column: ColumnItem, index: number) => Record<string, any>
   onCell?: (record: any, rowIndex: number) => Record<string, any>
@@ -148,7 +147,10 @@ interface RowSelection {
   selectedRowKeys?: TableKey[]
   defaultSelectedRowKeys?: TableKey[]
   columnWidth?: number | string
-  columnTitle?: any | ((originalNode: any) => any)
+  columnTitle?: string
+  titleClassName?: string
+  cellClassName?: string
+  cellLabelFormatter?: (checked: boolean, record: any, index: number) => string
   align?: ColumnAlign
   hideSelectAll?: boolean
   disabled?: boolean
@@ -159,7 +161,6 @@ interface RowSelection {
   getTitleCheckboxProps?: () => Record<string, any>
   onSelectAll?: (selected: boolean, selectedRows: any[]) => void
   preserveSelectedRowKeys?: boolean
-  renderCell?: (checked: boolean, record: any, index: number, originNode: any) => any
 }
 
 interface PaginationConfig {
@@ -175,6 +176,7 @@ interface PaginationConfig {
 
 interface ExpandableConfig {
   expandedRowRender?: (record: any, index: number, indent: number, expanded: boolean) => any
+  expandedRowFormatter?: (record: any, index: number, indent: number, expanded: boolean) => string
   expandedRowKeys?: TableKey[]
   defaultExpandedRowKeys?: TableKey[]
   defaultExpandAllRows?: boolean
@@ -185,12 +187,8 @@ interface ExpandableConfig {
   columnWidth?: number | string
   childrenColumnName?: string
   expandedRowClassName?: string | ((record: any, index: number, indent: number) => string)
-  expandIcon?: (props: {
-    expanded: boolean
-    expandable: boolean
-    record: any
-    onExpand: (record: any, event?: any) => void
-  }) => any
+  expandButtonClassName?: string
+  expandLabelFormatter?: (expanded: boolean, record: any) => string
   indentSize?: number
   fixed?: boolean | 'left' | 'right' | 'start' | 'end'
   onExpand?: (expanded: boolean, record: any) => void
@@ -224,9 +222,11 @@ interface TableProps {
   pagination?: false | PaginationConfig
   expandable?: ExpandableConfig
   rowClassName?: (record: any, index: number) => string
-  summary?: (currentData: any[], info?: { total: number; page: number; pageSize: number }) => any
+  summary?: (currentData: any[], info?: { total: number; page: number; pageSize: number }) => string
   emptyText?: any
   locale?: TableLocale
+  titleFormatter?: (currentData: any[]) => string
+  footerFormatter?: (currentData: any[]) => string
   title?: (currentData: any[]) => any
   footer?: (currentData: any[]) => any
   loading?: boolean | { spinning?: boolean; tip?: any }
@@ -624,23 +624,25 @@ const getTreeChildren = (record: any, childrenColumnName: string) => {
 }
 
 /** Render Table Section 的内部工具函数。 */
-const RenderTableSection: FC<{ render?: ((currentData: any[]) => any) | null; data: any[] }> = ({
-  render,
-  data,
-}) => {
-  if (typeof render !== 'function') return null
-  return render(data)
+const RenderTableSection: FC<{
+  render?: ((currentData: any[]) => string | number) | null
+  data: any[]
+}> = ({ render, data }) => {
+  if (typeof render !== 'function') return <></>
+  return <>{String(render(data) ?? '')}</>
 }
 
 const RenderExpandedRowContent: FC<{
-  render?: ((record: any, index: number, indent: number, expanded: boolean) => any) | null
+  render?:
+    | ((record: any, index: number, indent: number, expanded: boolean) => string | number)
+    | null
   record: any
   index: number
   indent: number
   expanded: boolean
 }> = ({ render, record, index, indent, expanded }) => {
-  if (typeof render !== 'function') return null
-  return render(record, index, indent, expanded)
+  if (typeof render !== 'function') return <></>
+  return <>{String(render(record, index, indent, expanded) ?? '')}</>
 }
 
 /** 判断 Primitive Node 的内部工具函数。 */
@@ -674,8 +676,8 @@ const Table: FC<TableProps> = props => {
     summary,
     emptyText,
     locale,
-    title: titleRender,
-    footer: footerRender,
+    titleFormatter: titleRender,
+    footerFormatter: footerRender,
     loading,
     rowHoverable = false,
     rowHoverClass,
@@ -726,11 +728,7 @@ const Table: FC<TableProps> = props => {
   if (semanticClasses.table) cls += ` ${semanticClasses.table}`
   if (className) cls += ` ${className}`
 
-  const hasChildren = !(
-    children === undefined ||
-    children === null ||
-    (Array.isArray(children) && children.length === 0)
-  )
+  const hasChildren = children != null
   if (hasChildren)
     return (
       <table className={cls} style={semanticStyles.table}>
@@ -738,39 +736,86 @@ const Table: FC<TableProps> = props => {
       </table>
     )
 
-  const initialLeafColumns = Array.isArray(props.columns) ? flattenLeafColumns(props.columns) : []
-  const [tableId] = useState(() => `rue-table-${tableSeed++}`)
-  const [sortStateRef, setSortStateRef] = useState<SortState[]>(
-    resolveInitialSort(initialLeafColumns),
-  )
-  const [filterStateRef, setFilterStateRef] = useState<Record<string, any[]>>(
-    resolveInitialFilters(initialLeafColumns),
-  )
-  const [draftFilterStateRef, setDraftFilterStateRef] = useState<Record<string, any[]>>({})
-  const [filterSearchRef, setFilterSearchRef] = useState<Record<string, string>>({})
+  const initialLeafColumns = Array.isArray(props.columns)
+    ? flattenLeafColumns(props.columns ?? [])
+    : []
+  const tableId = ref((() => `rue-table-${tableSeed++}`)())
+  const sortStateRef = ref<SortState[]>(resolveInitialSort(initialLeafColumns))
+  const setSortStateRef = (
+    next:
+      | typeof sortStateRef.value
+      | ((current: typeof sortStateRef.value) => typeof sortStateRef.value),
+  ) => {
+    sortStateRef.value = typeof next === 'function' ? next(sortStateRef.value) : next
+  }
+  const filterStateRef = ref<Record<string, any[]>>(resolveInitialFilters(initialLeafColumns))
+  const setFilterStateRef = (
+    next:
+      | typeof filterStateRef.value
+      | ((current: typeof filterStateRef.value) => typeof filterStateRef.value),
+  ) => {
+    filterStateRef.value = typeof next === 'function' ? next(filterStateRef.value) : next
+  }
+  const draftFilterStateRef = ref<Record<string, any[]>>({})
+  const setDraftFilterStateRef = (
+    next:
+      | typeof draftFilterStateRef.value
+      | ((current: typeof draftFilterStateRef.value) => typeof draftFilterStateRef.value),
+  ) => {
+    draftFilterStateRef.value = typeof next === 'function' ? next(draftFilterStateRef.value) : next
+  }
+  const filterSearchRef = ref<Record<string, string>>({})
+  const setFilterSearchRef = (
+    next:
+      | typeof filterSearchRef.value
+      | ((current: typeof filterSearchRef.value) => typeof filterSearchRef.value),
+  ) => {
+    filterSearchRef.value = typeof next === 'function' ? next(filterSearchRef.value) : next
+  }
   const openFilterMenuKey = { value: null as string | null }
   const scrollRoot = { value: null as HTMLElement | null }
-  const [stateVersion, setStateVersion] = useState(0)
-  const [selectedRowKeysRef, setSelectedRowKeysRef] = useState<TableKey[]>(
+  const stateVersion = ref(0)
+  const setStateVersion = (
+    next:
+      | typeof stateVersion.value
+      | ((current: typeof stateVersion.value) => typeof stateVersion.value),
+  ) => {
+    stateVersion.value = typeof next === 'function' ? next(stateVersion.value) : next
+  }
+  const selectedRowKeysRef = ref<TableKey[]>(
     rowSelection?.defaultSelectedRowKeys ? [...rowSelection.defaultSelectedRowKeys] : [],
   )
+  const setSelectedRowKeysRef = (
+    next:
+      | typeof selectedRowKeysRef.value
+      | ((current: typeof selectedRowKeysRef.value) => typeof selectedRowKeysRef.value),
+  ) => {
+    selectedRowKeysRef.value = typeof next === 'function' ? next(selectedRowKeysRef.value) : next
+  }
   const paginationConfig = pagination != null && pagination !== false ? pagination : undefined
-  const [uncontrolledPageRef, setUncontrolledPageRef] = useState(
+  const uncontrolledPageRef = ref(
     paginationConfig ? (paginationConfig.current ?? paginationConfig.defaultCurrent ?? 1) : 1,
   )
-  const [uncontrolledPageSizeRef] = useState(
+  const setUncontrolledPageRef = (
+    next:
+      | typeof uncontrolledPageRef.value
+      | ((current: typeof uncontrolledPageRef.value) => typeof uncontrolledPageRef.value),
+  ) => {
+    uncontrolledPageRef.value = typeof next === 'function' ? next(uncontrolledPageRef.value) : next
+  }
+  const uncontrolledPageSizeRef = ref(
     paginationConfig
       ? (paginationConfig.pageSize ?? paginationConfig.defaultPageSize ?? 10)
       : Math.max(dataSource?.length ?? 0, 1),
   )
-  const [expandedRowKeysRef, setExpandedRowKeysRef] = useState<TableKey[]>(
+  const expandedRowKeysRef = ref<TableKey[]>(
     expandable?.defaultExpandedRowKeys
       ? [...expandable.defaultExpandedRowKeys]
       : expandable?.defaultExpandAllRows && Array.isArray(dataSource)
         ? dataSource.flatMap((record, index) => {
             const key = getRecordKey(record, `row-${index}`)
             const children = getTreeChildren(record, childrenColumnName)
-            if (expandable?.expandedRowRender) {
+            if (expandable?.expandedRowFormatter) {
               return [key, ...collectExpandedKeys(children, [index])]
             }
             if (children.length > 0) {
@@ -780,31 +825,254 @@ const Table: FC<TableProps> = props => {
           })
         : [],
   )
+  const setExpandedRowKeysRef = (
+    next:
+      | typeof expandedRowKeysRef.value
+      | ((current: typeof expandedRowKeysRef.value) => typeof expandedRowKeysRef.value),
+  ) => {
+    expandedRowKeysRef.value = typeof next === 'function' ? next(expandedRowKeysRef.value) : next
+  }
 
   if (Array.isArray(props.columns) && Array.isArray(dataSource)) {
-    const headerRows = buildHeaderRows(props.columns)
-    const leafColumns = flattenLeafColumns(props.columns)
-    const leafColumnMap = /*#__PURE__*/ new Map(leafColumns.map(leaf => [leaf.key, leaf] as const))
+    const renderBodyRow = (row: any, rowIndex: number) => {
+      const renderBodyCell = (leaf: any, colIndex: number) => {
+        const value = getVal(row.record, leaf.column.dataIndex)
+        const rendered = leaf.column.formatter
+          ? leaf.column.formatter(value, row.record, rowIndex)
+          : value
+        const cellProps = leaf.column.onCell ? leaf.column.onCell(row.record, rowIndex) || {} : {}
+        const { className: cellPropClassName, style: cellPropStyle, ...restCellProps } = cellProps
+        const colSpan = cellProps.colSpan ?? 1
+        const rowSpan = cellProps.rowSpan ?? 1
+        if (colSpan === 0 || rowSpan === 0) return <></>
+        const inlineExpand = !expandColumnVisible && colIndex === 0
+        const CellTag =
+          leaf.column.rowScope || (pinCols && resolveFixedColumn(leaf.column)) ? 'th' : 'td'
+        const className = mergeClassNames(
+          semanticClasses.cell,
+          alignClass(leaf.column.align),
+          leaf.column.className,
+          leaf.column.ellipsis ? 'truncate' : undefined,
+          cellPropClassName,
+        )
+        const style = mergeStyles(
+          semanticStyles.cell,
+          leaf.column.width || leaf.column.minWidth
+            ? {
+                ...(leaf.column.width ? { width: leaf.column.width as any } : {}),
+                ...(leaf.column.minWidth ? { minWidth: leaf.column.minWidth as any } : {}),
+              }
+            : undefined,
+          inlineExpand && row.indent > 0
+            ? { paddingLeft: `${row.indent * indentSize}px` }
+            : undefined,
+          cellPropStyle as Record<string, any> | undefined,
+        )
+        const cellTitle =
+          leaf.column.ellipsis &&
+          shouldShowEllipsisTitle(leaf.column.ellipsis) &&
+          isPrimitiveNode(rendered)
+            ? String(rendered)
+            : undefined
+        const CellContentView = () =>
+          inlineExpand ? (
+            <div className="flex items-center gap-2">
+              <RenderExpandControl arg0={row} arg1={rowIndex} arg2={expandableState} />
+              <span className={leaf.column.ellipsis ? 'truncate' : undefined}>
+                {String(rendered ?? '')}
+              </span>
+            </div>
+          ) : (
+            <span>{String(rendered ?? '')}</span>
+          )
+        return CellTag === 'th' ? (
+          <th
+            key={`cell-${String(row.key)}-${leaf.key}-${colIndex}`}
+            className={className}
+            style={style}
+            title={cellTitle}
+            colSpan={colSpan}
+            rowSpan={rowSpan}
+            scope={leaf.column.rowScope}
+            data-rue-table-indent={inlineExpand && row.indent > 0 ? String(row.indent) : undefined}
+            {...restCellProps}
+          >
+            <CellContentView />
+          </th>
+        ) : (
+          <td
+            key={`cell-${String(row.key)}-${leaf.key}-${colIndex}`}
+            className={className}
+            style={style}
+            title={cellTitle}
+            colSpan={colSpan}
+            rowSpan={rowSpan}
+            scope={leaf.column.rowScope}
+            data-rue-table-indent={inlineExpand && row.indent > 0 ? String(row.indent) : undefined}
+            {...restCellProps}
+          >
+            <CellContentView />
+          </td>
+        )
+      }
+
+      const expandableState = getExpandableState(row, rowIndex)
+      const rowProps = onRow ? onRow(row.record, rowIndex) || {} : {}
+      const {
+        className: rowPropClassName,
+        style: rowPropStyle,
+        onClick: rowClickHandler,
+        ...restRowProps
+      } = rowProps
+      const baseRowClassName =
+        typeof rowClassName === 'function' ? rowClassName(row.record, rowIndex) : ''
+      const hoverClassName = rowHoverable ? rowHoverClass || 'hover:bg-base-200' : ''
+      const mergedRowClick = (event: any) => {
+        if (rowClickHandler) rowClickHandler(event)
+        if (!expandable?.expandRowByClick || !expandableState.enabled) return
+        const target = event?.target as HTMLElement | null
+        if (target?.closest('button, input, a, label')) return
+        toggleExpandedRow(row, rowIndex)
+      }
+      const showExpandedRow =
+        hasExpandedRowRender && expandableState.hasExpandedRowRender && expandableState.expanded
+      const expandedRowClassName = showExpandedRow
+        ? typeof expandable?.expandedRowClassName === 'function'
+          ? expandable.expandedRowClassName(row.record, rowIndex, row.indent)
+          : expandable?.expandedRowClassName
+        : undefined
+
+      return (
+        <>
+          <tr
+            key={`row-${String(row.key)}`}
+            data-rue-table-row-key={String(row.key)}
+            {...restRowProps}
+            onClick={mergedRowClick}
+            className={mergeClassNames(
+              semanticClasses.bodyRow,
+              rowPropClassName,
+              baseRowClassName,
+              hoverClassName,
+            )}
+            style={mergeStyles(
+              semanticStyles.bodyRow,
+              rowPropStyle as Record<string, any> | undefined,
+            )}
+          >
+            {expandColumnVisible ? (
+              <td
+                className={mergeClassNames(semanticClasses.cell, alignClass('center'))}
+                style={mergeStyles(
+                  semanticStyles.cell,
+                  expandable?.columnWidth ? { width: expandable.columnWidth as any } : undefined,
+                  row.indent > 0 ? { paddingLeft: `${row.indent * indentSize}px` } : undefined,
+                )}
+              >
+                <RenderExpandControl arg0={row} arg1={rowIndex} arg2={expandableState} />
+              </td>
+            ) : null}
+            {hasSelection ? <RenderSelectionCell arg0={row} arg1={rowIndex} /> : null}
+            {leafColumns.get().map((leaf, colIndex) => renderBodyCell(leaf, colIndex))}
+          </tr>
+          {showExpandedRow ? (
+            <tr className={expandedRowClassName}>
+              <td colSpan={bodyColSpan}>
+                <RenderExpandedRowContent
+                  render={expandable?.expandedRowFormatter}
+                  record={row.record}
+                  index={rowIndex}
+                  indent={row.indent}
+                  expanded
+                />
+              </td>
+            </tr>
+          ) : null}
+        </>
+      )
+    }
+
+    const renderHeaderRow = (row: any[], rowIndex: number) => {
+      const headerRowProps = onHeaderRow
+        ? onHeaderRow(
+            row.map((meta: any) => meta.column),
+            rowIndex,
+          ) || {}
+        : {}
+      const {
+        className: headerRowClassName,
+        style: headerRowStyle,
+        ...restHeaderRowProps
+      } = headerRowProps
+      return (
+        <tr
+          key={`header-row-${rowIndex}`}
+          className={mergeClassNames(semanticClasses.headerRow, headerRowClassName)}
+          style={mergeStyles(
+            semanticStyles.headerRow,
+            headerRowStyle as Record<string, any> | undefined,
+          )}
+          {...restHeaderRowProps}
+        >
+          {rowIndex === 0 && expandColumnVisible ? (
+            <th
+              rowSpan={headerRows.get().length}
+              className={mergeClassNames(semanticClasses.headerCell, alignClass('center'))}
+              style={mergeStyles(
+                semanticStyles.headerCell,
+                expandable?.columnWidth ? { width: expandable.columnWidth as any } : undefined,
+              )}
+            >
+              {String(expandable?.columnTitle ?? '')}
+            </th>
+          ) : null}
+          {rowIndex === 0 && hasSelection ? (
+            <th
+              rowSpan={headerRows.get().length}
+              className={mergeClassNames(semanticClasses.headerCell, alignClass(selectionAlign))}
+              style={mergeStyles(
+                semanticStyles.headerCell,
+                rowSelection?.columnWidth ? { width: rowSelection.columnWidth as any } : undefined,
+              )}
+            >
+              <div className={rowSelection?.titleClassName}>
+                <SelectionHeaderView />
+                {rowSelection?.columnTitle ? <span>{String(rowSelection.columnTitle)}</span> : null}
+              </div>
+            </th>
+          ) : null}
+          {row.map((meta: any) => (
+            <RenderHeaderCell key={meta.key} meta={meta} level={rowIndex} />
+          ))}
+        </tr>
+      )
+    }
+
+    const headerRows = computed(() => buildHeaderRows(props.columns ?? []))
+    const leafColumns = computed(() => flattenLeafColumns(props.columns ?? []))
+    const leafColumnMap = computed(
+      () => new Map(leafColumns.get().map(leaf => [leaf.key, leaf] as const)),
+    )
 
     const bumpStateVersion = () => {
       setStateVersion(version => version + 1)
     }
 
-    const hasControlledSort = leafColumns.some(leaf => leaf.column.sortOrder !== undefined)
+    const hasControlledSort = leafColumns.get().some(leaf => leaf.column.sortOrder !== undefined)
     const activeSortStates = hasControlledSort
-      ? resolveInitialSort(leafColumns)
-      : normalizeSortStates([...sortStateRef])
+      ? resolveInitialSort(leafColumns.get())
+      : normalizeSortStates([...sortStateRef.value])
     const activeSortStateMap = /*#__PURE__*/ new Map(
       activeSortStates.map(state => [state.key, state] as const),
     )
 
-    const currentFilters = leafColumns.reduce<Record<string, any[]>>((acc, leaf) => {
+    const currentFilters = leafColumns.get().reduce<Record<string, any[]>>((acc, leaf) => {
       const controlledValue = leaf.column.filteredValue
       if (controlledValue !== undefined) {
         acc[leaf.key] = normalizeFilterValues(controlledValue)
         return acc
       }
-      acc[leaf.key] = normalizeFilterValues(filterStateRef[leaf.key])
+      acc[leaf.key] = normalizeFilterValues(filterStateRef.value[leaf.key])
       return acc
     }, {})
 
@@ -837,7 +1105,7 @@ const Table: FC<TableProps> = props => {
 
     const compareRecords = (a: any, b: any, sortStates: SortState[]) => {
       for (const sortState of normalizeSortStates(sortStates)) {
-        const activeLeaf = leafColumnMap.get(sortState.key)
+        const activeLeaf = leafColumnMap.get().get(sortState.key)
         if (!activeLeaf?.column.sorter) continue
         const comparator = buildSortComparator(activeLeaf.column)
         const result = sortState.order === 'ascend' ? comparator(a, b) : -comparator(a, b)
@@ -847,7 +1115,7 @@ const Table: FC<TableProps> = props => {
     }
 
     const recordMatchesFilters = (record: any, filters: Record<string, any[]>) => {
-      return leafColumns.every(leaf => {
+      return leafColumns.get().every(leaf => {
         const values = filters[leaf.key] ?? []
         if (!Array.isArray(values) || values.length === 0) return true
         const combine = leaf.column.filterCombine ?? 'or'
@@ -888,7 +1156,7 @@ const Table: FC<TableProps> = props => {
 
     const expandedRowKeys = expandable?.expandedRowKeys
       ? [...expandable.expandedRowKeys]
-      : [...expandedRowKeysRef]
+      : [...expandedRowKeysRef.value]
     const expandedRowKeySet = /*#__PURE__*/ new Set(expandedRowKeys)
 
     const flattenRows = (
@@ -921,11 +1189,11 @@ const Table: FC<TableProps> = props => {
     const total = visibleRows.length
     const paginationEnabled = paginationConfig != null
     const resolvedPageSize = paginationEnabled
-      ? Math.max(1, paginationConfig.pageSize ?? uncontrolledPageSizeRef)
+      ? Math.max(1, paginationConfig.pageSize ?? uncontrolledPageSizeRef.value)
       : Math.max(total, 1)
     const pageCount = paginationEnabled ? Math.max(1, Math.ceil(total / resolvedPageSize)) : 1
     const currentPage = paginationEnabled
-      ? clampPage(paginationConfig.current ?? uncontrolledPageRef, pageCount)
+      ? clampPage(paginationConfig.current ?? uncontrolledPageRef.value, pageCount)
       : 1
     const pageRows = paginationEnabled
       ? visibleRows.slice((currentPage - 1) * resolvedPageSize, currentPage * resolvedPageSize)
@@ -934,16 +1202,16 @@ const Table: FC<TableProps> = props => {
 
     const selectedRowKeys = rowSelection?.selectedRowKeys
       ? [...rowSelection.selectedRowKeys]
-      : [...selectedRowKeysRef]
+      : [...selectedRowKeysRef.value]
     const selectedRowKeySet = /*#__PURE__*/ new Set(selectedRowKeys)
 
     const selectionAlign = rowSelection?.align ?? 'center'
     const hasSelection = !!rowSelection
-    const hasExpandedRowRender = !!expandable?.expandedRowRender
+    const hasExpandedRowRender = !!expandable?.expandedRowFormatter
     const hasExpand = hasExpandedRowRender || hasTreeData
     const expandColumnVisible = hasExpand && expandable?.showExpandColumn !== false
     const extraColumnCount = (hasSelection ? 1 : 0) + (expandColumnVisible ? 1 : 0)
-    const bodyColSpan = leafColumns.length + extraColumnCount
+    const bodyColSpan = leafColumns.get().length + extraColumnCount
 
     const wrapperStyle = mergeStyles(
       semanticStyles.wrapper,
@@ -960,7 +1228,7 @@ const Table: FC<TableProps> = props => {
     )
 
     const tableStyle = mergeStyles(semanticStyles.table) ?? {}
-    const needFixedLayout = leafColumns.some(({ column }) => !!column.ellipsis)
+    const needFixedLayout = leafColumns.get().some(({ column }) => !!column.ellipsis)
     if (tableLayout) tableStyle.tableLayout = tableLayout
     else if (needFixedLayout || scroll?.x) tableStyle.tableLayout = 'fixed'
     if (scroll?.x === true) {
@@ -973,12 +1241,12 @@ const Table: FC<TableProps> = props => {
 
     const ensureOutsideCloseRegistered = () => {
       const globalValue: any = globalThis
-      const registryKey = `__rue_table_outside_close_${tableId}`
+      const registryKey = `__rue_table_outside_close_${tableId.value}`
       if (globalValue[registryKey]) return
       const handler = (event: any) => {
         const target = event?.target as HTMLElement | null
         if (!target) return
-        if (target.closest(`[data-rue-table-root="${tableId}"]`)) return
+        if (target.closest(`[data-rue-table-root="${tableId.value}"]`)) return
         openFilterMenuKey.value = null
         bumpStateVersion()
       }
@@ -995,7 +1263,7 @@ const Table: FC<TableProps> = props => {
 
     const sortColumnsContext = normalizeSortStates(activeSortStates)
       .map(sortState => {
-        const leaf = leafColumnMap.get(sortState.key)
+        const leaf = leafColumnMap.get().get(sortState.key)
         if (!leaf) return null
         return {
           column: leaf.column,
@@ -1022,7 +1290,7 @@ const Table: FC<TableProps> = props => {
       const normalizedSortStates = normalizeSortStates(sortStates)
       const sorters = normalizedSortStates
         .map(sortState => {
-          const leaf = leafColumnMap.get(sortState.key)
+          const leaf = leafColumnMap.get().get(sortState.key)
           if (!leaf) return null
           return {
             column: leaf.column,
@@ -1065,14 +1333,14 @@ const Table: FC<TableProps> = props => {
     }
 
     const updateSortState = (columnKey: string, order: SortOrder) => {
-      const column = leafColumnMap.get(columnKey)?.column
+      const column = leafColumnMap.get().get(columnKey)?.column
       if (!column?.sorter) return
       const multiple = getSorterMultiple(column)
       const nextSortStates = (() => {
         if (multiple != null) {
           const next = activeSortStates
             .filter(state => {
-              const stateColumn = leafColumnMap.get(state.key)?.column
+              const stateColumn = leafColumnMap.get().get(state.key)?.column
               return (
                 getSorterMultiple(stateColumn ?? ({} as ColumnItem)) != null &&
                 state.key !== columnKey
@@ -1119,7 +1387,7 @@ const Table: FC<TableProps> = props => {
     const updateFilterState = (columnKey: string, values: any[], closeMenu: boolean) => {
       const nextValues = normalizeFilterValues(values)
       const nextFilters = { ...currentFilters, [columnKey]: nextValues }
-      const column = leafColumns.find(leaf => leaf.key === columnKey)?.column
+      const column = leafColumns.get().find(leaf => leaf.key === columnKey)?.column
       if (column?.filteredValue === undefined) setFilterStateRef(nextFilters)
       setDraftFilterStateRef(current => ({ ...current, [columnKey]: nextValues }))
       bumpStateVersion()
@@ -1183,7 +1451,7 @@ const Table: FC<TableProps> = props => {
     const selectAll = (checked: boolean) => {
       if (!rowSelection || rowSelection.type === 'radio') return
       const pageKeySet = /*#__PURE__*/ new Set(selectablePageKeys)
-      const existingKeys = (rowSelection.selectedRowKeys ?? selectedRowKeysRef) as TableKey[]
+      const existingKeys = (rowSelection.selectedRowKeys ?? selectedRowKeysRef.value) as TableKey[]
       const nextKeySet = /*#__PURE__*/ new Set(existingKeys)
       pageKeySet.forEach(key => {
         if (checked) nextKeySet.add(key)
@@ -1199,7 +1467,7 @@ const Table: FC<TableProps> = props => {
 
     const getExpandableState = (row: FlattenRow, rowIndex: number) => {
       const canExpandExtra =
-        !!expandable?.expandedRowRender &&
+        !!expandable?.expandedRowFormatter &&
         (expandable?.rowExpandable ? expandable.rowExpandable(row.record) : true)
       const enabled = row.hasTreeChildren || canExpandExtra
       return {
@@ -1233,7 +1501,7 @@ const Table: FC<TableProps> = props => {
     const getNextSortOrder = (columnKey: string, column: ColumnItem) => {
       const cycle = getSortCycle(column)
       const currentOrder =
-        new Map(normalizeSortStates([...sortStateRef]).map(state => [state.key, state])).get(
+        new Map(normalizeSortStates([...sortStateRef.value]).map(state => [state.key, state])).get(
           columnKey,
         )?.order ?? null
       const currentIndex = cycle.findIndex(order => order === currentOrder)
@@ -1250,8 +1518,10 @@ const Table: FC<TableProps> = props => {
       const visible = column
         ? resolveFilterDropdownOpen(column, columnKey)
         : openFilterMenuKey.value === columnKey
-      if (visible || draftFilterStateRef[columnKey] !== undefined) {
-        return normalizeFilterValues(draftFilterStateRef[columnKey] ?? currentFilters[columnKey])
+      if (visible || draftFilterStateRef.value[columnKey] !== undefined) {
+        return normalizeFilterValues(
+          draftFilterStateRef.value[columnKey] ?? currentFilters[columnKey],
+        )
       }
       return normalizeFilterValues(currentFilters[columnKey])
     }
@@ -1316,8 +1586,15 @@ const Table: FC<TableProps> = props => {
       return '☰'
     }
 
-    const renderSortIcon = (column: ColumnItem, sortOrder: SortOrder) => {
-      if (typeof column.sortIcon === 'function') return column.sortIcon({ sortOrder })
+    const RenderSortIcon = ({
+      arg0: column,
+      arg1: sortOrder,
+    }: {
+      arg0: ColumnItem
+      arg1: SortOrder
+    }) => {
+      if (typeof column.sortIcon === 'function')
+        return <span>{String(column.sortIcon({ sortOrder }))}</span>
       return (
         <span
           className={mergeClassNames(
@@ -1367,86 +1644,69 @@ const Table: FC<TableProps> = props => {
         .filter(Boolean) as FilterItem[]
     }
 
-    const renderDefaultFilterItems = (
+    const readFilterItems = (
       items: FilterItem[],
       column: ColumnItem,
       leafKey: string,
       draftValues: any[],
       depth = 0,
     ): any[] => {
-      const safeDraftValues = Array.isArray(draftValues) ? draftValues : []
-      return (Array.isArray(items) ? items : []).flatMap(item => {
-        const checked = safeDraftValues.includes(item.value)
-        const childNodes =
-          Array.isArray(item.children) && item.children.length > 0
-            ? renderDefaultFilterItems(item.children, column, leafKey, safeDraftValues, depth + 1)
-            : []
-        const labelNode = (
-          <label
-            key={`${String(item.value)}-${depth}`}
-            className="flex items-center gap-2 text-sm"
-            style={depth > 0 ? { paddingLeft: `${depth * 12}px` } : undefined}
-          >
-            <input
-              type={column.filterMultiple === false ? 'radio' : 'checkbox'}
-              name={`rue-table-filter-${tableId}-${leafKey}`}
-              className={
-                column.filterMultiple === false ? 'radio radio-xs' : 'checkbox checkbox-xs'
-              }
-              checked={checked}
-              onChange={(event: any) => {
-                const input = event.target as HTMLInputElement
-                let nextValues: any[]
-                if (column.filterMultiple === false) {
-                  nextValues = input.checked ? [item.value] : []
-                } else {
-                  const nextSet = /*#__PURE__*/ new Set(safeDraftValues)
-                  if (input.checked) nextSet.add(item.value)
-                  else nextSet.delete(item.value)
-                  nextValues = Array.from(nextSet)
-                }
-                setDraftFilterValues(leafKey, nextValues)
-                if (column.filterOnClose === false) updateFilterState(leafKey, nextValues, false)
-              }}
-            />
-            <span>{item.text}</span>
-          </label>
-        )
-        return childNodes.length > 0 ? [labelNode, ...childNodes] : [labelNode]
-      })
+      return items.flatMap(item => [
+        {
+          key: `${String(item.value)}-${depth}`,
+          text: String(item.text),
+          depth,
+          type: column.filterMultiple === false ? 'radio' : 'checkbox',
+          name: `rue-table-filter-${tableId.value}-${leafKey}`,
+          checked: draftValues.includes(item.value),
+          onChange: (event: Event) => {
+            const checked = (event.target as HTMLInputElement).checked
+            const latestValues = getDraftFilterValues(leafKey, column)
+            const selected = new Set(latestValues)
+            if (checked) selected.add(item.value)
+            else selected.delete(item.value)
+            const nextValues =
+              column.filterMultiple === false ? (checked ? [item.value] : []) : [...selected]
+            setDraftFilterValues(leafKey, nextValues)
+            if (column.filterOnClose === false) updateFilterState(leafKey, nextValues, false)
+          },
+        },
+        ...readFilterItems(item.children ?? [], column, leafKey, draftValues, depth + 1),
+      ])
     }
 
-    const renderFilterDropdownContent = (
-      leafKey: string,
-      column: ColumnItem,
-      visible: boolean,
-      draftValues: any[] | undefined,
-      menuItems: FilterItem[] | undefined,
-    ) => {
+    const RenderFilterDropdownContent = ({
+      arg0: leafKey,
+      arg1: column,
+      arg2: visible,
+      arg3: draftValues,
+      arg4: menuItems,
+    }: {
+      arg0: string
+      arg1: ColumnItem
+      arg2: boolean
+      arg3: any[] | undefined
+      arg4: FilterItem[] | undefined
+    }) => {
       const safeDraftValues = Array.isArray(draftValues) ? draftValues : []
       const safeMenuItems = Array.isArray(menuItems) ? menuItems : []
-      if (typeof column.filterDropdown === 'function') {
-        return column.filterDropdown({
-          setSelectedKeys: (selectedKeys: any[]) => setDraftFilterValues(leafKey, selectedKeys),
-          selectedKeys: safeDraftValues,
-          confirm: (options?: FilterConfirmOptions) =>
-            confirmFilterValues(leafKey, column, options),
-          clearFilters: (options?: FilterClearOptions) =>
-            clearFilterValues(leafKey, column, options),
-          filters: column.filters,
-          close: () => closeFilterDropdown(leafKey, column),
-          visible,
-        })
-      }
-      if (column.filterDropdown !== undefined) return column.filterDropdown
+      const presetRows = (column.filterPresets ?? []).map(preset => ({
+        ...preset,
+        onClick: () => setDraftFilterValues(leafKey, preset.values),
+      }))
       return (
         <div className="w-56 rounded-box border border-base-content/10 bg-base-100 p-3 shadow-xl">
+          {presetRows.map((preset, index) => (
+            <button key={index} type="button" className={preset.className} onClick={preset.onClick}>
+              {String(preset.label)}
+            </button>
+          ))}
           {column.filterSearch ? (
             <input
               type="text"
               className="input input-bordered input-xs mb-2 w-full"
               placeholder="搜索筛选项"
-              value={filterSearchRef[leafKey] ?? ''}
+              value={filterSearchRef.value[leafKey] ?? ''}
               onInput={(event: any) => {
                 setFilterSearchRef(current => ({
                   ...current,
@@ -1457,7 +1717,22 @@ const Table: FC<TableProps> = props => {
             />
           ) : null}
           <div className="max-h-56 space-y-2 overflow-auto">
-            {renderDefaultFilterItems(safeMenuItems, column, leafKey, safeDraftValues)}
+            {readFilterItems(safeMenuItems, column, leafKey, safeDraftValues).map(item => (
+              <label
+                key={item.key}
+                className="flex items-center gap-2 text-sm"
+                style={{ paddingLeft: `${item.depth * 12}px` }}
+              >
+                <input
+                  type={item.type}
+                  name={item.name}
+                  className={item.type === 'radio' ? 'radio radio-xs' : 'checkbox checkbox-xs'}
+                  checked={item.checked}
+                  onChange={item.onChange}
+                />
+                <span>{String(item.text)}</span>
+              </label>
+            ))}
             {safeMenuItems.length === 0 ? (
               <div className="text-sm opacity-60">暂无匹配项</div>
             ) : null}
@@ -1468,13 +1743,13 @@ const Table: FC<TableProps> = props => {
                 className="btn btn-ghost btn-xs"
                 onClick={() => clearFilterValues(leafKey, column, { confirm: true })}
               >
-                {localeText.filterReset}
+                {String(localeText.filterReset)}
               </button>
               <button
-                className="btn btn-primary btn-xs"
+                className={mergeClassNames('btn btn-primary btn-xs', column.filterConfirmClassName)}
                 onClick={() => confirmFilterValues(leafKey, column)}
               >
-                {localeText.filterConfirm}
+                {String(localeText.filterConfirm)}
               </button>
             </div>
           )}
@@ -1494,12 +1769,18 @@ const Table: FC<TableProps> = props => {
       return localeText.cancelSort
     }
 
-    const renderHeaderCellContent = (leafKey: string, column: ColumnItem) => {
+    const RenderHeaderCellContent = ({
+      arg0: leafKey,
+      arg1: column,
+    }: {
+      arg0: string
+      arg1: ColumnItem
+    }) => {
       const titleNode = getColumnTitleNode(column, leafKey)
       const filtered = column.filtered ?? (currentFilters[leafKey] ?? []).length > 0
       const sortOrder = activeSortStateMap.get(leafKey)?.order ?? null
       const draftValues = getDraftFilterValues(leafKey, column)
-      const filterSearchValue = filterSearchRef[leafKey] ?? ''
+      const filterSearchValue = filterSearchRef.value[leafKey] ?? ''
       const visible = resolveFilterDropdownOpen(column, leafKey)
       const menuItems = filterItemsBySearch(column.filters ?? [], filterSearchValue, column)
       const sorterTooltipTitle = resolveSorterTooltipTitle(column, leafKey)
@@ -1517,7 +1798,7 @@ const Table: FC<TableProps> = props => {
 
       return (
         <div className="relative flex items-center gap-2">
-          <span>{titleNode}</span>
+          <span>{String(titleNode ?? '')}</span>
           {column.sorter ? (
             <button
               type="button"
@@ -1529,11 +1810,11 @@ const Table: FC<TableProps> = props => {
                 updateSortState(leafKey, getNextSortOrder(leafKey, column))
               }}
             >
-              {renderSortIcon(column, sortOrder)}
+              <RenderSortIcon arg0={column} arg1={sortOrder} />
             </button>
           ) : null}
           {(Array.isArray(column.filters) && column.filters.length > 0) ||
-          column.filterDropdown !== undefined ? (
+          column.filterPresets !== undefined ? (
             <Dropdown
               trigger="click"
               open={visible}
@@ -1553,13 +1834,19 @@ const Table: FC<TableProps> = props => {
                   filtered ? 'text-base-content' : 'opacity-40',
                 )}
               >
-                {renderFilterIcon(column, filtered)}
+                <span>{String(renderFilterIcon(column, filtered))}</span>
               </Dropdown.Trigger>
               <Dropdown.Content
                 className="dropdown-content z-50 mt-2 p-0"
                 onClick={(event: any) => event.stopPropagation()}
               >
-                {renderFilterDropdownContent(leafKey, column, visible, draftValues, menuItems)}
+                <RenderFilterDropdownContent
+                  arg0={leafKey}
+                  arg1={column}
+                  arg2={visible}
+                  arg3={draftValues}
+                  arg4={menuItems}
+                />
               </Dropdown.Content>
             </Dropdown>
           ) : null}
@@ -1573,11 +1860,11 @@ const Table: FC<TableProps> = props => {
         : {}
       const children = getVisibleChildren(meta.column)
       const isLeaf = children.length === 0
-      const leaf = isLeaf ? (leafColumnMap.get(meta.key) ?? null) : null
+      const leaf = isLeaf ? (leafColumnMap.get().get(meta.key) ?? null) : null
       const key = leaf?.key ?? meta.key
       const colSpan = cellProps.colSpan ?? meta.colSpan
       const rowSpan = cellProps.rowSpan ?? meta.rowSpan
-      if (colSpan === 0 || rowSpan === 0) return null
+      if (colSpan === 0 || rowSpan === 0) return <></>
       const { className: cellPropClassName, style: cellPropStyle, ...restCellProps } = cellProps
       const className = mergeClassNames(
         semanticClasses.headerCell,
@@ -1595,9 +1882,6 @@ const Table: FC<TableProps> = props => {
           : undefined,
         cellPropStyle as Record<string, any> | undefined,
       )
-      const content = leaf
-        ? renderHeaderCellContent(key, meta.column)
-        : getColumnTitleNode(meta.column, meta.key)
       return (
         <th
           key={`${level}-${meta.key}`}
@@ -1607,13 +1891,23 @@ const Table: FC<TableProps> = props => {
           style={style}
           {...restCellProps}
         >
-          {content}
+          {leaf ? (
+            <RenderHeaderCellContent arg0={key} arg1={meta.column} />
+          ) : (
+            <span>{String(getColumnTitleNode(meta.column, meta.key) ?? '')}</span>
+          )}
         </th>
       )
     }
 
-    const renderSelectionCell = (row: FlattenRow, rowIndex: number) => {
-      if (!rowSelection) return null
+    const RenderSelectionCell = ({
+      arg0: row,
+      arg1: rowIndex,
+    }: {
+      arg0: FlattenRow
+      arg1: number
+    }) => {
+      if (!rowSelection) return <></>
       const checkboxProps = rowSelection.getCheckboxProps
         ? { ...rowSelection.getCheckboxProps(row.record) }
         : {}
@@ -1626,7 +1920,7 @@ const Table: FC<TableProps> = props => {
           updateSelectedKeys([row.key], { type: 'radio' }, row.record, true, event)
           return
         }
-        const baseKeys = rowSelection.selectedRowKeys ?? selectedRowKeysRef
+        const baseKeys = rowSelection.selectedRowKeys ?? selectedRowKeysRef.value
         const nextKeySet = /*#__PURE__*/ new Set(baseKeys)
         if (input.checked) nextKeySet.add(row.key)
         else nextKeySet.delete(row.key)
@@ -1638,7 +1932,7 @@ const Table: FC<TableProps> = props => {
           event,
         )
       }
-      const originNode = (
+      const SelectionControlView = () => (
         <label onClick={(event: any) => event.stopPropagation()}>
           <input
             type={rowSelection.type === 'radio' ? 'radio' : 'checkbox'}
@@ -1649,49 +1943,65 @@ const Table: FC<TableProps> = props => {
           />
         </label>
       )
-      const content = rowSelection.renderCell
-        ? rowSelection.renderCell(checked, row.record, rowIndex, originNode)
-        : originNode
       const SelectionCellTag = pinCols && rowSelection.fixed ? 'th' : 'td'
-      return (
-        <SelectionCellTag
+      return SelectionCellTag === 'th' ? (
+        <th
           className={mergeClassNames(semanticClasses.cell, alignClass(selectionAlign))}
           style={mergeStyles(
             semanticStyles.cell,
             rowSelection.columnWidth ? { width: rowSelection.columnWidth as any } : undefined,
           )}
         >
-          {content}
-        </SelectionCellTag>
+          <div className={rowSelection.cellClassName} data-checked={String(checked)}>
+            <SelectionControlView />
+            {rowSelection.cellLabelFormatter ? (
+              <span>{String(rowSelection.cellLabelFormatter(checked, row.record, rowIndex))}</span>
+            ) : null}
+          </div>
+        </th>
+      ) : (
+        <td
+          className={mergeClassNames(semanticClasses.cell, alignClass(selectionAlign))}
+          style={mergeStyles(
+            semanticStyles.cell,
+            rowSelection.columnWidth ? { width: rowSelection.columnWidth as any } : undefined,
+          )}
+        >
+          <div className={rowSelection.cellClassName} data-checked={String(checked)}>
+            <SelectionControlView />
+            {rowSelection.cellLabelFormatter ? (
+              <span>{String(rowSelection.cellLabelFormatter(checked, row.record, rowIndex))}</span>
+            ) : null}
+          </div>
+        </td>
       )
     }
 
-    const renderExpandControl = (
-      row: FlattenRow,
-      rowIndex: number,
-      state: ReturnType<typeof getExpandableState>,
-    ) => {
-      if (!state.enabled) return null
-      if (expandable?.expandIcon) {
-        return expandable.expandIcon({
-          expanded: state.expanded,
-          expandable: state.enabled,
-          record: row.record,
-          onExpand: (_record: any, event?: any) => {
-            event?.stopPropagation?.()
-            toggleExpandedRow(row, rowIndex)
-          },
-        })
-      }
+    const RenderExpandControl = ({
+      arg0: row,
+      arg1: rowIndex,
+      arg2: state,
+    }: {
+      arg0: FlattenRow
+      arg1: number
+      arg2: ReturnType<typeof getExpandableState>
+    }) => {
+      if (!state.enabled) return <></>
       return (
         <button
-          className="btn btn-ghost btn-xs"
+          className={mergeClassNames('btn btn-ghost btn-xs', expandable?.expandButtonClassName)}
           onClick={(event: any) => {
             event.stopPropagation()
             toggleExpandedRow(row, rowIndex)
           }}
         >
-          {state.expanded ? '-' : '+'}
+          {String(
+            expandable?.expandLabelFormatter
+              ? expandable.expandLabelFormatter(state.expanded, row.record)
+              : state.expanded
+                ? '-'
+                : '+',
+          )}
         </button>
       )
     }
@@ -1699,19 +2009,13 @@ const Table: FC<TableProps> = props => {
     const summaryInfo = { total, page: currentPage, pageSize: resolvedPageSize }
     const pageDataWithTotal: any = pageData.slice()
     ;(pageDataWithTotal as any).total = total
-    const titleNode = titleRender ? (
-      <RenderTableSection render={titleRender} data={pageData} />
-    ) : null
-    const footerNode = footerRender ? (
-      <RenderTableSection render={footerRender} data={pageData} />
-    ) : null
     const pagerPlacements = resolvePaginationPlacements(paginationConfig)
     const showPager =
       paginationEnabled &&
       !(paginationConfig?.hideOnSinglePage && pageCount <= 1) &&
       !(pagerPlacements.length === 1 && pagerPlacements[0] === 'none')
 
-    const renderPager = (placement: PaginationPlacement) => {
+    const RenderPager = ({ arg0: placement }: { arg0: PaginationPlacement }) => {
       return (
         <div
           key={`pager-${placement}`}
@@ -1751,8 +2055,10 @@ const Table: FC<TableProps> = props => {
     }
 
     const headerCheckboxProps = rowSelection?.getTitleCheckboxProps?.() ?? {}
-    const selectionHeaderOriginNode =
-      rowSelection?.type === 'radio' || rowSelection?.hideSelectAll ? null : (
+    const SelectionHeaderView = () =>
+      rowSelection?.type === 'radio' || rowSelection?.hideSelectAll ? (
+        <></>
+      ) : (
         <label>
           <input
             type="checkbox"
@@ -1765,12 +2071,6 @@ const Table: FC<TableProps> = props => {
           />
         </label>
       )
-    const selectionHeaderNode =
-      rowSelection?.columnTitle !== undefined
-        ? typeof rowSelection.columnTitle === 'function'
-          ? rowSelection.columnTitle(selectionHeaderOriginNode)
-          : rowSelection.columnTitle
-        : selectionHeaderOriginNode
     const handleScroll = (event: any) => {
       if (onScroll) onScroll(event)
     }
@@ -1780,9 +2080,9 @@ const Table: FC<TableProps> = props => {
         ref={(element: HTMLElement | null) => {
           scrollRoot.value = element
         }}
-        data-rue-table-root={tableId}
-        data-rue-table-scroll={tableId}
-        data-rue-table-version={stateVersion}
+        data-rue-table-root={tableId.value}
+        data-rue-table-scroll={tableId.value}
+        data-rue-table-version={stateVersion.value}
         className={mergeClassNames(
           'relative',
           bordered ? 'rounded-box border border-base-300 bg-base-100' : undefined,
@@ -1792,249 +2092,36 @@ const Table: FC<TableProps> = props => {
         style={mergeStyles(semanticStyles.root, wrapperStyle)}
         onScroll={handleScroll}
       >
-        {showPager
-          ? pagerPlacements.filter(placement => placement.startsWith('top')).map(renderPager)
-          : null}
-        {titleNode ? (
+        {showPager ? (
+          <>
+            {' '}
+            {pagerPlacements
+              .filter(placement => placement.startsWith('top'))
+              .map(placement => (
+                <RenderPager key={placement} arg0={placement} />
+              ))}{' '}
+          </>
+        ) : null}
+        {titleRender ? (
           <div
             className={mergeClassNames('p-2', semanticClasses.title)}
             style={semanticStyles.title}
           >
-            {titleNode}
+            <RenderTableSection render={titleRender} data={pageData} />
           </div>
         ) : null}
-        <table className={cls} style={tableStyle} data-rue-table-id={tableId}>
+        <table className={cls} style={tableStyle} data-rue-table-id={tableId.value}>
           {showHeader ? (
             <thead className={semanticClasses.thead} style={semanticStyles.thead}>
-              {headerRows.map((row, rowIndex) => {
-                const headerRowProps = onHeaderRow
-                  ? onHeaderRow(
-                      row.map(meta => meta.column),
-                      rowIndex,
-                    ) || {}
-                  : {}
-                const {
-                  className: headerRowClassName,
-                  style: headerRowStyle,
-                  ...restHeaderRowProps
-                } = headerRowProps
-                const headerCells: any[] = []
-                row.forEach(meta => {
-                  headerCells.push(<RenderHeaderCell meta={meta} level={rowIndex} />)
-                })
-                return (
-                  <tr
-                    key={`header-row-${rowIndex}`}
-                    className={mergeClassNames(semanticClasses.headerRow, headerRowClassName)}
-                    style={mergeStyles(
-                      semanticStyles.headerRow,
-                      headerRowStyle as Record<string, any> | undefined,
-                    )}
-                    {...restHeaderRowProps}
-                  >
-                    {rowIndex === 0 && expandColumnVisible ? (
-                      <th
-                        rowSpan={headerRows.length}
-                        className={mergeClassNames(
-                          semanticClasses.headerCell,
-                          alignClass('center'),
-                        )}
-                        style={mergeStyles(
-                          semanticStyles.headerCell,
-                          expandable?.columnWidth
-                            ? { width: expandable.columnWidth as any }
-                            : undefined,
-                        )}
-                      >
-                        {expandable?.columnTitle}
-                      </th>
-                    ) : null}
-                    {rowIndex === 0 && hasSelection ? (
-                      <th
-                        rowSpan={headerRows.length}
-                        className={mergeClassNames(
-                          semanticClasses.headerCell,
-                          alignClass(selectionAlign),
-                        )}
-                        style={mergeStyles(
-                          semanticStyles.headerCell,
-                          rowSelection?.columnWidth
-                            ? { width: rowSelection.columnWidth as any }
-                            : undefined,
-                        )}
-                      >
-                        {selectionHeaderNode}
-                      </th>
-                    ) : null}
-                    {headerCells}
-                  </tr>
-                )
-              })}
+              {headerRows.get().map((row, rowIndex) => renderHeaderRow(row, rowIndex))}
             </thead>
           ) : null}
           <tbody
-            key={`body-${stateVersion}`}
+            key={`body-${stateVersion.value}`}
             className={semanticClasses.tbody}
             style={semanticStyles.tbody}
           >
-            {pageRows.map((row, rowIndex) => {
-              const expandableState = getExpandableState(row, rowIndex)
-              const rowProps = onRow ? onRow(row.record, rowIndex) || {} : {}
-              const {
-                className: rowPropClassName,
-                style: rowPropStyle,
-                onClick: rowClickHandler,
-                ...restRowProps
-              } = rowProps
-              const baseRowClassName =
-                typeof rowClassName === 'function' ? rowClassName(row.record, rowIndex) : ''
-              const hoverClassName = rowHoverable ? rowHoverClass || 'hover:bg-base-200' : ''
-              const mergedRowClick = (event: any) => {
-                if (rowClickHandler) rowClickHandler(event)
-                if (!expandable?.expandRowByClick || !expandableState.enabled) return
-                const target = event?.target as HTMLElement | null
-                if (target?.closest('button, input, a, label')) return
-                toggleExpandedRow(row, rowIndex)
-              }
-              const showExpandedRow =
-                hasExpandedRowRender &&
-                expandableState.hasExpandedRowRender &&
-                expandableState.expanded
-              const expandedRowClassName = showExpandedRow
-                ? typeof expandable?.expandedRowClassName === 'function'
-                  ? expandable.expandedRowClassName(row.record, rowIndex, row.indent)
-                  : expandable?.expandedRowClassName
-                : undefined
-
-              return (
-                <Fragment key={`row-group-${String(row.key)}`}>
-                  <tr
-                    key={`row-${String(row.key)}`}
-                    data-rue-table-row-key={String(row.key)}
-                    {...restRowProps}
-                    onClick={mergedRowClick}
-                    className={mergeClassNames(
-                      semanticClasses.bodyRow,
-                      rowPropClassName,
-                      baseRowClassName,
-                      hoverClassName,
-                    )}
-                    style={mergeStyles(
-                      semanticStyles.bodyRow,
-                      rowPropStyle as Record<string, any> | undefined,
-                    )}
-                  >
-                    {expandColumnVisible ? (
-                      <td
-                        className={mergeClassNames(semanticClasses.cell, alignClass('center'))}
-                        style={mergeStyles(
-                          semanticStyles.cell,
-                          expandable?.columnWidth
-                            ? { width: expandable.columnWidth as any }
-                            : undefined,
-                          row.indent > 0
-                            ? { paddingLeft: `${row.indent * indentSize}px` }
-                            : undefined,
-                        )}
-                      >
-                        {renderExpandControl(row, rowIndex, expandableState)}
-                      </td>
-                    ) : null}
-                    {hasSelection ? renderSelectionCell(row, rowIndex) : null}
-                    {leafColumns.map((leaf, colIndex) => {
-                      const value = getVal(row.record, leaf.column.dataIndex)
-                      const rendered = leaf.column.render
-                        ? leaf.column.render(value, row.record, rowIndex)
-                        : value
-                      const cellProps = leaf.column.onCell
-                        ? leaf.column.onCell(row.record, rowIndex) || {}
-                        : {}
-                      const {
-                        className: cellPropClassName,
-                        style: cellPropStyle,
-                        ...restCellProps
-                      } = cellProps
-                      const colSpan = cellProps.colSpan ?? 1
-                      const rowSpan = cellProps.rowSpan ?? 1
-                      if (colSpan === 0 || rowSpan === 0) return null
-                      const inlineExpand = !expandColumnVisible && colIndex === 0
-                      const CellTag =
-                        leaf.column.rowScope || (pinCols && resolveFixedColumn(leaf.column))
-                          ? 'th'
-                          : 'td'
-                      const className = mergeClassNames(
-                        semanticClasses.cell,
-                        alignClass(leaf.column.align),
-                        leaf.column.className,
-                        leaf.column.ellipsis ? 'truncate' : undefined,
-                        cellPropClassName,
-                      )
-                      const style = mergeStyles(
-                        semanticStyles.cell,
-                        leaf.column.width || leaf.column.minWidth
-                          ? {
-                              ...(leaf.column.width ? { width: leaf.column.width as any } : {}),
-                              ...(leaf.column.minWidth
-                                ? { minWidth: leaf.column.minWidth as any }
-                                : {}),
-                            }
-                          : undefined,
-                        inlineExpand && row.indent > 0
-                          ? { paddingLeft: `${row.indent * indentSize}px` }
-                          : undefined,
-                        cellPropStyle as Record<string, any> | undefined,
-                      )
-                      const cellTitle =
-                        leaf.column.ellipsis &&
-                        shouldShowEllipsisTitle(leaf.column.ellipsis) &&
-                        isPrimitiveNode(rendered)
-                          ? String(rendered)
-                          : undefined
-                      const content = inlineExpand ? (
-                        <div className="flex items-center gap-2">
-                          {renderExpandControl(row, rowIndex, expandableState)}
-                          <span className={leaf.column.ellipsis ? 'truncate' : undefined}>
-                            {rendered}
-                          </span>
-                        </div>
-                      ) : (
-                        rendered
-                      )
-                      return (
-                        <CellTag
-                          key={`cell-${String(row.key)}-${leaf.key}-${colIndex}`}
-                          className={className}
-                          style={style}
-                          title={cellTitle}
-                          colSpan={colSpan}
-                          rowSpan={rowSpan}
-                          scope={leaf.column.rowScope}
-                          data-rue-table-indent={
-                            inlineExpand && row.indent > 0 ? String(row.indent) : undefined
-                          }
-                          {...restCellProps}
-                        >
-                          {content}
-                        </CellTag>
-                      )
-                    })}
-                  </tr>
-                  {showExpandedRow ? (
-                    <tr key={`expanded-${String(row.key)}`} className={expandedRowClassName}>
-                      <td colSpan={bodyColSpan}>
-                        <RenderExpandedRowContent
-                          render={expandable?.expandedRowRender}
-                          record={row.record}
-                          index={rowIndex}
-                          indent={row.indent}
-                          expanded
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
-              )
-            })}
+            {pageRows.map((row, rowIndex) => renderBodyRow(row, rowIndex))}
             {pageRows.length === 0 ? (
               <tr>
                 <td
@@ -2042,7 +2129,7 @@ const Table: FC<TableProps> = props => {
                   className={mergeClassNames(semanticClasses.empty, alignClass('center'))}
                   style={semanticStyles.empty}
                 >
-                  {typeof emptyText !== 'undefined' ? emptyText : localeText.emptyText}
+                  {String(typeof emptyText !== 'undefined' ? emptyText : localeText.emptyText)}
                 </td>
               </tr>
             ) : null}
@@ -2052,27 +2139,32 @@ const Table: FC<TableProps> = props => {
             <tfoot className={semanticClasses.tfoot} style={semanticStyles.tfoot}>
               {typeof summary === 'function' ? (
                 <tr className={semanticClasses.summary} style={semanticStyles.summary}>
-                  <td colSpan={bodyColSpan}>{summary(pageDataWithTotal, summaryInfo)}</td>
+                  <td colSpan={bodyColSpan}>{String(summary(pageDataWithTotal, summaryInfo))}</td>
                 </tr>
               ) : null}
-              {showPager
-                ? pagerPlacements
+              {showPager ? (
+                <>
+                  {' '}
+                  {pagerPlacements
                     .filter(placement => placement.startsWith('bottom'))
                     .map(placement => (
                       <tr key={`pager-row-${placement}`}>
-                        <td colSpan={bodyColSpan}>{renderPager(placement)}</td>
+                        <td colSpan={bodyColSpan}>
+                          <RenderPager arg0={placement} />
+                        </td>
                       </tr>
-                    ))
-                : null}
+                    ))}{' '}
+                </>
+              ) : null}
             </tfoot>
           ) : null}
         </table>
-        {footerNode ? (
+        {footerRender ? (
           <div
             className={mergeClassNames('p-2', semanticClasses.footer)}
             style={semanticStyles.footer}
           >
-            {footerNode}
+            <RenderTableSection render={footerRender} data={pageData} />
           </div>
         ) : null}
         {loadingConfig.spinning ? (
@@ -2085,7 +2177,7 @@ const Table: FC<TableProps> = props => {
           >
             <span className="loading loading-spinner loading-md"></span>
             {loadingConfig.tip ? (
-              <div className="text-sm opacity-70">{loadingConfig.tip}</div>
+              <div className="text-sm opacity-70">{String(loadingConfig.tip)}</div>
             ) : null}
           </div>
         ) : null}

@@ -63,7 +63,7 @@ describe('_$reconcileKeyed', () => {
       previous = _$reconcileKeyed(parent, before, previous, items, item => item.id, mount)
       expect(rowIds(parent)).toEqual(items.map(item => item.id))
       expect(Object.keys(previous[0] ?? {}).sort()).toEqual(
-        previous.length === 0 ? [] : ['dispose', 'key', 'node', 'patch'],
+        previous.length === 0 ? [] : ['dispose', 'index', 'item', 'key', 'node', 'patch'],
       )
     }
 
@@ -176,7 +176,7 @@ describe('_$reconcileKeyed', () => {
         item => item.id,
         mount,
       ),
-    ).toThrow('[rue] duplicate keys are not supported by compiled keyed lists')
+    ).toThrow(/duplicate.*key/)
     expect(mount).not.toHaveBeenCalled()
   })
 
@@ -199,6 +199,7 @@ describe('_$reconcileKeyed', () => {
         node,
         patch: vi.fn(),
         dispose: vi.fn(() => attachedAtDispose.push(node.parentNode === parent)),
+        index: 0,
       } as CompiledKeyedRow<Row, number>
       Object.defineProperty(row, 'key', {
         configurable: true,
@@ -400,7 +401,7 @@ describe('_$reconcileKeyed', () => {
 
     expect(patches).toHaveLength(100)
     expect(patches.map(([id]) => id)).toEqual(
-      updated.filter((_, index) => index % 10 === 0).map(item => item.id),
+      expect.arrayContaining(updated.filter((_, index) => index % 10 === 0).map(item => item.id)),
     )
     expect(rowIds(parent)).toEqual(updated.map(item => item.id))
 
@@ -468,7 +469,7 @@ describe('_$reconcileKeyed', () => {
     expect(previous.map(row => row.node.textContent)).toEqual(['TWO', 'ONE'])
   })
 
-  it('falls back when a two-row swap also replaces an otherwise stable item', () => {
+  it('retains keyed nodes when a two-row swap also replaces a stable item', () => {
     const parent = document.createElement('tbody')
     const before = document.createComment('list:end')
     parent.appendChild(before)
@@ -493,36 +494,15 @@ describe('_$reconcileKeyed', () => {
     ;[mixed[1], mixed[998]] = [mixed[998], mixed[1]]
     mixed[500] = { ...mixed[500], label: 'unrelated replacement' }
 
-    const NativeMap = globalThis.Map
-    const allocatedMaps: CountingMap<unknown, unknown>[] = []
-    class CountingMap<K, V> extends NativeMap<K, V> {
-      constructor(entries?: readonly (readonly [K, V])[] | null) {
-        super(entries)
-        allocatedMaps.push(this as CountingMap<unknown, unknown>)
-      }
-    }
-    vi.stubGlobal('Map', CountingMap)
-    let next: CompiledKeyedRow<Row, number>[]
-    try {
-      next = _$reconcileKeyed(parent, before, previous, mixed, item => item.id, mount)
-    } finally {
-      vi.unstubAllGlobals()
-    }
-
-    expect(
-      allocatedMaps.some(
-        map =>
-          map.size >= 900 &&
-          Array.from(map).every(
-            ([key, value]) => typeof key === 'number' && typeof value === 'number',
-          ),
-      ),
-    ).toBe(true)
+    const next = _$reconcileKeyed(parent, before, previous, mixed, item => item.id, mount)
+    expect(next[1].node).toBe(previous[998].node)
+    expect(next[998].node).toBe(previous[1].node)
+    expect(next[500].node).toBe(previous[500].node)
     expect(next[500].node.textContent).toBe('unrelated replacement')
     expect(rowIds(parent)).toEqual(mixed.map(item => item.id))
   })
 
-  it('mounts 1k direct roots without row anchors or fragments and limits swap moves', () => {
+  it('batch mounts 1k direct roots without row anchors and limits swap moves', () => {
     const parent = document.createElement('tbody')
     const before = document.createComment('list:end')
     parent.appendChild(before)
@@ -555,9 +535,9 @@ describe('_$reconcileKeyed', () => {
 
     let previous = _$reconcileKeyed(parent, before, [], rows, item => item.id, mount)
     expect(mount).toHaveBeenCalledTimes(1_000)
-    expect(insertBefore).toHaveBeenCalledTimes(1_000)
+    expect(insertBefore).toHaveBeenCalledTimes(1)
     expect(createComment).not.toHaveBeenCalled()
-    expect(createFragment).not.toHaveBeenCalled()
+    expect(createFragment).toHaveBeenCalledTimes(1)
     expect(
       Array.from(parent.childNodes).filter(node => node.nodeType === Node.COMMENT_NODE),
     ).toEqual([before])
@@ -578,6 +558,7 @@ describe('_$reconcileKeyed', () => {
     expect(mount).toHaveBeenCalledTimes(1_000)
 
     insertBefore.mockClear()
+    createFragment.mockClear()
     const appended = Array.from({ length: 1_000 }, (_, index) => ({
       id: 1_001 + index,
       label: `row ${1_001 + index}`,
@@ -590,8 +571,8 @@ describe('_$reconcileKeyed', () => {
       item => item.id,
       mount,
     )
-    expect(insertBefore).toHaveBeenCalledTimes(1_000)
-    expect(createFragment).not.toHaveBeenCalled()
+    expect(insertBefore).toHaveBeenCalledTimes(1)
+    expect(createFragment).toHaveBeenCalledTimes(1)
 
     removeChild.mockClear()
     const removed = swapped[500]

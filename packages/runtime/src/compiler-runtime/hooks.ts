@@ -4,28 +4,19 @@ import {
   disposeOwner,
   effect,
   getCurrentOwner,
-  getOwnerValue,
-  onCleanup,
   onOwnerCleanup,
   registerOwnerLifecycle,
   runOwnerLifecycle,
   runWithOwner,
-  setOwnerValue,
-  signal,
   type CompiledOwner,
-  type CompiledSignalHandle,
   untrack,
-} from '../reactive-core'
+} from '../runtime-core/compiled'
 import type { CompiledRootHandle } from '../compiled-root'
 import { isRef } from '../runtime-core/reactive-kernel/ref'
-import { watch } from '../reactivity/index'
-import { getCurrentCompiledHookId } from '../compiled-hook-compat'
-import { hasCompiledHookRun } from '../runtime-context'
-
-void onCleanup
+import { watch, ref, shallowRef } from './compact-reactivity'
 
 const COMPILED_OWNER = Symbol('rue.compiledOwner')
-const COMPILED_MOUNTED = Symbol('rue.compiledMounted')
+const mountedOwners = new Set<CompiledOwner>()
 
 const isServerRendering = () => {
   const count = (globalThis as Record<string, unknown>).__rue_is_server_rendering__
@@ -33,15 +24,6 @@ const isServerRendering = () => {
 }
 
 type OwnedCompiledRootHandle = CompiledRootHandle & { [COMPILED_OWNER]?: CompiledOwner }
-type StateOptions<T> = {
-  equals?: (previous: T, next: T) => boolean
-}
-type SetStateAction<T> = T | ((previous: T) => T)
-type Dispatch<T> = (value: T) => void
-
-const initialValue = <T>(initial: T | (() => T)): T =>
-  typeof initial === 'function' ? (initial as () => T)() : initial
-
 export const _$compiledUseSetup = <T>(slot: string, factory: () => T): T =>
   _$compiledSetup(slot, factory)
 
@@ -65,40 +47,13 @@ export const _$compiledMemo = <T>(
     dependencies.some((value, index) => !Object.is(value, record.dependencies![index]))
   if (changed) {
     record.value = untrack(factory)
-    if (
-      record.value != null &&
-      typeof record.value === 'object' &&
-      '__rue_compiled_freeze_effects' in record.value &&
-      typeof record.value.__rue_compiled_freeze_effects === 'function'
-    ) {
-      record.value.__rue_compiled_freeze_effects()
-    }
     record.dependencies = [...dependencies]
     record.initialized = true
   }
   return record.value as T
 }
 
-export const _$compiledUseState = <T>(
-  slot: string,
-  initial: T | (() => T),
-  options?: StateOptions<T>,
-): [CompiledSignalHandle<T>, Dispatch<SetStateAction<T>>] =>
-  _$compiledSetup(slot, () => {
-    const state = signal(initialValue(initial), options)
-    const setState: Dispatch<SetStateAction<T>> = next => {
-      state.set(typeof next === 'function' ? (next as (previous: T) => T)(state.peek()) : next)
-    }
-    return [state, setState]
-  })
-
-const createReactState = <T>(initial: T | (() => T), options?: StateOptions<T>) => {
-  const state = signal(initialValue(initial), options)
-  const setState: Dispatch<SetStateAction<T>> = next => {
-    state.set(typeof next === 'function' ? (next as (previous: T) => T)(state.peek()) : next)
-  }
-  return [state, setState] as const
-}
+export { _$compiledUseState } from './compact-reactivity'
 
 const startCompiledEffect = (callback: () => void | (() => void)): void => {
   effect(callback)
@@ -108,16 +63,7 @@ const registerLifecycle = (
   phase: Parameters<typeof registerOwnerLifecycle>[0],
   callback: () => void,
 ): void => {
-  if (!hasCompiledHookRun()) {
-    registerOwnerLifecycle(phase, callback)
-    return
-  }
-  const slot = _$compiledSetup(`lifecycle:${phase}`, () => {
-    const current = { callback }
-    registerOwnerLifecycle(phase, () => current.callback())
-    return current
-  })
-  slot.callback = callback
+  registerOwnerLifecycle(phase, callback)
 }
 
 export const _$compiledUseEffect = (
@@ -158,7 +104,7 @@ export const _$compiledUseEffect = (
     }
     const owner = getCurrentOwner()
     if (owner === undefined) start()
-    else if (getOwnerValue(owner, COMPILED_MOUNTED) === true) start()
+    else if (mountedOwners.has(owner)) start()
     else registerOwnerLifecycle('mounted', start)
     return true
   })
@@ -219,13 +165,13 @@ export const _$withCompiledHookScope = <T extends CompiledRootHandle>(factory: (
   const mount = handle.__rue_compiled_mount
   const disposeHandle = handle.dispose
   let disposed = false
-  handle.__rue_compiled_mount = parent => {
-    runOwnerLifecycle(owner, 'beforeMount')
+  handle.__rue_compiled_mount = (parent, before) => {
     try {
-      const result = runWithOwner(owner, () => mount.call(handle, parent))
-      setOwnerValue(owner, COMPILED_MOUNTED, true)
+      runOwnerLifecycle(owner, 'beforeMount')
+      const result = runWithOwner(owner, () => mount.call(handle, parent, before))
+      mountedOwners.add(owner)
       runOwnerLifecycle(owner, 'mounted')
-      return result
+      return result ?? null
     } catch (error) {
       handle!.dispose()
       throw error
@@ -237,6 +183,7 @@ export const _$withCompiledHookScope = <T extends CompiledRootHandle>(factory: (
     try {
       disposeHandle.call(handle)
     } finally {
+      mountedOwners.delete(owner)
       disposeOwner(owner)
     }
   }
@@ -253,15 +200,30 @@ export function useRef<T = undefined>(): { current: T | undefined }
 export function useRef<T>(value?: T): { current: T | undefined } {
   return { current: value }
 }
-export const useState = <T>(initial: T | (() => T), options?: StateOptions<T>) => {
-  const hookId = getCurrentCompiledHookId()
-  const [state, setState] =
-    hookId === undefined
-      ? createReactState(initial, options)
-      : _$compiledSetup(`useState:${hookId}`, () => createReactState(initial, options))
-  return [state.get(), setState] as const
+/** Source hooks must be lowered to explicit owner slots by the compiler. */
+export const useState = <T>(
+  _initial: T | (() => T),
+  _options?: { equals?: (previous: T, next: T) => boolean },
+): [T, (next: T | ((previous: T) => T)) => void] => {
+  throw new Error('Rue useState requires compilation to an owner slot')
 }
-export const useEffect = (callback: () => void | (() => void)): void =>
-  startCompiledEffect(callback)
+export const useEffect = (
+  _callback: () => void | (() => void),
+  _dependencies?: readonly unknown[] | null,
+): void => {
+  throw new Error('Rue useEffect requires compilation to an owner slot')
+}
+export { ref, shallowRef }
 
-export { ref, shallowRef } from '../reactivity/index'
+export const _$compiledBindUseRef = (element: Element, readRef: () => unknown): void => {
+  const target = readRef()
+  if (typeof target === 'function') {
+    const cleanup = target(element)
+    if (typeof cleanup === 'function') onOwnerCleanup(cleanup)
+  } else if (target && typeof target === 'object' && 'current' in target) {
+    ;(target as { current: unknown }).current = element
+    onOwnerCleanup(() => {
+      ;(target as { current: unknown }).current = null
+    })
+  }
+}

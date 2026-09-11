@@ -48,6 +48,12 @@ export default Children;
     assert_eq!(normalized.matches(".content.cloneNode(true)").count(), 4, "{out}");
     assert_eq!(normalized.matches("vapor(").count(), 0, "{out}");
     assert_eq!(normalized.matches("_$compiledText(").count(), 1, "{out}");
-    assert_eq!(normalized.matches("_$compiledRoot(").count(), 4, "{out}");
+    assert_eq!(
+        normalized.matches("_$compiledRoot(").count()
+            + normalized.matches("_$compiledStaticRoot(").count(),
+        4,
+        "{out}"
+    );
     assert!(!normalized.contains("_$compiledCreateElement("), "{out}");
+    assert!(!normalized.contains("renderAnchor"), "{out}");
 }

@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vite-plus/test'
 import { createElement, renderToString } from './rue-ssr-test-utils.js'
-import Image, { getImageProps, type StaticImageData } from '../src/shims/image.js'
+import Image, { getImageProps, type StaticImageData } from '../src/shims/image.js?text-ssr'
 
 /** Helper: expected optimization URL matching what the image shim produces. */
 function optUrl(src: string, w: number, q = 75): string {

@@ -24,9 +24,10 @@ const invokeTransform = async (source: string, id: string) => {
 const expectConditionalMapLowering = (code: string) => {
   expect(code).toContain('/* RUE_TRANSFORMED */')
   expect(code).toContain('@rue-js/rue/internal')
-  expect(code).toMatch(/const __slot = showList\.value \? items\.get\(\)\.map/)
-  expect(code).toContain('const label = item.label.toUpperCase();')
-  expect(code).toContain('renderAnchor(__slot,')
+  expect(code).toContain('_$reconcileKeyed')
+  expect(code).toContain('.label.toUpperCase()')
+  expect(code).not.toContain('renderAnchor')
+  expect(code).toContain('_$mountCompiledSlotFactory')
   expect(code).not.toContain('@rue-js/runtime-vapor')
   expect(code).not.toContain('@rue-js/rue/vapor')
   expect(code).not.toContain('_jsxDEV(')
@@ -49,7 +50,7 @@ describe('vite-plugin-rue conditional map slot transform', () => {
             {showList.value
               ? items.get().map((item) => {
                   const label = item.label.toUpperCase()
-                  return <button key={item.id}>{label}</button>
+                  return <button key={item.id}>{String(label)}</button>
                 })
               : <span>empty</span>}
           </section>
@@ -85,7 +86,7 @@ describe('vite-plugin-rue conditional map slot transform', () => {
           <section>
             {showList.value && items.get().map((item) => {
               const label = item.label.toUpperCase()
-              return <button key={item.id}>{label}</button>
+              return <button key={item.id}>{String(label)}</button>
             })}
           </section>
         )
@@ -102,6 +103,6 @@ describe('vite-plugin-rue conditional map slot transform', () => {
     const code = typeof result === 'string' ? result : String(result?.code ?? '')
 
     expectConditionalMapLowering(code)
-    expect(code).toContain('}) : "";')
+    expect(code).not.toMatch(/\.get\(\)\.map\(/)
   })
 })

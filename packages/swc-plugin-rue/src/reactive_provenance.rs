@@ -12,6 +12,7 @@ pub(crate) enum ReactiveKind {
     ObjectValue,
     StateValue,
     PropsValue,
+    SlotsValue,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -47,6 +48,7 @@ impl Binding {
             Self::Value(ReactiveKind::ObjectValue) => "value-object",
             Self::Value(ReactiveKind::StateValue) => "value-state",
             Self::Value(ReactiveKind::PropsValue) => "value-props",
+            Self::Value(ReactiveKind::SlotsValue) => "value-slots",
             Self::RefCollection => "ref-collection",
             Self::SignalTuple => "signal-tuple",
             Self::StateTuple => "state-tuple",
@@ -66,6 +68,7 @@ impl Binding {
             "value-object" => Self::Value(ReactiveKind::ObjectValue),
             "value-state" => Self::Value(ReactiveKind::StateValue),
             "value-props" => Self::Value(ReactiveKind::PropsValue),
+            "value-slots" => Self::Value(ReactiveKind::SlotsValue),
             "ref-collection" => Self::RefCollection,
             "signal-tuple" => Self::SignalTuple,
             "state-tuple" => Self::StateTuple,
@@ -107,9 +110,9 @@ pub(crate) fn reactive_kind(scopes: &[HashSet<String>], name: &str) -> Option<Re
 
 fn factory_kind(imported: &str) -> Option<FactoryKind> {
     Some(match imported {
-        "ref" | "shallowRef" | "customRef" | "toRef" => FactoryKind::RefLike,
+        "ref" | "shallowRef" | "customRef" | "toRef" | "computed" => FactoryKind::RefLike,
         "toRefs" => FactoryKind::ToRefs,
-        "computed" | "signal" => FactoryKind::Signal,
+        "signal" => FactoryKind::Signal,
         "reactive" | "shallowReactive" | "readonly" | "shallowReadonly" | "propsReactive" => {
             FactoryKind::ObjectValue
         }
@@ -129,7 +132,13 @@ fn factory_result(factory: FactoryKind) -> Binding {
 }
 
 fn is_rue_source(source: &str) -> bool {
-    matches!(source, "@rue-js/rue" | "@rue-js/rue/internal" | "@rue-js/rue/internal/compiler")
+    matches!(
+        source,
+        "@rue-js/rue"
+            | "@rue-js/rue/internal"
+            | "@rue-js/rue/internal/compiler"
+            | "@rue-js/rue/internal/reactive"
+    )
 }
 
 struct ScopeBuilder<'a> {
@@ -501,7 +510,11 @@ pub(crate) fn collect_component_parameter_scope<'a>(
     for (index, param) in params.into_iter().enumerate() {
         builder.bind_pat(
             param,
-            if index == 0 { Binding::Value(ReactiveKind::PropsValue) } else { Binding::Unknown },
+            match index {
+                0 => Binding::Value(ReactiveKind::PropsValue),
+                1 => Binding::Value(ReactiveKind::SlotsValue),
+                _ => Binding::Unknown,
+            },
         );
     }
     builder.finish(HashSet::new())

@@ -1,5 +1,5 @@
 import { resolveDOMHostParentContext } from './dom.browser'
-import { hasActiveDOMHostOperations, isFreshBrowserDOMHost } from './dom-host-operations'
+import { trackFormControlEvent } from './form-controls'
 
 type CompiledDelegatedHandler = () => unknown
 type CompiledDelegatedHandlerRead = () => CompiledDelegatedHandler | null | undefined
@@ -31,6 +31,7 @@ const eventPath = (event: Event, root: EventTarget): EventTarget[] => {
 }
 
 const dispatch = (root: EventTarget, type: string, event: Event): void => {
+  trackFormControlEvent(event)
   for (const target of eventPath(event, root)) {
     const registration = readHandler(target, type)
     if (registration?.root === root) {
@@ -51,17 +52,6 @@ export const _$compiledDelegateEvent = (
   type: string,
   read: CompiledDelegatedHandlerRead,
 ): (() => void) => {
-  // Hydration records native target listeners so it can transfer them from the speculative client
-  // node to the adopted SSR node. A WeakMap-only delegated registration cannot be transferred.
-  if (hasActiveDOMHostOperations() && !isFreshBrowserDOMHost() && canListen(target)) {
-    const listener: EventListener = () => {
-      const handler = read()
-      if (typeof handler === 'function') handler()
-    }
-    target.addEventListener(type, listener)
-    return () => target.removeEventListener(type, listener)
-  }
-
   const resolvedRoot =
     typeof Node !== 'undefined' && root instanceof Node ? resolveDOMHostParentContext(root) : root
   // An unassociated staging fragment is emptied when its children are committed, so a listener
@@ -88,8 +78,28 @@ export const _$compiledDelegateEvent = (
   }
   const registration: DelegatedRegistration = { read, root: listenerRoot }
   typeHandlers.set(target, registration)
+  let fallbackListener: EventListener | undefined
+  let disposed = false
   const dispose = (): void => {
+    disposed = true
+    if (fallbackListener && canListen(target)) target.removeEventListener(type, fallbackListener)
     if (typeHandlers.get(target) === registration) typeHandlers.delete(target)
+  }
+
+  if (
+    typeof Node !== 'undefined' &&
+    listenerRoot instanceof Node &&
+    target instanceof Node &&
+    listenerRoot !== target
+  ) {
+    queueMicrotask(() => {
+      if (disposed || listenerRoot.contains(target) || !canListen(target)) return
+      fallbackListener = () => {
+        const handler = read()
+        if (typeof handler === 'function') handler()
+      }
+      target.addEventListener(type, fallbackListener)
+    })
   }
 
   let rootListeners = roots.get(listenerRoot)

@@ -22,8 +22,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vite-plus/test'
 import type { ViteDevServer } from 'vite-plus'
 import { APP_FIXTURE_DIR, startFixtureServer, fetchHtml } from '../helpers.js'
 
-// Rue SSR HTML-encodes " as &quot; in text content.
-const Q = '&quot;'
+// Quotes are valid unescaped characters in HTML text nodes.
+const Q = '"'
 
 describe('Text.js compat: useSelectedLayoutSegment(s)', () => {
   let server: ViteDevServer

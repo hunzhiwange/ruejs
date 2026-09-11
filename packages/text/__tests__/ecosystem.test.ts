@@ -21,12 +21,19 @@ import {
 
 const FIXTURES_DIR = path.resolve(__dirname, 'fixtures', 'ecosystem')
 
-function startFixture(name: string, port: number) {
-  return startFixtureDevServer({
+async function startFixture(name: string, port: number) {
+  const fixture = await startFixtureDevServer({
     name,
     port,
     root: path.join(FIXTURES_DIR, name),
   })
+  return {
+    ...fixture,
+    async fetchPage(url: string) {
+      const result = await fixture.fetchPage(url)
+      return { ...result, html: result.html.replace(/<!--.*?-->/gs, '') }
+    },
+  }
 }
 
 // ─── text-themes ──────────────────────────────────────────────────────────────

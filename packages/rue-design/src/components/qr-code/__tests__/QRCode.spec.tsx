@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 import QRCode from '../index'
 import { encodeQrMatrix } from '../encoder'
@@ -45,15 +46,17 @@ describe('QRCode', () => {
     const icon =
       'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%230f172a%22/%3E%3C/svg%3E'
 
-    render(
-      <QRCode
-        type="svg"
-        value="https://rue.dev"
-        icon={icon}
-        status="expired"
-        onRefresh={handleRefresh}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <QRCode
+          type="svg"
+          value="https://rue.dev"
+          icon={icon}
+          status="expired"
+          onRefresh={handleRefresh}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -85,14 +88,15 @@ describe('QRCode', () => {
       .spyOn(HTMLCanvasElement.prototype, 'getContext')
       .mockReturnValue({ clearRect, fillRect } as unknown as CanvasRenderingContext2D)
 
-    render(
-      <QRCode
-        type="canvas"
-        value="https://rue.dev/design"
-        status="loading"
-        statusRender={({ status }) => <div data-testid="custom-status">custom:{status}</div>}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <QRCode type="canvas" value="https://rue.dev/design" status="loading">
+          <Template slot="status">
+            <div data-testid="custom-status">custom:loading</div>
+          </Template>
+        </QRCode>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -118,7 +122,9 @@ describe('QRCode', () => {
     })
 
     try {
-      render(<QRCode type="canvas" value="https://rue.dev/design" size={160} />, container)
+      mountTestApp(container, () =>
+        render(<QRCode type="canvas" value="https://rue.dev/design" size={160} />, container),
+      )
 
       await waitForContent(() => {
         const canvas = container.querySelector(

@@ -14,10 +14,8 @@ function shouldUsePlainCodeBlock(): boolean {
   )
 }
 
-const CodeImpl = shouldUsePlainCodeBlock() ? CodePlain : CodeShiki
-
 const Code: FC<CodeProps> = p => {
-  return <CodeImpl {...p} />
+  return shouldUsePlainCodeBlock() ? <CodePlain {...p} /> : <CodeShiki {...p} />
 }
 
 export default Code

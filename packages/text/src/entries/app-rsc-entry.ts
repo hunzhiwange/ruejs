@@ -55,7 +55,6 @@ const appPageRouteWiringPath = resolveEntryPath(
   '../server/app-page-route-wiring.js',
   import.meta.url,
 )
-const appPageProbePath = resolveEntryPath('../server/app-page-probe.js', import.meta.url)
 const appPageParamsPath = resolveEntryPath('../server/app-page-params.js', import.meta.url)
 const appPageDispatchPath = resolveEntryPath('../server/app-page-dispatch.js', import.meta.url)
 const appRenderAdapterPath = resolveEntryPath('../server/app-render-adapter.js', import.meta.url)
@@ -285,7 +284,6 @@ import { buildPageElements as __buildPageElements } from ${JSON.stringify(appPag
 import {
   resolveAppPageSegmentParams as __resolveAppPageSegmentParams,
 } from ${JSON.stringify(appPageParamsPath)};
-import { probeAppPage as __probeAppPage } from ${JSON.stringify(appPageProbePath)};
 import {
   dispatchAppPage as __dispatchAppPage,
 } from ${JSON.stringify(appPageDispatchPath)};
@@ -635,25 +633,10 @@ export default __createAppRscHandler({
       params,
       staticParamsValidationParams,
       rootParams,
-      probeLayoutAt(li) {
-        const LayoutComp = route.layouts[li]?.default;
-        if (!LayoutComp) return null;
-        return LayoutComp({
-          params: makeThenableParams(__resolveAppPageSegmentParams(
-            route.routeSegments,
-            route.layoutTreePositions?.[li] ?? 0,
-            params,
-          )),
-          children: null,
-        });
-      },
-      probePage() {
-        return __probeAppPage({
-          pageComponent: PageComponent,
-          asyncRouteParams: _asyncRouteParams,
-          searchParams,
-        });
-      },
+      // Compiled factories execute once inside the writer's owner. Errors are
+      // observed by the existing shell/error stream lifecycle.
+      probeLayoutAt() { return null; },
+      probePage() { return null; },
       renderErrorBoundaryPage(renderErr) {
         return __fallbackRenderer.renderErrorBoundary(route, renderErr, isRscRequest, request, params, scriptNonce, middlewareContext, { isEdgeRuntime: __isEdgeRuntime(__segmentConfig.runtime) });
       },

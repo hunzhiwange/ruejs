@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Badge, Button, Card, Grid, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -182,9 +181,7 @@ const _breakpointObjectCode = `xs={{ span: 24 }}
 md={{ span: 12, order: 2 }}
 xl={{ span: 8, flex: '280px' }}`
 
-const basicCode = `import { Grid } from '@rue-js/design'
-
-<Grid gutter={[16, 16]}>
+const basicCode = `import { Grid } from '@rue-js/design'<Grid gutter={[16, 16]}>
   <Grid.Col span={6}>span=6</Grid.Col>
   <Grid.Col span={6}>span=6</Grid.Col>
   <Grid.Col span={6}>span=6</Grid.Col>
@@ -197,17 +194,13 @@ const basicCode = `import { Grid } from '@rue-js/design'
   <Grid.Col span={8}>span=8</Grid.Col>
 </Grid>`
 
-const responsiveCode = `import { Grid } from '@rue-js/design'
-
-<Grid gutter={[{ xs: 8, md: 24 }, { xs: 8, md: 24 }]}>
+const responsiveCode = `import { Grid } from '@rue-js/design'<Grid gutter={[{ xs: 8, md: 24 }, { xs: 8, md: 24 }]}>
   <Grid.Col xs={24} sm={12} lg={8}>A</Grid.Col>
   <Grid.Col xs={24} sm={12} lg={8}>B</Grid.Col>
   <Grid.Col xs={24} lg={8}>C</Grid.Col>
 </Grid>`
 
-const alignmentCode = `import { Grid } from '@rue-js/design'
-
-<Grid gutter={[16, 16]} justify="space-between" align="bottom">
+const alignmentCode = `import { Grid } from '@rue-js/design'<Grid gutter={[16, 16]} justify="space-between" align="bottom">
   <Grid.Col span={5}>A</Grid.Col>
   <Grid.Col span={5}>B</Grid.Col>
   <Grid.Col span={5}>C</Grid.Col>
@@ -219,9 +212,7 @@ const alignmentCode = `import { Grid } from '@rue-js/design'
   <Grid.Col span={6} order={2}>order=2</Grid.Col>
 </Grid>`
 
-const flexCode = `import { Grid } from '@rue-js/design'
-
-<Grid gutter={16} align="stretch">
+const flexCode = `import { Grid } from '@rue-js/design'<Grid gutter={16} align="stretch">
   <Grid.Col flex="280px">Fixed rail</Grid.Col>
   <Grid.Col flex="auto">Fluid content</Grid.Col>
   <Grid.Col flex="120px">Ops</Grid.Col>
@@ -233,9 +224,7 @@ const flexCode = `import { Grid } from '@rue-js/design'
   <Grid.Col flex="180px">And sticky toolbars</Grid.Col>
 </Grid>`
 
-const dashboardCode = `import { Badge, Button, Card, Grid } from '@rue-js/design'
-
-<Grid gutter={[20, 20]}>
+const dashboardCode = `import { Badge, Button, Card, Grid } from '@rue-js/design'<Grid gutter={[20, 20]}>
   <Grid.Col xs={24} xl={16}>
     <Card className="overflow-hidden bg-base-100 shadow-sm">
       <Card.Body className="gap-5">

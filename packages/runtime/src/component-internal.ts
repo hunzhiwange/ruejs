@@ -5,15 +5,7 @@ export * from './internal-reactive'
 export * from './compiled-props'
 export * from './compiled-component'
 export * from './compiled-dom-bindings'
-export * from './compiled-dom-bindings-legacy'
 export * from './compiled-component-call'
-export * from './compiled-dynamic'
-export {
-  createCompiledDynamic as _$createDynamic,
-  createCompiledFragment as _$createFragment,
-} from './compiled-dynamic'
-export * from './compiled-render-anchor'
-export * from './compiled-legacy-dom'
 export { getCurrentContainer } from './runtime-context'
 export { useApp } from './hooks/useApp'
 export { onError } from './rue'
@@ -24,24 +16,12 @@ export {
 } from './compiled-hook-compat'
 export { _$withCompiledHookScope } from './compiled-hook-scope'
 export { toValue, triggerRef, watch } from './reactivity/index'
-export {
-  computed,
-  customRef,
-  createResource,
-  onRenderTracked,
-  isRef,
-  isReactive,
-  isReadonly,
-  unref,
-} from './reactivity/index'
+export { computed, createResource, isRef, unref } from './reactivity/index'
 export * from './compiled-root'
 export * from './compiled-keyed-list'
 export {
   _$disposeCompiledKeyedRows,
-  _$mountCompiledKeyedRowOwnerless,
   _$mountCompiledKeyedSingleRow,
-  _$mountCompiledKeyedSingleRowOwnerless,
-  _$mountCompiledKeyedSingleRowSetup,
   _$reconcileKeyedSingle,
 } from './compiler-runtime/compact-keyed-list'
 export * from './compiler-runtime/types'

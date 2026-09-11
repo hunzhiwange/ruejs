@@ -28,8 +28,8 @@ export const View: FC = () => (
 
     let vapor_import = output
         .split(';')
-        .find(|statement| statement.contains("@rue-js/rue/internal"))
-        .expect("compiled reactive branches must use the Vapor graph");
+        .find(|statement| statement.contains("@rue-js/rue/internal/block"))
+        .expect("compiled reactive branches must use the block entry");
     assert!(vapor_import.contains("_$compiledBranchAt"), "{output}");
     assert!(vapor_import.contains("_$compiledRoot"), "{output}");
     assert!(output.matches("_$compiledBranchAt(").count() >= 3, "{output}");
@@ -68,9 +68,11 @@ export const View: FC = () => (
     assert!(output.contains("? __rue_branch_value : \"\""), "{output}");
     assert!(output.contains("__rue_branch_value != null"), "{output}");
     assert!(output.contains("renderNode()"), "{output}");
-    assert!(output.contains("effect"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
+    assert!(output.contains("_$compiledValueFactory(renderNode())"), "{output}");
+    assert!(!output.contains("effect"), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");
-    assert!(output.contains("untrack(()=>renderAnchor(__slot"), "{output}");
+    assert!(!output.contains("renderAnchor"), "{output}");
 }
 
 #[test]

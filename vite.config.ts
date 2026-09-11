@@ -31,6 +31,34 @@ const rueClientSourceChunks = [
   chunkName,
 ])
 
+/**
+ * Satteri follows the MDX provider convention and emits native elements as
+ * `_components.h1`, `_components.p`, and so on. Rue's compiler-only runtime
+ * requires component factories to be statically known, so keep authored/imported
+ * MDX components intact while lowering those built-in element indirections back
+ * to their native JSX tags. Rue docs do not expose the React-style `components`
+ * provider or wrapper override.
+ */
+const lowerRueMdxElementIndirection = (code: string) => {
+  const nativeElements = new Set<string>()
+  const defaults = code.match(/Object\.assign\(\{([\s\S]*?)\}, props\.components\)/)?.[1] ?? ''
+
+  for (const match of defaults.matchAll(/\b([a-z][\w-]*)\s*:\s*"\1"/g)) {
+    nativeElements.add(match[1])
+  }
+
+  let lowered = code
+  for (const tag of nativeElements) {
+    lowered = lowered.replaceAll(`<_components.${tag}`, `<${tag}`)
+    lowered = lowered.replaceAll(`</_components.${tag}`, `</${tag}`)
+  }
+
+  return lowered.replace(
+    /const \{ wrapper: MDXLayout \} = props\.components \|\| \{\};\s*return MDXLayout \? <MDXLayout[\s\S]*?: _createMdxContent\(props\);/,
+    'return _createMdxContent(props);',
+  )
+}
+
 const getRueClientChunk = (id: string) => {
   const normalizedId = id.replaceAll('\\', '/')
   const sourceChunk = rueClientSourceChunks.find(([sourceDir]) =>
@@ -76,7 +104,7 @@ const createSatteriMdxPlugin = (options: Pick<MdxCompileOptions, 'development'> 
     })
 
     return {
-      code: result.code,
+      code: lowerRueMdxElementIndirection(result.code),
       map: null,
     }
   },
@@ -172,6 +200,8 @@ export default defineConfig(({ command, isSsrBuild }) => {
               '/app/',
               '/docs/',
               '/packages/router/src/',
+              '/packages/store/',
+              '/packages/i18n/',
               '/packages/router/__tests__/',
               '/packages/rue-design/src/',
               '/packages/rue/__tests__/',
@@ -320,13 +350,32 @@ export default defineConfig(({ command, isSsrBuild }) => {
     resolve: {
       conditions: ['development', 'browser'],
       alias: {
-        '@rue-js/rue/internal/component': path.resolve(
-          rootDir,
-          'packages/runtime/src/component-internal.ts',
-        ),
-        '@rue-js/runtime/internal/component': path.resolve(
-          rootDir,
-          'packages/runtime/src/component-internal.ts',
+        ...Object.fromEntries(
+          ['rue', 'runtime'].flatMap(pkg =>
+            [
+              'app',
+              'dom',
+              'reactive',
+              'block',
+              'component',
+              'list',
+              'events',
+              'builtin',
+              'teleport',
+              'transition',
+              'transitiongroup',
+              'keepalive',
+              'suspense',
+              'hydrate',
+              'ssr',
+            ].map(capability => [
+              `@rue-js/${pkg}/internal/${capability}`,
+              path.resolve(
+                rootDir,
+                `packages/runtime/src/compiler-runtime/entries/${capability}.ts`,
+              ),
+            ]),
+          ),
         ),
         '@rue-js/rue/internal/builtins': path.resolve(
           rootDir,

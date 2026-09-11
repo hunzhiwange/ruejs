@@ -73,6 +73,21 @@ const resetProbe = () => {
   syncProbeSnapshot()
 }
 
+const ProbeMetric: FC<{
+  metric: [ProbeKey, string, string]
+  version: number
+}> = props => {
+  const [key, label, tone] = props.metric
+  return (
+    <div key={key} className="rounded-box border border-base-300 bg-base-200/60 p-4">
+      <div className="text-sm text-base-content/60">{label}</div>
+      <div className={`text-3xl font-semibold ${tone}`}>
+        {props.version >= 0 ? probeState.counts[key] : 0}
+      </div>
+    </div>
+  )
+}
+
 const ProbePanel: FC<{
   currentRoute: string
   nextTo: string
@@ -105,13 +120,8 @@ const ProbePanel: FC<{
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {metrics.map(([key, label, tone]) => (
-              <div key={key} className="rounded-box border border-base-300 bg-base-200/60 p-4">
-                <div className="text-sm text-base-content/60">{label}</div>
-                <div className={`text-3xl font-semibold ${tone}`}>
-                  {probeVersion.value >= 0 ? probeState.counts[key] : 0}
-                </div>
-              </div>
+            {metrics.map(metric => (
+              <ProbeMetric key={metric[0]} metric={metric} version={probeVersion.value} />
             ))}
           </div>
           <div className="mockup-code text-sm">

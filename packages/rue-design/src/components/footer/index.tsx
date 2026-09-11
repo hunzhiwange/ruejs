@@ -129,19 +129,50 @@ const joinClassName = (...values: Array<string | undefined | false>) =>
   values.filter(Boolean).join(' ')
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value == null) return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** Title 的内部工具函数。 */
 const Title: FC<FooterTitleProps> = ({ as = 'h6', className, children, content, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={joinClassName('footer-title', className)}>
-      {content ?? children}
-    </Component>
+  return Component === 'div' ? (
+    <div {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </span>
+  ) : Component === 'h6' ? (
+    <h6 {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </h6>
+  ) : Component === 'a' ? (
+    <a {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </a>
+  ) : Component === 'button' ? (
+    <button {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </button>
+  ) : Component === 'label' ? (
+    <label {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </label>
+  ) : Component === 'aside' ? (
+    <aside {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </aside>
+  ) : Component === 'nav' ? (
+    <nav {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </nav>
+  ) : Component === 'footer' ? (
+    <footer {...rest} className={joinClassName('footer-title', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </footer>
+  ) : (
+    <></>
   )
 }
 
@@ -169,7 +200,7 @@ const Link: FC<FooterLinkProps> = ({
         rel={anchorRel}
         className={joinClassName('link', hover && 'link-hover', className)}
       >
-        {content ?? children}
+        {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
       </a>
     )
   }
@@ -181,15 +212,49 @@ const Link: FC<FooterLinkProps> = ({
         type={rest.type ?? 'button'}
         className={joinClassName('link', hover && 'link-hover', className)}
       >
-        {content ?? children}
+        {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
       </button>
     )
   }
 
-  return (
-    <Component {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
-      {content ?? children}
-    </Component>
+  return Component === 'div' ? (
+    <div {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </span>
+  ) : Component === 'h6' ? (
+    <h6 {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </h6>
+  ) : Component === 'a' ? (
+    <a {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </a>
+  ) : Component === 'button' ? (
+    <button {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </button>
+  ) : Component === 'label' ? (
+    <label {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </label>
+  ) : Component === 'aside' ? (
+    <aside {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </aside>
+  ) : Component === 'nav' ? (
+    <nav {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </nav>
+  ) : Component === 'footer' ? (
+    <footer {...rest} className={joinClassName('link', hover && 'link-hover', className)}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </footer>
+  ) : (
+    <></>
   )
 }
 
@@ -210,28 +275,64 @@ const isFooterItemConfig = (value: any): value is FooterItem => {
 }
 
 /** 渲染 Footer Item 的内部工具函数。 */
-const renderFooterItem = (item: FooterItem | any, index: number) => {
-  if (!hasRenderableContent(item)) return null
+const RenderFooterItem = ({
+  arg0: item,
+  arg1: index,
+}: {
+  arg0: FooterItem | any
+  arg1: number
+}) => {
+  if (!hasRenderableContent(item)) return <></>
 
   if (isFooterItemConfig(item)) {
     const { key, label, content, children, ...rest } = item
-    return (
-      <Link key={key ?? `item-${index}`} {...rest}>
-        {content ?? children ?? label}
-      </Link>
-    )
+    return <Link {...rest} content={content ?? label} />
   }
 
-  return <Link key={`item-${index}`}>{item}</Link>
+  return <Link content={item} />
 }
 
 /** Brand 的内部工具函数。 */
 const Brand: FC<FooterBrandProps> = ({ as = 'aside', className, children, content, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={className}>
-      {content ?? children}
-    </Component>
+  return Component === 'div' ? (
+    <div {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </span>
+  ) : Component === 'h6' ? (
+    <h6 {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </h6>
+  ) : Component === 'a' ? (
+    <a {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </a>
+  ) : Component === 'button' ? (
+    <button {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </button>
+  ) : Component === 'label' ? (
+    <label {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </label>
+  ) : Component === 'aside' ? (
+    <aside {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </aside>
+  ) : Component === 'nav' ? (
+    <nav {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </nav>
+  ) : Component === 'footer' ? (
+    <footer {...rest} className={className}>
+      {content !== undefined ? <span>{String(content)}</span> : <>{children}</>}
+    </footer>
+  ) : (
+    <></>
   )
 }
 
@@ -251,19 +352,188 @@ const Section: FC<FooterSectionProps> = ({
   const Component = as as any
   const hasCustomContent = hasRenderableContent(content) || hasRenderableContent(children)
 
-  return (
-    <Component {...rest} className={className}>
-      {hasRenderableContent(title) ? <Title className={titleClassName}>{title}</Title> : null}
+  return Component === 'div' ? (
+    <div {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
       {hasCustomContent ? (
         (content ?? children)
       ) : inline ? (
         <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
-          {(items ?? []).map((item, index) => renderFooterItem(item, index))}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
         </div>
       ) : (
-        (items ?? []).map((item, index) => renderFooterItem(item, index))
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
       )}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </span>
+  ) : Component === 'h6' ? (
+    <h6 {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </h6>
+  ) : Component === 'a' ? (
+    <a {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </a>
+  ) : Component === 'button' ? (
+    <button {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </button>
+  ) : Component === 'label' ? (
+    <label {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </label>
+  ) : Component === 'aside' ? (
+    <aside {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </aside>
+  ) : Component === 'nav' ? (
+    <nav {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </nav>
+  ) : Component === 'footer' ? (
+    <footer {...rest} className={className}>
+      {hasRenderableContent(title) ? <Title className={titleClassName} content={title} /> : null}
+      {hasCustomContent ? (
+        (content ?? children)
+      ) : inline ? (
+        <div className={joinClassName('grid grid-flow-col auto-cols-max gap-4', contentClassName)}>
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {' '}
+          {(items ?? []).map((item, index) => (
+            <RenderFooterItem arg0={item} arg1={index} />
+          ))}{' '}
+        </>
+      )}
+    </footer>
+  ) : (
+    <></>
   )
 }
 
@@ -280,12 +550,84 @@ const Root: FC<FooterProps> = ({
   bordered,
   ...rest
 }) => {
+  const CompiledRow101 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow8 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow7 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow6 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow5 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow4 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow3 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow2 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const section = rowArg0
+    const index = rowArg1
+
+    const { key, ...sectionProps } = section
+    return <Section {...sectionProps} />
+  }
+
   const Component = as as any
   const hasChildren = hasRenderableContent(children)
   const hasStructuredContent = hasRenderableContent(brand) || (sections?.length ?? 0) > 0
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'footer',
@@ -300,14 +642,199 @@ const Root: FC<FooterProps> = ({
         children
       ) : (
         <>
-          {hasRenderableContent(brand) ? <Brand>{brand}</Brand> : null}
-          {(sections ?? []).map((section, index) => {
-            const { key, ...sectionProps } = section
-            return <Section key={key ?? `section-${index}`} {...sectionProps} />
-          })}
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
         </>
       )}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow2 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </span>
+  ) : Component === 'h6' ? (
+    <h6
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow3 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </h6>
+  ) : Component === 'a' ? (
+    <a
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow4 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </a>
+  ) : Component === 'button' ? (
+    <button
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow5 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </button>
+  ) : Component === 'label' ? (
+    <label
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow6 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </label>
+  ) : Component === 'aside' ? (
+    <aside
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow7 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </aside>
+  ) : Component === 'nav' ? (
+    <nav
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow8 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </nav>
+  ) : Component === 'footer' ? (
+    <footer
+      {...rest}
+      className={joinClassName(
+        'footer',
+        direction && `footer-${direction}`,
+        center && 'footer-center',
+        wrap && 'gap-y-6',
+        bordered && 'border-t border-base-300',
+        className,
+      )}
+    >
+      {hasChildren || !hasStructuredContent ? (
+        children
+      ) : (
+        <>
+          {hasRenderableContent(brand) ? <Brand content={brand} /> : null}
+          {(sections ?? []).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow101 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </>
+      )}
+    </footer>
+  ) : (
+    <></>
   )
 }
 

@@ -4,8 +4,7 @@
  * onErrorCaptured 将处理器登记在当前组件实例及其关联 Context owner 上；
  * dispatchErrorCaptured 则沿组件父链向上冒泡，遇到返回 false 的处理器即停止继续传播。
  */
-import { getCurrentInstance, withHookSlot } from './runtime-core/reactive'
-import { getOwnerParent } from './reactive-core'
+import { getCurrentInstance } from './runtime-core/reactive'
 import { isWeakKey, retainRootMountError, shouldRetainRootMountError } from './root-mount-error'
 
 export { retainRootMountError, shouldRetainRootMountError }
@@ -30,17 +29,6 @@ type ErrorCaptureOwner = Record<string, unknown> & {
 /** dispatch 时可跳过的 owner 集合，避免同一错误在包装组件处重复触发。 */
 type DispatchErrorCapturedOptions = {
   ignoredOwners?: Set<unknown>
-}
-
-/** Hook slot 保存稳定 handler，组件重渲染时仅更新最新 fn。 */
-type ErrorCapturedHookSlot = {
-  fn: ErrorCapturedHook
-  registered?: Set<ErrorCapturedHook>[]
-  handler?: ErrorCapturedHook
-}
-
-type ErrorCaptureRuntimeBridge = {
-  activateEffectOwnerTracking?(): void
 }
 
 /** 已经走过 errorCaptured 冒泡的 Error 对象，用于避免全局桥接重复派发。 */
@@ -73,39 +61,12 @@ const getParentErrorCaptureInstance = (instance: unknown) => {
     return directParent
   }
 
-  const compiledParent = getOwnerParent(owner)
-  if (compiledParent != null && compiledParent !== instance) {
-    return compiledParent
-  }
-
   const props = owner.propsRO
   if (isWeakKey(props)) {
     return props[RUE_CONTEXT_OWNER_PARENT_PROP] ?? props[RUE_CONTEXT_PARENT_INSTANCE_PROP] ?? null
   }
 
   return null
-}
-
-/** 确保当前 owner 上存在处理器集合，并以非枚举字段挂载。 */
-const ensureHandlers = (instance: unknown) => {
-  const owner = asErrorCaptureOwner(instance)
-  if (!owner) {
-    return null
-  }
-
-  const existing = owner[RUE_ERROR_CAPTURE_HANDLERS_KEY]
-  if (existing instanceof Set) {
-    return existing
-  }
-
-  const handlers = new Set<ErrorCapturedHook>()
-  Object.defineProperty(owner, RUE_ERROR_CAPTURE_HANDLERS_KEY, {
-    configurable: true,
-    enumerable: false,
-    value: handlers,
-    writable: false,
-  })
-  return handlers
 }
 
 /** 标记错误已被 errorCaptured 链处理过。 */
@@ -119,42 +80,7 @@ const rememberDispatchedError = (error: unknown) => {
 export const wasErrorCapturedDispatched = (error: unknown) => dispatchedErrors.has(error as object)
 
 /** 注册组件树错误捕获回调，返回取消注册函数。 */
-export const onErrorCaptured = (fn: ErrorCapturedHook) => {
-  if (typeof fn !== 'function') {
-    return undefined
-  }
-
-  const slot = withHookSlot<ErrorCapturedHookSlot>(() => ({ fn }))
-  slot.fn = fn
-
-  if (!slot.handler) {
-    slot.handler = (...args) => slot.fn(...args)
-    const instance = getCurrentInstance()
-    const owners = [instance, getLinkedInstance(instance)]
-    slot.registered = owners
-      .map(owner => ensureHandlers(owner))
-      .filter((handlers): handlers is Set<ErrorCapturedHook> => !!handlers)
-
-    slot.registered.forEach(handlers => {
-      handlers.add(slot.handler!)
-    })
-    if (slot.registered.length > 0) {
-      ;(
-        globalThis as typeof globalThis & {
-          __rue_compiled_runtime_bridge?: ErrorCaptureRuntimeBridge
-        }
-      ).__rue_compiled_runtime_bridge?.activateEffectOwnerTracking?.()
-    }
-  }
-
-  return () => {
-    slot.registered?.forEach(handlers => {
-      if (slot.handler) {
-        handlers.delete(slot.handler)
-      }
-    })
-  }
-}
+export { onErrorCaptured } from './compiler-runtime/component-errors'
 
 /** 生成需要跳过的当前实例/关联实例集合，供组件包装器避免重复派发。 */
 export const createIgnoredErrorCaptureOwners = (instance: unknown) => {

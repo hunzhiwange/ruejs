@@ -121,11 +121,11 @@ export default Goods;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec9.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert_eq!(normalized.matches("_$compiledRoot(Object.assign(").count(), 3);
+    assert_eq!(normalized.matches("_$compiledRoot(").count(), 3);
     assert_eq!(normalized.matches("_$compiledCreateTextNode(\"1\")").count(), 2);
     assert!(normalized.contains("_$createComponent(Hello, ()=>({}))"));
     assert!(normalized.contains("_$createComponent(World, ()=>({}))"));
     assert_eq!(normalized.matches("renderAnchor(__slot").count(), 2);
-    assert_eq!(normalized.matches("__rue_compiled_explicit_roots: true").count(), 3);
+    assert_eq!(normalized.matches("return [").count(), 3);
     assert!(!normalized.contains("__rue_cleanup_bucket"));
 }

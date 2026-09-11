@@ -11,7 +11,7 @@ use swc_core::ecma::ast::*;
 - is_component：首字母大写即组件；
 - is_children_member_expr：识别任意对象的 `.children`；
 - 文本/空值判定：is_static_empty_like / is_static_text_literal / get_static_text_literal_expr；
-- 组件静态性：is_static_component_without_props / is_static_component_children_ident / component_has_no_dynamic_props_excluding_children；
+- 组件静态性：component_has_no_dynamic_props_excluding_children；
 - 事件/回调属性：is_event_attr / is_callback_attr 用于静态性判断的放行。
 */
 /// 工具函数说明：
@@ -147,41 +147,6 @@ pub fn get_static_text_literal_expr(e: &Expr) -> Option<Expr> {
         }
         _ => None,
     }
-}
-
-pub fn is_static_component_without_props(el: &JSXElement) -> bool {
-    let opening = &el.opening;
-    if !is_component(&opening.name) {
-        return false;
-    }
-    if !el.children.is_empty() {
-        return false;
-    }
-    if opening.attrs.is_empty() {
-        return true;
-    }
-    false
-}
-
-pub fn is_static_component_children_ident(el: &JSXElement) -> bool {
-    let opening = &el.opening;
-    if !is_component(&opening.name) {
-        return false;
-    }
-    if opening.attrs.len() != 1 {
-        return false;
-    }
-    if let JSXAttrOrSpread::JSXAttr(attr) = &opening.attrs[0]
-        && let JSXAttrName::Ident(idn) = &attr.name
-        && idn.sym.as_ref() == "children"
-        && let Some(JSXAttrValue::JSXExprContainer(ec)) = &attr.value
-        && let JSXExpr::Expr(expr) = &ec.expr
-        && let Expr::Ident(_) = unwrap_expr(expr)
-    {
-        // children={ident} 以标识符引用的形式，视为静态 children（无需 watch）
-        return true;
-    }
-    false
 }
 
 pub fn is_transition_group_component(el: &JSXElement) -> bool {

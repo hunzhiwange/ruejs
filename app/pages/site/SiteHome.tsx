@@ -399,6 +399,8 @@ const PartnerSection: FC<{
   </section>
 )
 
+const CreateCommandText: FC<{ command: string }> = props => <>{props.command}</>
+
 const SiteHome: FC = () => {
   const activeCreateCommand = ref<CreateCommandOption['id']>('npm')
   const selectedCreateCommand = computed(
@@ -503,7 +505,9 @@ const SiteHome: FC = () => {
             </div>
             <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <pre className="min-w-0 flex-1 overflow-x-auto text-sm text-white/92 md:text-base">
-                <code>$ {selectedCreateCommand.get().command}</code>
+                <code>
+                  $ <CreateCommandText command={selectedCreateCommand.get().command} />
+                </code>
               </pre>
               <button
                 type="button"

@@ -97,7 +97,7 @@ components/
 
 - 由于组件名称应始终是多词的，这种约定防止你不得不为简单组件包装器选择任意前缀（例如 `MyButton`、`RueButton`）。
 
-- 由于这些组件使用如此频繁，你可能希望从统一入口导出它们，或在确实需要字符串动态解析时通过 `useApp(...).component()` 注册到运行时名称表。统一前缀会让这类批量组织更容易保持清晰：
+- 由于这些组件使用如此频繁，你可能希望从统一入口导出它们。有限动态选择使用调用点字面量 registry；不使用运行时字符串名称表：
 
   ```tsx
   export { BaseButton } from './BaseButton'
@@ -396,7 +396,7 @@ import myComponent from './MyComponent.jsx'
 ```
 
 ```tsx
-useApp(App).component('myComponent', MyComponent)
+const registry = { myComponent: MyComponent }
 ```
 
 </div>
@@ -415,7 +415,7 @@ import MyComponent from './MyComponent.jsx'
 ```
 
 ```tsx
-useApp(App).component('MyComponent', MyComponent)
+const registry = { MyComponent }
 ```
 
 </div>

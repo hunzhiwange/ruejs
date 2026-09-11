@@ -1,1 +1,1 @@
-export { ThemeProvider, useTheme } from './internal/context.js'
+export { ThemeProvider, useTheme } from './internal/context.jsx'

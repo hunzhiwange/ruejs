@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Tabs, TextRotate, Typography } from '@rue-js/design'
-
 type DemoTabKey = 'preview' | 'code'
 
 interface DemoBlockProps {

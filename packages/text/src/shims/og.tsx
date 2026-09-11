@@ -1,11 +1,7 @@
 import { ImageResponse as VercelImageResponse } from '@vercel/og'
 import type { ImageResponseOptions } from '@vercel/og'
-import type { TextElement } from '../runtime/render-protocol.js'
-
-const RUE_PROTOCOL_ELEMENT_SYMBOL = Symbol.for('rue.transitional.element')
-const LEGACY_RUE_PROTOCOL_ELEMENT_SYMBOL = Symbol.for('rue.element')
-const RUE_COMPONENT_TYPE_KEY = '__rue_component_type'
-const RUE_ELEMENT_HEAD_RECORD = Symbol.for('rue.element.head-record')
+import { parseFragment } from 'parse5'
+import { renderToString, type ServerPlan } from '@rue-js/runtime/server'
 
 const CACHE_HEADERS = {
   noCache: 'no-cache, no-store',
@@ -22,10 +18,19 @@ const CACHE_HEADERS = {
 export class ImageResponse extends Response {
   static displayName = 'ImageResponse'
 
-  constructor(element: TextElement, options?: ImageResponseOptions) {
+  constructor(element: ServerPlan, options?: ImageResponseOptions) {
     const readable = new ReadableStream<Uint8Array>({
       async start(controller) {
-        const imageResponse = new VercelImageResponse(toVercelOgElement(element) as any, options)
+        const html = await renderToString(() => element)
+        const nodes = parseFragment(html)
+          .childNodes.map(toImageNode)
+          .filter(value => value !== null)
+        const imageResponse = new VercelImageResponse(
+          (nodes.length === 1
+            ? nodes[0]
+            : { type: 'div', props: { style: { display: 'flex' }, children: nodes } }) as any,
+          options,
+        )
         if (!imageResponse.body) {
           controller.close()
           return
@@ -64,66 +69,28 @@ export class ImageResponse extends Response {
 
 export type { ImageResponseOptions } from '@vercel/og'
 
-function toVercelOgElement(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(toVercelOgElement)
+/** Convert parsed HTML data to Satori's image input, never execute component objects. */
+function toImageNode(node: ReturnType<typeof parseFragment>['childNodes'][number]): unknown {
+  if (node.nodeName === '#text') return (node as { value: string }).value
+  if (!('tagName' in node)) return null
+  const props: Record<string, unknown> = {}
+  for (const { name, value } of node.attrs) {
+    if (name === 'style') {
+      props.style = Object.fromEntries(
+        value
+          .split(';')
+          .filter(Boolean)
+          .map(declaration => {
+            const colon = declaration.indexOf(':')
+            const key = declaration
+              .slice(0, colon)
+              .trim()
+              .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
+            return [key, declaration.slice(colon + 1).trim()]
+          }),
+      )
+    } else props[name === 'class' ? 'className' : name] = value
   }
-  if (typeof value !== 'object' || value === null) {
-    return value
-  }
-
-  const record = value as Record<PropertyKey, unknown>
-  if (
-    record.$$typeof === RUE_PROTOCOL_ELEMENT_SYMBOL ||
-    record.$$typeof === LEGACY_RUE_PROTOCOL_ELEMENT_SYMBOL
-  ) {
-    return value
-  }
-
-  if (RUE_COMPONENT_TYPE_KEY in record) {
-    const type = record[RUE_COMPONENT_TYPE_KEY]
-    const props = normalizeElementProps(record.props)
-    if (typeof type === 'function') {
-      return toVercelOgElement(type(props))
-    }
-    if (typeof type === 'string') {
-      return createVercelOgElement(type, props)
-    }
-  }
-
-  const headRecord = record[RUE_ELEMENT_HEAD_RECORD]
-  if (typeof headRecord === 'object' && headRecord !== null) {
-    const head = headRecord as { key?: unknown; props?: unknown; type?: unknown }
-    const props = normalizeElementProps(head.props)
-    if (typeof head.type === 'function') {
-      return toVercelOgElement(head.type(props))
-    }
-    if (typeof head.type === 'string') {
-      return createVercelOgElement(head.type, props, head.key)
-    }
-  }
-
-  return value
-}
-
-function createVercelOgElement(
-  type: string,
-  props: Record<string, unknown>,
-  key: unknown = props.key ?? null,
-): Record<string, unknown> {
-  const normalizedProps = { ...props }
-  if ('children' in normalizedProps) {
-    normalizedProps.children = toVercelOgElement(normalizedProps.children)
-  }
-  return {
-    $$typeof: RUE_PROTOCOL_ELEMENT_SYMBOL,
-    key: key == null ? null : String(key),
-    props: normalizedProps,
-    ref: null,
-    type,
-  }
-}
-
-function normalizeElementProps(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
+  props.children = node.childNodes.map(toImageNode).filter(value => value !== null)
+  return { type: node.tagName, props }
 }

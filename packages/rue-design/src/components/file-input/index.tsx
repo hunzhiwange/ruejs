@@ -5,15 +5,7 @@ FileInput 组件概述
 - 组件仍聚焦“文件选择与列表编排”，真正的上传请求继续由业务侧处理。
 */
 import type { FC } from '@rue-js/rue'
-import {
-  onMounted,
-  onUpdated,
-  ref,
-  render as renderRue,
-  useRef,
-  useSetup,
-  watch,
-} from '@rue-js/rue'
+import { onMounted, onUpdated, ref, useRef, useSetup, watch } from '@rue-js/rue'
 
 /** FileInputVariant 视觉或语义变体类型。 */
 export type FileInputVariant =
@@ -85,13 +77,8 @@ export interface FileInputShowUploadList {
   /** showRemoveIcon 图标内容。 */
   showRemoveIcon?: boolean
   /** 额外操作或补充内容。 */
-  extra?: any | ((file: FileInputFile) => any)
+  extra?: string | number | ((file: FileInputFile) => string | number)
   /** itemRender 自定义渲染函数。 */
-  itemRender?: (
-    file: FileInputFile,
-    defaultNode: any,
-    actions: { preview: () => void; remove: () => void },
-  ) => any
 }
 
 /** FileInputChangeInfo 接口。 */
@@ -207,11 +194,8 @@ const mergeClassNames = (...parts: Array<string | undefined | false | null>) => 
 }
 
 /** 判断 Children 是否有可渲染内容。 */
-const hasRenderableChildren = (children: any) => {
-  return (
-    children !== undefined && children !== null && (!Array.isArray(children) || children.length > 0)
-  )
-}
+const hasRenderableChildren = (children: any) =>
+  children != null && children !== false && children !== ''
 
 /** 解析 Color Tone 的内部工具函数。 */
 const resolveColorTone = (
@@ -665,7 +649,10 @@ const controlledFileExtraCache = /*#__PURE__*/ new Map<string, Map<string, unkno
 let controlledFileListVersionSeed = 0
 const controlledFileListSignature = (files: FileInputFile[]) =>
   files
-    .map(file => `${file.uid ?? ''}:${file.name}:${file.status ?? ''}:${file.description ?? ''}`)
+    .map(
+      file =>
+        `${file.uid ?? ''}:${String(file.name)}:${file.status ?? ''}:${file.description ?? ''}`,
+    )
     .join('|')
 
 /** stringify Cache Part 的内部工具函数。 */
@@ -991,7 +978,6 @@ const FileInputRoot: FC<FileInputProps> = ({
     lastControlledFileList: (controlled ? fileList : undefined) as FileInputFile[] | undefined,
     effectsRegistered: false,
     syncFromProps: (() => false) as () => boolean,
-    renderDynamicRegion: (() => {}) as () => void,
   }))
   const inputId = id ?? instance.inputId
   const enhancedMode = isEnhancedMode({
@@ -1045,7 +1031,6 @@ const FileInputRoot: FC<FileInputProps> = ({
   }
 
   const inputRef = useRef<HTMLInputElement>()
-  const dynamicHostRef = useRef<HTMLDivElement>()
   const dragging = instance.dragging
   const currentFileList = instance.currentFileList
   const listVersion = instance.listVersion
@@ -1075,13 +1060,6 @@ const FileInputRoot: FC<FileInputProps> = ({
     }
   }
 
-  const assignDynamicHostRef = (element: HTMLDivElement | null) => {
-    dynamicHostRef.current = element ?? undefined
-    if (element) {
-      instance.renderDynamicRegion()
-    }
-  }
-
   const syncFromProps = () => {
     if (!controlled) {
       instance.lastControlledFileList = undefined
@@ -1101,7 +1079,6 @@ const FileInputRoot: FC<FileInputProps> = ({
       writeUncontrolledFileListCache(uncontrolledFileListCacheKey, nextFileList)
     }
     listVersion.value += 1
-    instance.renderDynamicRegion()
   }
 
   const emitEnhancedChange = (info: FileInputChangeInfo) => {
@@ -1136,7 +1113,6 @@ const FileInputRoot: FC<FileInputProps> = ({
     const previewData = await resolvedPreviewFile(originFile)
     file.preview = previewData
     listVersion.value += 1
-    instance.renderDynamicRegion()
     return previewData
   }
 
@@ -1310,10 +1286,10 @@ const FileInputRoot: FC<FileInputProps> = ({
     buildSelectedList(droppedFiles, 'drop', event)
   }
 
-  const renderFileThumb = (file: FileInputFile) => {
+  const RenderFileThumb = ({ arg0: file }: { arg0: FileInputFile }) => {
     const previewUrl = file.thumbUrl ?? file.url ?? file.preview
     if (previewUrl && isImageLike(file)) {
-      return <img src={previewUrl} alt={file.name} className="size-full object-cover" />
+      return <img src={previewUrl} alt={String(file.name)} className="size-full object-cover" />
     }
     return (
       <div className="flex size-full items-center justify-center rounded-box bg-base-200 text-base-content/60">
@@ -1332,7 +1308,13 @@ const FileInputRoot: FC<FileInputProps> = ({
     )
   }
 
-  const renderDefaultListItem = (file: FileInputFile, extraContent: any) => {
+  const RenderDefaultListItem = ({
+    arg0: file,
+    arg1: extraContent,
+  }: {
+    arg0: FileInputFile
+    arg1: any
+  }) => {
     const shouldShowPreviewIcon = showPreviewIcon && canPreviewFile(file)
 
     if (resolvedListType === 'picture-card') {
@@ -1349,12 +1331,12 @@ const FileInputRoot: FC<FileInputProps> = ({
             onClick={() => void handlePreview(file)}
             disabled={disabled || !canPreviewFile(file)}
           >
-            {renderFileThumb(file)}
+            <RenderFileThumb arg0={file} />
           </button>
           <div className="border-t border-base-300 px-3 py-2">
-            <div className="truncate text-sm font-medium">{file.name}</div>
+            <div className="truncate text-sm font-medium">{String(file.name)}</div>
             {extraContent !== undefined ? (
-              <div className="mt-1 text-xs text-base-content/60">{extraContent}</div>
+              <div className="mt-1 text-xs text-base-content/60">{String(extraContent)}</div>
             ) : null}
           </div>
           {(shouldShowPreviewIcon || showRemoveIcon) && !disabled ? (
@@ -1363,7 +1345,7 @@ const FileInputRoot: FC<FileInputProps> = ({
                 <button
                   type="button"
                   className="btn btn-circle btn-xs border-none bg-base-100/90 shadow-sm"
-                  aria-label={`Preview ${file.name}`}
+                  aria-label={`Preview ${String(file.name)}`}
                   onClick={(event: MouseEvent) => {
                     if (typeof (event as any).stopPropagation === 'function') {
                       ;(event as any).stopPropagation()
@@ -1378,7 +1360,7 @@ const FileInputRoot: FC<FileInputProps> = ({
                 <button
                   type="button"
                   className="btn btn-circle btn-xs border-none bg-base-100/90 shadow-sm"
-                  aria-label={`Remove ${file.name}`}
+                  aria-label={`Remove ${String(file.name)}`}
                   onClick={(event: MouseEvent) => {
                     if (typeof (event as any).stopPropagation === 'function') {
                       ;(event as any).stopPropagation()
@@ -1409,7 +1391,7 @@ const FileInputRoot: FC<FileInputProps> = ({
             onClick={() => void handlePreview(file)}
             disabled={disabled || !canPreviewFile(file)}
           >
-            {renderFileThumb(file)}
+            <RenderFileThumb arg0={file} />
           </button>
         ) : (
           <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-box bg-base-200 text-base-content/65">
@@ -1418,17 +1400,17 @@ const FileInputRoot: FC<FileInputProps> = ({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="truncate font-medium">{file.name}</span>
+            <span className="truncate font-medium">{String(file.name)}</span>
             <span
               className={mergeClassNames('badge badge-sm', buildStatusBadgeClassName(file.status))}
             >
-              {file.status ?? 'ready'}
+              {String(file.status ?? 'ready')}
             </span>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/60">
-            {file.type ? <span>{file.type}</span> : null}
-            {formatFileSize(file.size) ? <span>{formatFileSize(file.size)}</span> : null}
-            {extraContent !== undefined ? <span>{extraContent}</span> : null}
+            {file.type ? <span>{String(file.type)}</span> : null}
+            {formatFileSize(file.size) ? <span>{String(formatFileSize(file.size))}</span> : null}
+            {extraContent !== undefined ? <span>{String(extraContent)}</span> : null}
           </div>
         </div>
         {(shouldShowPreviewIcon || showRemoveIcon) && !disabled ? (
@@ -1437,7 +1419,7 @@ const FileInputRoot: FC<FileInputProps> = ({
               <button
                 type="button"
                 className="btn btn-ghost btn-sm btn-square"
-                aria-label={`Preview ${file.name}`}
+                aria-label={`Preview ${String(file.name)}`}
                 onClick={() => void handlePreview(file)}
               >
                 <DefaultPreviewIcon />
@@ -1447,7 +1429,7 @@ const FileInputRoot: FC<FileInputProps> = ({
               <button
                 type="button"
                 className="btn btn-ghost btn-sm btn-square"
-                aria-label={`Remove ${file.name}`}
+                aria-label={`Remove ${String(file.name)}`}
                 onClick={() => void handleRemove(file)}
               >
                 <DefaultRemoveIcon />
@@ -1459,7 +1441,7 @@ const FileInputRoot: FC<FileInputProps> = ({
     )
   }
 
-  const renderListItem = (file: FileInputFile) => {
+  const readExtraContent = (file: FileInputFile) => {
     const extraContent = (() => {
       if (typeof uploadListConfig?.extra !== 'function') return uploadListConfig?.extra
       if (!controlled || !fileList) return uploadListConfig.extra(file)
@@ -1474,19 +1456,10 @@ const FileInputRoot: FC<FileInputProps> = ({
       cache.set(key, value)
       return value
     })()
-    const defaultNode = renderDefaultListItem(file, extraContent)
-
-    if (uploadListConfig?.itemRender) {
-      return uploadListConfig.itemRender(file, defaultNode, {
-        preview: () => void handlePreview(file),
-        remove: () => void handleRemove(file),
-      })
-    }
-
-    return defaultNode
+    return extraContent
   }
 
-  const renderDefaultTriggerNode = () => {
+  const RenderDefaultTriggerNode = () => {
     const resolvedTone = resolveColorTone(color, variant)
     if (drag) {
       return (
@@ -1509,13 +1482,15 @@ const FileInputRoot: FC<FileInputProps> = ({
               <DefaultUploadIcon className="size-6" />
             </span>
             <div className="text-sm font-semibold text-base-content">
-              {title ?? '拖拽文件到这里，或点击选择文件'}
+              {String(title ?? '拖拽文件到这里，或点击选择文件')}
             </div>
             <div className="mt-2 max-w-md text-sm text-base-content/65">
-              {description ?? '适合资料、图片和批量附件收集；列表仍交给业务侧决定上传时机。'}
+              {String(
+                description ?? '适合资料、图片和批量附件收集；列表仍交给业务侧决定上传时机。',
+              )}
             </div>
             <div className="mt-3 text-xs text-base-content/50">
-              {hint ?? (acceptsMany ? '支持多文件选择' : '单次选择一个文件')}
+              {String(hint ?? (acceptsMany ? '支持多文件选择' : '单次选择一个文件'))}
             </div>
           </div>
         </div>
@@ -1537,10 +1512,10 @@ const FileInputRoot: FC<FileInputProps> = ({
             <DefaultPlusIcon />
           </span>
           <div className="mt-3 text-sm font-medium text-base-content">
-            {buttonText ?? '添加文件'}
+            {String(buttonText ?? '添加文件')}
           </div>
           <div className="mt-1 text-xs text-base-content/60">
-            {hint ?? (maxCount ? `最多 ${maxCount} 个` : '支持图片或附件卡片展示')}
+            {String(hint ?? (maxCount ? `最多 ${maxCount} 个` : '支持图片或附件卡片展示'))}
           </div>
         </div>
       )
@@ -1567,10 +1542,10 @@ const FileInputRoot: FC<FileInputProps> = ({
           onClick={openPicker}
         >
           <DefaultUploadIcon />
-          <span>{buttonText ?? '选择文件'}</span>
+          <span>{String(buttonText ?? '选择文件')}</span>
         </button>
         <div className="text-sm text-base-content/65">
-          <div>{title ?? '保持 Rue 的轻量输入风格，同时拥有 Upload 式文件编排能力。'}</div>
+          <div>{String(title ?? '保持 Rue 的轻量输入风格，同时拥有 Upload 式文件编排能力。')}</div>
           <div className="text-xs text-base-content/50">
             {hint ??
               (acceptsMany ? '可多选、可移除、可受控管理列表' : '可受控管理列表并自定义预览与删除')}
@@ -1580,8 +1555,8 @@ const FileInputRoot: FC<FileInputProps> = ({
     )
   }
 
-  const renderAppendTriggerNode = () => {
-    if (!hasCustomChildren) return renderDefaultTriggerNode()
+  const RenderAppendTriggerNode = () => {
+    if (!hasCustomChildren) return <RenderDefaultTriggerNode />
     return (
       <div
         className={mergeClassNames(
@@ -1592,13 +1567,15 @@ const FileInputRoot: FC<FileInputProps> = ({
         <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-base-200 text-base-content/70">
           <DefaultPlusIcon />
         </span>
-        <div className="mt-3 text-sm font-medium text-base-content">{buttonText ?? '继续添加'}</div>
+        <div className="mt-3 text-sm font-medium text-base-content">
+          {String(buttonText ?? '继续添加')}
+        </div>
       </div>
     )
   }
 
-  const renderTriggerRegion = (triggerNode: any) => {
-    if (resolvedListType === 'picture-card' && currentFileList.value.length > 0) return null
+  const RenderTriggerRegion = ({ children }: { children?: any }) => {
+    if (resolvedListType === 'picture-card' && currentFileList.value.length > 0) return <></>
     return (
       <div
         role={triggerOpensPicker ? 'button' : undefined}
@@ -1618,13 +1595,13 @@ const FileInputRoot: FC<FileInputProps> = ({
         onDragLeave={drag ? handleDragLeave : undefined}
         onDrop={drag ? handleDrop : undefined}
       >
-        {triggerNode}
+        {children}
       </div>
     )
   }
 
-  const renderAppendTrigger = () => {
-    const appendTriggerNode = renderAppendTriggerNode()
+  const RenderAppendTrigger = () => {
+    const AppendTriggerNodeView = () => <RenderAppendTriggerNode />
     return (
       <div
         onClick={openPicker}
@@ -1640,22 +1617,18 @@ const FileInputRoot: FC<FileInputProps> = ({
         role="button"
         tabIndex={0}
       >
-        {appendTriggerNode}
+        <AppendTriggerNodeView />
       </div>
     )
   }
 
-  const renderDynamicRegion = () => {
-    const dynamicHost = dynamicHostRef.current
-    if (!dynamicHost) return
-    const defaultTriggerNode = renderDefaultTriggerNode()
-    const triggerNode = hasCustomChildren ? children : defaultTriggerNode
+  const DynamicRegion = () => {
     const canAppendCard = maxCount ? currentFileList.value.length < maxCount : true
-
-    renderRue(null, dynamicHost)
-    renderRue(
+    return (
       <>
-        {renderTriggerRegion(triggerNode)}
+        <RenderTriggerRegion>
+          <>{hasCustomChildren ? <>{children}</> : <RenderDefaultTriggerNode />}</>
+        </RenderTriggerRegion>
 
         {listVisible ? (
           currentFileList.value.length > 0 ? (
@@ -1667,14 +1640,18 @@ const FileInputRoot: FC<FileInputProps> = ({
                 )}
               >
                 {currentFileList.value.map((file, index) => (
-                  <div key={file.uid || `fallback-${index}`}>{renderListItem(file)}</div>
+                  <div key={file.uid || `fallback-${index}`}>
+                    <RenderDefaultListItem arg0={file} arg1={readExtraContent(file)} />
+                  </div>
                 ))}
-                {canAppendCard && !disabled ? renderAppendTrigger() : null}
+                {canAppendCard && !disabled ? <RenderAppendTrigger /> : null}
               </div>
             ) : (
               <div className={mergeClassNames('space-y-3', listClassName)}>
                 {currentFileList.value.map((file, index) => (
-                  <div key={file.uid || `fallback-${index}`}>{renderListItem(file)}</div>
+                  <div key={file.uid || `fallback-${index}`}>
+                    <RenderDefaultListItem arg0={file} arg1={readExtraContent(file)} />
+                  </div>
                 ))}
               </div>
             )
@@ -1689,43 +1666,12 @@ const FileInputRoot: FC<FileInputProps> = ({
             </div>
           )
         ) : null}
-      </>,
-      dynamicHost,
+      </>
     )
   }
 
-  instance.syncFromProps = syncFromProps
-  instance.renderDynamicRegion = renderDynamicRegion
   syncFromProps()
-
-  let dynamicRegionSyncPending = false
-  const scheduleDynamicRegionSync = () => {
-    if (dynamicRegionSyncPending) return
-    dynamicRegionSyncPending = true
-    const run = () => {
-      dynamicRegionSyncPending = false
-      instance.syncFromProps()
-      instance.renderDynamicRegion()
-    }
-    if (typeof queueMicrotask === 'function') queueMicrotask(run)
-    else Promise.resolve().then(run)
-  }
-
-  instance.effectsRegistered = true
-  onMounted(() => {
-    scheduleDynamicRegionSync()
-  })
-
-  onUpdated(() => {
-    scheduleDynamicRegionSync()
-  })
-
-  watch(
-    () => [listVersion.value, dragging.value],
-    () => {
-      scheduleDynamicRegionSync()
-    },
-  )
+  watch(() => fileList, syncFromProps)
 
   return (
     <div
@@ -1748,7 +1694,7 @@ const FileInputRoot: FC<FileInputProps> = ({
         onChange={handleNativeChange}
         {...directoryInputProps}
       />
-      <div ref={assignDynamicHostRef} />
+      <DynamicRegion />
     </div>
   )
 }

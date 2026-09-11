@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Toggle from '../index'
@@ -18,9 +19,16 @@ describe('Toggle', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toggle className="border-base-300" checked={true} name="notifications" value="newsletter" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toggle
+          className="border-base-300"
+          checked={true}
+          name="notifications"
+          value="newsletter"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -38,17 +46,19 @@ describe('Toggle', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toggle
-        color="primary"
-        size="small"
-        value={true}
-        checkedChildren="在线"
-        unCheckedChildren="离线"
-      >
-        通知状态
-      </Toggle>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toggle
+          color="primary"
+          size="small"
+          value={true}
+          checkedChildren="在线"
+          unCheckedChildren="离线"
+        >
+          通知状态
+        </Toggle>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -68,16 +78,18 @@ describe('Toggle', () => {
     const handleCheckedChange = vi.fn()
     const handleClick = vi.fn()
 
-    render(
-      <Toggle
-        data-testid="theme-toggle"
-        onChange={handleChange}
-        onCheckedChange={handleCheckedChange}
-        onClick={handleClick}
-        checkedChildren="开启"
-        unCheckedChildren="关闭"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toggle
+          data-testid="theme-toggle"
+          onChange={handleChange}
+          onCheckedChange={handleCheckedChange}
+          onClick={handleClick}
+          checkedChildren="开启"
+          unCheckedChildren="关闭"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -103,16 +115,18 @@ describe('Toggle', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Toggle
-        loading={true}
-        defaultValue={true}
-        checkedChildren="同步中"
-        unCheckedChildren="待同步"
-      >
-        自动同步
-      </Toggle>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Toggle
+          loading={true}
+          defaultValue={true}
+          checkedChildren="同步中"
+          unCheckedChildren="待同步"
+        >
+          自动同步
+        </Toggle>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

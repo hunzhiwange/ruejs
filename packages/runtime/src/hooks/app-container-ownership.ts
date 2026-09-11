@@ -1,9 +1,7 @@
-import type { DomElementLike } from '../dom'
-
 export type AppContainerOwner = object
 
 export interface AppContainerReservation {
-  readonly container: DomElementLike
+  readonly container: Node
   readonly owner: AppContainerOwner
 }
 
@@ -13,11 +11,11 @@ interface AppContainerOwnership {
   reservation: AppContainerReservation
 }
 
-const containerOwnership = new WeakMap<DomElementLike, AppContainerOwnership>()
-const failedContainers = new WeakMap<DomElementLike, unknown>()
+const containerOwnership = new WeakMap<Node, AppContainerOwnership>()
+const failedContainers = new WeakMap<Node, unknown>()
 
 export function reserveAppContainer(
-  container: DomElementLike,
+  container: Node,
   owner: AppContainerOwner,
 ): AppContainerReservation | null {
   if (failedContainers.has(container)) throw failedContainers.get(container)
@@ -34,7 +32,7 @@ export function reserveAppContainer(
   return reservation
 }
 
-export function failAppContainer(container: DomElementLike, error: unknown): void {
+export function failAppContainer(container: Node, error: unknown): void {
   failedContainers.set(container, error)
 }
 
@@ -53,7 +51,7 @@ export function rollbackAppContainer(reservation: AppContainerReservation): void
   }
 }
 
-export function releaseAppContainer(container: DomElementLike, owner: AppContainerOwner): void {
+export function releaseAppContainer(container: Node, owner: AppContainerOwner): void {
   if (containerOwnership.get(container)?.owner === owner) {
     containerOwnership.delete(container)
   }

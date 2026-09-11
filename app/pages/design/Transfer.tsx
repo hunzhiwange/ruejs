@@ -11,6 +11,54 @@ interface ApiRow {
   defaultValue: string
 }
 
+const ApiTableRow: FC<{ row: ApiRow }> = ({ row }) => (
+  <tr>
+    <td>
+      <code>{row.prop}</code>
+    </td>
+    <td>{row.description}</td>
+    <td>
+      <code>{row.type}</code>
+    </td>
+    <td>
+      <code>{row.defaultValue}</code>
+    </td>
+  </tr>
+)
+
+const TargetKeyBadge: FC<{ value: string }> = ({ value }) => (
+  <span className="badge badge-outline badge-sm">{value}</span>
+)
+
+const ResearchTransferItem: FC<{
+  item: any
+  selectedKeys: Array<string | number>
+  onItemSelect: (key: string | number, selected: boolean) => void
+}> = ({ item, selectedKeys, onItemSelect }) => {
+  const active = selectedKeys.includes(item.key)
+  const record = item.record as (typeof researchItems)[number]
+  return (
+    <button
+      type="button"
+      className={
+        'rounded-2xl border px-4 py-3 text-left transition ' +
+        (active
+          ? 'border-primary/45 bg-primary/6 shadow-sm'
+          : 'border-base-300 bg-base-100 hover:border-base-300 hover:bg-base-100')
+      }
+      onClick={() => onItemSelect(item.key, !active)}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium">{record.title}</span>
+        <span className="badge badge-outline badge-sm">{record.stage}</span>
+      </div>
+      <div className="mt-2 text-xs text-base-content/60">
+        owner {record.owner} · slots {record.slots}
+      </div>
+    </button>
+  )
+}
+
 const ApiTable: FC<{ rows: ApiRow[] }> = ({ rows }) => {
   return (
     <div className="not-prose overflow-x-auto rounded-box border border-base-300 bg-base-100">
@@ -25,18 +73,7 @@ const ApiTable: FC<{ rows: ApiRow[] }> = ({ rows }) => {
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.prop}>
-              <td>
-                <code>{row.prop}</code>
-              </td>
-              <td>{row.description}</td>
-              <td>
-                <code>{row.type}</code>
-              </td>
-              <td>
-                <code>{row.defaultValue}</code>
-              </td>
-            </tr>
+            <ApiTableRow key={row.prop} row={row} />
           ))}
         </tbody>
       </table>
@@ -279,7 +316,6 @@ const apiRows: ApiRow[] = [
 
 const basicCode = `import { ref } from '@rue-js/rue'
 import { Transfer } from '@rue-js/design'
-
 const crewItems = [
   {
     key: 'design-system',
@@ -333,7 +369,6 @@ const selectedKeys = ref<string[]>([])
 
 const searchCode = `import { ref } from '@rue-js/rue'
 import { Transfer } from '@rue-js/design'
-
 const assetItems = [
   { key: 'asset-01', title: 'Launch Cover', tag: '封面', channel: 'Homepage', owner: 'Mia' },
   { key: 'asset-02', title: 'CTA Strip', tag: '横幅', channel: 'Campaign', owner: 'Reed' },
@@ -385,7 +420,6 @@ const selectedKeys = ref<string[]>([])
 
 const oneWayCode = `import { ref } from '@rue-js/rue'
 import { Transfer } from '@rue-js/design'
-
 const permissionItems = [
   {
     key: 'feature-a11y',
@@ -454,7 +488,6 @@ const selectedKeys = ref<string[]>([])
 
 const customCode = `import { ref } from '@rue-js/rue'
 import { Transfer } from '@rue-js/design'
-
 const researchItems = [
   { key: 'track-briefing', title: 'Briefing Room', stage: 'Brief', owner: 'Ariel', slots: 2 },
   { key: 'track-mapping', title: 'Journey Mapping', stage: 'Map', owner: 'Selina', slots: 3 },
@@ -623,9 +656,7 @@ const TransferDesign: FC = () => {
                   <div className="text-xs text-base-content/45">目标顺序</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {basicTargetKeys.value.map(key => (
-                      <span key={key} className="badge badge-outline badge-sm">
-                        {key}
-                      </span>
+                      <TargetKeyBadge key={key} value={key} />
                     ))}
                   </div>
                 </div>
@@ -753,31 +784,14 @@ const TransferDesign: FC = () => {
               actions={['安排板位', '撤回板位']}
               renderList={listProps => (
                 <div className="grid gap-2">
-                  {listProps.items.map(item => {
-                    const active = listProps.selectedKeys.includes(item.key)
-                    const record = item.record as (typeof researchItems)[number]
-                    return (
-                      <button
-                        key={String(item.key)}
-                        type="button"
-                        className={
-                          'rounded-2xl border px-4 py-3 text-left transition ' +
-                          (active
-                            ? 'border-primary/45 bg-primary/6 shadow-sm'
-                            : 'border-base-300 bg-base-100 hover:border-base-300 hover:bg-base-100')
-                        }
-                        onClick={() => listProps.onItemSelect(item.key, !active)}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="font-medium">{record.title}</span>
-                          <span className="badge badge-outline badge-sm">{record.stage}</span>
-                        </div>
-                        <div className="mt-2 text-xs text-base-content/60">
-                          owner {record.owner} · slots {record.slots}
-                        </div>
-                      </button>
-                    )
-                  })}
+                  {listProps.items.map(item => (
+                    <ResearchTransferItem
+                      key={String(item.key)}
+                      item={item}
+                      selectedKeys={listProps.selectedKeys}
+                      onItemSelect={listProps.onItemSelect}
+                    />
+                  ))}
                 </div>
               )}
               onChange={nextKeys => {

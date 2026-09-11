@@ -382,6 +382,8 @@ async function runTestsIfNeeded() {
       await run('pnpm', ['run', 'test', '--run'])
       await runReleaseVerificationPackageTests()
       await run('pnpm', ['run', 'check:compiler-runtime-boundary'])
+      await run('node', ['scripts/compiler-only-runtime-audit.js', '--check'])
+      await run('pnpm', ['run', 'size:tree-shaking:check'])
       await run('pnpm', ['run', 'size-runtime', '--', '--check'])
     } else {
       console.log(`Skipped (dry run)`)

@@ -9,7 +9,12 @@ import { pathToFileURL } from 'node:url'
 import zlib from 'node:zlib'
 import text from '../src/index.js'
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from '../src/shims/constants.js'
-import { PAGES_FIXTURE_DIR, buildPagesFixture, startFixtureServer } from './helpers.js'
+import {
+  PAGES_FIXTURE_DIR,
+  buildPagesFixture,
+  startFixtureServer,
+  stripRueSsrMarkers,
+} from './helpers.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
 const PAGES_APP_COMPONENT = `export default function App({ Component, pageProps }) {
@@ -322,7 +327,7 @@ describe('Pages Router integration', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/html')
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Hello, text!')
     expect(html).toContain('This is a Pages Router app running on Vite.')
     expect(html).toContain('Go to About')
@@ -344,7 +349,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/alias-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Pages Alias Test')
     // Component imported via @/components/heavy
     expect(html).toContain('Loaded via alias')
@@ -354,7 +359,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/about`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
     expect(html).toContain('This is the about page.')
   })
@@ -365,7 +370,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/async-modules-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('<div id="app-value">hello</div>')
     expect(html).toContain('<div id="page-value">42</div>')
   })
@@ -377,7 +382,7 @@ describe('Pages Router integration', () => {
       "script-src 'nonce-pages-response' 'strict-dynamic';",
     )
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('<script nonce="pages-response">window.__TEXT_DATA__ = ')
   })
 
@@ -386,7 +391,7 @@ describe('Pages Router integration', () => {
     expect(first.status).toBe(200)
     expect(first.headers.get('x-text-cache')).toBe('MISS')
     expect(first.headers.get('x-textjs-cache')).toBe('MISS')
-    const firstHtml = await first.text()
+    const firstHtml = stripRueSsrMarkers(await first.text())
     expect(firstHtml).not.toContain('nonce=')
 
     const cached = await fetch(`${baseUrl}/isr-test`)
@@ -402,7 +407,7 @@ describe('Pages Router integration', () => {
     )
     expect(second.headers.get('cache-control')).toBe('no-store, must-revalidate')
     expect(second.headers.get('x-text-cache')).toBeNull()
-    const secondHtml = await second.text()
+    const secondHtml = stripRueSsrMarkers(await second.text())
     expect(secondHtml).toContain('<script nonce="pages-isr">window.__TEXT_DATA__ = ')
   })
 
@@ -410,7 +415,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/ssr`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Server-Side Rendered')
     expect(html).toContain('Hello from getServerSideProps')
     // Should have a timestamp
@@ -425,7 +430,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/ssr-promise-props`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('SSR Promise Props')
     expect(html).toContain('world')
     // Rue SSR inserts a `<!-- -->` comment between text and expressions.
@@ -443,7 +448,7 @@ describe('Pages Router integration', () => {
   it('renders a page that exports gSSP via `export { ... }` named re-export', async () => {
     const res = await fetch(`${baseUrl}/gssp-named-export`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('gSSP via named export')
     expect(html).toContain('Hello from named-export gSSP')
   })
@@ -452,7 +457,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/ssr-headers`)
     // gSSP sets statusCode = 201
     expect(res.status).toBe(201)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Headers were set')
     // Custom header set via res.setHeader
     expect(res.headers.get('x-custom-header')).toBe('hello-from-gssp')
@@ -494,7 +499,7 @@ describe('Pages Router integration', () => {
   it('getServerSideProps returning notFound renders custom 404 page', async () => {
     const res = await fetch(`${baseUrl}/posts/missing`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render the custom 404 page (pages/404.tsx), not plain text
     expect(html).toContain('Page Not Found')
     // Should be wrapped in the _app layout
@@ -505,7 +510,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/posts/42`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue SSR inserts comment nodes between text and expressions:
     // "Post: <!-- -->42" — so we match with a regex instead
     expect(html).toMatch(/Post:\s*(<!--\s*-->)?\s*42/)
@@ -519,7 +524,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/posts/42?id=evil`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/Post:\s*(<!--\s*-->)?\s*42/)
     expect(html).toMatch(/Query ID:\s*(<!--\s*-->)?\s*42/)
     expect(html).not.toMatch(/Query ID:\s*(<!--\s*-->)?\s*evil/)
@@ -529,7 +534,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/compat-router-test`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The shared component detects Pages Router context (router !== null)
     expect(html).toContain('data-testid="router-context"')
     expect(html).toContain('pages-router')
@@ -547,7 +552,7 @@ describe('Pages Router integration', () => {
   it('text/navigation useParams returns only dynamic route params under Pages Router', async () => {
     const res = await fetch(`${baseUrl}/nav-compat/foobar?a=pages`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const paramsMatch = html.match(/<pre id="use-params">([^<]*)<\/pre>/)
     expect(paramsMatch).not.toBeNull()
     const params = JSON.parse(paramsMatch![1].replaceAll('&quot;', '"'))
@@ -557,7 +562,7 @@ describe('Pages Router integration', () => {
   it('text/navigation useSearchParams returns only query string under Pages Router', async () => {
     const res = await fetch(`${baseUrl}/nav-compat/foobar?q=pages`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const searchMatch = html.match(/<pre id="use-search-params">([^<]*)<\/pre>/)
     expect(searchMatch).not.toBeNull()
     const search = JSON.parse(searchMatch![1].replaceAll('&quot;', '"'))
@@ -589,7 +594,7 @@ describe('Pages Router integration', () => {
   it('returns 404 with custom 404 page for non-existent routes', async () => {
     const res = await fetch(`${baseUrl}/nonexistent`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render the custom 404 page
     expect(html).toContain('404 - Page Not Found')
     expect(html).toContain('does not exist')
@@ -597,7 +602,7 @@ describe('Pages Router integration', () => {
 
   it('renders text/head tags in SSR HTML <head>', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Index page has <Head><title>Hello text</title></Head>
     // This should appear in the actual <head> of the HTML
     expect(html).toContain('<title')
@@ -611,7 +616,7 @@ describe('Pages Router integration', () => {
     const firstRes = await fetch(`${baseUrl}/isr-second-render-state`)
     expect(firstRes.status).toBe(200)
     expect(firstRes.headers.get('x-text-cache')).toBe('MISS')
-    const firstHtml = await firstRes.text()
+    const firstHtml = stripRueSsrMarkers(await firstRes.text())
     expect(firstHtml).toContain('data-testid="head-before">0<')
     expect(firstHtml).toContain('data-testid="private-cache-before">0<')
     expect(firstHtml).toContain('data-testid="inserted-html-before">0<')
@@ -619,7 +624,7 @@ describe('Pages Router integration', () => {
     const secondRes = await fetch(`${baseUrl}/isr-second-render-state`)
     expect(secondRes.status).toBe(200)
     expect(secondRes.headers.get('x-text-cache')).toBe('HIT')
-    const secondHtml = await secondRes.text()
+    const secondHtml = stripRueSsrMarkers(await secondRes.text())
     expect(secondHtml).toContain('data-testid="head-before">0<')
     expect(secondHtml).toContain('data-testid="private-cache-before">0<')
     expect(secondHtml).toContain('data-testid="inserted-html-before">0<')
@@ -627,19 +632,19 @@ describe('Pages Router integration', () => {
 
   it('includes __TEXT_DATA__ script tag', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('__TEXT_DATA__')
   })
 
   it('includes the Vite client script for HMR', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('@vite/client')
   })
 
   it('wraps pages with custom _app.tsx', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // _app.tsx wraps with an #app-wrapper div and a global nav
     expect(html).toContain('app-wrapper')
     expect(html).toContain('My App')
@@ -647,14 +652,14 @@ describe('Pages Router integration', () => {
 
   it('_app.tsx wrapping works on all pages', async () => {
     const res = await fetch(`${baseUrl}/about`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('app-wrapper')
     expect(html).toContain('About')
   })
 
   it('uses custom _document.tsx for HTML shell', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Custom _document sets lang="en" on <html>
     expect(html).toContain('lang="en"')
     // Custom _document adds a meta description
@@ -767,7 +772,7 @@ describe('Pages Router integration', () => {
 
   it('includes hydration script for client-side rendering', async () => {
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Vite extracts inline module scripts into html-proxy modules.
     // The hydration script becomes a <script type="module" src="...html-proxy...">
     expect(html).toMatch(/html-proxy.*\.js/)
@@ -779,7 +784,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/docs/getting-started/install`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Docs')
     expect(html).toMatch(/Path:\s*(<!--\s*-->)?\s*getting-started\/install/)
   })
@@ -788,7 +793,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/docs/intro`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/Path:\s*(<!--\s*-->)?\s*intro/)
   })
 
@@ -798,7 +803,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/sign-up`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Sign Up')
     expect(html).toContain('data-testid="sign-up-page"')
     expect(html).toMatch(/Segments:.*0/)
@@ -809,7 +814,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/sign-up/step/2`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Sign Up')
     expect(html).toMatch(/Segments:.*2/)
   })
@@ -834,7 +839,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/headers-before-middleware-rewrite`)
     expect(res.status).toBe(200)
     expect(res.headers.get('x-rewrite-source-header')).toBe('1')
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Server-Side Rendered')
   })
 
@@ -892,28 +897,28 @@ describe('Pages Router integration', () => {
   it('applies beforeFiles rewrites from text.config.js', async () => {
     const res = await fetch(`${baseUrl}/before-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('applies rewrites with repeated dynamic params in the destination', async () => {
     const res = await fetch(`${baseUrl}/repeat-rewrite/hello`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('hello/hello')
   })
 
   it('applies afterFiles rewrites from text.config.js', async () => {
     const res = await fetch(`${baseUrl}/after-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('does not let afterFiles rewrites override static page routes in dev', async () => {
     const res = await fetch(`${baseUrl}/nav-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Navigation Test')
     expect(html).not.toContain('This is the about page.')
   })
@@ -921,7 +926,7 @@ describe('Pages Router integration', () => {
   it('applies fallback rewrites from text.config.js', async () => {
     const res = await fetch(`${baseUrl}/fallback-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
@@ -944,7 +949,7 @@ describe('Pages Router integration', () => {
     // /%62efore-rewrite decodes to /before-rewrite → /about
     const res = await fetch(`${baseUrl}/%62efore-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
@@ -954,7 +959,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/blog/hello-world`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Hello World')
     expect(html).toContain('Blog post slug:')
     expect(html).toMatch(/slug:\s*(<!--\s*-->)?\s*hello-world/)
@@ -968,7 +973,7 @@ describe('Pages Router integration', () => {
   it('renders pre-listed paths with getStaticPaths fallback: blocking', async () => {
     const res = await fetch(`${baseUrl}/articles/1`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('First Article')
     expect(html).toMatch(/Article ID:\s*(<!--\s*-->)?\s*1/)
   })
@@ -977,7 +982,7 @@ describe('Pages Router integration', () => {
     // Article 99 is not in getStaticPaths but fallback: blocking allows rendering
     const res = await fetch(`${baseUrl}/articles/99`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Article 99')
     expect(html).toMatch(/Article ID:\s*(<!--\s*-->)?\s*99/)
   })
@@ -988,7 +993,7 @@ describe('Pages Router integration', () => {
     const res = await fetch(`${baseUrl}/dynamic-page`)
     expect(res.status).toBe(200)
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Dynamic Import Page')
     // The heavy component should be rendered server-side (ssr: true by default)
     expect(html).toContain('Heavy Component')
@@ -1002,7 +1007,7 @@ describe('Pages Router integration', () => {
   it('renders pages that use text/config getConfig()', async () => {
     const res = await fetch(`${baseUrl}/config-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Config Test')
     // publicRuntimeConfig is empty by default, so it should show the fallback
     // Rue SSR inserts <!-- --> between text and expressions
@@ -1014,7 +1019,7 @@ describe('Pages Router integration', () => {
   it('renders Script with beforeInteractive strategy as <script> tag in SSR', async () => {
     const res = await fetch(`${baseUrl}/script-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Script Test')
     expect(html).toContain('Page with scripts')
     // beforeInteractive should render a <script> tag in the SSR output
@@ -1059,7 +1064,7 @@ describe('Pages Router integration', () => {
 
       const res = await fetch(`${started.baseUrl}/rewrite-me/`)
       expect(res.status).toBe(200)
-      const html = await res.text()
+      const html = stripRueSsrMarkers(await res.text())
       // `id="home"` is unique to `pages/index.tsx`; ssr-page also says
       // "Hello World" so this disambiguates that the index rendered.
       expect(html).toContain('id="home"')
@@ -1084,7 +1089,7 @@ describe('Pages Router integration', () => {
 
       const res = await fetch(`${started.baseUrl}/rewrite-to-about/`)
       expect(res.status).toBe(200)
-      const html = await res.text()
+      const html = stripRueSsrMarkers(await res.text())
       expect(html).toContain('About Page')
       expect(html).not.toContain('Dynamic route')
     } finally {
@@ -1111,7 +1116,7 @@ describe('Pages Router integration', () => {
 
       const res = await fetch(`${started.baseUrl}/rewrite-1/`)
       expect(res.status).toBe(200)
-      const html = await res.text()
+      const html = stripRueSsrMarkers(await res.text())
       // `id="ssr"` only lives on the rewrite target (`pages/ssr-page.tsx`) —
       // `pages/index.tsx` also says "Hello World" so this disambiguates that
       // the rewrite target is what rendered.
@@ -1127,7 +1132,7 @@ describe('Pages Router integration', () => {
   it('middleware rewrites /rewritten to /ssr', async () => {
     const res = await fetch(`${baseUrl}/rewritten`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should get the SSR page content (rewritten from /rewritten to /ssr)
     expect(html).toContain('Server-Side Rendered')
   })
@@ -1141,7 +1146,7 @@ describe('Pages Router integration', () => {
   it('Pages Router Link preserves an embedded query string in the href prop', async () => {
     const res = await fetch(`${baseUrl}/linker?href=/about?hello=world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The rendered link target must include the embedded `?hello=world`. The
     // anchor uses `id="link"` to match Text.js's linker fixture; the literal
     // anchor href is what `<Link>` resolves through normalizePathTrailingSlash
@@ -1153,7 +1158,7 @@ describe('Pages Router integration', () => {
   it('Pages Router Link strips trailing slash before an embedded query string', async () => {
     const res = await fetch(`${baseUrl}/linker?href=/about/?hello=world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // trailingSlash defaults to false — `/about/?hello=world` collapses to
     // `/about?hello=world` while preserving the query.
     expect(html).toContain('href="/about?hello=world"')
@@ -1168,7 +1173,7 @@ describe('Pages Router integration', () => {
   it('middleware rewrite preserves original query params to getServerSideProps', async () => {
     const res = await fetch(`${baseUrl}/mw-rewrite-query?hello=world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('SSR Query')
     const textDataMatch = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     expect(textDataMatch).toBeTruthy()
@@ -1179,7 +1184,7 @@ describe('Pages Router integration', () => {
   it('middleware rewrite to a dynamic route merges original query with route params', async () => {
     const res = await fetch(`${baseUrl}/mw-rewrite-dynamic-query?hello=world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/Post:\s*(<!--\s*-->)?\s*first/)
     const textDataMatch = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     expect(textDataMatch).toBeTruthy()
@@ -1192,7 +1197,7 @@ describe('Pages Router integration', () => {
     // rewrite-target query should win, matching Text.js Object.assign semantics.
     const res = await fetch(`${baseUrl}/mw-rewrite-merge-query?hello=world&other=keep`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const textDataMatch = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     expect(textDataMatch).toBeTruthy()
     const textData = JSON.parse(textDataMatch![1]!)
@@ -1205,7 +1210,7 @@ describe('Pages Router integration', () => {
   it('middleware rewrite without any original query still renders correctly', async () => {
     const res = await fetch(`${baseUrl}/mw-rewrite-query`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('SSR Query')
     const textDataMatch = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     expect(textDataMatch).toBeTruthy()
@@ -1273,7 +1278,7 @@ describe('Pages Router integration', () => {
     })
 
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('id="authorization">null<')
     expect(html).toContain('id="cookie">null<')
     expect(html).toContain('id="middleware-header">hello-from-middleware<')
@@ -1285,7 +1290,7 @@ describe('Pages Router integration', () => {
     // Fetch the index page, find the proxy script URL, fetch it,
     // and verify it contains our hydration code
     const res = await fetch(`${baseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const proxyMatch = html.match(/src="([^"]*html-proxy[^"]*)"/)
     expect(proxyMatch).toBeTruthy()
 
@@ -1307,7 +1312,7 @@ describe('Pages Router integration', () => {
     // Our useComponent loader resolves synchronously in tests.
     const res = await fetch(`${baseUrl}/suspense-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Suspense Test')
     // The lazy component's content should be in the response
     expect(html).toContain('Hello from lazy component')
@@ -1318,7 +1323,7 @@ describe('Pages Router integration', () => {
   it('renders blog post with getStaticPaths fallback: false for listed path', async () => {
     const res = await fetch(`${baseUrl}/blog/hello-world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Hello World')
     expect(html).toMatch(/Blog post slug:.*hello-world/)
   })
@@ -1331,7 +1336,7 @@ describe('Pages Router integration', () => {
   it("renders article with getStaticPaths fallback: 'blocking' for listed path", async () => {
     const res = await fetch(`${baseUrl}/articles/1`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('First Article')
     expect(html).toMatch(/Article ID:.*1/)
   })
@@ -1339,7 +1344,7 @@ describe('Pages Router integration', () => {
   it("SSR renders unlisted path with getStaticPaths fallback: 'blocking'", async () => {
     const res = await fetch(`${baseUrl}/articles/99`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/Article\s*(<!-- -->)?\s*99/)
     expect(html).toMatch(/Article ID:.*99/)
   })
@@ -1347,7 +1352,7 @@ describe('Pages Router integration', () => {
   it('renders product with getStaticPaths fallback: true for listed path', async () => {
     const res = await fetch(`${baseUrl}/products/widget`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Super Widget')
     expect(html).toMatch(/Product ID:.*widget/)
     expect(html).toMatch(/isFallback:.*false/)
@@ -1360,7 +1365,7 @@ describe('Pages Router integration', () => {
     // See: .textjs-ref/packages/text/src/server/render.tsx — `if (isSSG && !isFallback)`.
     const res = await fetch(`${baseUrl}/products/unknown`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Loading product...')
     // The full-content branch must NOT render — getStaticProps was skipped.
     expect(html).not.toMatch(/Product ID:.*unknown/)
@@ -1386,7 +1391,7 @@ describe('Pages Router integration', () => {
 
   it('includes isFallback: false in __TEXT_DATA__', async () => {
     const res = await fetch(`${baseUrl}/products/widget`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/__TEXT_DATA__\s*=\s*(\{.*?\})\s*[;<]/)
     expect(match).toBeTruthy()
     const textData = JSON.parse(match![1])
@@ -2656,7 +2661,7 @@ export const config = { matcher: ["/protected"] };
         const baseUrl = `http://127.0.0.1:${addr.port}`
         const res = await fetch(`${baseUrl}/docs/counter`)
         expect(res.status).toBe(200)
-        const html = await res.text()
+        const html = stripRueSsrMarkers(await res.text())
         // Asset URLs land under `<basePath>/_text/static/` per Text.js
         // parity (basePath→assetPrefix fallback). Stylesheets and scripts
         // both share the same prefix.
@@ -2735,7 +2740,7 @@ export const config = { matcher: ["/protected"] };
 
         const res = await fetch(`${baseUrl}/docs/docs/other-page`)
         expect(res.status).toBe(404)
-        const html = await res.text()
+        const html = stripRueSsrMarkers(await res.text())
         expect(html).toContain('id="custom-404"')
         expect(html).toContain('This page could not be found')
         expect(html).toContain('"page":"/404"')
@@ -2810,7 +2815,7 @@ export const config = { matcher: ["/protected"] };
 
         const explicitNotFoundRes = await fetch(`${baseUrl}/docs/404`)
         expect(explicitNotFoundRes.status).toBe(404)
-        const explicitNotFoundHtml = await explicitNotFoundRes.text()
+        const explicitNotFoundHtml = stripRueSsrMarkers(await explicitNotFoundRes.text())
         expect(explicitNotFoundHtml).toContain('id="custom-404"')
         expect(explicitNotFoundHtml).toContain('This page could not be found')
         expect(explicitNotFoundHtml).toContain('"page":"/404"')
@@ -2821,7 +2826,7 @@ export const config = { matcher: ["/protected"] };
         ).__TEXT_FALLBACK_REWRITE_TEST_RUNTIME = true
         const res = await fetch(`${baseUrl}/docs/missing`)
         expect(res.status).toBe(200)
-        const html = await res.text()
+        const html = stripRueSsrMarkers(await res.text())
         expect(html).toContain('id="fallback"')
         expect(html).toContain('Fallback rewrite')
         expect(html).toContain('"page":"/fallback"')
@@ -2882,7 +2887,7 @@ export const config = { matcher: ["/protected"] };
 
         const res = await fetch(`${baseUrl}/docs/docs/other-page`)
         expect(res.status).toBe(404)
-        const html = await res.text()
+        const html = stripRueSsrMarkers(await res.text())
         expect(html).toContain('id="custom-error"')
         expect(html).toContain('Error status:')
         expect(html).toContain('404</main>')
@@ -2937,14 +2942,14 @@ export default function Custom404({ marker }: { marker: string }) {
         const first = await fetch(missingUrl)
         expect(first.status).toBe(404)
         expect(first.headers.get('x-text-cache')).toBe('MISS')
-        const firstHtml = await first.text()
+        const firstHtml = stripRueSsrMarkers(await first.text())
         expect(firstHtml).toContain('id="custom-404"')
         expect(firstHtml).toContain('custom ISR 404')
 
         const second = await fetch(missingUrl)
         expect(second.status).toBe(404)
         expect(second.headers.get('x-text-cache')).toBe('HIT')
-        const secondHtml = await second.text()
+        const secondHtml = stripRueSsrMarkers(await second.text())
         expect(secondHtml).toContain('id="custom-404"')
         expect(secondHtml).toContain('custom ISR 404')
       } finally {
@@ -3065,7 +3070,7 @@ export default function CounterPage() {
         const addr = prodServer.address() as { port: number }
         const res = await fetch(`http://127.0.0.1:${addr.port}/counter`)
         expect(res.status).toBe(200)
-        const html = await res.text()
+        const html = stripRueSsrMarkers(await res.text())
         expect(html).toContain('rel="stylesheet"')
         expect(html).toContain('.css')
       } finally {
@@ -3167,20 +3172,20 @@ export default function CounterPage() {
       // Test: index page renders
       const indexRes = await fetch(`${prodUrl}/`)
       expect(indexRes.status).toBe(200)
-      const indexHtml = await indexRes.text()
+      const indexHtml = stripRueSsrMarkers(await indexRes.text())
       expect(indexHtml).toContain('Hello, text!')
       expect(indexHtml).toContain('__TEXT_DATA__')
 
       // Test: about page renders
       const aboutRes = await fetch(`${prodUrl}/about`)
       expect(aboutRes.status).toBe(200)
-      const aboutHtml = await aboutRes.text()
+      const aboutHtml = stripRueSsrMarkers(await aboutRes.text())
       expect(aboutHtml).toContain('About')
 
       const isrFirstRes = await fetch(`${prodUrl}/isr-second-render-state`)
       expect(isrFirstRes.status).toBe(200)
       expect(isrFirstRes.headers.get('x-text-cache')).toBe('MISS')
-      const isrFirstHtml = await isrFirstRes.text()
+      const isrFirstHtml = stripRueSsrMarkers(await isrFirstRes.text())
       expect(isrFirstHtml).toContain('data-testid="head-before">0<')
       expect(isrFirstHtml).toContain('data-testid="private-cache-before">0<')
       expect(isrFirstHtml).toContain('data-testid="inserted-html-before">0<')
@@ -3188,7 +3193,7 @@ export default function CounterPage() {
       const isrSecondRes = await fetch(`${prodUrl}/isr-second-render-state`)
       expect(isrSecondRes.status).toBe(200)
       expect(isrSecondRes.headers.get('x-text-cache')).toBe('HIT')
-      const isrSecondHtml = await isrSecondRes.text()
+      const isrSecondHtml = stripRueSsrMarkers(await isrSecondRes.text())
       expect(isrSecondHtml).toContain('data-testid="head-before">0<')
       expect(isrSecondHtml).toContain('data-testid="private-cache-before">0<')
       expect(isrSecondHtml).toContain('data-testid="inserted-html-before">0<')
@@ -3200,7 +3205,7 @@ export default function CounterPage() {
       expect(ssrRes.headers.get('cache-control')).toBe(
         'private, no-cache, no-store, max-age=0, must-revalidate',
       )
-      const ssrHtml = await ssrRes.text()
+      const ssrHtml = stripRueSsrMarkers(await ssrRes.text())
       expect(ssrHtml).toContain('Server-Side Rendered')
 
       // Regression for #1461: user-set Cache-Control via res.setHeader sticks.
@@ -3217,7 +3222,7 @@ export default function CounterPage() {
       // binding and broke the Rolldown/OXC parse step.
       const gsspNamedRes = await fetch(`${prodUrl}/gssp-named-export`)
       expect(gsspNamedRes.status).toBe(200)
-      const gsspNamedHtml = await gsspNamedRes.text()
+      const gsspNamedHtml = stripRueSsrMarkers(await gsspNamedRes.text())
       expect(gsspNamedHtml).toContain('gSSP via named export')
       expect(gsspNamedHtml).toContain('Hello from named-export gSSP')
 
@@ -3269,7 +3274,7 @@ export default function CounterPage() {
       // https://github.com/vercel/next.js/blob/canary/test/e2e/async-modules/index.test.ts
       const asyncModRes = await fetch(`${prodUrl}/async-modules-test`)
       expect(asyncModRes.status).toBe(200)
-      const asyncModHtml = await asyncModRes.text()
+      const asyncModHtml = stripRueSsrMarkers(await asyncModRes.text())
       expect(asyncModHtml).toContain('<div id="app-value">hello</div>')
       expect(asyncModHtml).toContain('<div id="page-value">42</div>')
     } finally {
@@ -3542,7 +3547,7 @@ describe('Production server middleware (Pages Router)', () => {
 
       const indexRes = await fetch(`${tempProdUrl}/rewrite-me/`)
       expect(indexRes.status).toBe(200)
-      const indexHtml = await indexRes.text()
+      const indexHtml = stripRueSsrMarkers(await indexRes.text())
       // `id="home"` is unique to `pages/index.tsx`; ssr-page also says
       // "Hello World" so this disambiguates that the index rendered.
       expect(indexHtml).toContain('id="home"')
@@ -3551,7 +3556,7 @@ describe('Production server middleware (Pages Router)', () => {
 
       const aboutRes = await fetch(`${tempProdUrl}/rewrite-to-about/`)
       expect(aboutRes.status).toBe(200)
-      const aboutHtml = await aboutRes.text()
+      const aboutHtml = stripRueSsrMarkers(await aboutRes.text())
       expect(aboutHtml).toContain('About Page')
       expect(aboutHtml).not.toContain('Dynamic route')
 
@@ -3561,7 +3566,7 @@ describe('Production server middleware (Pages Router)', () => {
       // to the static ssr-page rather than back into [id].
       const cfgRes = await fetch(`${tempProdUrl}/rewrite-1/`)
       expect(cfgRes.status).toBe(200)
-      const cfgHtml = await cfgRes.text()
+      const cfgHtml = stripRueSsrMarkers(await cfgRes.text())
       // `id="ssr"` is unique to `pages/ssr-page.tsx`; `pages/index.tsx`
       // also says "Hello World" so this disambiguates that the rewrite
       // target rendered (not the index, not the dynamic [id]).
@@ -3648,7 +3653,7 @@ describe('Production server middleware (Pages Router)', () => {
       "script-src 'nonce-pages-prod' 'strict-dynamic';",
     )
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('<script nonce="pages-prod">window.__TEXT_DATA__ = ')
     expect(html).toMatch(/<script type="module" nonce="pages-prod" src="\/[^"]+"/)
     expect(html).toMatch(/<link rel="modulepreload" nonce="pages-prod" href="\/[^"]+"/)
@@ -3658,7 +3663,7 @@ describe('Production server middleware (Pages Router)', () => {
     const first = await fetch(`${prodUrl}/isr-test`)
     expect(first.status).toBe(200)
     expect(first.headers.get('x-text-cache')).toBe('MISS')
-    const firstHtml = await first.text()
+    const firstHtml = stripRueSsrMarkers(await first.text())
     expect(firstHtml).not.toContain('nonce=')
 
     const second = await fetch(`${prodUrl}/isr-test?mw-csp-nonce=pages-prod-isr`)
@@ -3668,14 +3673,14 @@ describe('Production server middleware (Pages Router)', () => {
     )
     expect(second.headers.get('cache-control')).toBe('no-store, must-revalidate')
     expect(second.headers.get('x-text-cache')).toBeNull()
-    const secondHtml = await second.text()
+    const secondHtml = stripRueSsrMarkers(await second.text())
     expect(secondHtml).toContain('<script nonce="pages-prod-isr">window.__TEXT_DATA__ = ')
   })
 
   it('rewrites /rewritten to render /ssr content', async () => {
     const res = await fetch(`${prodUrl}/rewritten`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // /rewritten should serve the content of /ssr page
     expect(html).toContain('Server-Side Rendered')
   })
@@ -3686,7 +3691,7 @@ describe('Production server middleware (Pages Router)', () => {
   it('renders the loading shell when middleware/route targets an unlisted fallback: true path', async () => {
     const res = await fetch(`${prodUrl}/products/never-built`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Page renders its fallback branch (the slug is not in getStaticPaths).
     expect(html).toContain('Loading product...')
     // Full-data branch must not have rendered — getStaticProps was skipped.
@@ -3830,7 +3835,7 @@ describe('Production server middleware (Pages Router)', () => {
     const res = await fetch(`${prodUrl}/headers-before-middleware-rewrite`)
     expect(res.status).toBe(200)
     expect(res.headers.get('x-rewrite-source-header')).toBe('1')
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Server-Side Rendered')
   })
 
@@ -3887,7 +3892,7 @@ describe('Production server middleware (Pages Router)', () => {
     })
 
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('id="authorization">null<')
     expect(html).toContain('id="cookie">null<')
     expect(html).toContain('id="middleware-header">hello-from-middleware<')
@@ -4039,7 +4044,7 @@ describe('Production server middleware (Pages Router)', () => {
   it('serves normal pages without middleware interference', async () => {
     const res = await fetch(`${prodUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Hello, text!')
   })
 
@@ -4057,7 +4062,7 @@ describe('Production server middleware (Pages Router)', () => {
   it('awaits Promise-shaped getServerSideProps props in production', async () => {
     const res = await fetch(`${prodUrl}/ssr-promise-props`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('SSR Promise Props')
     expect(html).toContain('world')
     // Rue SSR inserts a `<!-- -->` comment between text and expressions.
@@ -4282,7 +4287,7 @@ describe('Production Pages Router SSR streaming', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('x-custom-middleware')).toBe('active')
 
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Delayed stream content loaded')
   })
 
@@ -4425,28 +4430,28 @@ describe('Production server text.config.js features (Pages Router)', () => {
   it('applies beforeFiles rewrites from text.config.js (/before-rewrite -> /about)', async () => {
     const res = await fetch(`${prodUrl}/before-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('applies rewrites with repeated dynamic params in production', async () => {
     const res = await fetch(`${prodUrl}/repeat-rewrite/hello`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('hello/hello')
   })
 
   it('applies afterFiles rewrites from text.config.js (/after-rewrite -> /about)', async () => {
     const res = await fetch(`${prodUrl}/after-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('does not let afterFiles rewrites override static page routes in production', async () => {
     const res = await fetch(`${prodUrl}/nav-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Navigation Test')
     expect(html).not.toContain('This is the about page.')
   })
@@ -4532,7 +4537,7 @@ describe('Production server text.config.js features (Pages Router)', () => {
   it('serves normal pages unaffected by config rules', async () => {
     const res = await fetch(`${prodUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Hello, text!')
   })
 
@@ -4559,7 +4564,7 @@ describe('Production server text.config.js features (Pages Router)', () => {
     // /%62efore-rewrite decodes to /before-rewrite.
     const res = await fetch(`${prodUrl}/%62efore-rewrite`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 })
@@ -5045,23 +5050,26 @@ export default class MyDocument extends Document {
   it('renders an index page whose _app and page both use top-level await', async () => {
     const res = await fetch(`${prodUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('<div id="app-value">hello</div>')
-    expect(html).toContain('<div id="page-value">42</div>')
+    const html = stripRueSsrMarkers(await res.text())
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    expect(document.querySelector('#app-value')?.textContent).toBe('hello')
+    expect(document.querySelector('#page-value')?.textContent).toBe('42')
   })
 
   it('renders a page whose module-level await runs before getServerSideProps', async () => {
     const res = await fetch(`${prodUrl}/gssp`)
     expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('<div id="gssp-value">42</div>')
+    const html = stripRueSsrMarkers(await res.text())
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    expect(document.querySelector('#gssp-value')?.textContent).toBe('42')
   })
 
   it('renders a page whose module-level await runs before getStaticProps', async () => {
     const res = await fetch(`${prodUrl}/gsp`)
     expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('<div id="gsp-value">42</div>')
+    const html = stripRueSsrMarkers(await res.text())
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    expect(document.querySelector('#gsp-value')?.textContent).toBe('42')
   })
 
   it('serves an API route whose module uses top-level await', async () => {
@@ -5073,8 +5081,9 @@ export default class MyDocument extends Document {
   it('renders an async class-based _document.tsx with resolved TLA values', async () => {
     const res = await fetch(`${prodUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('<div id="doc-value">doc value</div>')
+    const html = stripRueSsrMarkers(await res.text())
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    expect(document.querySelector('#doc-value')?.textContent).toBe('doc value')
   })
 })
 
@@ -5093,7 +5102,7 @@ describe('router __TEXT_DATA__ correctness (Pages Router)', () => {
   it('dynamic route params are included in __TEXT_DATA__.query', async () => {
     const res = await fetch(`${routerBaseUrl}/blog/hello-world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     expect(match).toBeTruthy()
     const textData = JSON.parse(match![1])
@@ -5104,7 +5113,7 @@ describe('router __TEXT_DATA__ correctness (Pages Router)', () => {
   it('__TEXT_DATA__.page is the route pattern, not the actual path', async () => {
     const res = await fetch(`${routerBaseUrl}/posts/hello-world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     const textData = JSON.parse(match![1])
     expect(textData.page).toBe('/posts/[id]')
@@ -5114,7 +5123,7 @@ describe('router __TEXT_DATA__ correctness (Pages Router)', () => {
   it('catch-all route pattern in __TEXT_DATA__.page', async () => {
     const res = await fetch(`${routerBaseUrl}/docs/a/b/c`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     const textData = JSON.parse(match![1])
     expect(textData.page).toBe('/docs/[...slug]')
@@ -5122,7 +5131,7 @@ describe('router __TEXT_DATA__ correctness (Pages Router)', () => {
 
   it('__TEXT_DATA__ includes isFallback: false', async () => {
     const res = await fetch(`${routerBaseUrl}/blog/hello-world`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     const textData = JSON.parse(match![1])
     expect(textData.isFallback).toBe(false)
@@ -5130,7 +5139,7 @@ describe('router __TEXT_DATA__ correctness (Pages Router)', () => {
 
   it('static page __TEXT_DATA__.page is the pathname', async () => {
     const res = await fetch(`${routerBaseUrl}/about`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     const textData = JSON.parse(match![1])
     expect(textData.page).toBe('/about')
@@ -5139,7 +5148,7 @@ describe('router __TEXT_DATA__ correctness (Pages Router)', () => {
   it('shallow-test page returns correct __TEXT_DATA__ with GSSP props', async () => {
     const res = await fetch(`${routerBaseUrl}/shallow-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
     const textData = JSON.parse(match![1])
     expect(textData.page).toBe('/shallow-test')
@@ -5203,7 +5212,7 @@ export default function middleware() {
       try {
         const res = await fetch(`${baseUrl}/docs/first`)
         expect(res.status).toBe(200)
-        const html = await res.text()
+        const html = stripRueSsrMarkers(await res.text())
         const match = html.match(/<script>window\.__TEXT_DATA__\s*=\s*({.*?})<\/script>/)
         expect(match).toBeTruthy()
         const textData = JSON.parse(match![1])
@@ -5293,6 +5302,20 @@ describe('Pages Router dev ISR regeneration', () => {
         if (id === '@rue-js/server-renderer') {
           return {
             renderToString() {
+              return ''
+            },
+          }
+        }
+
+        if (id.endsWith('/src/server/pages-renderer-adapter.ts')) {
+          return {
+            createPagesPageElement() {
+              return null
+            },
+            withPagesScriptNonce(element: unknown) {
+              return element
+            },
+            async renderPagesRenderableToString() {
               return ''
             },
           }

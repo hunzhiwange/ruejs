@@ -65,7 +65,9 @@ describe('@rue-js/store', () => {
       createTestRoot(),
     )
     const names: string[] = []
-    const effect = watchEffect(() => names.push(store.getPath(['profile', 'name'])))
+    const effect = watchEffect(() => {
+      names.push(store.getPath(['profile', 'name']))
+    })
     store.set(['profile', 'age'], 2)
     store.set(['profile', 'name'], 'Signal')
     store.mutatePath(['profile'], (profile: any) => {
@@ -90,7 +92,9 @@ describe('@rue-js/store', () => {
     expect(types.isProxy(store.get())).toBe(false)
     expect(types.isProxy(store.getPath(['items']))).toBe(false)
     const values: unknown[] = []
-    const effect = watchEffect(() => values.push(store.getPath(['left'])))
+    const effect = watchEffect(() => {
+      values.push(store.getPath(['left']))
+    })
     store.set(['right'], 3)
     expect(values).toEqual([1])
     store.update(['left'], (value: number) => value + 1)

@@ -11,7 +11,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { build, type Rollup } from 'vite'
 
 import { createStaticRouteHtml } from '@rue-js/server-renderer/static'
-import { startRueIslandLoader, type RueIslandClientModule } from '@rue-js/runtime/island'
 import VitePluginRue from '../index.mjs'
 
 const fixtureRoot = path.resolve('packages/vite-plugin-rue/__tests__/fixtures/islands')
@@ -41,6 +40,26 @@ const buildFixture = async (outDir: string, input: string, ssr = false) => {
     resolve: {
       conditions: ['development', 'browser'],
       alias: {
+        ...Object.fromEntries(
+          ['rue', 'runtime'].flatMap(pkg =>
+            [
+              'component',
+              'block',
+              'dom',
+              'reactive',
+              'hydrate',
+              'ssr',
+              'teleport',
+              'transition',
+              'transition-group',
+              'keep-alive',
+              'suspense',
+            ].map(category => [
+              `@rue-js/${pkg}/internal/${category}`,
+              path.join(repoRoot, `packages/${pkg}/src/compiler-runtime/entries/${category}.ts`),
+            ]),
+          ),
+        ),
         '@rue-js/rue/internal/compiler': path.join(
           repoRoot,
           'packages/rue/src/compiler-internal.ts',
@@ -63,6 +82,7 @@ const buildFixture = async (outDir: string, input: string, ssr = false) => {
       target: 'es2022',
       write: true,
       rolldownOptions: {
+        preserveEntrySignatures: 'strict',
         input,
         output: ssr
           ? { entryFileNames: 'entry-server.mjs', format: 'es' }
@@ -162,14 +182,14 @@ describe('Rue island real build contract', () => {
     expect(onlyChunk, `client modules: ${builtModuleIds.join(', ')}`).toBeTruthy()
     expect(hydratedPanelChunk, `client modules: ${builtModuleIds.join(', ')}`).toBeTruthy()
     expect([...clientGraph.moduleIds]).toEqual(
-      expect.arrayContaining([expect.stringContaining('compiler-runtime/dom.hydrate')]),
+      expect.arrayContaining([expect.stringContaining('compiler-runtime/hydrate-claim')]),
     )
     const hydratedPanelGraph = collectStaticClosure(bundle, hydratedPanelChunk!)
     expect([...hydratedPanelGraph.moduleIds]).toEqual(
-      expect.arrayContaining([expect.stringContaining('compiler-runtime/dom.hydrate')]),
+      expect.arrayContaining([expect.stringContaining('compiler-runtime/hydrate-claim')]),
     )
-    expect(onlyChunk!.moduleIds).not.toEqual(
-      expect.arrayContaining([expect.stringContaining('compiler-runtime/dom.hydrate')]),
+    expect(builtModuleIds).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/dom\.hydrate|runtime-core\/js-runtime/)]),
     )
     expect(clientGraph.assets).not.toContain(`/${counterChunk!.fileName}`)
     expect(clientGraph.assets).not.toContain(`/${onlyChunk!.fileName}`)
@@ -228,24 +248,36 @@ describe('Rue island real build contract', () => {
     const nestedIds = [...document.querySelectorAll('rue-island')].map(island =>
       island.getAttribute('data-rue-id'),
     ) as string[]
-    const originalRequestIdleCallback = globalThis.requestIdleCallback
-    globalThis.requestIdleCallback = callback => {
-      queueMicrotask(() => callback({ didTimeout: false, timeRemaining: () => 50 }))
-      return 1
-    }
-    const stopFixtureIslands = startRueIslandLoader({
-      root: document,
-      resolveModule: () =>
-        import('./fixtures/islands/components/Counter') as Promise<RueIslandClientModule>,
-    })
-    await expect.poll(() => globalThis.__rueIslandFixtureHydrationOrder ?? []).toEqual(nestedIds)
-    expect(
-      [...document.querySelectorAll('rue-island')].map(island =>
-        island.getAttribute('data-rue-status'),
-      ),
-    ).toEqual(['hydrated', 'hydrated'])
-
-    stopFixtureIslands?.()
-    globalThis.requestIdleCallback = originalRequestIdleCallback
+    // Execute the emitted ESM in Node with a browser DOM; no second JSX transform.
+    const hydrationScript = `
+      import { createRequire } from 'node:module';
+      const require = createRequire(${JSON.stringify(path.join(repoRoot, 'package.json'))});
+      const { JSDOM } = require('jsdom');
+      const dom = new JSDOM(${JSON.stringify(html.nested)}, {url:'http://localhost/'});
+      for (const name of ['window','document','Node','Element','HTMLElement','MutationObserver','Event','CustomEvent']) {
+        globalThis[name] = dom.window[name];
+      }
+      window.requestIdleCallback = callback => {
+        queueMicrotask(() => callback({didTimeout:false,timeRemaining:()=>50})); return 1;
+      };
+      const client = await import(${JSON.stringify(pathToFileURL(path.join(clientOutDir, entryChunk!.fileName)).href)});
+      const stop = client.startFixtureIslands();
+      for (let i=0;i<100 && document.querySelectorAll('[data-rue-status="hydrated"]').length<2;i++) {
+        await new Promise(resolve=>setTimeout(resolve,10));
+      }
+      const result = {
+        order:globalThis.__rueIslandFixtureHydrationOrder ?? [],
+        statuses:[...document.querySelectorAll('rue-island')].map(node=>node.getAttribute('data-rue-status'))
+      };
+      stop(); dom.window.close(); process.stdout.write(JSON.stringify(result));
+    `
+    const { stdout } = await execFile(
+      process.execPath,
+      ['--input-type=module', '--eval', hydrationScript],
+      { cwd: repoRoot },
+    )
+    const hydrated = JSON.parse(stdout)
+    expect(hydrated.order).toEqual(nestedIds)
+    expect(hydrated.statuses).toEqual(['hydrated', 'hydrated'])
   }, 120_000)
 })

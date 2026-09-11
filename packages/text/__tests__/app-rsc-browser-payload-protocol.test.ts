@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import { renderRuePayloadToReadableStream } from '@rue-js/rsc/core/payload'
 import { AppRscServerClientReferenceSymbol } from '../src/server/app-rsc-client-reference-protocol-core.js'
-import { createServerProtocolElement } from '../src/server/element-protocol.js'
 import { appBrowserPayloadProtocol } from '../src/server/app-rsc-browser-payload-protocol.js'
 import { createAppBrowserPayloadProtocol } from '../src/server/app-rsc-browser-payload-protocol-core.js'
 
@@ -64,14 +63,15 @@ describe('App browser payload protocol', () => {
     )
   })
 
-  it('decodes Rue payload frames while preserving client references for slot materialization', async () => {
+  it('decodes Rue payload frames and resolves explicitly tagged module references', async () => {
     const globalState = globalThis as typeof globalThis & {
       __rue_rsc_client_require__?: (id: string) => Promise<Record<string, unknown>>
     }
     const previousRequire = globalState.__rue_rsc_client_require__
+    const clientComponent = () => () => {}
     globalState.__rue_rsc_client_require__ = vi.fn(async id => {
       expect(id).toBe('/src/client-widget.tsx')
-      return { default: () => null }
+      return { default: clientComponent }
     })
 
     try {
@@ -84,22 +84,16 @@ describe('App browser payload protocol', () => {
       const response = Promise.resolve(
         new Response(
           renderRuePayloadToReadableStream({
-            'page:/client': createServerProtocolElement(clientReference, { label: 'Client' }),
+            reference: clientReference,
+            frame: { version: 1, html: '<p>server</p>', references: [] },
           }),
         ),
       )
 
       const decoded = await appBrowserPayloadProtocol.decodeFetch<Record<string, unknown>>(response)
-      expect(decoded['page:/client']).toMatchObject({
-        type: {
-          $rue: 'clientReference',
-          exportName: 'default',
-          id: '/src/client-widget.tsx#default',
-          referenceKey: '/src/client-widget.tsx',
-        },
-        props: { label: 'Client' },
-      })
-      expect(globalState.__rue_rsc_client_require__).not.toHaveBeenCalled()
+      expect(decoded.reference).toBe(clientComponent)
+      expect(decoded.frame).toEqual({ version: 1, html: '<p>server</p>', references: [] })
+      expect(globalState.__rue_rsc_client_require__).toHaveBeenCalledTimes(1)
     } finally {
       if (previousRequire) {
         globalState.__rue_rsc_client_require__ = previousRequire

@@ -13,6 +13,7 @@ import {
   useRef,
   useShadowRoot,
 } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
@@ -46,6 +47,11 @@ const SHADOW_NONCE = 'rue-demo-nonce'
 const SHADOW_TAG = 'rue-shadow-console'
 const LIGHT_TAG = 'rue-light-signal'
 const BridgeContext = createContext('provider:missing')
+
+const BridgeContextProvider: FC<{ value: string; children?: any }> = props => {
+  provideContext(BridgeContext, () => props.value)
+  return <>{props.children}</>
+}
 
 const shadowStyles = [
   `
@@ -1479,7 +1485,7 @@ const WebComponents: FC = () => {
                   </span>
                 </div>
 
-                <BridgeContext.Provider value={`${activePreset.value}:${accent.value}`}>
+                <BridgeContextProvider value={`${activePreset.value}:${accent.value}`}>
                   <div className="space-y-4">
                     <rue-shadow-console
                       ref={shadowHostRef}
@@ -1515,7 +1521,7 @@ const WebComponents: FC = () => {
 
                     <rue-light-signal ref={lightHostRef}></rue-light-signal>
                   </div>
-                </BridgeContext.Provider>
+                </BridgeContextProvider>
               </div>
             </div>
 

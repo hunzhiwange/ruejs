@@ -31,6 +31,11 @@ export {
   removeChild as _$compiledRemoveChild,
   template as _$template,
 } from './compiler-runtime/dom.browser'
+export * from './compiler-runtime/entries/block'
+export * from './compiler-runtime/entries/component'
+export * from './compiler-runtime/entries/dom'
+export * from './compiler-runtime/entries/events'
+export * from './compiler-runtime/entries/list'
 
 export {
   _$compiledPropsCall,

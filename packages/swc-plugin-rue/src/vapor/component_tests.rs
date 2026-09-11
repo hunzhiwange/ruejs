@@ -66,18 +66,20 @@ fn component_root_emits_static_mount_with_children_props() {
     assert!(out.contains("const__child1=_$compiledRoot(()=>{"), "{out}");
     assert!(out.contains("_$createElement(\"span\",_root)"), "{out}");
     assert!(out.contains("_$createComponent(Box,()=>({children:__child1}))"), "{out}");
-    assert!(out.contains("renderAnchor("), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt({parent:_root,before:_list1}"), "{out}");
+    assert!(out.contains("_$mountCompiledSlotFactory(target,owner,"), "{out}");
+    assert!(!out.contains("renderAnchor"), "{out}");
     assert!(out.ends_with("return_root;}"), "{out}");
 }
 
 #[test]
-fn component_root_wraps_dynamic_props_in_watch_effect() {
+fn component_root_mounts_dynamic_props_through_compiled_component_abi() {
     let mut vt = new_vt();
     let el = parse_jsx_element("<Box title={title} />");
     let out = compact(&emit_block(emit_component_root(&mut vt, &el)));
 
-    assert!(out.contains("effect(()=>{"), "{out}");
-    assert!(out.contains("const__slot2=_$createComponent(Box,()=>({title:title}));"), "{out}");
-    assert!(out.contains("untrack(()=>renderAnchor(__slot2,_root,_list1))"), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt({parent:_root,before:_list1}"), "{out}");
+    assert!(out.contains("()=>_$createComponent(Box,()=>({title:title}))"), "{out}");
+    assert!(!out.contains("renderAnchor"), "{out}");
     assert!(out.contains("return_root;"), "{out}");
 }

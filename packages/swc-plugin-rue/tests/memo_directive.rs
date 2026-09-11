@@ -29,7 +29,7 @@ export default MemoDemo
     std::fs::write("target/vapor_outputs/memo_directive.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(
-        normalized.contains("import { _$compiledMemo } from \"@rue-js/rue/internal/compiler\";")
+        normalized.contains("import { _$compiledMemo } from \"@rue-js/rue/internal/reactive\";")
     );
     assert!(normalized.contains(
         "_$compiledMemo(\"memo:169:240\", ()=><section>{props.valueA}</section>, [ props.valueA, props.valueB ])"

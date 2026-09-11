@@ -94,18 +94,7 @@ impl Visit for Collector {
 }
 
 fn is_vapor_hook(name: &str) -> bool {
-    matches!(
-        name,
-        "useState"
-            | "useEffect"
-            | "useSetup"
-            | "useRef"
-            | "watch"
-            | "watchEffect"
-            | "computed"
-            | "ref"
-            | "reactive"
-    )
+    matches!(name, "useState" | "useEffect" | "useSetup" | "useRef")
 }
 
 #[derive(Default)]

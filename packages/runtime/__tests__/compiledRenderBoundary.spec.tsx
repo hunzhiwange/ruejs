@@ -1,3 +1,4 @@
+import { resolveCompilerCapability } from './compiler-capability-test-runtime'
 // @vitest-environment jsdom
 
 import { readFileSync } from 'node:fs'
@@ -170,9 +171,8 @@ const compileDirectComponent = (moduleType: 'es6' | 'commonjs'): string => {
 const evaluate = (): BoundaryModule => {
   const module = { exports: {} as Record<string, unknown> }
   const runtimeRequire = (id: string): Record<string, unknown> => {
-    if (id === '@rue-js/rue/internal/compiler') return compiledRuntime
-    if (id === '@rue-js/rue/internal/component') return internalRuntime
-    if (id === '@rue-js/rue/internal') return internalRuntime
+    const capability = resolveCompilerCapability(id)
+    if (capability) return capability as Record<string, unknown>
     if (id === '@rue-js/rue') return runtimeRoot
     throw new Error(`Unexpected generated import: ${id}`)
   }
@@ -187,9 +187,8 @@ const evaluate = (): BoundaryModule => {
 const evaluateDirectComponent = (): DirectComponentModule => {
   const module = { exports: {} as Record<string, unknown> }
   const runtimeRequire = (id: string): Record<string, unknown> => {
-    if (id === '@rue-js/rue/internal/compiler') return compiledRuntime
-    if (id === '@rue-js/rue/internal/component') return internalRuntime
-    if (id === '@rue-js/rue/internal') return internalRuntime
+    const capability = resolveCompilerCapability(id)
+    if (capability) return capability as Record<string, unknown>
     if (id === '@rue-js/rue') return runtimeRoot
     throw new Error(`Unexpected generated import: ${id}`)
   }
@@ -285,7 +284,7 @@ describe('compiled component render boundary', () => {
       node => node.nodeType === Node.COMMENT_NODE,
     )
     expect(leaf?.textContent).toBe('one')
-    expect(comments).toHaveLength(0)
+    expect(comments).toHaveLength(2)
     expect(compiled.trace).toEqual({ mounted: 1, renders: 1, unmounted: 0 })
 
     compiled.setLabel('two')

@@ -33,3 +33,44 @@ describe('compiled watch dependency isolation', () => {
     }
   })
 })
+
+describe('compact reactive primitives', () => {
+  it('batches computed/watch updates and stops descendants with their owner', async () => {
+    const r = await import('../src/compiler-runtime/entries/reactive')
+    r.setReactiveScheduling('microtask')
+    const parent = r.createOwner()
+    const events: number[] = []
+    let reads = 0
+    let source!: ReturnType<typeof r.signal<number>>
+    r.runWithOwner(parent, () => {
+      const child = r.createOwner()
+      r.runWithOwner(child, () => {
+        source = r.signal(1)
+        const doubled = r.computed(() => {
+          reads++
+          return source.get() * 2
+        })
+        r.watch(
+          () => doubled.value,
+          next => {
+            events.push(next)
+          },
+          { immediate: true },
+        )
+      })
+    })
+    expect([reads, events]).toEqual([1, [2]])
+    r.batch(() => {
+      source.set(2)
+      source.set(3)
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(events).toEqual([2, 6])
+    r.disposeOwner(parent)
+    source.set(4)
+    await Promise.resolve()
+    expect(events).toEqual([2, 6])
+    r.setReactiveScheduling('frame')
+  })
+})

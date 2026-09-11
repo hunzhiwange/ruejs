@@ -22,10 +22,7 @@ const Demo: FC = () => <><h1>Title</h1><span title={Boolean(true)}>safe</span></
     let normalized = utils::normalize(&out);
 
     assert!(out.contains("@rue-js/rue/internal"), "{out}");
-    assert!(
-        normalized
-            .contains(&utils::normalize("_$compiledRoot(Object.assign((__rue_parent_context)=>{"))
-    );
+    assert!(normalized.contains(&utils::normalize("_$compiledRoot((__rue_parent_context)=>{")));
     assert!(normalized.contains(&utils::normalize("_$createDocumentFragment()")));
     assert!(normalized.contains(&utils::normalize("_$template(\"<span>safe</span>\")")));
     assert!(!normalized.contains(&utils::normalize("vapor(")), "{out}");

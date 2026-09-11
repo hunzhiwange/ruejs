@@ -113,7 +113,7 @@ fn html_tag_name(name: &JSXElementName) -> Option<&str> {
         return None;
     };
     let tag = name.sym.as_ref();
-    is_native_html_tag(tag).then_some(tag)
+    (is_native_html_tag(tag) || crate::element_node::is_native_svg_tag(tag)).then_some(tag)
 }
 
 pub(crate) fn is_native_html_tag(tag: &str) -> bool {
@@ -278,7 +278,7 @@ fn normalized_attr_name(name: &str) -> &str {
     }
 }
 
-fn is_boolean_attr(name: &str) -> bool {
+pub(crate) fn is_boolean_attr(name: &str) -> bool {
     matches!(
         name,
         "allowFullScreen"
@@ -339,14 +339,13 @@ fn attr_needs_runtime(tag: &str, attr: &JSXAttr) -> Option<bool> {
     if name == TEMPLATE_MARKER_ATTR || name == "key" {
         return Some(false);
     }
-    if name == "dangerouslySetInnerHTML"
-        || name == "is"
-        || (name == "value" && matches!(tag, "select" | "textarea"))
-        || name.starts_with("__rue_")
-    {
+    if name == "dangerouslySetInnerHTML" || name == "is" || name.starts_with("__rue_") {
         return None;
     }
-    if name == "ref" || name.to_ascii_lowercase().starts_with("on") {
+    if name == "ref"
+        || name.to_ascii_lowercase().starts_with("on")
+        || (name == "value" && matches!(tag, "select" | "textarea"))
+    {
         return Some(true);
     }
 
@@ -626,7 +625,7 @@ fn serialize_element(
     path: &mut Vec<usize>,
 ) -> Option<()> {
     let tag = html_tag_name(&element.opening.name)?;
-    if matches!(tag, "body" | "head" | "html" | "iframe" | "noscript" | "svg" | "math")
+    if matches!(tag, "body" | "head" | "html" | "iframe" | "noscript" | "math")
         || crate::custom_element::is_custom_element_tag(tag)
     {
         return None;
@@ -710,9 +709,9 @@ fn is_direct_text_candidate(container: &JSXExprContainer) -> bool {
                     Expr::Ident(name)
                         if matches!(name.sym.as_ref(), "String" | "Number" | "Boolean") =>
                     {
-                        call.args.len() == 1
-                            && call.args[0].spread.is_none()
-                            && candidate(call.args[0].expr.as_ref())
+                        // Scalar constructors produce text even when the argument is a row local.
+                        // Keep this decision stable when row locals become signal reads later.
+                        call.args.len() == 1 && call.args[0].spread.is_none()
                     }
                     Expr::Member(member) if matches!(&member.prop, MemberProp::Ident(property) if property.sym == *"get") => {
                         call.args.is_empty()
@@ -956,7 +955,7 @@ impl VisitMut for StaticTemplateCollector {
             JSXElementName::Ident(name) => name.sym.as_ref(),
             _ => return,
         };
-        if matches!(boundary_tag, "svg" | "math")
+        if matches!(boundary_tag, "math")
             || crate::custom_element::is_custom_element_tag(boundary_tag)
         {
             return;

@@ -1,42 +1,21 @@
+import { preserveFrameSlots } from '../server/app-frame-slots.js'
 import {
   AppElementsWire,
   UNMATCHED_SLOT,
   type AppElementValue,
   type AppElements,
-  type AppElementsInterception,
-  type AppElementsSlotBinding,
-  type LayoutFlags,
 } from '../server/app-elements.js'
-import { cloneServerProtocolElement, isServerProtocolElement } from '../server/element-protocol.js'
-import { markAppSsrPassthroughComponent } from '../server/app-ssr-passthrough-protocol.js'
-import {
-  markAppSlotPlaceholderComponent,
-  readAppSlotPlaceholderKind,
-  readAppSlotPlaceholderSentinel,
-} from '../server/app-slot-placeholder-protocol.js'
-import type { ArtifactCompatibilityEnvelope } from '../server/artifact-compatibility.js'
-import type { CacheEntryReuseProof } from '../server/cache-proof.js'
 import { notFound } from './navigation.js'
+import { writeAppServerPlan } from '../server/app-server-tree.js'
 import {
-  createTextCompatElement,
   getOrCreateTextCompatContext,
   useTextCompatContext,
   type TextCompatContext,
   type TextCompatNode,
 } from './context-adapter.js'
-import {
-  hasAppClientReferenceResolver,
-  isUnresolvedAppClientReferenceExport,
-  resolveAppClientReferenceExport,
-} from '../server/app-client-reference-resolver.js'
 import { getRequestContext, isInsideUnifiedScope } from './unified-request-context.js'
 
 const EMPTY_ELEMENTS: AppElements = Object.freeze({})
-const warnedMissingEntryIds = new Set<string>()
-const warnedTransportMetadataEntryIds = new Set<string>()
-const clientReferenceComponents = new Map<string, TextCompatNode>()
-const clientReferenceExports = new Map<string, unknown>()
-const RUE_CLIENT_REFERENCE_SYMBOL = Symbol.for('rue.client.reference')
 
 export { UNMATCHED_SLOT }
 
@@ -60,13 +39,6 @@ type CurrentSsrAppElementsState = {
 type CurrentSsrAppElementsGlobal = typeof globalThis & {
   [CURRENT_SSR_APP_ELEMENTS_KEY]?: CurrentSsrAppElementsState
 }
-type ThenableRecord<T> =
-  | { status: 'pending'; value: PromiseLike<T> }
-  | { status: 'fulfilled'; value: T }
-  | { reason: unknown; status: 'rejected' }
-
-const thenableRecords = new WeakMap<PromiseLike<unknown>, ThenableRecord<unknown>>()
-
 function getCurrentSsrAppElementsState(): CurrentSsrAppElementsState {
   if (isInsideUnifiedScope()) {
     const context = getRequestContext()
@@ -176,517 +148,24 @@ function createLazyRequiredTextCompatContext<T>(
   })
 }
 
-export const ElementsContext = createLazyRequiredTextCompatContext<AppElements>(
-  ELEMENTS_CONTEXT_KEY,
-  EMPTY_ELEMENTS,
-)
+export const ElementsContext: TextCompatContext<AppElements> =
+  createLazyRequiredTextCompatContext<AppElements>(ELEMENTS_CONTEXT_KEY, EMPTY_ELEMENTS)
 
-export const ChildrenContext = createLazyRequiredTextCompatContext<TextCompatNode>(
-  CHILDREN_CONTEXT_KEY,
+export const ChildrenContext: TextCompatContext<TextCompatNode> =
+  createLazyRequiredTextCompatContext<TextCompatNode>(CHILDREN_CONTEXT_KEY, null)
+
+export const ParallelSlotsContext: TextCompatContext<Readonly<
+  Record<string, TextCompatNode>
+> | null> = createLazyRequiredTextCompatContext<Readonly<Record<string, TextCompatNode>> | null>(
+  PARALLEL_SLOTS_CONTEXT_KEY,
   null,
 )
-
-export const ParallelSlotsContext = createLazyRequiredTextCompatContext<Readonly<
-  Record<string, TextCompatNode>
-> | null>(PARALLEL_SLOTS_CONTEXT_KEY, null)
 
 type MergeElementsOptions = {
   clearAbsentSlots?: boolean
   preserveAbsentSlots?: boolean
   preserveElementIds?: readonly string[]
   preservePreviousSlotIds?: readonly string[]
-}
-
-function resolveSlotPlaceholders(
-  value: TextCompatNode,
-  slotChildren: TextCompatNode,
-  parallelSlots: Readonly<Record<string, TextCompatNode>> | null,
-): TextCompatNode {
-  if (Array.isArray(value)) {
-    let changed = false
-    const textValue = value.map(item => {
-      const textItem = resolveSlotPlaceholders(item, slotChildren, parallelSlots)
-      if (textItem !== item) changed = true
-      return textItem
-    })
-    return changed ? textValue : value
-  }
-
-  if (!isServerProtocolElement(value)) {
-    return value
-  }
-
-  if (isSlotComponentType(value.type)) {
-    return value
-  }
-
-  if (value.type === 'text-rue-html') {
-    const props = value.props as Record<string, unknown>
-    const innerHtml = (props.dangerouslySetInnerHTML as { __html?: unknown } | undefined)?.__html
-    if (typeof innerHtml === 'string' && innerHtml.includes('<text-slot-placeholder')) {
-      const placeholderPattern = /<text-slot-placeholder\b([^>]*)>(?:<\/text-slot-placeholder>)?/gi
-      const parts: TextCompatNode[] = []
-      let cursor = 0
-      let match: RegExpExecArray | null
-      while ((match = placeholderPattern.exec(innerHtml))) {
-        const attributes = match[1] ?? ''
-        const kindMatch = /\bdata-text-slot-placeholder=(?:"([^"]+)"|'([^']+)')/i.exec(attributes)
-        const kind = kindMatch?.[1] ?? kindMatch?.[2]
-        if (kind !== 'children' && kind !== 'parallel-slot') continue
-
-        if (match.index > cursor) {
-          parts.push(
-            cloneServerProtocolElement(value, {
-              ...props,
-              dangerouslySetInnerHTML: { __html: innerHtml.slice(cursor, match.index) },
-            }) as TextCompatNode,
-          )
-        }
-
-        if (kind === 'children') {
-          parts.push(slotChildren ?? null)
-        } else {
-          const nameMatch = /\bdata-text-slot-name=(?:"([^"]+)"|'([^']+)')/i.exec(attributes)
-          const name = nameMatch?.[1] ?? nameMatch?.[2]
-          parts.push(name ? (parallelSlots?.[name] ?? null) : null)
-        }
-        cursor = placeholderPattern.lastIndex
-      }
-
-      if (cursor > 0) {
-        if (cursor < innerHtml.length) {
-          parts.push(
-            cloneServerProtocolElement(value, {
-              ...props,
-              dangerouslySetInnerHTML: { __html: innerHtml.slice(cursor) },
-            }) as TextCompatNode,
-          )
-        }
-        return parts
-      }
-    }
-  }
-
-  const sentinel = readAppSlotPlaceholderSentinel(value.type, value.props)
-  if (sentinel?.kind === 'children') {
-    return slotChildren ?? null
-  }
-  if (sentinel?.kind === 'parallel-slot') {
-    return sentinel.name ? (parallelSlots?.[sentinel.name] ?? null) : null
-  }
-
-  const placeholderKind = readAppSlotPlaceholderKind(value.type)
-  if (placeholderKind === 'children') {
-    return slotChildren ?? null
-  }
-  if (placeholderKind === 'parallel-slot') {
-    const name = (value.props as { name?: unknown }).name
-    return typeof name === 'string' ? (parallelSlots?.[name] ?? null) : null
-  }
-
-  const props = value.props as Record<string, unknown>
-  let changed = false
-  const textProps: Record<string, unknown> = {}
-  for (const [key, propValue] of Object.entries(props)) {
-    const textValue = resolveSlotPlaceholders(
-      propValue as TextCompatNode,
-      slotChildren,
-      parallelSlots,
-    )
-    textProps[key] = textValue
-    if (textValue !== propValue) changed = true
-  }
-
-  return changed ? (cloneServerProtocolElement(value, textProps) as TextCompatNode) : value
-}
-
-function isTransportTextValue(value: unknown): value is { value: unknown } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    (value as { $rue?: unknown }).$rue === 'text' &&
-    'value' in value
-  )
-}
-
-function isTransportClientReferenceValue(
-  value: unknown,
-): value is { exportName: string; referenceKey: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    (value as { $rue?: unknown }).$rue === 'clientReference' &&
-    typeof (value as { referenceKey?: unknown }).referenceKey === 'string' &&
-    typeof (value as { exportName?: unknown }).exportName === 'string'
-  )
-}
-
-function readDecodedClientReferenceValue(
-  value: unknown,
-): { exportName: string; referenceKey: string } | null {
-  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return null
-  const record = value as {
-    $$exportName?: unknown
-    $$id?: unknown
-    $$referenceKey?: unknown
-    $$typeof?: unknown
-  }
-  if (record.$$typeof !== RUE_CLIENT_REFERENCE_SYMBOL) return null
-
-  const id = typeof record.$$id === 'string' ? record.$$id : null
-  const separator = id?.lastIndexOf('#') ?? -1
-  const referenceKey =
-    typeof record.$$referenceKey === 'string'
-      ? record.$$referenceKey
-      : id && separator > 0
-        ? id.slice(0, separator)
-        : null
-  if (!referenceKey) return null
-
-  const exportName =
-    typeof record.$$exportName === 'string'
-      ? record.$$exportName
-      : id && separator > -1
-        ? id.slice(separator + 1)
-        : 'default'
-  return { exportName, referenceKey }
-}
-
-function readClientReferenceValue(
-  value: unknown,
-): { exportName: string; referenceKey: string } | null {
-  if (isTransportClientReferenceValue(value)) {
-    return {
-      exportName: value.exportName,
-      referenceKey: value.referenceKey,
-    }
-  }
-  return readDecodedClientReferenceValue(value)
-}
-
-function isTransportFragmentValue(value: unknown): value is { $rue: 'fragment' } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    (value as { $rue?: unknown }).$rue === 'fragment'
-  )
-}
-
-function isMaterializedFragmentType(value: unknown): boolean {
-  return value === 'fragment' || value === Symbol.for('rue.fragment')
-}
-
-function isTransportElementValue(value: unknown): value is {
-  key?: unknown
-  props?: Record<string, unknown> | null
-  type: unknown
-} {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    (value as { $rue?: unknown }).$rue === 'element' &&
-    'type' in value
-  )
-}
-
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-  return (
-    (typeof value === 'object' || typeof value === 'function') &&
-    value !== null &&
-    typeof (value as { then?: unknown }).then === 'function'
-  )
-}
-
-function readThenable<T>(thenable: PromiseLike<T>): T {
-  const existing = thenableRecords.get(thenable as PromiseLike<unknown>) as
-    | ThenableRecord<T>
-    | undefined
-  if (existing) {
-    if (existing.status === 'fulfilled') return existing.value
-    if (existing.status === 'rejected') throw existing.reason
-    throw existing.value
-  }
-
-  const record: ThenableRecord<T> = {
-    status: 'pending',
-    value: thenable,
-  }
-  thenableRecords.set(thenable as PromiseLike<unknown>, record as ThenableRecord<unknown>)
-  Promise.resolve(thenable).then(
-    value => {
-      thenableRecords.set(
-        thenable as PromiseLike<unknown>,
-        {
-          status: 'fulfilled',
-          value,
-        } as ThenableRecord<unknown>,
-      )
-    },
-    reason => {
-      thenableRecords.set(thenable as PromiseLike<unknown>, {
-        reason,
-        status: 'rejected',
-      })
-    },
-  )
-  throw thenable
-}
-
-function resolveClientReferenceModule(referenceKey: string): unknown {
-  const globalState = globalThis as {
-    __rue_rsc_client_require__?: (referenceKey: string) => unknown
-    __vite_rsc_client_require__?: (referenceKey: string) => unknown
-  }
-  const clientRequire =
-    globalState.__rue_rsc_client_require__ ?? globalState.__vite_rsc_client_require__
-  if (!clientRequire) {
-    throw new Error(`[text] App client reference loader is not installed: ${referenceKey}`)
-  }
-  return clientRequire(referenceKey)
-}
-
-function readClientReferenceExport(referenceKey: string, exportName: string): unknown {
-  const cacheKey = `${referenceKey}#${exportName}`
-  if (clientReferenceExports.has(cacheKey)) {
-    const cached = clientReferenceExports.get(cacheKey)
-    return isThenable(cached) ? readThenable(cached) : cached
-  }
-
-  const resolvedExport = resolveAppClientReferenceExport(referenceKey, exportName)
-  const resolverHandled = resolvedExport !== null || hasAppClientReferenceResolver()
-  const loaded = resolverHandled ? resolvedExport : resolveClientReferenceModule(referenceKey)
-  const readExport = (mod: unknown): unknown => {
-    if (resolverHandled) {
-      return isUnresolvedAppClientReferenceExport(mod) ? null : mod
-    }
-    if (mod && typeof mod === 'object' && Object.hasOwn(mod, exportName)) {
-      const value = (mod as Record<string, unknown>)[exportName]
-      return isUnresolvedAppClientReferenceExport(value) ? null : value
-    }
-    throw new Error(
-      `[text] App client reference "${referenceKey}" does not export "${exportName}".`,
-    )
-  }
-  const resolved = isThenable(loaded)
-    ? Promise.resolve(loaded).then(readExport)
-    : readExport(loaded)
-  clientReferenceExports.set(cacheKey, resolved)
-  if (isThenable(resolved)) {
-    void Promise.resolve(resolved).then(value => {
-      clientReferenceExports.set(cacheKey, value)
-    })
-    return readThenable(resolved)
-  }
-  return resolved
-}
-
-function materializeClientReferenceType(value: {
-  exportName: string
-  referenceKey: string
-}): TextCompatNode {
-  const cacheKey = `${value.referenceKey}#${value.exportName}`
-  const existing = clientReferenceComponents.get(cacheKey)
-  if (existing) return existing
-
-  const ClientReference = (props: Record<string, unknown>) => {
-    const Component = readClientReferenceExport(value.referenceKey, value.exportName)
-    if (typeof Component !== 'function') {
-      return null
-    }
-    return createTextCompatElement(Component as never, props)
-  }
-  clientReferenceComponents.set(cacheKey, ClientReference as TextCompatNode)
-  return ClientReference as TextCompatNode
-}
-
-function isMaterializablePlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
-}
-
-function materializeServerProtocolNode(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    let changed = false
-    const textValue = value.map(item => {
-      const textItem = materializeServerProtocolNode(item)
-      if (textItem !== item) changed = true
-      return textItem
-    })
-    return changed ? textValue : value
-  }
-
-  if (isTransportTextValue(value)) {
-    return materializeServerProtocolNode(value.value)
-  }
-
-  const clientReference = readClientReferenceValue(value)
-  if (clientReference) {
-    return materializeClientReferenceType(clientReference)
-  }
-
-  if (isTransportFragmentValue(value)) {
-    return Symbol.for('rue.fragment')
-  }
-
-  if (isTransportElementValue(value)) {
-    const props = (value.props ?? {}) as Record<string, unknown>
-    const textProps: Record<string, unknown> = {}
-    const childValues: TextCompatNode[] = []
-    for (const [key, propValue] of Object.entries(props)) {
-      if (key === 'children') {
-        if (Array.isArray(propValue)) {
-          childValues.push(
-            ...(propValue.map(item => materializeServerProtocolNode(item)) as TextCompatNode[]),
-          )
-        } else if (propValue !== undefined) {
-          childValues.push(materializeServerProtocolNode(propValue) as TextCompatNode)
-        }
-        continue
-      }
-      textProps[key] = materializeServerProtocolNode(propValue)
-    }
-    if (value.key !== null && value.key !== undefined) {
-      textProps.key = value.key
-    }
-
-    const elementType = materializeServerProtocolNode(value.type)
-    if (isMaterializedFragmentType(elementType)) {
-      return childValues
-    }
-    return createTextCompatElement(elementType as never, textProps, ...childValues)
-  }
-
-  if (!isServerProtocolElement(value)) {
-    if (isMaterializablePlainObject(value)) {
-      let changed = false
-      const textValue: Record<string, unknown> = {}
-      for (const [key, item] of Object.entries(value)) {
-        const textItem = materializeServerProtocolNode(item)
-        textValue[key] = textItem
-        if (textItem !== item) changed = true
-      }
-      return changed ? textValue : value
-    }
-    return value
-  }
-
-  const props = (value.props ?? {}) as Record<string, unknown>
-  const textProps: Record<string, unknown> = {}
-  const childValues: TextCompatNode[] = []
-  for (const [key, propValue] of Object.entries(props)) {
-    if (key === 'children') {
-      if (Array.isArray(propValue)) {
-        childValues.push(
-          ...(propValue.map(item => materializeServerProtocolNode(item)) as TextCompatNode[]),
-        )
-      } else if (propValue !== undefined) {
-        childValues.push(materializeServerProtocolNode(propValue) as TextCompatNode)
-      }
-      continue
-    }
-    textProps[key] = materializeServerProtocolNode(propValue)
-  }
-  if (value.key !== null && value.key !== undefined) {
-    textProps.key = value.key
-  }
-
-  const elementType = materializeServerProtocolNode(value.type)
-  if (isMaterializedFragmentType(elementType)) {
-    return childValues
-  }
-  return createTextCompatElement(elementType as never, textProps, ...childValues)
-}
-
-function isLayoutFlagsValue(value: unknown): value is LayoutFlags {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const entries = Object.values(value)
-  return entries.length > 0 && entries.every(entry => entry === 's' || entry === 'd')
-}
-
-function isArtifactCompatibilityEnvelopeValue(
-  value: unknown,
-): value is ArtifactCompatibilityEnvelope {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  return (
-    'schemaVersion' in value &&
-    'appElementsSchemaVersion' in value &&
-    'rscPayloadSchemaVersion' in value &&
-    'graphVersion' in value &&
-    'deploymentVersion' in value &&
-    'rootBoundaryId' in value &&
-    'renderEpoch' in value
-  )
-}
-
-function isSlotBindingValue(value: unknown): value is AppElementsSlotBinding {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  return 'ownerLayoutId' in value && 'slotId' in value && 'state' in value
-}
-
-function isSlotBindingListValue(value: unknown): value is readonly AppElementsSlotBinding[] {
-  // Empty [] is valid metadata when parsed from a missing __slotBindings key,
-  // but it is not valid renderable slot content. Keep this guard non-empty so
-  // accidental [] entries under render keys are not silently swallowed.
-  return Array.isArray(value) && value.length > 0 && value.every(isSlotBindingValue)
-}
-
-function isSlotComponentType(value: unknown): boolean {
-  if (value === Slot) return true
-  if (typeof value !== 'function') return false
-  const name = (value as { name?: unknown }).name
-  if (name === 'Slot') return true
-  return Function.prototype.toString.call(value).includes('function Slot(')
-}
-
-function isInterceptionMetadataValue(value: unknown): value is AppElementsInterception {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  return (
-    'sourceMatchedUrl' in value &&
-    typeof value.sourceMatchedUrl === 'string' &&
-    'sourceRouteId' in value &&
-    typeof value.sourceRouteId === 'string' &&
-    'slotId' in value &&
-    typeof value.slotId === 'string' &&
-    'targetMatchedUrl' in value &&
-    typeof value.targetMatchedUrl === 'string' &&
-    'targetRouteId' in value &&
-    typeof value.targetRouteId === 'string'
-  )
-}
-
-function isCacheEntryReuseProofValue(value: unknown): value is CacheEntryReuseProof {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  return 'kind' in value && value.kind === 'runtime-cache-entry' && 'decision' in value
-}
-
-function isTransportMetadataValue(
-  value: AppElementValue | undefined,
-): value is
-  | LayoutFlags
-  | ArtifactCompatibilityEnvelope
-  | CacheEntryReuseProof
-  | AppElementsInterception
-  | readonly AppElementsSlotBinding[] {
-  return (
-    isLayoutFlagsValue(value) ||
-    isArtifactCompatibilityEnvelopeValue(value) ||
-    isCacheEntryReuseProofValue(value) ||
-    isInterceptionMetadataValue(value) ||
-    isSlotBindingListValue(value)
-  )
-}
-
-function warnTransportMetadataEntry(id: string): void {
-  if (process.env.NODE_ENV === 'production') return
-  if (warnedTransportMetadataEntryIds.has(id)) return
-
-  warnedTransportMetadataEntryIds.add(id)
-  console.warn('[text] Transport metadata value found under App Router render entry: ' + id)
 }
 
 export function mergeElements(
@@ -748,43 +227,47 @@ export function mergeElements(
     }
   }
 
+  const previousRoute = prev[AppElementsWire.keys.route]
+  const nextRoute = text[AppElementsWire.keys.route]
+  const before = typeof previousRoute === 'string' ? prev[previousRoute] : null
+  const incoming = typeof nextRoute === 'string' ? text[nextRoute] : null
+  const frame = (value: unknown): value is import('@rue-js/runtime/internal/hydrate').ServerFrame =>
+    value !== null &&
+    typeof value === 'object' &&
+    (value as { version?: unknown }).version === 1 &&
+    typeof (value as { html?: unknown }).html === 'string' &&
+    Array.isArray((value as { references?: unknown }).references)
+  if (typeof nextRoute === 'string' && frame(before) && frame(incoming)) {
+    const retained = new Set(preservePreviousSlotIds)
+    if (!clearAbsentSlots && preserveAbsentSlots)
+      for (const id of slotKeys) {
+        if (!Object.hasOwn(text, id) && Object.hasOwn(prev, id)) retained.add(id)
+      }
+    merged[nextRoute] = preserveFrameSlots(before, incoming, [...retained])
+  }
   return merged
 }
 
-export function Slot({
-  id,
-  children,
-  elements: explicitElements,
-  parallelSlots,
-}: {
+export function Slot(props: {
   id: string
   children?: TextCompatNode
   elements?: AppElements
   parallelSlots?: Readonly<Record<string, TextCompatNode>>
 }) {
-  if (typeof id !== 'string') {
-    return children ?? null
-  }
-
-  if (explicitElements && typeof explicitElements === 'object') {
-    return renderSlotElement({ children, elements: explicitElements, id, parallelSlots })
-  }
-
   const contextElements = useTextCompatContext(ElementsContext)
-  const safeContextElements =
-    contextElements && typeof contextElements === 'object' ? contextElements : EMPTY_ELEMENTS
-  const elements =
-    safeContextElements === EMPTY_ELEMENTS
-      ? (readCurrentSsrAppElementsFallback() ?? safeContextElements)
-      : safeContextElements
-
-  return renderSlotElement({ children, elements, id, parallelSlots })
+  return renderSlotElement({
+    ...props,
+    elements:
+      props.elements ??
+      (contextElements === EMPTY_ELEMENTS
+        ? (readCurrentSsrAppElementsFallback() ?? EMPTY_ELEMENTS)
+        : contextElements),
+  })
 }
-
 export function renderSlotElement({
   id,
   children,
-  elements: initialElements,
+  elements,
   parallelSlots,
 }: {
   id: string
@@ -792,85 +275,43 @@ export function renderSlotElement({
   elements?: AppElements
   parallelSlots?: Readonly<Record<string, TextCompatNode>>
 }) {
-  let elements =
-    initialElements && typeof initialElements === 'object'
-      ? initialElements
-      : (readCurrentSsrAppElementsFallback(id) ?? EMPTY_ELEMENTS)
-  if (!Object.hasOwn(elements, id)) {
-    const currentElements = readCurrentSsrAppElementsFallback(id)
-    if (currentElements && Object.hasOwn(currentElements, id)) {
-      elements = currentElements
-    }
+  const entries =
+    elements && id in elements
+      ? elements
+      : (readCurrentSsrAppElementsFallback(id) ?? elements ?? EMPTY_ELEMENTS)
+  const plan = entries[id]
+  if (!(id in entries) && !AppElementsWire.isSlotId(id) && process.env.NODE_ENV !== 'production') {
+    console.warn(`[text] Missing App Router element entry during render: ${id}`)
   }
-
-  if (!Object.hasOwn(elements, id)) {
-    const missingElementKey = AppElementsWire.parseElementKey(id)
-    if (missingElementKey !== null && children !== undefined) {
-      return children
-    }
-    const shouldWarnMissingEntry = !missingElementKey || missingElementKey.kind !== 'page'
-    if (
-      shouldWarnMissingEntry &&
-      process.env.NODE_ENV !== 'production' &&
-      !AppElementsWire.isSlotId(id)
-    ) {
-      if (!warnedMissingEntryIds.has(id)) {
-        warnedMissingEntryIds.add(id)
-        console.warn('[text] Missing App Router element entry during render: ' + id)
-      }
-    }
-    return null
+  if (plan === UNMATCHED_SLOT) notFound()
+  if (plan != null && typeof plan !== 'function')
+    throw new Error(`Text slot ${id} requires a compiled plan`)
+  const selectedPlan =
+    plan == null
+      ? (children ?? (() => {}))
+      : async (writer: import('@rue-js/runtime/internal/ssr').Writer) =>
+          writeAppServerPlan(plan as import('@rue-js/runtime/internal/ssr').ServerPlan, writer)
+  const content =
+    plan == null
+      ? (children ?? (() => {}))
+      : ParallelSlotsContext.Provider({
+          value: parallelSlots ?? null,
+          children: ChildrenContext.Provider({
+            value: children ?? null,
+            children: selectedPlan as any,
+          }),
+        })
+  if (!AppElementsWire.isSlotId(id)) return content
+  return async (writer: import('@rue-js/runtime/internal/ssr').Writer) => {
+    const marker = `text-slot:${encodeURIComponent(id)}`
+    writer.chunks.push(`<!--${marker}-->`)
+    await (content as import('@rue-js/runtime/internal/ssr').ServerPlan)(writer)
+    writer.chunks.push(`<!--/${marker}-->`)
   }
-
-  const element = elements[id]
-  if (isTransportMetadataValue(element)) {
-    warnTransportMetadataEntry(id)
-    return null
-  }
-  if (element === UNMATCHED_SLOT) {
-    notFound()
-  }
-  const elementKey = AppElementsWire.parseElementKey(id)
-  const state = getCurrentSsrAppElementsState()
-  const shouldTrackRenderedEntry = state.active && elementKey && elementKey.kind !== 'page'
-  if (shouldTrackRenderedEntry && state.renderedEntryIds.has(id)) {
-    return children ?? null
-  }
-  if (shouldTrackRenderedEntry) {
-    state.renderedEntryIds.add(id)
-  }
-  const resolvedElement =
-    elementKey?.kind === 'route'
-      ? (element as TextCompatNode)
-      : resolveSlotPlaceholders(element as TextCompatNode, children ?? null, parallelSlots ?? null)
-  const materializedElement = materializeServerProtocolNode(resolvedElement)
-
-  if ((children === undefined || children === null) && !parallelSlots) {
-    return materializedElement
-  }
-
-  return createTextCompatElement(
-    ParallelSlotsContext.Provider,
-    { value: parallelSlots ?? null },
-    createTextCompatElement(
-      ChildrenContext.Provider,
-      { value: children ?? null },
-      materializedElement,
-    ),
-  )
 }
-
 export function Children() {
-  return useTextCompatContext(ChildrenContext)
+  return useTextCompatContext(ChildrenContext) ?? (() => {})
 }
-
 export function ParallelSlot({ name }: { name: string }) {
-  const slots = useTextCompatContext(ParallelSlotsContext)
-  return slots?.[name] ?? null
+  return useTextCompatContext(ParallelSlotsContext)?.[name] ?? (() => {})
 }
-
-markAppSsrPassthroughComponent(Children)
-markAppSsrPassthroughComponent(ParallelSlot)
-markAppSsrPassthroughComponent(Slot)
-markAppSlotPlaceholderComponent(Children, 'children')
-markAppSlotPlaceholderComponent(ParallelSlot, 'parallel-slot')

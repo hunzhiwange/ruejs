@@ -1,3 +1,8 @@
+import {
+  _$mountCompiledSlotFactory,
+  type BlockFactory,
+} from '../src/compiler-runtime/block-factory'
+import { resolveCompilerCapability } from './compiler-capability-test-runtime'
 // @vitest-environment jsdom
 
 import { readFileSync } from 'node:fs'
@@ -6,9 +11,8 @@ import { resolve } from 'node:path'
 import swc from '@swc/core'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createOwner, disposeOwner, runWithOwner, signal } from '../src/internal-reactive'
-import { _$compiledRoot } from '../src/compiled-root'
-import * as internalRuntime from '../src/internal'
+import { createOwner, disposeOwner, runWithOwner, signal } from '../src/runtime-core/compiled'
+import type { _$compiledRoot } from '../src/compiler-runtime/block'
 import * as compactRuntime from '../src/compiler-internal'
 
 type Row = { id: number; label: string; active?: boolean }
@@ -79,19 +83,23 @@ const evaluateView = (
   output: string,
   rows: ReturnType<typeof signal<Row[]>>,
   bindings: Record<string, unknown> = {},
-  runtime: Record<string, unknown> = internalRuntime,
 ) => {
-  const names = new Set<string>()
-  for (const match of output.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)) {
-    for (const name of match[1].split(',')) names.add(name.trim())
-  }
-  const helpers = [...names]
-  const executable = `${stripModuleSyntax(output)}\nreturn View;`
-  return new Function('rows', ...Object.keys(bindings), ...helpers, executable)(
-    rows,
-    ...Object.values(bindings),
-    ...helpers.map(name => runtime[name]),
-  ) as () => ReturnType<typeof _$compiledRoot>
+  const capabilities = Object.assign(
+    {},
+    ...[...output.matchAll(/import\s*\{[^}]*\}\s*from\s*["']([^"']+)["']/g)].map(match => {
+      const capability = resolveCompilerCapability(match[1])
+      if (!capability) throw new Error(`Unexpected compiler import: ${match[1]}`)
+      return capability
+    }),
+  )
+  return new Function(
+    'rows',
+    ...Object.keys(bindings),
+    ...Object.keys(capabilities),
+    `${stripModuleSyntax(output)}\nreturn View;`,
+  )(rows, ...Object.values(bindings), ...Object.values(capabilities)) as () => ReturnType<
+    typeof _$compiledRoot
+  >
 }
 
 const flushCompiledEffects = async (): Promise<void> => {
@@ -196,8 +204,6 @@ describe('compiled keyed list codegen', () => {
   })
 
   it.each([
-    ['v-memo', internalRuntime],
-    ['r-memo', internalRuntime],
     ['v-memo', compactRuntime],
     ['r-memo', compactRuntime],
   ] as const)(
@@ -207,7 +213,7 @@ describe('compiled keyed list codegen', () => {
       const output = compile(`export const View = () => <tbody>{rows.get().map(row =>
       <tr key={row.id} ${directive}={[row.label, row.id === selected.get()]}
         className={row.id === selected.get() ? 'selected' : ''} data-id={row.id}>
-        <td>{capture(row.id, row.label + ':' + (row.id === selected.get()) + ':' + unrelated.get())}</td>
+        <td>{String(capture(row.id, row.label + ':' + (row.id === selected.get()) + ':' + unrelated.get()))}</td>
       </tr>)}</tbody>`)
       const rows = signal<Row[]>(
         Array.from({ length: 1_000 }, (_, index) => ({ id: index + 1, label: 'same' })),
@@ -245,12 +251,7 @@ describe('compiled keyed list codegen', () => {
             })()
       const host = document.createElement('table')
       owned.run(() => {
-        const handle = evaluateView(
-          output,
-          rows,
-          { selected, unrelated, capture },
-          { ...internalRuntime, ...runtime },
-        )()
+        const handle = evaluateView(output, rows, { selected, unrelated, capture })()
         host.appendChild(handle.__rue_compiled_mount(host)!)
       })
       const original = [...host.querySelectorAll('tr')]
@@ -355,10 +356,12 @@ describe('compiled keyed list codegen', () => {
     const output = compile(source)
     const directRowOutput = compile(directRowSource)
     const compiledImport = output.match(
-      /import\s*\{([^}]*)\}\s*from\s*["']@rue-js\/rue\/internal\/compiler["']/,
+      /import\s*\{([^}]*)\}\s*from\s*["']@rue-js\/rue\/internal\/reactive["']/,
     )
     expect(compiledImport?.[1]).toContain('effect')
-    expect(compiledImport?.[1]).toContain('_$reconcileKeyed')
+    expect(output).toMatch(
+      /import\s*\{[^}]*_\$reconcileKeyed[^}]*\}\s*from\s*["']@rue-js\/rue\/internal\/list["']/,
+    )
     expect(compiledImport?.[1]).toContain('_$compiledSignal')
     expect(directRowOutput).toContain('_$rowPatch')
     expect(directRowOutput).not.toMatch(/_\$rowItem\d+\s*=\s*_\$compiledSignal\s*\(/)
@@ -471,7 +474,7 @@ describe('compiled keyed list codegen', () => {
         const tbody = handle.__rue_compiled_mount(host) as HTMLTableSectionElement
         host.appendChild(tbody)
       }),
-    ).toThrow('[rue] duplicate keys are not supported by compiled keyed lists')
+    ).toThrow(/duplicate.*key/)
     disposeOwner(owner)
   })
 
@@ -516,4 +519,176 @@ describe('compiled keyed list codegen', () => {
     expect(initialRows[1].isConnected).toBe(false)
     disposeOwner(owner)
   })
+})
+
+describe('closed row and slot factories', () => {
+  it('uses the same owned factory for native rows and excludes compatibility helpers', () => {
+    const output = compile(directRowSource)
+    expect(output).toContain('_$mountCompiledKeyedSingleRow(')
+    expect(output).not.toMatch(/Ownerless|RowSetup|renderAnchor|internal\/component["']/)
+  })
+  it.each([
+    ['plain object', '({ arbitrary: true })'],
+    ['mixed DOM/object array', '[document.createTextNode("x"), { arbitrary: true }]'],
+    [
+      'object-returning map',
+      'rows.get().map(row => ({ key: row.id, node: document.createElement("li") }))',
+    ],
+  ])('rejects unsafe children: %s', (_name, value) => {
+    expect(() => compile(`export const View = () => <div>{${value}}</div>`)).toThrow(
+      /children|value/i,
+    )
+  })
+})
+
+it('replaces compiled slot factories, retains unchanged nodes, and cleans moved ranges', async () => {
+  const firstOutput = compile('export const View = () => <><i>one</i><b>tail</b></>')
+  const secondOutput = compile('export const View = () => <em>two</em>')
+  const slotOutput = compile('export const View = () => <section>{props.children}</section>')
+  for (const output of [firstOutput, secondOutput, slotOutput]) {
+    expect(output).not.toContain('renderAnchor')
+  }
+  const unused = signal<Row[]>([])
+  const first = evaluateView(firstOutput, unused)
+  const second = evaluateView(secondOutput, unused)
+  const firstFactory: BlockFactory = (target, _props, owner) =>
+    _$mountCompiledSlotFactory(target, owner, first)
+  const secondFactory: BlockFactory = (target, _props, owner) =>
+    _$mountCompiledSlotFactory(target, owner, second)
+  const current = signal<BlockFactory | undefined>(firstFactory)
+  const props = {
+    get children() {
+      return current.get()
+    },
+  }
+  const View = evaluateView(slotOutput, unused, { props })
+  const host = document.createElement('div')
+  const moved = document.createElement('div')
+  const root = View()
+  root.__rue_compiled_mount(host)
+  const section = host.querySelector('section')!
+  const original = [...section.children]
+  expect(section.textContent).toBe('onetail')
+  current.set(firstFactory)
+  await flushCompiledEffects()
+  expect([...section.children]).toEqual(original)
+  moved.appendChild(section)
+  current.set(secondFactory)
+  await flushCompiledEffects()
+  expect(section.textContent).toBe('two')
+  expect(original.every(node => node.parentNode === null)).toBe(true)
+  current.set(undefined)
+  await flushCompiledEffects()
+  expect(section.textContent).toBe('')
+  current.set(firstFactory)
+  await flushCompiledEffects()
+  expect(section.textContent).toBe('onetail')
+  root.dispose()
+  expect(moved.childNodes).toHaveLength(0)
+})
+
+it('compiles JSX slot fallback values into factories', async () => {
+  const output = compile(
+    'export const View = () => <section>{props.children ?? <b>fallback</b>}</section>',
+  )
+  expect(output).not.toContain('renderAnchor')
+  const current = signal<BlockFactory | undefined>(undefined)
+  const props = {
+    get children() {
+      return current.get()
+    },
+  }
+  const unused = signal<Row[]>([])
+  const fallbackView = evaluateView(output, unused, { props })
+  const suppliedView = evaluateView(compile('export const View = () => <i>supplied</i>'), unused)
+  const host = document.createElement('div')
+  const root = fallbackView()
+  root.__rue_compiled_mount(host)
+  expect(host.textContent).toBe('fallback')
+  current.set((target, _props, owner) => _$mountCompiledSlotFactory(target, owner, suppliedView))
+  await flushCompiledEffects()
+  expect(host.textContent).toBe('supplied')
+  current.set(undefined)
+  await flushCompiledEffects()
+  expect(host.textContent).toBe('fallback')
+  root.dispose()
+  expect(host.childNodes).toHaveLength(0)
+})
+
+it('releases row signals and memo subscriptions on clear while the list remains mounted', async () => {
+  const output = compile(source.replace('key={row.id}', 'key={row.id} v-memo={[row.label]}'))
+  const rows = signal<Row[]>([])
+  const root = evaluateView(output, rows)()
+  const host = document.createElement('table')
+  root.__rue_compiled_mount(host)
+  const baseline = compactRuntime.__rueGetCompiledReactiveDebugState()
+  for (let batch = 0; batch < 3; batch++) {
+    rows.set(Array.from({ length: 100 }, (_, id) => ({ id, label: String(id) })))
+    await flushCompiledEffects()
+    rows.set([])
+    await flushCompiledEffects()
+    expect(host.querySelectorAll('tr')).toHaveLength(0)
+    expect(compactRuntime.__rueGetCompiledReactiveDebugState()).toEqual(baseline)
+  }
+  root.dispose()
+})
+
+it('mounts conditional map branches as closed keyed blocks', async () => {
+  const output = compile(
+    `export const View = () => <ul>{props.visible ? rows.get().map(row => { const label = row.label.toUpperCase(); return <li key={row.id}>{String(label)}</li> }) : <li>empty</li>}</ul>`,
+  )
+  expect(output).not.toContain('renderAnchor')
+  const rows = signal<Row[]>([
+    { id: 1, label: 'one' },
+    { id: 2, label: 'two' },
+  ])
+  const visible = signal(true)
+  const props = {
+    get visible() {
+      return visible.get()
+    },
+  }
+  const root = evaluateView(output, rows, { props })()
+  const host = document.createElement('div')
+  root.__rue_compiled_mount(host)
+  expect(host.textContent).toBe('ONETWO')
+  const first = host.querySelector('li')
+  rows.set([
+    { id: 2, label: 'TWO' },
+    { id: 1, label: 'ONE' },
+  ])
+  await flushCompiledEffects()
+  expect(host.textContent).toBe('TWOONE')
+  expect(host.querySelectorAll('li')[1]).toBe(first)
+  visible.set(false)
+  await flushCompiledEffects()
+  expect(host.textContent).toBe('empty')
+  visible.set(true)
+  await flushCompiledEffects()
+  expect(host.textContent).toBe('TWOONE')
+  root.dispose()
+  expect(host.childNodes).toHaveLength(0)
+})
+
+it('erases key metadata without skipping key expression evaluation', () => {
+  const output = compile(
+    `export const View = () => <section>{props.children ?? <b key={key.get()}>fallback</b>}</section>`,
+  )
+  expect(output).not.toContain('_$compiledWithKey')
+  let reads = 0
+  const rows = signal<Row[]>([])
+  const root = evaluateView(output, rows, {
+    props: {},
+    key: {
+      get() {
+        reads++
+        return 'fallback'
+      },
+    },
+  })()
+  const host = document.createElement('div')
+  root.__rue_compiled_mount(host)
+  expect(host.textContent).toBe('fallback')
+  expect(reads).toBe(1)
+  root.dispose()
 })

@@ -24,7 +24,11 @@ import {
 import { ensureFetchPatch, setCurrentFetchSoftTags } from '../shims/fetch-cache.js'
 import { getRequestExecutionContext, type ExecutionContextLike } from '../shims/request-context.js'
 import { pickRootParams, setRootParams, type RootParams } from '../shims/root-params.js'
-import { createRequestContext, runWithRequestContext } from '../shims/unified-request-context.js'
+import {
+  createRequestContext,
+  getRequestContext,
+  runWithRequestContext,
+} from '../shims/unified-request-context.js'
 import { flattenErrorCauses } from '../utils/error-cause.js'
 import { hasBasePath } from '../utils/base-path.js'
 import { applyAppMiddleware, type AppMiddlewareContext } from './app-middleware.js'
@@ -134,12 +138,14 @@ type ProgressiveActionFormStateResult =
   | {
       formState: AppRscFormState | null
       kind: 'form-state'
+      cookies?: string[]
     }
   | {
       actionError: unknown
       actionFailed: true
       formState: null
       kind: 'form-state'
+      cookies?: string[]
     }
 
 type HandleServerActionRequestOptions = {
@@ -426,6 +432,7 @@ async function handleAppRscRequest<TRoute extends AppRscHandlerRoute>(
   }
 
   const scriptNonce = getScriptNonceFromHeaderSources(request.headers, middlewareContext.headers)
+  getRequestContext().scriptNonce = scriptNonce
   const postMiddlewareRequestContext = buildPostMwRequestContext(request)
 
   // Rewrites (beforeFiles, afterFiles, fallback) use `matchPathname` from
@@ -614,7 +621,7 @@ async function handleAppRscRequest<TRoute extends AppRscHandlerRoute>(
     })
   }
 
-  return options.dispatchMatchedPage({
+  const pageResponse = await options.dispatchMatchedPage({
     cleanPathname,
     formState,
     actionError,
@@ -634,6 +641,16 @@ async function handleAppRscRequest<TRoute extends AppRscHandlerRoute>(
     searchParams: url.searchParams,
     renderMode,
   })
+  if (isProgressiveActionRender && progressiveActionResult.cookies?.length) {
+    const headers = new Headers(pageResponse.headers)
+    for (const cookie of progressiveActionResult.cookies) headers.append('Set-Cookie', cookie)
+    return new Response(pageResponse.body, {
+      status: pageResponse.status,
+      statusText: pageResponse.statusText,
+      headers,
+    })
+  }
+  return pageResponse
 }
 
 export function createAppRscHandler<TRoute extends AppRscHandlerRoute>(

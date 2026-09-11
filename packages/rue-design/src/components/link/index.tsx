@@ -6,7 +6,7 @@ Link 组件概述
 */
 import type { FC } from '@rue-js/rue'
 import { onMounted, onUnmounted, ref, watch } from '@rue-js/rue'
-import { RouterLink } from '@rue-js/router'
+import { useRouter } from '@rue-js/router'
 
 /** LinkVariant 视觉或语义变体类型。 */
 export type LinkVariant =
@@ -97,7 +97,7 @@ export interface LinkEllipsisConfig {
   /** 后缀内容。 */
   suffix?: string
   /** symbol 配置项。 */
-  symbol?: any | ((expanded: boolean) => any)
+  symbol?: string | ((expanded: boolean) => string)
   /** defaultExpanded 配置项。 */
   defaultExpanded?: boolean
   /** expanded 配置项。 */
@@ -273,8 +273,8 @@ const resolveTypeClass = (type?: LinkType) => {
 }
 
 /** 解析 Router Href 的内部工具函数。 */
-const resolveRouterHref = (to: string) => {
-  const resolvedHref = RouterLink.__rueHref(to)
+const resolveRouterHref = (to: string, router: ReturnType<typeof useRouter> | undefined) => {
+  const resolvedHref = router?.history.createHref?.(to) ?? `#${to || '/'}`
   if (!resolvedHref) {
     return '#/'
   }
@@ -641,6 +641,14 @@ const Link: FC<LinkProps> = ({
   children,
   ...rest
 }) => {
+  let linkRouter: ReturnType<typeof useRouter> | undefined
+  if (to) {
+    try {
+      linkRouter = useRouter()
+    } catch {
+      /* Plain hash links also work without an installed router. */
+    }
+  }
   const copyConfig = normalizeCopyConfig(copyable)
   const editConfig = normalizeEditConfig(editable)
   const ellipsisConfig = resolveEllipsis(ellipsis)
@@ -821,7 +829,17 @@ const Link: FC<LinkProps> = ({
     ) {
       return
     }
-    RouterLink.__rueOnClick(event, to, replace)
+    if (
+      linkRouter &&
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey
+    ) {
+      event.preventDefault()
+      if (to !== undefined) void (replace ? linkRouter.replace : linkRouter.push)(to)
+    }
   }
 
   const handleCopyClick = (event: MouseEvent) => {
@@ -945,7 +963,7 @@ const Link: FC<LinkProps> = ({
           aria-label="确认编辑"
           onClick={(event: MouseEvent) => finishEdit(event as any)}
         >
-          {editConfig.enterIcon ?? <CheckIcon />}
+          {editConfig.enterIcon ? <span>{String(editConfig.enterIcon)}</span> : <CheckIcon />}
         </button>
         <button
           type="button"
@@ -1079,7 +1097,7 @@ const Link: FC<LinkProps> = ({
       return (
         <a
           {...rest}
-          href={resolveRouterHref(to)}
+          href={resolveRouterHref(to, linkRouter)}
           target={target}
           rel={anchorRel}
           className={linkClassName}
@@ -1143,7 +1161,7 @@ const Link: FC<LinkProps> = ({
             aria-label={getIsExpanded() ? '收起全文' : '展开全文'}
             onClick={toggleExpanded}
           >
-            {resolveExpandSymbol(ellipsisConfig, getIsExpanded())}
+            {String(resolveExpandSymbol(ellipsisConfig, getIsExpanded()))}
           </button>
         ) : null}
         {copyConfig.enabled ? (
@@ -1157,7 +1175,13 @@ const Link: FC<LinkProps> = ({
             disabled={disabled}
             onClick={handleCopyClick}
           >
-            {copied.value ? '✓' : (copyConfig.icon ?? <CopyIcon />)}
+            {copied.value ? (
+              <span>✓</span>
+            ) : copyConfig.icon ? (
+              <span>{String(copyConfig.icon)}</span>
+            ) : (
+              <CopyIcon />
+            )}
           </button>
         ) : null}
         {editConfig.enabled && editConfig.triggerType.includes('icon') ? (
@@ -1171,7 +1195,7 @@ const Link: FC<LinkProps> = ({
             disabled={disabled}
             onClick={(event: MouseEvent) => startEdit(event as any)}
           >
-            {editConfig.icon ?? <EditIcon />}
+            {editConfig.icon ? <span>{String(editConfig.icon)}</span> : <EditIcon />}
           </button>
         ) : null}
       </span>

@@ -223,33 +223,6 @@ const getTokenValue = (
   return values[token.unit] ?? 0
 }
 
-/** 将当前倒计时值同步到实际数字槽位。 */
-const syncValueElement = (
-  element: HTMLElement,
-  value: number,
-  digits: number | undefined,
-  ariaLive: CountdownAriaLive,
-) => {
-  if (
-    !element.style ||
-    typeof element.style.setProperty !== 'function' ||
-    typeof element.setAttribute !== 'function'
-  ) {
-    return
-  }
-  element.style.setProperty('--value', String(value))
-  if (digits != null) {
-    element.style.setProperty('--digits', String(digits))
-    element.setAttribute('data-countdown-digits', String(digits))
-  } else {
-    element.style.removeProperty('--digits')
-    element.removeAttribute('data-countdown-digits')
-  }
-  element.setAttribute('aria-live', ariaLive)
-  element.setAttribute('aria-label', String(value))
-  element.setAttribute('data-countdown-value', String(value))
-}
-
 /** 倒计时组件：支持静态拼装与目标时间倒计时两种模式 */
 const Countdown: FC<CountdownProps> = ({
   className,
@@ -266,7 +239,6 @@ const Countdown: FC<CountdownProps> = ({
   let timer: ReturnType<typeof setInterval> | null = null
   let finished = false
   let rootElement: HTMLElement | null = null
-  let syncTimerDom = () => {}
 
   const stopTimer = () => {
     if (timer != null) {
@@ -279,7 +251,7 @@ const Countdown: FC<CountdownProps> = ({
     const target = parseTargetTime(value)
     if (target == null) {
       remaining.value = 0
-      syncTimerDom()
+
       if (onChange) onChange(undefined)
       stopTimer()
       return false
@@ -287,7 +259,7 @@ const Countdown: FC<CountdownProps> = ({
 
     const nextRemaining = Math.max(target - Date.now(), 0)
     remaining.value = nextRemaining
-    syncTimerDom()
+
     if (onChange) onChange(nextRemaining)
 
     if (nextRemaining <= 0) {
@@ -334,29 +306,9 @@ const Countdown: FC<CountdownProps> = ({
   const getTimerTokenValue = (token: CountdownUnitToken) => {
     return getTokenValue(token, getUnitValues(remaining.value, formatTokens.get()))
   }
-  syncTimerDom = () => {
-    const active = usesTimerMode.get()
-    const tokens = formatTokens.get()
-    const values = getUnitValues(remaining.value, tokens)
-    const live = resolvedAriaLive.get()
-
-    if (!rootElement || !active) return
-
-    Array.from(rootElement.children ?? []).forEach(element => {
-      const valueElement = element as HTMLElement
-      const tokenIndex = Number(valueElement.dataset.countdownTokenIndex)
-      const token = tokens[tokenIndex]
-      if (!token || token.type !== 'unit') return
-      syncValueElement(valueElement, getTokenValue(token, values), getTokenDigits(token), live)
-    })
-  }
-  const setRootElement = (element: HTMLElement | null) => {
-    rootElement = element
-    syncTimerDom()
-  }
 
   return (
-    <span ref={setRootElement} className={resolvedClassName.get()}>
+    <span className={resolvedClassName.get()}>
       {hasItems.get()
         ? (items ?? []).map(item =>
             isValueItem(item) ? (
@@ -371,29 +323,29 @@ const Countdown: FC<CountdownProps> = ({
                 {item.children}
               </span>
             ) : (
-              // daisyUI countdown expects separators like ":" or "h" to stay as text nodes.
               renderLiteralContent(item.content)
             ),
           )
         : usesTimerMode.get()
-          ? formatTokens.get().map((token, index) =>
-              token.type === 'unit' ? (
-                <span
-                  key={index}
-                  data-countdown-token-index={String(index)}
-                  style={buildValueStyle(getTimerTokenValue(token), getTokenDigits(token))}
-                  aria-live={resolvedAriaLive.get()}
-                  aria-label={String(getTimerTokenValue(token))}
-                  data-countdown-value={String(getTimerTokenValue(token))}
-                  {...(getTokenDigits(token) != null
-                    ? { 'data-countdown-digits': String(getTokenDigits(token)) }
-                    : {})}
-                />
-              ) : (
-                // daisyUI countdown expects separators like ":" or "h" to stay as text nodes.
-                renderLiteralContent(token.content)
-              ),
-            )
+          ? formatTokens
+              .get()
+              .map((token, index) =>
+                token.type === 'unit' ? (
+                  <span
+                    key={index}
+                    data-countdown-token-index={String(index)}
+                    style={buildValueStyle(getTimerTokenValue(token), getTokenDigits(token))}
+                    aria-live={resolvedAriaLive.get()}
+                    aria-label={String(getTimerTokenValue(token))}
+                    data-countdown-value={String(getTimerTokenValue(token))}
+                    {...(getTokenDigits(token) != null
+                      ? { 'data-countdown-digits': String(getTokenDigits(token)) }
+                      : {})}
+                  />
+                ) : (
+                  renderLiteralContent(token.content)
+                ),
+              )
           : children}
     </span>
   )

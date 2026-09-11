@@ -1,0 +1,1 @@
+export const RSC_FORM_STATE_GLOBAL = '__TEXT_RSC_FORM_STATE__'

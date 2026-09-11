@@ -1,5 +1,1 @@
-export {
-  __rueDisposeHookScopeForInstance,
-  getCurrentInstance,
-  setCurrentInstance,
-} from './runtime-core/reactive'
+export { getCurrentOwner as getCurrentInstance } from './runtime-core/compiled'

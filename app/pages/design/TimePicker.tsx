@@ -1,3 +1,4 @@
+import { TimePickerRangePicker } from '@rue-js/design'
 import type { FC } from '@rue-js/rue'
 import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
@@ -329,7 +330,7 @@ const disabledTime = selection => ({
 
 const rangeCode = `const range = ref<[string | null, string | null]>(['09:00:00', '18:30:00'])
 
-<TimePicker.RangePicker
+<TimePickerRangePicker
   value={range}
   order
   allowClear
@@ -545,7 +546,7 @@ const RangePreview: FC = () => {
 
   return (
     <div className="rounded-[1.5rem] border border-base-300 bg-gradient-to-br from-base-100 via-base-100 to-base-200/45 p-5">
-      <TimePicker.RangePicker
+      <TimePickerRangePicker
         value={rangeValue}
         order
         allowClear

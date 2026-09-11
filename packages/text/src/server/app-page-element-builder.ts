@@ -1,3 +1,10 @@
+import {
+  AppMeta,
+  AppDiv,
+  createAppServerElement,
+  setAppServerPlanPreloader,
+  type AppServerRenderable,
+} from './app-server-tree.js'
 import { markDynamicUsage, markRenderRequestApiUsage } from '../shims/headers.js'
 import { makeThenableParams } from '../shims/thenable-params.js'
 import { resolveActiveParallelRouteHeadInputs, resolveAppPageHead } from './app-page-head.js'
@@ -18,7 +25,6 @@ import type { MetadataFileRoute } from './metadata-routes.js'
 import { APP_RSC_RENDER_MODE_NAVIGATION, type AppRscRenderMode } from './app-rsc-render-mode.js'
 import { isInterceptionMatchedUrlPath, normalizePath } from './normalize-path.js'
 import { shouldServeStreamingMetadata } from './streaming-metadata.js'
-import { createAppServerElement, type AppServerRenderable } from './app-server-tree.js'
 import { isAppRscServerClientReference } from './app-rsc-client-reference-protocol.js'
 
 export type { AppPageErrorModule, AppPageRouteWiringRoute } from './app-page-route-wiring.js'
@@ -157,7 +163,9 @@ export async function buildPageElements<
         rootLayoutTreePath: noExportRootLayout,
         routeId: noExportRouteId,
       }),
-      [noExportRouteId]: createAppServerElement('div', null, 'Page has no default export'),
+      [noExportRouteId]: createAppServerElement(AppDiv, {
+        dangerouslySetInnerHTML: { __html: 'Page has no default export' },
+      }),
     }
   }
 
@@ -247,8 +255,25 @@ function createAppPageServerElement(
     return createAppServerElement(PageComponent, pageProps)
   }
 
+  let invoked = false
+  let result: AppServerRenderable
+  let invocationError: unknown
+
+  function invokePage(): AppServerRenderable {
+    if (!invoked) {
+      invoked = true
+      try {
+        result = PageComponent(pageProps)
+      } catch (error) {
+        invocationError = error
+      }
+    }
+    if (invocationError !== undefined) throw invocationError
+    return result
+  }
+
   function AppPagePropsWrapper(): AppServerRenderable {
-    return PageComponent(pageProps)
+    return invokePage()
   }
 
   const displayName =
@@ -257,7 +282,20 @@ function createAppPageServerElement(
     AppPagePropsWrapper.displayName = displayName
   }
 
-  return createAppServerElement(AppPagePropsWrapper, null)
+  const element = createAppServerElement(AppPagePropsWrapper, null)
+  if (PageComponent.constructor?.name === 'AsyncFunction') {
+    setAppServerPlanPreloader(element, () => {
+      try {
+        const pending = invokePage()
+        if (pending && typeof (pending as { then?: unknown }).then === 'function') {
+          void Promise.resolve(pending).catch(() => {})
+        }
+      } catch {
+        // The normal render path rethrows the stored error with page ownership.
+      }
+    })
+  }
+  return element
 }
 
 function createAppPageInterceptionProof<TModule extends AppPageModule>(

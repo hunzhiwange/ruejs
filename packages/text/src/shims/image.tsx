@@ -12,9 +12,10 @@
  * `images.domains` from text.config.js. Unmatched URLs are blocked
  * in production and warn in development, matching Text.js behavior.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from './hooks-adapter.js'
+
+import { useEffect, useRef, useState } from '@rue-js/rue'
+import type { TextCompatNode } from './component-adapter.js'
 import { hasRemoteMatch, isPrivateIp, type RemotePattern } from './image-config.js'
-import { createTextCompatElement } from './component-adapter.js'
 import { useMergedRef } from './use-merged-ref.js'
 import {
   type RueElementProps,
@@ -122,14 +123,6 @@ function validateRemoteUrl(src: string): { allowed: boolean; reason?: string } {
     reason: `Image URL "${src}" is not configured in images.remotePatterns or images.domains in text.config.js. See: https://textjs.org/docs/messages/text-image-unconfigured-host`,
   }
 }
-
-/**
- * A version of useLayoutEffect that doesn't warn during SSR.
- * Do not rename this to "isomorphic layout effect". There is no such thing as
- * an isomorphic Layout Effect since there is no Layout on the server.
- * Ported from Text.js: https://github.com/vercel/next.js/pull/93209
- */
-const useNonWarningLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 /**
  * Create a synthetic image load event for replaying onLoad/onLoadingComplete
@@ -339,11 +332,17 @@ function renderImagePreload(input: {
   if (input.srcSet) props.imageSrcSet = input.srcSet
   if (input.sizes) props.imageSizes = input.sizes
   if (input.fetchPriority) props.fetchPriority = input.fetchPriority
-  return createTextCompatElement('link', props)
+  return <link {...props} />
 }
 
-function withImagePreload(preload: unknown, image: unknown) {
-  return preload ? [preload, image] : image
+function ImageWithPreload(props: { preload: TextCompatNode; children: TextCompatNode }) {
+  const Preload = () => props.preload
+  return (
+    <>
+      {props.preload ? <Preload /> : null}
+      {props.children}
+    </>
+  )
 }
 
 /**
@@ -443,7 +442,7 @@ function Image({
     setCompletedBlurSrc(current => (current === src ? current : src))
   }
 
-  useNonWarningLayoutEffect(() => {
+  useEffect(() => {
     if (!didInsertRef.current && imgElementRef.current !== null) {
       const img = imgElementRef.current
       // Replay error events lost during SSR/hydration.
@@ -535,23 +534,24 @@ function Image({
       sizes,
       fetchPriority: priorityFetchPriority,
     })
-    return withImagePreload(
-      preloadElement,
-      <img
-        ref={mergedRef}
-        src={resolvedSrc}
-        alt={alt}
-        width={fill ? undefined : imgWidth}
-        height={fill ? undefined : imgHeight}
-        loading={imageLoading}
-        decoding="async"
-        sizes={sizes}
-        className={className}
-        onLoad={handleLoad}
-        onError={handleError}
-        style={fill ? getFillStyle(style) : style}
-        {...rest}
-      />,
+    return (
+      <ImageWithPreload preload={preloadElement}>
+        <img
+          ref={mergedRef}
+          src={resolvedSrc}
+          alt={alt}
+          width={fill ? undefined : imgWidth}
+          height={fill ? undefined : imgHeight}
+          loading={imageLoading}
+          decoding="async"
+          sizes={sizes}
+          className={className}
+          onLoad={handleLoad}
+          onError={handleError}
+          style={fill ? getFillStyle(style) : style}
+          {...rest}
+        />
+      </ImageWithPreload>
     )
   }
 
@@ -595,27 +595,28 @@ function Image({
         sizes: fillSizes,
         fetchPriority: priorityFetchPriority,
       })
-      return withImagePreload(
-        preloadElement,
-        <img
-          ref={mergedRef}
-          src={src}
-          alt={alt}
-          // `priority` is a Text.js concept — translate it to HTML attributes so
-          // it is never forwarded to the DOM as a non-boolean attribute, which
-          // would trigger a non-boolean DOM attribute warning.
-          // warning.
-          loading={imageLoading}
-          fetchPriority={priorityFetchPriority}
-          decoding="async"
-          sizes={fillSizes}
-          className={className}
-          data-nimg="fill"
-          onLoad={handleLoad}
-          onError={handleError}
-          style={getFillStyle(style, blurStyle)}
-          {...rest}
-        />,
+      return (
+        <ImageWithPreload preload={preloadElement}>
+          <img
+            ref={mergedRef}
+            src={src}
+            alt={alt}
+            // `priority` is a Text.js concept — translate it to HTML attributes so
+            // it is never forwarded to the DOM as a non-boolean attribute, which
+            // would trigger a non-boolean DOM attribute warning.
+            // warning.
+            loading={imageLoading}
+            fetchPriority={priorityFetchPriority}
+            decoding="async"
+            sizes={fillSizes}
+            className={className}
+            data-nimg="fill"
+            onLoad={handleLoad}
+            onError={handleError}
+            style={getFillStyle(style, blurStyle)}
+            {...rest}
+          />
+        </ImageWithPreload>
       )
     }
     if (imgWidth && imgHeight) {
@@ -631,24 +632,25 @@ function Image({
         sizes,
         fetchPriority: priorityFetchPriority,
       })
-      return withImagePreload(
-        preloadElement,
-        <img
-          ref={mergedRef}
-          src={src}
-          alt={alt}
-          width={imgWidth}
-          height={imgHeight}
-          loading={imageLoading}
-          fetchPriority={priorityFetchPriority}
-          decoding="async"
-          sizes={sizes}
-          className={className}
-          onLoad={handleLoad}
-          onError={handleError}
-          style={bg ? { ...style, backgroundImage: bg } : style}
-          {...rest}
-        />,
+      return (
+        <ImageWithPreload preload={preloadElement}>
+          <img
+            ref={mergedRef}
+            src={src}
+            alt={alt}
+            width={imgWidth}
+            height={imgHeight}
+            loading={imageLoading}
+            fetchPriority={priorityFetchPriority}
+            decoding="async"
+            sizes={sizes}
+            className={className}
+            onLoad={handleLoad}
+            onError={handleError}
+            style={bg ? { ...style, backgroundImage: bg } : style}
+            {...rest}
+          />
+        </ImageWithPreload>
       )
     }
     // Fall through to basic <img> if dimensions not provided
@@ -715,25 +717,26 @@ function Image({
 
   // For local images, render a standard <img> tag with srcSet and blur support.
   // The src and srcSet point to the /_text/image optimization endpoint.
-  return withImagePreload(
-    preloadElement,
-    <img
-      ref={mergedRef}
-      src={optimizedSrc}
-      alt={alt}
-      {...(fill ? {} : { width: imgWidth, height: imgHeight })}
-      loading={imageLoading}
-      {...(priorityFetchPriority ? { fetchPriority: priorityFetchPriority } : {})}
-      decoding="async"
-      {...(srcSet ? { srcSet } : {})}
-      {...(imageSizes ? { sizes: imageSizes } : {})}
-      className={className}
-      data-nimg={fill ? 'fill' : '1'}
-      onLoad={handleLoad}
-      onError={handleError}
-      style={fill ? getFillStyle(style, blurStyle) : { ...blurStyle, ...style }}
-      {...rest}
-    />,
+  return (
+    <ImageWithPreload preload={preloadElement}>
+      <img
+        ref={mergedRef}
+        src={optimizedSrc}
+        alt={alt}
+        {...(fill ? {} : { width: imgWidth, height: imgHeight })}
+        loading={imageLoading}
+        {...(priorityFetchPriority ? { fetchPriority: priorityFetchPriority } : {})}
+        decoding="async"
+        {...(srcSet ? { srcSet } : {})}
+        {...(imageSizes ? { sizes: imageSizes } : {})}
+        className={className}
+        data-nimg={fill ? 'fill' : '1'}
+        onLoad={handleLoad}
+        onError={handleError}
+        style={fill ? getFillStyle(style, blurStyle) : { ...blurStyle, ...style }}
+        {...rest}
+      />
+    </ImageWithPreload>
   )
 }
 

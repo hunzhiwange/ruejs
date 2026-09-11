@@ -81,12 +81,14 @@ type ProgressiveServerActionResult =
   | {
       formState: AppRscFormState | null
       kind: 'form-state'
+      cookies?: string[]
     }
   | {
       actionError: unknown
       actionFailed: true
       formState: null
       kind: 'form-state'
+      cookies?: string[]
     }
 
 type AppServerActionMatch<TRoute extends AppServerActionRoute> = {
@@ -510,12 +512,22 @@ export async function handleProgressiveServerActionRequest(
 
     if (!actionRedirect) {
       getAndClearActionRevalidationKind()
+      const cookies = options.getAndClearPendingCookies()
+      const draftCookie = options.getDraftModeCookieHeader()
+      if (draftCookie) cookies.push(draftCookie)
+      const responseCookies = cookies.length ? { cookies } : {}
       if (actionFailed) {
-        return { kind: 'form-state', formState: null, actionError, actionFailed }
+        return {
+          kind: 'form-state',
+          formState: null,
+          actionError,
+          actionFailed,
+          ...responseCookies,
+        }
       }
 
       const formState = await options.decodeFormState(actionResult, body)
-      return { kind: 'form-state', formState: formState ?? null }
+      return { kind: 'form-state', formState: formState ?? null, ...responseCookies }
     }
 
     const actionPendingCookies = options.getAndClearPendingCookies()

@@ -1,9 +1,8 @@
 import type { ChildInput, FC, RenderInput, RenderOutput } from '../src/runtime-types'
-import type { DomNodeLike } from '../src/dom'
 import type { CompiledRootHandle } from '../src/compiled-root'
 import { ref } from '../src/reactivity'
 
-declare const node: DomNodeLike
+declare const node: Node
 declare const root: CompiledRootHandle
 
 const input: RenderInput = ['text', 1, false, null, undefined, node, root]

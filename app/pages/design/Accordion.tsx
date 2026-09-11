@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Accordion, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 type StageKey = 'plan' | 'build' | 'ship'
 type StageValue = StageKey | null

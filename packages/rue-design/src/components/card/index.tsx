@@ -68,21 +68,13 @@ export interface CardProps {
   /** 是否展示加载态。 */
   loading?: boolean
   /** 标题内容。 */
-  title?: any
-  /** 额外操作或补充内容。 */
-  extra?: any
-  /** cover 配置项。 */
-  cover?: any
-  /** 操作区内容。 */
-  actions?: any[]
+  title?: string | number
   /** tabList 配置项。 */
   tabList?: CardTabItem[]
   /** activeTabKey 标识键。 */
   activeTabKey?: string
   /** defaultActiveTabKey 标识键。 */
   defaultActiveTabKey?: string
-  /** tabBarExtraContent 配置项。 */
-  tabBarExtraContent?: any
   /** tabProps 透传属性。 */
   tabProps?: CardTabProps
   /** onTabChange 事件回调。 */
@@ -153,20 +145,18 @@ export interface CardMetaProps {
   className?: string
   /** 根节点内联样式。 */
   style?: any
-  /** avatar 配置项。 */
-  avatar?: any
   /** avatarClassName 附加类名。 */
   avatarClassName?: string
   /** avatarStyle 内联样式。 */
   avatarStyle?: any
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** titleClassName 附加类名。 */
   titleClassName?: string
   /** titleStyle 内联样式。 */
   titleStyle?: any
   /** 描述内容。 */
-  description?: any
+  description?: string | number
   /** descriptionClassName 附加类名。 */
   descriptionClassName?: string
   /** descriptionStyle 内联样式。 */
@@ -243,18 +233,6 @@ const buildTabsClassName = (
   return cls
 }
 
-/** 非受控模式下直接同步当前按钮的激活态，避免依赖额外重渲染。 */
-const syncUncontrolledTabClasses = (button?: HTMLButtonElement | null) => {
-  if (!button) return
-  const root = button.closest('[data-rue-card-tabs]')
-  if (!root) return
-
-  root.querySelectorAll('button.tab').forEach(node => {
-    node.classList.remove('tab-active')
-  })
-  button.classList.add('tab-active')
-}
-
 /** loading 骨架保持足够轻量，不引入额外组件依赖。 */
 const LoadingPlaceholder: FC<{ size?: CardSize }> = ({ size }) => {
   const resolved = resolveSizeClass(size)
@@ -273,9 +251,6 @@ const LoadingPlaceholder: FC<{ size?: CardSize }> = ({ size }) => {
     </div>
   )
 }
-
-/** 保持 prop 传入的 renderable / Vapor handle 走插槽路径。 */
-const RenderableValue: FC<{ value?: any }> = ({ value }) => <>{value}</>
 
 /** 卡片主体区域。 */
 const Body: FC<CardPartProps> = ({ className, style, children, ...rest }) => {
@@ -333,33 +308,35 @@ const Grid: FC<CardGridProps> = ({ className, style, hoverable = true, children,
 }
 
 /** Meta 统一头像、标题、描述的排列，适合列表卡片和资料卡片。 */
-const Meta: FC<CardMetaProps> = ({
-  className,
-  style,
-  avatar,
-  avatarClassName,
-  avatarStyle,
-  title,
-  titleClassName,
-  titleStyle,
-  description,
-  descriptionClassName,
-  descriptionStyle,
-  children,
-  ...rest
-}) => {
+const Meta: FC<CardMetaProps> = (
+  {
+    className,
+    style,
+    avatarClassName,
+    avatarStyle,
+    title,
+    titleClassName,
+    titleStyle,
+    description,
+    descriptionClassName,
+    descriptionStyle,
+    children,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   return (
     <div
       {...rest}
       className={appendClassName('rue-card-meta flex items-start gap-4', className)}
       style={style}
     >
-      {avatar != null ? (
+      {slots.avatar != null ? (
         <div
           className={appendClassName('rue-card-meta-avatar shrink-0', avatarClassName)}
           style={avatarStyle}
         >
-          {avatar}
+          {slots.avatar}
         </div>
       ) : null}
       {title != null || description != null || children != null ? (
@@ -372,7 +349,7 @@ const Meta: FC<CardMetaProps> = ({
               )}
               style={titleStyle}
             >
-              {title}
+              {String(title)}
             </div>
           ) : null}
           {description != null ? (
@@ -383,7 +360,7 @@ const Meta: FC<CardMetaProps> = ({
               )}
               style={descriptionStyle}
             >
-              {description}
+              {String(description)}
             </div>
           ) : null}
           {children}
@@ -398,44 +375,43 @@ const Meta: FC<CardMetaProps> = ({
  * 1. 没有语义化 props 时，保持完全低层的 children 透传，兼容既有 demo 与业务代码。
  * 2. 一旦启用 title/extra/cover/actions/loading/tabs 等增强能力，就自动装配 header/body/actions 结构。
  */
-const Card: FC<CardProps> = ({
-  size,
-  border,
-  bordered,
-  dash,
-  side,
-  imageFull,
-  variant,
-  type = 'default',
-  hoverable,
-  loading,
-  title,
-  extra,
-  cover,
-  actions,
-  tabList,
-  activeTabKey,
-  defaultActiveTabKey,
-  tabBarExtraContent,
-  tabProps,
-  onTabChange,
-  className,
-  style,
-  headerClassName,
-  headerStyle,
-  bodyClassName,
-  bodyStyle,
-  coverClassName,
-  coverStyle,
-  actionsClassName,
-  actionsStyle,
-  titleClassName,
-  titleStyle,
-  extraClassName,
-  extraStyle,
-  children,
-  ...rest
-}) => {
+const Card: FC<CardProps> = (
+  {
+    size,
+    border,
+    bordered,
+    dash,
+    side,
+    imageFull,
+    variant,
+    type = 'default',
+    hoverable,
+    loading,
+    title,
+    tabList,
+    activeTabKey,
+    defaultActiveTabKey,
+    tabProps,
+    onTabChange,
+    className,
+    style,
+    headerClassName,
+    headerStyle,
+    bodyClassName,
+    bodyStyle,
+    coverClassName,
+    coverStyle,
+    actionsClassName,
+    actionsStyle,
+    titleClassName,
+    titleStyle,
+    extraClassName,
+    extraStyle,
+    children,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const resolvedSize = resolveSizeClass(size)
   const normalizedTabItems =
     tabList?.map(item => ({
@@ -444,25 +420,22 @@ const Card: FC<CardProps> = ({
       disabled: item.disabled,
       className: item.className,
     })) ?? []
-  const hasActions = Array.isArray(actions) && actions.length > 0
+  const hasActions = slots.actions != null
   const uncontrolledActiveKey = ref(defaultActiveTabKey ?? normalizedTabItems[0]?.key ?? '')
-  const mergedActiveKey =
+  const mergedActiveKey = () =>
     activeTabKey ?? uncontrolledActiveKey.value ?? normalizedTabItems[0]?.key ?? ''
   const hasStructuredSlots =
     title != null ||
-    extra != null ||
-    cover != null ||
+    slots.extra != null ||
+    slots.cover != null ||
     !!loading ||
     hasActions ||
     normalizedTabItems.length > 0 ||
-    tabBarExtraContent != null
+    slots.tabBarExtraContent != null
 
   const handleTabChange = (key: string, event?: MouseEvent) => {
     if (activeTabKey === undefined) {
       uncontrolledActiveKey.value = key
-      syncUncontrolledTabClasses(
-        (event?.currentTarget ?? event?.target) as HTMLButtonElement | null,
-      )
     }
     if (onTabChange) onTabChange(key)
   }
@@ -481,40 +454,48 @@ const Card: FC<CardProps> = ({
   }
   if (className) cls += ` ${className}`
 
-  const tabsNode = normalizedTabItems.length ? (
-    <div
-      role="tablist"
-      data-rue-card-tabs
-      className={buildTabsClassName(
-        tabProps?.style ?? 'border',
-        tabProps?.placement,
-        tabProps?.size ?? resolveTabSize(size),
-        tabProps?.className,
-      )}
-    >
-      {normalizedTabItems.map(item => (
-        <button
-          type="button"
-          role="tab"
-          key={item.key}
-          className={`tab ${mergedActiveKey === item.key ? 'tab-active' : ''} ${item.disabled ? 'tab-disabled' : ''} ${item.className ?? ''}`.trim()}
-          disabled={item.disabled}
-          onClick={(event: MouseEvent) => {
-            if (item.disabled) return
-            handleTabChange(item.key, event as any)
-          }}
+  const TabsNodeView = () => (
+    <>
+      {' '}
+      {normalizedTabItems.length ? (
+        <div
+          role="tablist"
+          data-rue-card-tabs
+          className={buildTabsClassName(
+            tabProps?.style ?? 'border',
+            tabProps?.placement,
+            tabProps?.size ?? resolveTabSize(size),
+            tabProps?.className,
+          )}
         >
-          {item.label}
-        </button>
-      ))}
-    </div>
-  ) : null
+          {normalizedTabItems.map(item => (
+            <button
+              type="button"
+              role="tab"
+              key={item.key}
+              className={`tab ${mergedActiveKey() === item.key ? 'tab-active' : ''} ${item.disabled ? 'tab-disabled' : ''} ${item.className ?? ''}`.trim()}
+              disabled={item.disabled}
+              onClick={(event: MouseEvent) => {
+                if (item.disabled) return
+                handleTabChange(item.key, event as any)
+              }}
+            >
+              {String(item.label)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </>
+  )
 
   return (
     <div {...rest} className={cls} style={style}>
       {hasStructuredSlots ? (
         <>
-          {title != null || extra != null || tabsNode != null || tabBarExtraContent != null ? (
+          {title != null ||
+          slots.extra != null ||
+          normalizedTabItems.length > 0 ||
+          slots.tabBarExtraContent != null ? (
             <div
               className={appendClassName(
                 'rue-card-header border-base-300/80 border-b px-6 py-4',
@@ -522,7 +503,7 @@ const Card: FC<CardProps> = ({
               )}
               style={headerStyle}
             >
-              {title != null || extra != null ? (
+              {title != null || slots.extra != null ? (
                 <div className="flex flex-wrap items-center gap-3">
                   {title != null ? (
                     <div
@@ -532,42 +513,44 @@ const Card: FC<CardProps> = ({
                       )}
                       style={titleStyle}
                     >
-                      {title}
+                      {String(title)}
                     </div>
                   ) : null}
-                  {extra != null ? (
+                  {slots.extra != null ? (
                     <div
                       className={appendClassName('shrink-0 text-sm opacity-80', extraClassName)}
                       style={extraStyle}
                     >
-                      {extra}
+                      {slots.extra}
                     </div>
                   ) : null}
                 </div>
               ) : null}
-              {tabsNode != null || tabBarExtraContent != null ? (
+              {normalizedTabItems.length > 0 || slots.tabBarExtraContent != null ? (
                 <div
-                  className={`flex flex-wrap items-center gap-3 ${title != null || extra != null ? 'mt-4' : ''}`.trim()}
+                  className={`flex flex-wrap items-center gap-3 ${title != null || slots.extra != null ? 'mt-4' : ''}`.trim()}
                 >
-                  {tabsNode != null ? (
-                    <div className="min-w-0 flex-1">{tabsNode}</div>
+                  {normalizedTabItems.length > 0 ? (
+                    <div className="min-w-0 flex-1">
+                      <TabsNodeView />
+                    </div>
                   ) : (
                     <div className="flex-1" />
                   )}
-                  {tabBarExtraContent != null ? (
-                    <div className="shrink-0">{tabBarExtraContent}</div>
+                  {slots.tabBarExtraContent != null ? (
+                    <div className="shrink-0">{slots.tabBarExtraContent}</div>
                   ) : null}
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          {cover != null ? (
+          {slots.cover != null ? (
             <figure
               className={appendClassName('rue-card-cover overflow-hidden', coverClassName)}
               style={coverStyle}
             >
-              {cover}
+              {slots.cover}
             </figure>
           ) : null}
 
@@ -585,13 +568,7 @@ const Card: FC<CardProps> = ({
               )}
               style={actionsStyle}
             >
-              {actions.map((action, index) => (
-                <li key={`action-${index}`} className="flex-1">
-                  <div className="flex h-full items-center justify-center px-4 py-3 text-sm">
-                    <RenderableValue value={action} />
-                  </div>
-                </li>
-              ))}
+              {slots.actions}
             </ul>
           ) : null}
         </>

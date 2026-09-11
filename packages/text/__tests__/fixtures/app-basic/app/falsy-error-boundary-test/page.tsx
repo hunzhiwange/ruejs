@@ -20,9 +20,9 @@ export default function FalsyErrorBoundaryTestPage() {
     setIsHydrated(true)
   }, [])
 
-  if (thrownValue !== noThrow) {
-    throw thrownValue
-  }
+  useEffect(() => {
+    if (thrownValue !== noThrow) throw thrownValue
+  }, [thrownValue])
 
   return (
     <main>

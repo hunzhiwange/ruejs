@@ -142,7 +142,6 @@ const simpleTree = [
 
 const basicCode = `import { ref } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectDataNode } from '@rue-js/design'
-
 const treeData: TreeSelectDataNode[] = [
   {
     title: '产品平台',
@@ -182,7 +181,6 @@ const value = ref('docs')
 
 const noClearCode = `import { ref } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectDataNode } from '@rue-js/design'
-
 const treeData: TreeSelectDataNode[] = [
   {
     title: '产品平台',
@@ -211,12 +209,7 @@ const simpleModeCode = `import { ref } from '@rue-js/rue'
 import TreeSelect from '@rue-js/design'
 
 const treeData = [
-  { nodeId: 1, parentId: 0, code: 'workspace', name: 'Workspace' },
-  { nodeId: 2, parentId: 1, code: 'workflow', name: 'Workflow board' },
-  { nodeId: 3, parentId: 1, code: 'briefs', name: 'Briefs' },
-  { nodeId: 4, parentId: 2, code: 'review', name: 'Design review' },
-  { nodeId: 5, parentId: 2, code: 'release', name: 'Release checklist' },
-]
+  { nodeId: 1, parentId: 0, code: 'workspace', name: 'Workspace' }, { nodeId: 2, parentId: 1, code: 'workflow', name: 'Workflow board' }, { nodeId: 3, parentId: 1, code: 'briefs', name: 'Briefs' }, { nodeId: 4, parentId: 2, code: 'review', name: 'Design review' }, { nodeId: 5, parentId: 2, code: 'release', name: 'Release checklist' }, ]
 
 const value = ref('workflow')
 
@@ -237,7 +230,6 @@ const value = ref('workflow')
 
 const multipleCode = `import { ref } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectValue, type TreeSelectDataNode } from '@rue-js/design'
-
 const treeData: TreeSelectDataNode[] = [
   {
     title: '协作面板',
@@ -283,7 +275,6 @@ const open = ref(false)
 
 const checkableCode = `import { ref } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectValue, type TreeSelectDataNode } from '@rue-js/design'
-
 const treeData: TreeSelectDataNode[] = [
   {
     title: '产品平台',
@@ -328,11 +319,7 @@ const open = ref(false)
 `
 
 const semanticCode = `import { ref } from '@rue-js/rue'
-import TreeSelect, {
-  type TreeSelectDataNode,
-  type TreeSelectLabeledValue,
-} from '@rue-js/design'
-
+import TreeSelect, { type TreeSelectDataNode, type TreeSelectLabeledValue } from '@rue-js/design'
 const treeData: TreeSelectDataNode[] = [
   {
     title: '产品平台',
@@ -373,7 +360,6 @@ const selected = ref<TreeSelectLabeledValue | null>({
 
 const asyncCode = `import { ref } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectDataNode, type TreeSelectValue } from '@rue-js/design'
-
 const value = ref<string | null>(null)
 const expandedKeys = ref<TreeSelectValue[]>([])
 const treeData = ref<TreeSelectDataNode[]>([
@@ -414,7 +400,6 @@ const loadData = async (node: TreeSelectDataNode) => {
 
 const shellCode = `import { ref } from '@rue-js/rue'
 import TreeSelect, { type TreeSelectDataNode } from '@rue-js/design'
-
 const treeData: TreeSelectDataNode[] = [
   {
     title: '应用集群',

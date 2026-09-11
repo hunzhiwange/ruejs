@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { getCurrentContainer, onMounted, onUnmounted, useApp, type FC } from '../src'
+import { getCurrentContainer, onMounted, onUnmounted, useApp, type FC } from '@rue-js/rue'
 
 const flushRender = async () => {
   await Promise.resolve()
@@ -13,15 +13,6 @@ const flushRender = async () => {
 afterEach(() => {
   document.body.innerHTML = ''
 })
-
-const createTrackedRoot =
-  (label: string, lifecycle: string[]): FC =>
-  () => {
-    lifecycle.push(`${label}:render`)
-    onMounted(() => lifecycle.push(`${label}:mounted`))
-    onUnmounted(() => lifecycle.push(`${label}:unmounted`))
-    return <main data-owner={label}>{label}</main>
-  }
 
 describe('useApp mount ownership', () => {
   it('installs plugins in the target container before rendering a compiled root', () => {
@@ -44,15 +35,21 @@ describe('useApp mount ownership', () => {
     expect(host.textContent).toBe('ready')
   })
 
-  it('treats mounting the same app on the same container as an idempotent no-op', async () => {
+  it('rejects a duplicate mount without repeating setup', async () => {
     const host = document.createElement('div')
     const lifecycle: string[] = []
-    const app = useApp(createTrackedRoot('first', lifecycle))
+    const Root: FC = () => {
+      lifecycle.push('first:render')
+      onMounted(() => lifecycle.push('first:mounted'))
+      onUnmounted(() => lifecycle.push('first:unmounted'))
+      return <main data-owner="first">first</main>
+    }
+    const app = useApp(Root)
     document.body.appendChild(host)
 
     app.mount(host)
     await flushRender()
-    app.mount(host)
+    expect(() => app.mount(host)).toThrowError('[rue] app is already mounted')
     await flushRender()
 
     expect(lifecycle).toEqual(['first:render', 'first:mounted'])
@@ -69,16 +66,20 @@ describe('useApp mount ownership', () => {
     const firstHost = document.createElement('div')
     const secondHost = document.createElement('div')
     const lifecycle: string[] = []
-    const app = useApp(createTrackedRoot('first', lifecycle))
+    const Root: FC = () => {
+      lifecycle.push('first:render')
+      onMounted(() => lifecycle.push('first:mounted'))
+      onUnmounted(() => lifecycle.push('first:unmounted'))
+      return <main data-owner="first">first</main>
+    }
+    const app = useApp(Root)
     secondHost.textContent = 'untouched'
     document.body.append(firstHost, secondHost)
 
     app.mount(firstHost)
     await flushRender()
 
-    expect(() => app.mount(secondHost)).toThrowError(
-      'Rue app is already mounted on a different container.',
-    )
+    expect(() => app.mount(secondHost)).toThrowError('[rue] app is already mounted')
     await flushRender()
 
     expect(lifecycle).toEqual(['first:render', 'first:mounted'])
@@ -91,16 +92,24 @@ describe('useApp mount ownership', () => {
   it('rejects a second app before it can take over an occupied container', async () => {
     const host = document.createElement('div')
     const lifecycle: string[] = []
-    const firstApp = useApp(createTrackedRoot('first', lifecycle))
-    const secondApp = useApp(createTrackedRoot('second', lifecycle))
+    const First: FC = () => {
+      lifecycle.push('first:render')
+      onMounted(() => lifecycle.push('first:mounted'))
+      onUnmounted(() => lifecycle.push('first:unmounted'))
+      return <main data-owner="first">first</main>
+    }
+    const Second: FC = () => {
+      lifecycle.push('second:render')
+      return <main data-owner="second">second</main>
+    }
+    const firstApp = useApp(First)
+    const secondApp = useApp(Second)
     document.body.appendChild(host)
 
     firstApp.mount(host)
     await flushRender()
 
-    expect(() => secondApp.mount(host)).toThrowError(
-      'Rue container is already mounted by another app.',
-    )
+    expect(() => secondApp.mount(host)).toThrowError('[rue] mountApp target already has an app')
     await flushRender()
 
     expect(lifecycle).toEqual(['first:render', 'first:mounted'])
@@ -114,8 +123,10 @@ describe('useApp mount ownership', () => {
 
   it('releases ownership on unmount so apps can remount or hand off the container', async () => {
     const host = document.createElement('div')
-    const firstApp = useApp(() => <main data-owner="first">first</main>)
-    const secondApp = useApp(() => <main data-owner="second">second</main>)
+    const First = () => <main data-owner="first">first</main>
+    const firstApp = useApp(First)
+    const Second = () => <main data-owner="second">second</main>
+    const secondApp = useApp(Second)
     document.body.appendChild(host)
 
     firstApp.mount(host)
@@ -147,7 +158,8 @@ describe('useApp mount ownership', () => {
       return <main>not rendered</main>
     }
     const failedApp = useApp(Root)
-    const recoveredApp = useApp(() => <main data-owner="recovered">recovered</main>)
+    const Recovered = () => <main data-owner="recovered">recovered</main>
+    const recoveredApp = useApp(Recovered)
     document.body.append(host, isolatedHost)
 
     expect(() => failedApp.mount(host)).toThrowError('root mount failed')
@@ -156,23 +168,14 @@ describe('useApp mount ownership', () => {
     expect(host.hasAttribute('data-rue-app')).toBe(false)
     shouldThrow = false
 
-    let ownerRetryError: unknown
-    try {
-      failedApp.mount(host)
-    } catch (error) {
-      ownerRetryError = error
-    }
-    expect(ownerRetryError).toBe(mountError)
-
-    let competingAppError: unknown
-    try {
-      recoveredApp.mount(host)
-    } catch (error) {
-      competingAppError = error
-    }
-    expect(competingAppError).toBe(mountError)
-    expect(renderCount).toBe(1)
-    expect(host.textContent).toBe('')
+    failedApp.mount(host)
+    await flushRender()
+    expect(renderCount).toBe(2)
+    expect(host.textContent).toBe('not rendered')
+    failedApp.unmount()
+    recoveredApp.mount(host)
+    expect(host.textContent).toBe('recovered')
+    recoveredApp.unmount()
 
     recoveredApp.mount(isolatedHost)
     await flushRender()

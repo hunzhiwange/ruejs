@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { BrowserDOMAdapter } from '../src/dom'
+import { createElement, createTextWrapper } from '../src/compiler-runtime/dom.browser'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const HTML_NS = 'http://www.w3.org/1999/xhtml'
 
-describe('BrowserDOMAdapter.createTextWrapper', () => {
-  const adapter = new BrowserDOMAdapter()
-
+describe('createTextWrapper', () => {
   // 这个测试专门锁 SVG 文本包装行为，防止以后又退回“在 <text> 里嵌套 <text>”的旧问题。
   it('uses text for generic SVG containers and tspan for SVG text containers', () => {
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
@@ -16,18 +14,17 @@ describe('BrowserDOMAdapter.createTextWrapper', () => {
     const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject')
 
     // 普通 SVG 容器下，动态文本需要先起一个 <text> 容器。
-    expect(adapter.createTextWrapper(group).tagName.toLowerCase()).toBe('text')
+    expect(createTextWrapper(group).tagName.toLowerCase()).toBe('text')
     // 已经在 <text> 里时，再包一层必须是 <tspan>，否则会出现 <text><text>...</text></text>。
-    expect(adapter.createTextWrapper(text).tagName.toLowerCase()).toBe('tspan')
+    expect(createTextWrapper(text).tagName.toLowerCase()).toBe('tspan')
     // <tspan> 内继续细分动态文本时，也应该递归保持 <tspan>。
-    expect(adapter.createTextWrapper(tspan).tagName.toLowerCase()).toBe('tspan')
+    expect(createTextWrapper(tspan).tagName.toLowerCase()).toBe('tspan')
     // foreignObject 会重新切回 HTML 上下文，动态文本不能误建成 SVG <text>。
-    expect(adapter.createTextWrapper(foreignObject).tagName.toLowerCase()).toBe('span')
+    expect(createTextWrapper(foreignObject).tagName.toLowerCase()).toBe('span')
   })
 })
 
-describe('BrowserDOMAdapter.createElement', () => {
-  const adapter = new BrowserDOMAdapter()
+describe('createElement', () => {
   const svgElementNames = [
     'animate',
     'animateMotion',
@@ -95,14 +92,14 @@ describe('BrowserDOMAdapter.createElement', () => {
   // 避免遗漏整类元素后回退到 HTML createElement。
   it('creates the full supported SVG element set in the SVG namespace', () => {
     for (const tag of svgElementNames) {
-      const element = adapter.createElement(tag) as Element
+      const element = createElement(tag) as Element
       expect(element.namespaceURI, tag).toBe(SVG_NS)
       expect(element.tagName.toLowerCase()).toBe(tag.toLowerCase())
     }
   })
 
   it('keeps plain HTML tags on the HTML namespace', () => {
-    const element = adapter.createElement('div') as Element
+    const element = createElement('div') as Element
 
     expect(element.namespaceURI).toBe(HTML_NS)
     expect(element.tagName.toLowerCase()).toBe('div')
@@ -110,7 +107,7 @@ describe('BrowserDOMAdapter.createElement', () => {
 
   it('defaults shared HTML/SVG tag names to the HTML namespace without parent context', () => {
     for (const tag of sharedHtmlTagNames) {
-      const element = adapter.createElement(tag) as Element
+      const element = createElement(tag) as Element
 
       expect(element.namespaceURI, tag).toBe(HTML_NS)
       expect(element.tagName.toLowerCase()).toBe(tag)
@@ -122,8 +119,8 @@ describe('BrowserDOMAdapter.createElement', () => {
     const foreignObject = document.createElementNS(SVG_NS, 'foreignObject')
 
     for (const tag of sharedHtmlTagNames) {
-      const svgElement = adapter.createElement(tag, svg) as Element
-      const foreignObjectElement = adapter.createElement(tag, foreignObject) as Element
+      const svgElement = createElement(tag, svg) as Element
+      const foreignObjectElement = createElement(tag, foreignObject) as Element
 
       expect(svgElement.namespaceURI, `${tag}:svg`).toBe(SVG_NS)
       expect(foreignObjectElement.namespaceURI, `${tag}:foreignObject`).toBe(HTML_NS)

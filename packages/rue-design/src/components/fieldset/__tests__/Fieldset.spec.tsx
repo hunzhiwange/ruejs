@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 import Fieldset from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -18,7 +19,7 @@ describe('Fieldset', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Fieldset className="w-xs">content</Fieldset>, container)
+    mountTestApp(container, () => render(<Fieldset className="w-xs">content</Fieldset>, container))
 
     await waitForContent(() => {
       const fieldset = container.querySelector('fieldset.fieldset') as HTMLElement
@@ -32,12 +33,14 @@ describe('Fieldset', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fieldset>
-        <Fieldset.Legend data-testid="legend">Page title</Fieldset.Legend>
-        <Fieldset.Label data-testid="label">Title</Fieldset.Label>
-      </Fieldset>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fieldset>
+          <Fieldset.Legend data-testid="legend">Page title</Fieldset.Legend>
+          <Fieldset.Label data-testid="label">Title</Fieldset.Label>
+        </Fieldset>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -54,13 +57,15 @@ describe('Fieldset', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fieldset data-testid="root">
-        <Fieldset.Label as="p" className="text-xs" data-testid="hint">
-          You can edit later
-        </Fieldset.Label>
-      </Fieldset>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fieldset data-testid="root">
+          <Fieldset.Label as="p" className="text-xs" data-testid="hint">
+            You can edit later
+          </Fieldset.Label>
+        </Fieldset>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -79,25 +84,31 @@ describe('Fieldset', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fieldset
-        legend="Project details"
-        description="Configure metadata"
-        hint="You can edit later"
-        actions={<button type="button">Save</button>}
-        variant="outlined"
-        tone="primary"
-        items={[
-          {
-            key: 'name',
-            label: 'Project name',
-            required: true,
-            control: <input data-testid="name-input" />,
-            hint: 'Visible to your team',
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fieldset
+          legend="Project details"
+          description="Configure metadata"
+          hint="You can edit later"
+          variant="outlined"
+          tone="primary"
+          items={[
+            {
+              key: 'name',
+              label: 'Project name',
+              required: true,
+              control: 'input',
+              controlProps: { 'data-testid': 'name-input' },
+              hint: 'Visible to your team',
+            },
+          ]}
+        >
+          <Template slot="actions">
+            <button type="button">Save</button>
+          </Template>
+        </Fieldset>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -121,19 +132,22 @@ describe('Fieldset', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Fieldset data-testid="root">
-        <Fieldset.Item
-          data-testid="item"
-          horizontal
-          invalid
-          label="Email"
-          description="Used for verification"
-          hint="Please verify first"
-          control={<input data-testid="email-input" />}
-        />
-      </Fieldset>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Fieldset data-testid="root">
+          <Fieldset.Item
+            data-testid="item"
+            horizontal
+            invalid
+            label="Email"
+            description="Used for verification"
+            hint="Please verify first"
+            control="input"
+            controlProps={{ 'data-testid': 'email-input' }}
+          />
+        </Fieldset>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

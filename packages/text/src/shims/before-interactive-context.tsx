@@ -1,4 +1,8 @@
-import { createRequiredTextCompatContext, useTextCompatContext } from './context-adapter.js'
+import {
+  createRequiredTextCompatContext,
+  useTextCompatContext,
+  type TextCompatContext,
+} from './context-adapter.js'
 
 /**
  * Inline `<Script strategy="beforeInteractive">` content captured during SSR.
@@ -29,7 +33,7 @@ export type RegisterBeforeInteractiveInlineScript = (script: BeforeInteractiveIn
 
 const BEFORE_INTERACTIVE_CONTEXT_KEY = Symbol.for('text.beforeInteractiveContext')
 
-export const BeforeInteractiveContext =
+export const BeforeInteractiveContext: TextCompatContext<RegisterBeforeInteractiveInlineScript | null> =
   createRequiredTextCompatContext<RegisterBeforeInteractiveInlineScript | null>(
     BEFORE_INTERACTIVE_CONTEXT_KEY,
     null,

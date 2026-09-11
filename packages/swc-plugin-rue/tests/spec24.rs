@@ -72,7 +72,7 @@ export default Chain;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec24.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("@rue-js/rue/internal/compiler"), "{normalized}");
+    assert!(normalized.contains("@rue-js/rue/internal/dom"), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
     assert_eq!(normalized.matches("_$compiledCreateElement(\"div\"").count(), 8);
     for text in ["A", "B", "C d", "D", "E g", "F", "E"] {

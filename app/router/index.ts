@@ -1,4 +1,3 @@
-import { useComponent } from '@rue-js/rue'
 import {
   createRouter,
   createWebHistory,
@@ -9,8 +8,7 @@ import {
 } from '@rue-js/router'
 import { routerDemoLabEnabled } from '../pages/examples/router-demo/state'
 
-export const routeComponent = (loader: RouteComponentLoader) =>
-  import.meta.env.SSR ? useAsyncRouteComponent(loader) : useComponent(loader)
+export const routeComponent = (loader: RouteComponentLoader) => useAsyncRouteComponent(loader)
 
 const loadRouterDemoScene = () => import('../pages/examples/router-demo/RouterDemoScene')
 
@@ -41,8 +39,6 @@ const AsyncGuideRouteLayout = routeComponent(async () => ({
 const AsyncApiRouteLayout = routeComponent(async () => ({
   default: (await import('../pages/site/SidebarPlaygroundApi')).ApiRouteLayout,
 }))
-
-const islandRouteMeta = { clientMode: 'none' as const }
 
 const flatRoutes: RouteRecordRaw[] = [
   { path: '/jsx', component: routeComponent(() => import('../pages/jsx/Index')) },
@@ -213,10 +209,6 @@ const flatRoutes: RouteRecordRaw[] = [
     component: routeComponent(() => import('../pages/examples/TriggerRef')),
   },
   {
-    path: '/examples/custom-ref',
-    component: routeComponent(() => import('../pages/examples/CustomRef')),
-  },
-  {
     path: '/examples/on-activated',
     component: routeComponent(() => import('../pages/examples/OnActivatedDemo')),
   },
@@ -232,38 +224,14 @@ const flatRoutes: RouteRecordRaw[] = [
     path: '/examples/next-tick',
     component: routeComponent(() => import('../pages/examples/NextTick')),
   },
-  // 调度、scope 与渲染调试 API 示例，集中注册便于文档站按能力分组维护。
-  {
-    path: '/examples/watch-post-effect',
-    component: routeComponent(() => import('../pages/examples/WatchPostEffect')),
-  },
-  {
-    path: '/examples/watch-sync-effect',
-    component: routeComponent(() => import('../pages/examples/WatchSyncEffect')),
-  },
-  {
-    path: '/examples/on-watcher-cleanup',
-    component: routeComponent(() => import('../pages/examples/OnWatcherCleanup')),
-  },
-  {
-    path: '/examples/effect-scope',
-    component: routeComponent(() => import('../pages/examples/EffectScope')),
-  },
+  // 保留仍位于编译期能力面的 scope 与渲染调试示例。
   {
     path: '/examples/on-scope-dispose',
     component: routeComponent(() => import('../pages/examples/OnScopeDispose')),
   },
   {
-    path: '/examples/get-current-scope',
-    component: routeComponent(() => import('../pages/examples/GetCurrentScope')),
-  },
-  {
     path: '/examples/render-counter',
     component: routeComponent(() => import('../pages/examples/RenderCounter')),
-  },
-  {
-    path: '/examples/on-render-tracked',
-    component: routeComponent(() => import('../pages/examples/OnRenderTracked')),
   },
   {
     path: '/examples/on-render-triggered',
@@ -410,61 +378,6 @@ const flatRoutes: RouteRecordRaw[] = [
   {
     path: '/examples/resources-jsx',
     component: routeComponent(() => import('../pages/examples/ResourceJSX')),
-  },
-  {
-    path: '/examples/rue-islands',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/load',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/idle',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/visible',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/media',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/interaction',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/none',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/only',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/props',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/manifest',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
-  },
-  {
-    path: '/examples/rue-islands/compiler',
-    component: routeComponent(() => import('../pages/examples/RueIslands')),
-    meta: islandRouteMeta,
   },
   {
     path: '/examples/context',

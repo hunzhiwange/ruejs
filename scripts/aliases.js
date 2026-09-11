@@ -59,10 +59,6 @@ entries.push({
   replacement: resolveSubEntryForPkg('rue', 'compiler-internal'),
 })
 entries.push({
-  find: /^@rue-js\/rue\/internal\/component$/,
-  replacement: resolveSubEntryForPkg('rue', 'component-internal'),
-})
-entries.push({
   find: /^@rue-js\/rue\/internal\/builtins$/,
   replacement: resolveSubEntryForPkg('rue', 'builtins-internal'),
 })
@@ -70,5 +66,29 @@ entries.push({
   find: /^@rue-js\/rue\/internal$/,
   replacement: resolveSubEntryForPkg('rue', 'internal'),
 })
+for (const capability of [
+  'app',
+  'dom',
+  'reactive',
+  'block',
+  'component',
+  'list',
+  'events',
+  'builtin',
+  'teleport',
+  'transition',
+  'transitiongroup',
+  'keepalive',
+  'suspense',
+  'hydrate',
+  'ssr',
+]) {
+  for (const pkg of ['rue', 'runtime']) {
+    entries.push({
+      find: new RegExp(`^@rue-js/${pkg}/internal/${capability}$`),
+      replacement: resolveSubEntryForPkg(pkg, `compiler-runtime/entries/${capability}`),
+    })
+  }
+}
 // additional alias for legacy '@rue-js/rue' import path
 entries.push({ find: '@rue-js/rue', replacement: resolveEntryForPkg('rue') })

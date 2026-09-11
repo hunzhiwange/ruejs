@@ -4,7 +4,7 @@ Alert 组件概述
 - 兼容旧版 variant/outline/dash/soft 写法，并补齐常用的 type、message、description、closable 等能力。
 - 组件默认保持轻量结构；只有在出现标题、描述、图标、操作区时才渲染增强布局。
 */
-import type { FC } from '@rue-js/rue'
+import { ref, type FC } from '@rue-js/rue'
 
 /** AlertTone 语义色类型。 */
 export type AlertTone = 'default' | 'info' | 'success' | 'warning' | 'error'
@@ -48,7 +48,6 @@ export interface AlertProps {
   /** closeIcon 图标内容。 */
   closeIcon?: any
   /** action 配置项。 */
-  action?: any
   /** 关闭时触发的回调。 */
   onClose?: (event: MouseEvent) => void
   /** afterClose 配置项。 */
@@ -82,31 +81,33 @@ const resolveTone = ({
 }
 
 /** Alert 的内部工具函数。 */
-const Alert: FC<AlertProps> = ({
-  type,
-  variant,
-  color,
-  outline,
-  dash,
-  soft,
-  direction,
-  title,
-  message,
-  description,
-  showIcon,
-  icon,
-  banner,
-  closable,
-  closeText,
-  closeIcon,
-  action,
-  onClose,
-  afterClose,
-  role = 'alert',
-  className,
-  children,
-  ...rest
-}) => {
+const Alert: FC<AlertProps> = (
+  {
+    type,
+    variant,
+    color,
+    outline,
+    dash,
+    soft,
+    direction,
+    title,
+    message,
+    description,
+    showIcon,
+    icon,
+    banner,
+    closable,
+    closeText,
+    closeIcon,
+    onClose,
+    afterClose,
+    role = 'alert',
+    className,
+    children,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const resolvedTone = resolveTone({ type, variant, color, banner })
   const resolvedTitle = title ?? message
   const hasDescription = description != null
@@ -137,63 +138,65 @@ const Alert: FC<AlertProps> = ({
   if (hasStructuredText || shouldShowIcon) cls += ` ${contentAlignment} gap-3`
   if (banner) cls += ' rounded-box border border-current/10'
   if (className) cls += ` ${className}`
-  const actionGroup = action != null || isClosable
+  const actionGroup = slots.action != null || isClosable
+  const closed = ref(false)
   const handleClose = (event: MouseEvent) => {
-    const trigger = event.currentTarget as HTMLElement | null
-    const element = trigger?.closest('[role="alert"]') as HTMLElement | null
-    if (element) {
-      element.setAttribute('hidden', 'true')
-      element.remove()
-    }
+    closed.value = true
     if (onClose) onClose(event)
     if (afterClose) afterClose()
   }
 
   return (
-    <div role={alertRole} className={cls} {...rest}>
-      {shouldShowIcon ? (
-        <span
-          className="inline-flex size-5 shrink-0 self-center items-center justify-center rounded-full border border-current/15 text-[0.7rem] font-semibold"
-          aria-hidden="true"
-        >
-          {icon ?? defaultIconGlyph}
-        </span>
-      ) : null}
-
-      {hasStructuredText ? (
-        <div className="min-w-0 flex-1">
-          {resolvedTitle != null ? (
-            <div className="font-semibold leading-6">{resolvedTitle}</div>
-          ) : null}
-          {hasDescription ? (
-            <div className="mt-1 text-sm leading-6 opacity-80">{description}</div>
-          ) : null}
-          {children != null ? (
-            <div className={hasDescription || resolvedTitle != null ? 'mt-3' : ''}>{children}</div>
-          ) : null}
-        </div>
-      ) : (
-        <div className={plainContentClass}>{children}</div>
-      )}
-
-      {actionGroup ? (
-        <div
-          className={`flex shrink-0 ${actionAlignment} gap-2${direction === 'vertical' ? ' w-full justify-end sm:w-auto' : ''}`}
-        >
-          {action}
-          {isClosable ? (
-            <button
-              type="button"
-              className={`btn btn-ghost btn-xs shrink-0 text-current/70 hover:text-current${closeText != null ? ' px-2' : ' btn-circle'}`}
-              aria-label="Close alert"
-              onClick={handleClose}
+    <>
+      {!closed.value ? (
+        <div role={alertRole} className={cls} {...rest}>
+          {shouldShowIcon ? (
+            <span
+              className="inline-flex size-5 shrink-0 self-center items-center justify-center rounded-full border border-current/15 text-[0.7rem] font-semibold"
+              aria-hidden="true"
             >
-              {closeText ?? closeIcon ?? '×'}
-            </button>
+              {slots.icon ? slots.icon : <span>{String(icon ?? defaultIconGlyph)}</span>}
+            </span>
+          ) : null}
+
+          {hasStructuredText ? (
+            <div className="min-w-0 flex-1">
+              {resolvedTitle != null ? (
+                <div className="font-semibold leading-6">{resolvedTitle}</div>
+              ) : null}
+              {hasDescription ? (
+                <div className="mt-1 text-sm leading-6 opacity-80">{description}</div>
+              ) : null}
+              {children != null ? (
+                <div className={hasDescription || resolvedTitle != null ? 'mt-3' : ''}>
+                  {children}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className={plainContentClass}>{children}</div>
+          )}
+
+          {actionGroup ? (
+            <div
+              className={`flex shrink-0 ${actionAlignment} gap-2${direction === 'vertical' ? ' w-full justify-end sm:w-auto' : ''}`}
+            >
+              {slots.action}
+              {isClosable ? (
+                <button
+                  type="button"
+                  className={`btn btn-ghost btn-xs shrink-0 text-current/70 hover:text-current${closeText != null ? ' px-2' : ' btn-circle'}`}
+                  aria-label="Close alert"
+                  onClick={handleClose}
+                >
+                  {closeText ?? closeIcon ?? '×'}
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
-    </div>
+    </>
   )
 }
 

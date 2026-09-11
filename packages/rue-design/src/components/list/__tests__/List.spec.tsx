@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { render, setReactiveScheduling } from '@rue-js/rue'
@@ -19,7 +20,7 @@ afterEach(() => {
 describe('List', () => {
   it('renders with base class and children', async () => {
     const c = document.createElement('div')
-    render(<List>{'hello'}</List>, c)
+    mountTestApp(c, () => render(<List>{'hello'}</List>, c))
     await waitListRender()
     const el = c.querySelector('.list') as HTMLElement
     expect(el).toBeTruthy()
@@ -29,7 +30,9 @@ describe('List', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<List className={'bg-base-100 rounded-box shadow-md'}>{'x'}</List>, c)
+    mountTestApp(c, () =>
+      render(<List className={'bg-base-100 rounded-box shadow-md'}>{'x'}</List>, c),
+    )
     await waitListRender()
     const el = c.querySelector('.list') as HTMLElement
     expect(el.classList.contains('bg-base-100')).toBe(true)
@@ -39,11 +42,13 @@ describe('List', () => {
 
   it('renders Row subcomponent', async () => {
     const c = document.createElement('div')
-    render(
-      <List>
-        <List.Row>{'row'}</List.Row>
-      </List>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List>
+          <List.Row>{'row'}</List.Row>
+        </List>,
+        c,
+      ),
     )
     await waitListRender()
     const row = c.querySelector('li.list-row') as HTMLElement
@@ -53,16 +58,18 @@ describe('List', () => {
 
   it('renders ColGrow and ColWrap subcomponents with correct tags and classes', async () => {
     const c = document.createElement('div')
-    render(
-      <List>
-        <List.Row>
-          <List.ColGrow>{'grow-content'}</List.ColGrow>
-          <List.ColWrap as={'p'} className={'text-xs'}>
-            {'wrap-content'}
-          </List.ColWrap>
-        </List.Row>
-      </List>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List>
+          <List.Row>
+            <List.ColGrow>{'grow-content'}</List.ColGrow>
+            <List.ColWrap as={'p'} className={'text-xs'}>
+              {'wrap-content'}
+            </List.ColWrap>
+          </List.Row>
+        </List>,
+        c,
+      ),
     )
     await waitListRender()
     const grow = c.querySelector('.list-row .list-col-grow') as HTMLElement
@@ -76,11 +83,13 @@ describe('List', () => {
 
   it('renders Item as plain li with custom classes', async () => {
     const c = document.createElement('div')
-    render(
-      <List>
-        <List.Item className={'p-4 pb-2 text-xs'}>{'header'}</List.Item>
-      </List>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List>
+          <List.Item className={'p-4 pb-2 text-xs'}>{'header'}</List.Item>
+        </List>,
+        c,
+      ),
     )
     await waitListRender()
     const item = c.querySelector('ul.list > li.p-4.pb-2.text-xs') as HTMLElement
@@ -90,13 +99,15 @@ describe('List', () => {
 
   it('renders Row with normal=true as plain li without list-row class', async () => {
     const c = document.createElement('div')
-    render(
-      <List>
-        <List.Row normal={true} className={'p-2'}>
-          {'plain'}
-        </List.Row>
-      </List>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List>
+          <List.Row normal={true} className={'p-2'}>
+            {'plain'}
+          </List.Row>
+        </List>,
+        c,
+      ),
     )
     await waitListRender()
     const item = c.querySelector('ul.list > li.p-2') as HTMLElement
@@ -107,18 +118,20 @@ describe('List', () => {
 
   it('renders legacy items internally', async () => {
     const c = document.createElement('div')
-    render(
-      <List
-        items={[
-          { type: 'item', className: 'p-2', content: 'Heading' },
-          {
-            type: 'row',
-            content: 'Track',
-            cols: [{ type: 'grow', content: 'Artist' }],
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List
+          items={[
+            { type: 'item', className: 'p-2', content: 'Heading' },
+            {
+              type: 'row',
+              content: 'Track',
+              cols: [{ type: 'grow', content: 'Artist' }],
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitListRender()
     expect(c.querySelector('ul.list > li.p-2')?.textContent).toContain('Heading')
@@ -127,18 +140,20 @@ describe('List', () => {
 
   it('renders legacy item fields with className and extra content', async () => {
     const c = document.createElement('div')
-    render(
-      <List
-        items={[
-          {
-            className: 'px-4 py-3',
-            title: 'Dio Lupa',
-            description: 'Remaining Reason',
-            extra: '152K plays',
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List
+          items={[
+            {
+              className: 'px-4 py-3',
+              title: 'Dio Lupa',
+              description: 'Remaining Reason',
+              extra: '152K plays',
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitListRender()
     const row = c.querySelector('li.list-row') as HTMLElement
@@ -151,17 +166,16 @@ describe('List', () => {
 
   it('renders dataSource with renderItem and rowKey', async () => {
     const c = document.createElement('div')
-    render(
-      <List
-        dataSource={[{ id: 'a', name: 'Alpha' }]}
-        rowKey={'id'}
-        renderItem={(item: any) => (
-          <List.Item className={'p-2'} key={item.id}>
-            {item.name}
-          </List.Item>
-        )}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List
+          dataSource={[{ id: 'a', name: 'Alpha' }]}
+          rowKey={'id'}
+          itemClassName="p-2"
+          itemFormatter={(item: any) => item.name}
+        />,
+        c,
+      ),
     )
     await waitListRender()
     const item = c.querySelector('ul.list > li.p-2') as HTMLElement
@@ -171,7 +185,9 @@ describe('List', () => {
 
   it('renders object dataSource items without renderItem using a safe fallback', async () => {
     const c = document.createElement('div')
-    render(<List dataSource={[{ id: 'a', name: 'Alpha' }]} rowKey={'id'} />, c)
+    mountTestApp(c, () =>
+      render(<List dataSource={[{ id: 'a', name: 'Alpha' }]} rowKey={'id'} />, c),
+    )
     await waitListRender()
     const item = c.querySelector('ul.list > li') as HTMLElement
     expect(item).toBeTruthy()
@@ -180,20 +196,15 @@ describe('List', () => {
 
   it('renders item meta, actions, and extra content', async () => {
     const c = document.createElement('div')
-    render(
-      <List>
-        <List.Item
-          actions={[<button type={'button'}>{'Open'}</button>]}
-          extra={<span className={'badge'}>{'New'}</span>}
-        >
-          <List.Item.Meta
-            avatar={<span className={'avatar'}>{'A'}</span>}
-            title={'Title'}
-            description={'Description'}
-          />
-        </List.Item>
-      </List>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List>
+          <List.Item actions={[{ label: 'Open' }]} extra="New" extraClassName="badge">
+            <List.Item.Meta avatar="A" title={'Title'} description={'Description'} />
+          </List.Item>
+        </List>,
+        c,
+      ),
     )
     await waitListRender()
     const row = c.querySelector('li.list-row') as HTMLElement
@@ -206,29 +217,35 @@ describe('List', () => {
 
   it('renders loading and empty states', async () => {
     const loadingContainer = document.createElement('div')
-    render(<List loading={{ spinning: true, tip: 'Loading tracks' }} />, loadingContainer)
+    mountTestApp(loadingContainer, () =>
+      render(<List loading={{ spinning: true, tip: 'Loading tracks' }} />, loadingContainer),
+    )
     await waitListRender()
     expect(loadingContainer.querySelector('.loading')).toBeTruthy()
     expect(loadingContainer.textContent).toContain('Loading tracks')
 
     const emptyContainer = document.createElement('div')
-    render(<List dataSource={[]} locale={{ emptyText: 'Nothing here' }} />, emptyContainer)
+    mountTestApp(emptyContainer, () =>
+      render(<List dataSource={[]} locale={{ emptyText: 'Nothing here' }} />, emptyContainer),
+    )
     await waitListRender()
     expect(emptyContainer.textContent).toContain('Nothing here')
   })
 
   it('renders header, footer, bordered, size, and grid styles', async () => {
     const c = document.createElement('div')
-    render(
-      <List
-        bordered={true}
-        size={'small'}
-        grid={{ column: 2, gutter: 12 }}
-        header={'Header'}
-        footer={'Footer'}
-        dataSource={['One', 'Two']}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List
+          bordered={true}
+          size={'small'}
+          grid={{ column: 2, gutter: 12 }}
+          header={'Header'}
+          footer={'Footer'}
+          dataSource={['One', 'Two']}
+        />,
+        c,
+      ),
     )
     await waitListRender()
     const root = c.querySelector('ul.list') as HTMLElement
@@ -244,12 +261,14 @@ describe('List', () => {
     const c = mountContainer()
     const onChange = vi.fn()
     resetActiveRuntime()
-    render(
-      <List
-        dataSource={['One', 'Two', 'Three']}
-        pagination={{ pageSize: 2, align: 'center', onChange }}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <List
+          dataSource={['One', 'Two', 'Three']}
+          pagination={{ pageSize: 2, align: 'center', onChange }}
+        />,
+        c,
+      ),
     )
     await waitForContent(() => {
       expect(c.textContent).toContain('One')

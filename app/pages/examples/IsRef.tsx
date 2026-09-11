@@ -20,14 +20,14 @@ const IsRefDemo: FC = () => {
   const count = ref(1)
   const shallow = shallowRef({ label: 'shallow' })
   const state = signal({ name: 'Rue' })
-  const nameRef = computed(() => state.getPath('name'))
+  const nameRef = computed(() => state.get().name)
   const doubled = computed(() => count.value * 2)
   const plain = { value: 'looks like a ref' }
 
   return (
     <div>
       <button onClick={() => count.value++}>count + 1</button>
-      <button onClick={() => (state.updatePath('name', name => name === 'Rue' ? 'Signal' : 'Rue'))}>
+      <button onClick={() => state.update(value => ({ ...value, name: value.name === 'Rue' ? 'Signal' : 'Rue' }))}>
         toggle name
       </button>
 
@@ -50,7 +50,7 @@ const IsRef: FC = () => {
   const count = ref(1)
   const shallow = shallowRef({ label: 'shallow' })
   const state = signal({ name: 'Rue' })
-  const nameRef = computed(() => state.getPath('name'))
+  const nameRef = computed(() => state.get().name)
   const doubled = computed(() => count.value * 2)
   const plain = { value: 'looks like a ref' }
   const rows = computed(() => [
@@ -88,7 +88,7 @@ const IsRef: FC = () => {
       name: 'signal({ name })',
       kind: 'Signal 句柄',
       result: isRef(state),
-      value: state.getPath('name'),
+      value: state.get().name,
     },
   ])
 
@@ -140,7 +140,10 @@ const IsRef: FC = () => {
                 <button
                   className="btn"
                   onClick={() => {
-                    state.updatePath('name', name => (name === 'Rue' ? 'Signal' : 'Rue'))
+                    state.update(value => ({
+                      ...value,
+                      name: value.name === 'Rue' ? 'Signal' : 'Rue',
+                    }))
                   }}
                 >
                   切换 name

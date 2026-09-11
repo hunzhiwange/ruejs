@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Pagination } from '@rue-js/design'
+import Pagination from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,12 +19,14 @@ describe('Pagination', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Pagination className="mb-4" data-testid="pagination-root">
-        <Pagination.Item>1</Pagination.Item>
-        <Pagination.Item>2</Pagination.Item>
-      </Pagination>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Pagination className="mb-4" data-testid="pagination-root">
+          <Pagination.Item>1</Pagination.Item>
+          <Pagination.Item>2</Pagination.Item>
+        </Pagination>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -41,19 +44,21 @@ describe('Pagination', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Pagination direction="vertical" data-testid="pagination-vertical">
-        <Pagination.Item tag="a" href="#prev" data-testid="pagination-link">
-          Prev
-        </Pagination.Item>
-        <Pagination.Item active data-testid="pagination-current">
-          2
-        </Pagination.Item>
-        <Pagination.Item disabled data-testid="pagination-disabled">
-          Next
-        </Pagination.Item>
-      </Pagination>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Pagination direction="vertical" data-testid="pagination-vertical">
+          <Pagination.Item tag="a" href="#prev" data-testid="pagination-link">
+            Prev
+          </Pagination.Item>
+          <Pagination.Item active data-testid="pagination-current">
+            2
+          </Pagination.Item>
+          <Pagination.Item disabled data-testid="pagination-disabled">
+            Next
+          </Pagination.Item>
+        </Pagination>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

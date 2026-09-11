@@ -1,322 +1,249 @@
 // @vitest-environment jsdom
-
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-
-import swc from '@swc/core'
 import { afterEach, describe, expect, it } from 'vitest'
-
-import * as runtimeRoot from '../src'
-import * as compilerRuntime from '../src/internal'
-import * as vaporRuntime from './legacy-test-render'
-import { _$compiledRoot as createTestCompiledRoot } from './legacy-test-render'
-
-vaporRuntime.setReactiveScheduling('sync')
-
-type CompiledModule = {
-  View: () => unknown
-  BranchView: () => unknown
-  setLabel(value: string): void
-  resolveResource(): void
-  trace: {
-    childCalls: number
-    childRenders: number
-    childSetups: number
-    beforeUpdated: number
-    mounted: number
-    updated: number
-    unmounted: number
-  }
-}
-
-const pluginPath = resolve(process.cwd(), 'packages/swc-plugin-rue/swc-plugin-rue.wasm')
-
-const source = `
+import { compileComponent, evaluateComponent } from './compiled-component-test-utils'
+import { _$createComponent } from '../src/compiled-component-call'
 import {
-  _$compiledSignal as makeSignal,
-} from '@rue-js/rue/internal'
+  setReactiveScheduling,
+  __rueGetCompiledReactiveDebugState,
+} from '../src/runtime-core/compiled'
 
-const childProps = makeSignal({ label: 'one', extra: 'present' })
-const resourceLoading = makeSignal(true)
-const resource = {
-  loading: resourceLoading,
-  error: { get: () => null },
-  data: { get: () => ['resolved commit'] },
-}
-
-export const trace = {
-  childCalls: 0,
-  childRenders: 0,
-  childSetups: 0,
-  beforeUpdated: 0,
-  mounted: 0,
-  updated: 0,
-  unmounted: 0,
-}
-
+const disposals: (() => void)[] = []
+afterEach(() => {
+  disposals.splice(0).forEach(dispose => dispose())
+  document.body.innerHTML = ''
+  setReactiveScheduling('frame')
+})
+const source = `
+import { signal, onMounted, onUnmounted, onBeforeUpdate, onUpdated } from '@rue-js/rue';
+export const values = signal({label:'one', extra:'present'});
+export const trace = {calls:0, mounted:0, unmounted:0, beforeUpdate:0, updated:0};
 const Child = props => {
-  trace.childCalls += 1
-  trace.childRenders += 1
-  return <section data-testid="child">
-    <input data-testid="input" value={props.label} />
-    <span data-testid="label">{props.label}</span>
-    <span data-testid="extra">{props.extra ?? 'missing'}</span>
-  </section>
-}
-
-const ResourceContent = props => <p data-testid="resource">{props.resource.data.get()[0]}</p>
-
-export const setLabel = value => childProps.set({ label: value })
-const renderResourceCard = resource => <main>
-  <span data-testid="loading">{String(resource.loading.get())}</span>
-  {!resource.loading.get() && <ResourceContent resource={resource} />}
-</main>
-
-export const resolveResource = () => resourceLoading.set(false)
-export const View = () => <main><Child {...childProps.get()} /></main>
-export const BranchView = () => renderResourceCard(resource)
+  trace.calls++;
+  onBeforeUpdate(() => trace.beforeUpdate++);
+  onUpdated(() => trace.updated++);
+  onMounted(() => trace.mounted++);
+  onUnmounted(() => trace.unmounted++);
+  return <section><input value={props.label}/><span>{props.label}</span><b>{props.extra ?? 'missing'}</b></section>;
+};
+export const View = () => <main><Child {...values.get()}/></main>;
 `
 
-const compile = (): string => {
-  expect(readFileSync(pluginPath).byteLength).toBeGreaterThan(0)
-  const code = swc.transformSync(source, {
-    filename: 'compiled-component-update.tsx',
-    jsc: {
-      parser: { syntax: 'typescript', tsx: true },
-      target: 'es2020',
-      transform: {
-        react: {
-          runtime: 'automatic',
-          importSource: '@rue-js',
-          development: false,
-          throwIfNamespace: false,
-        },
-      },
-      experimental: { plugins: [[pluginPath, {}]] },
-    },
-    module: { type: 'commonjs' },
-  }).code
-  expect(code).toContain('@rue-js/rue/internal')
-  return code
-}
-
-const evaluate = (): CompiledModule => {
-  const module = { exports: {} as Record<string, unknown> }
-  const runtimeRequire = (id: string): Record<string, unknown> => {
-    if (id === '@rue-js/rue/internal') return compilerRuntime
-    if (id === '@rue-js/rue/internal/component') return compilerRuntime
-    if (id === '@rue-js/rue') return runtimeRoot
-    throw new Error(`Unexpected generated import: ${id}`)
-  }
-  new Function('require', 'module', 'exports', compile())(runtimeRequire, module, module.exports)
-  return module.exports as CompiledModule
-}
-
-const flush = async () => {
-  await Promise.resolve()
-  await Promise.resolve()
-  await Promise.resolve()
-}
-
-afterEach(() => {
-  vaporRuntime.setReactiveScheduling('sync')
-  compilerRuntime.setReactiveScheduling('frame')
-  document.body.innerHTML = ''
-})
-
-describe('compiled component updates', () => {
-  it('preserves resource props when a resolved component branch is created', async () => {
-    compilerRuntime.setReactiveScheduling('microtask')
-    const compiled = evaluate()
-    const host = document.createElement('div')
-    const uncaughtErrors: unknown[] = []
-    const onError = (event: ErrorEvent) => uncaughtErrors.push(event.error ?? event.message)
-    window.addEventListener('error', onError)
-
-    runtimeRoot.render(compiled.BranchView() as any, host)
-    expect(host.querySelector('[data-testid="loading"]')?.textContent).toBe('true')
-    expect(host.querySelector('[data-testid="resource"]')).toBeNull()
-
-    compiled.resolveResource()
-    await flush()
-
-    expect(host.querySelector('[data-testid="resource"]')?.textContent).toBe('resolved commit')
-    expect(uncaughtErrors).toEqual([])
-    window.removeEventListener('error', onError)
-  })
-
-  it('mounts dynamic native/component inputs and disposes a narrow fragment boundary', async () => {
-    const host = document.createElement('div')
-    const trace: string[] = []
-    const Leaf = (props: { label: string }) => {
-      runtimeRoot.onMounted(() => trace.push(`mounted:${props.label}`))
-      runtimeRoot.onUnmounted(() => trace.push(`unmounted:${props.label}`))
-      return createTestCompiledRoot(() => {
-        const element = document.createElement('strong')
-        element.textContent = props.label
-        return element as any
-      })
+describe('closed component factory', () => {
+  it('has no class, arbitrary value, registry, or runtime bridge path', () => {
+    for (const file of ['compiler-runtime/component-call.ts', 'compiler-runtime/component.ts']) {
+      const implementation = readFileSync(`packages/runtime/src/${file}`, 'utf8')
+      expect(implementation).not.toMatch(
+        /compiledValue|compiled-render-anchor|internal-reactive|island-protocol|prototype\?\.render|__rue_compiled_runtime_bridge|Function\.prototype\.toString/,
+      )
     }
-
-    runtimeRoot.render(vaporRuntime._$createDynamic('section', { children: 'native' }) as any, host)
-    await flush()
-    expect(host.firstElementChild).toMatchObject({ tagName: 'SECTION', textContent: 'native' })
-
-    runtimeRoot.render(
-      vaporRuntime._$createFragment([
-        vaporRuntime._$createDynamic(Leaf, { key: 'leaf', label: 'component' }),
-        vaporRuntime._$createDynamic('span', { children: 'tail' }),
-      ]) as any,
-      host,
+    const code = compileComponent(source)
+    expect(code).toContain('_$compiledComponent')
+    expect(code).not.toMatch(
+      /compiledValue|renderAnchor|compiledDynamicComponent|MarkComponentRenderReactive/,
     )
-    await flush()
-    expect(host.textContent).toBe('componenttail')
-    expect(trace).toEqual(['mounted:component'])
-
-    runtimeRoot.render(null, host)
-    await flush()
-    expect(host.textContent).toBe('')
-    expect(trace).toEqual(['mounted:component', 'unmounted:component'])
+    expect(code).toContain('_$rueSlots')
+    expect(code).toContain('_$rueOwner')
   })
 
   it.each(['sync', 'microtask'] as const)(
-    'updates reactive props without rerunning the component or replacing its DOM (%s)',
-    async scheduling => {
-      vaporRuntime.setReactiveScheduling(scheduling)
-      compilerRuntime.setReactiveScheduling(scheduling)
-      const compiled = evaluate()
-      const host = document.createElement('div')
-      document.body.appendChild(host)
-      const app = runtimeRoot.useApp(compiled.View as any)
-
-      app.mount(host)
-      await flush()
-
-      const child = host.querySelector('[data-testid="child"]')
-      const input = host.querySelector('[data-testid="input"]') as HTMLInputElement
+    'updates props with stable DOM and a single lifecycle (%s)',
+    async mode => {
+      setReactiveScheduling(mode)
+      const { exports: app } = evaluateComponent(source)
+      const root = _$createComponent(app.View, {})
+      disposals.push(() => {
+        root.dispose()
+        app.values.dispose()
+      })
+      root.__rue_compiled_mount(document.body)
+      const input = document.querySelector('input')!
       input.focus()
-      input.setSelectionRange(1, 2)
-
-      compiled.setLabel('two')
-      await flush()
-
-      expect(host.querySelector('[data-testid="label"]')?.textContent).toBe('two')
-      expect(host.querySelector('[data-testid="extra"]')?.textContent).toBe('missing')
-      expect(compiled.trace.childCalls, 'childCalls').toBe(1)
-      expect(compiled.trace.childRenders, 'childRenders').toBe(1)
-      expect(compiled.trace.childSetups, 'childSetups').toBe(0)
-      expect(compiled.trace.mounted, 'mounted').toBe(0)
-      expect(compiled.trace.beforeUpdated, 'beforeUpdated').toBe(0)
-      expect(compiled.trace.updated, 'updated').toBe(0)
-      expect(compiled.trace.unmounted, 'unmounted before app disposal').toBe(0)
-      expect(host.querySelector('[data-testid="input"]')).toBe(input)
-      expect(host.querySelector('[data-testid="child"]')).toBe(child)
+      app.values.set({ label: 'two' })
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(document.querySelector('input')).toBe(input)
       expect(document.activeElement).toBe(input)
-      app.unmount()
-      await flush()
-      expect(compiled.trace.unmounted).toBe(0)
+      expect(input.value).toBe('two')
+      expect(document.querySelector('span')?.textContent).toBe('two')
+      expect(document.querySelector('b')?.textContent).toBe('missing')
+      expect(app.trace).toEqual({ calls: 1, mounted: 1, unmounted: 0, beforeUpdate: 1, updated: 1 })
+      root.dispose()
+      root.dispose()
+      expect(app.trace.unmounted).toBe(1)
+      expect(document.body.childNodes.length).toBe(0)
     },
   )
 
-  it('keeps explicitly marked narrow components on the rerender path', async () => {
-    const host = document.createElement('div')
-    let renders = 0
-    const Legacy = (props: { label: string }) => {
-      renders += 1
-      return createTestCompiledRoot(() => {
-        const element = document.createElement('strong')
-        element.textContent = props.label
-        return element as any
-      })
-    }
-
-    const ReactiveLegacy = vaporRuntime._$compiledMarkComponentRenderReactive(Legacy as any)
-    runtimeRoot.render(vaporRuntime._$createDynamic(ReactiveLegacy, { label: 'one' }) as any, host)
-    await flush()
-    runtimeRoot.render(vaporRuntime._$createDynamic(ReactiveLegacy, { label: 'two' }) as any, host)
-    await flush()
-
-    expect(host.textContent).toBe('two')
-    expect(renders).toBe(2)
+  it('compiles multiple children to one slot factory', () => {
+    const { code, exports: app } = evaluateComponent(`
+      const Child = props => <section>{props.children}</section>;
+      export const View = () => <Child><i>one</i><b>two</b></Child>;
+    `)
+    expect(code).not.toMatch(/compiledValue|renderAnchor/)
+    const root = _$createComponent(app.View, {})
+    disposals.push(() => root.dispose())
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('section')?.textContent).toBe('onetwo')
   })
 
-  it('keeps only the current unmount callback when a marked component rerenders', async () => {
-    compilerRuntime.setReactiveScheduling('sync')
-    const host = document.createElement('div')
-    const label = runtimeRoot.signal('one')
-    const lifecycle: string[] = []
-    const View = vaporRuntime._$compiledMarkComponentRenderReactive((() => {
-      const currentLabel = label.get()
-      runtimeRoot.onUnmounted(() => lifecycle.push(`unmounted:${currentLabel}`))
-      return createTestCompiledRoot(() => {
-        const element = document.createElement('strong')
-        element.textContent = currentLabel
-        return element as any
-      })
-    }) as any)
-
-    const app = runtimeRoot.useApp(View as any)
-    app.mount(host)
-    label.set('two')
-    await flush()
-    app.unmount()
-
-    expect(lifecycle).toEqual(['unmounted:two'])
+  it('mounts compound member components through the closed component ABI', () => {
+    const { code, exports: app } = evaluateComponent(`
+      const Root = props => <section>{props.children}</section>;
+      const Content = props => <strong>{props.children}</strong>;
+      const Compound = Object.assign(Root, { Content });
+      export const View = () => <Compound><Compound.Content>member</Compound.Content></Compound>;
+    `)
+    expect(code).toMatch(/_\$mountCompiledComponent\)[^;]+Compound\.Content/)
+    const root = _$createComponent(app.View, {})
+    disposals.push(() => root.dispose())
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('section')?.textContent).toBe('member')
   })
 
-  it('updates a fine-grained component without rerunning its factory', async () => {
-    compilerRuntime.setReactiveScheduling('sync')
-    const host = document.createElement('div')
-    const active = runtimeRoot.signal(false)
-    let renders = 0
-    const View = () => {
-      renders += 1
-      return createTestCompiledRoot(parent => {
-        const node = document.createElement('p')
-        parent?.appendChild(node)
-        compilerRuntime.effect(() => {
-          node.textContent = active.get() ? 'active' : 'idle'
-        })
-        return node
-      })
-    }
-
-    runtimeRoot.render(vaporRuntime._$createComponent(View, {}) as any, host)
-    await flush()
-    active.set(true)
-    await flush()
-
-    expect(host.textContent).toBe('active')
-    expect(renders).toBe(1)
+  it('compiles a finite component choice into branches', () => {
+    setReactiveScheduling('sync')
+    const { code, exports: app } = evaluateComponent(`
+      import { signal } from '@rue-js/rue';
+      export const choice = signal('a');
+      const A = props => <i>{props.label}</i>;
+      const B = props => <b>{props.label}</b>;
+      export const View = () => <Component is={choice.get()} registry={{a:A,b:B}} label="ok"/>;
+    `)
+    expect(code).not.toMatch(/compiledDynamicComponent|mountCompiledDynamic/)
+    expect(code).toContain('switch')
+    const root = _$createComponent(app.View, {})
+    disposals.push(() => {
+      root.dispose()
+      app.choice.dispose()
+    })
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('i')?.textContent).toBe('ok')
+    app.choice.set('b')
+    expect(document.querySelector('i')).toBeNull()
+    expect(document.querySelector('b')?.textContent).toBe('ok')
   })
 
-  it('tracks a setup-local ref from a compiled DOM effect', async () => {
-    compilerRuntime.setReactiveScheduling('sync')
-    ;(globalThis as any).__rue_active =
-      (globalThis as any).__rue_vapor_preferred ?? (globalThis as any).__rue
-    const host = document.createElement('div')
-    let parentRenders = 0
-    const Parent = () => {
-      parentRenders += 1
-      const count = vaporRuntime.useSetup(() => vaporRuntime.ref(0))
-      return createTestCompiledRoot(parent => {
-        const button = document.createElement('button')
-        parent?.appendChild(button)
-        compilerRuntime.effect(() => {
-          button.textContent = String(count.value)
-        })
-        button.addEventListener('click', () => {
-          count.value += 1
-        })
-        return button
-      })
-    }
-
-    runtimeRoot.render(vaporRuntime._$createComponent(Parent, {}) as any, host)
-    await flush()
-    ;(host.querySelector('button') as HTMLButtonElement).click()
-    await flush()
-
-    expect({ text: host.textContent, parentRenders }).toEqual({ text: '1', parentRenders: 1 })
+  it.each([
+    'class Child { render(){return <i/>} }; export const View=()=> <Child/>;',
+    'export const View=props => <Component is={props.kind} registry={props.registry}/>;',
+    'export const View=props => <props.component/>;',
+  ])('rejects unsupported component expressions', source => {
+    expect(() => compileComponent(source)).toThrow(/component|factory|registry/i)
   })
+})
+
+it('releases component owners, props records, and effects after repeated mounts', () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(source)
+  const baseline = __rueGetCompiledReactiveDebugState()
+  for (let i = 0; i < 30; i++) {
+    const root = _$createComponent(app.View, {})
+    root.__rue_compiled_mount(document.body)
+    app.values.set({ label: String(i) })
+    root.dispose()
+    expect(document.body.childNodes.length).toBe(0)
+    expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
+  }
+  app.values.dispose()
+})
+
+it('forwards a slot factory through a component branch', () => {
+  const { code, exports: app } = evaluateComponent(`
+    const Child=props => <article>{props.children}</article>;
+    const Forward=props => <Child>{props.children}</Child>;
+    export const View=()=> <Forward><b>forwarded</b><i>tail</i></Forward>;
+  `)
+  expect(code).not.toMatch(/compiledSlotValue|renderAnchor/)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('article')?.textContent).toBe('forwardedtail')
+  } finally {
+    root.dispose()
+  }
+})
+
+it('passes named and default factories through the explicit slots parameter', () => {
+  const { code, exports: app } = evaluateComponent(`
+    const Frame=(props, outlets)=> <section><header>{outlets.header}</header><main>{outlets.default}</main></section>;
+    export const View=()=> <Frame><Template slot="header"><b>heading</b></Template><i>body</i></Frame>;
+  `)
+  expect(code).not.toMatch(/compiledSlotValue|renderAnchor/)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('header')?.textContent).toBe('heading')
+    expect(document.querySelector('main')?.textContent).toBe('body')
+  } finally {
+    root.dispose()
+  }
+})
+
+it('compiles an empty component to an empty closed block', () => {
+  const { exports: app } = evaluateComponent(
+    'const Empty=()=>null;export const View=()=> <main><Empty/><b>tail</b></main>',
+  )
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('main')?.textContent).toBe('tail')
+  } finally {
+    root.dispose()
+  }
+})
+
+it('updates computed slot names without retaining the old slot block', () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import {signal} from '@rue-js/rue';
+    export const name=signal('header');
+    const Frame=(props, outlets)=> <section><header>{outlets.header}</header><footer>{outlets.footer}</footer></section>;
+    export const View=()=> <Frame><Template slot={name.get()}><b>content</b></Template></Frame>;
+  `)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('header')?.textContent).toBe('content')
+    app.name.set('footer')
+    expect(document.querySelector('header')?.textContent).toBe('')
+    expect(document.querySelector('footer')?.textContent).toBe('content')
+    expect(document.querySelectorAll('b')).toHaveLength(1)
+  } finally {
+    root.dispose()
+    app.name.dispose()
+  }
+})
+
+it('preserves resource props when a child branch becomes visible', () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import {signal} from '@rue-js/rue';
+    export const loading=signal(true);
+    const resource={loading,data:{get:()=>['resolved commit']}};
+    const ResourceContent=props=><p>{String(props.resource.data.get()[0])}</p>;
+    export const View=()=> <main><span>{String(loading.get())}</span>{!loading.get() && <ResourceContent resource={resource}/>}</main>;
+  `)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(document.querySelector('p')).toBeNull()
+    app.loading.set(false)
+    expect(document.querySelector('p')?.textContent).toBe('resolved commit')
+  } finally {
+    root.dispose()
+    app.loading.dispose()
+  }
+})
+
+it('preserves a named default slot when no children factory is present', () => {
+  const {
+    exports: { View },
+  } = evaluateComponent(`
+    const Frame = (props, slots) => <main>{slots.default}</main>;
+    export const View = () => <Frame><Template slot="default"><b>default body</b></Template></Frame>;
+  `)
+  const block = _$createComponent(View, {})
+  block.__rue_compiled_mount(document.body)
+  disposals.push(() => block.dispose())
+  expect(document.body.textContent).toBe('default body')
 })

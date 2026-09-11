@@ -7,6 +7,7 @@ import swc from '@swc/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as compiledRuntime from '../src/internal'
+import { resolveCompilerCapability } from './compiler-capability-test-runtime'
 
 const pluginPath = resolve(process.cwd(), 'packages/swc-plugin-rue/swc-plugin-rue.wasm')
 
@@ -35,7 +36,9 @@ const evaluateDirectTextSource = (output: string) => {
   const module = { exports: {} as Record<string, unknown> }
   new Function('require', 'module', 'exports', output)(
     (id: string) => {
-      if (id.startsWith('@rue-js/rue')) return compiledRuntime
+      const capability = resolveCompilerCapability(id)
+      if (capability) return capability
+      if (id === '@rue-js/rue') return compiledRuntime
       throw new Error(`Unexpected generated import: ${id}`)
     },
     module,
@@ -111,7 +114,7 @@ const scalarBindings = compiledRuntime._$compiledRoot(() => {
     },
   )
 
-  return root
+  return [root, root] as const
 })
 
 const flushCompiledEffects = async (): Promise<void> => {
@@ -332,5 +335,185 @@ describe('compiled scalar DOM bindings', () => {
       checked: checkedWrites(),
       disabled: disabledWrites(),
     }).toEqual({ class: 1, style: 1, title: 1, text: 1, value: 1, checked: 1, disabled: 1 })
+  })
+})
+
+const mountSource = (source: string) => {
+  const output = compileDirectTextSource(source)
+  const exports = evaluateDirectTextSource(output)
+  const host = document.createElement('main')
+  document.body.append(host)
+  const handle = exports.View()
+  const root = handle.__rue_compiled_mount(host)
+  if (root && root.parentNode !== host) host.appendChild(root)
+  return { output, host, handle, state: exports.state }
+}
+
+describe('compiler-owned native DOM fields', () => {
+  it('updates HTML/SVG, boolean properties, CSS fields and text without legacy setters', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const { output, host, handle, state } = mountSource(`
+      import { signal } from '@rue-js/rue'
+      export const state = signal(0)
+      export const View = () => <section>
+        <input value={String(state.get())} checked={Boolean(state.get())} required={Boolean(state.get())} />
+        <p style={String(state.get() ? 'color:blue' : 'color:red')}>{String(state.get())}</p>
+        <svg><circle className={state.get() ? 'active' : 'idle'} style={{opacity: state.get() ? 1 : 0.5}} /></svg>
+      </section>
+    `)
+    const input = host.querySelector('input')!
+    const circle = host.querySelector('circle')!
+    expect([input.value, input.checked, input.required]).toEqual(['0', false, false])
+    expect(circle.namespaceURI).toBe('http://www.w3.org/2000/svg')
+    expect(circle.getAttribute('class')).toBe('idle')
+    expect(host.querySelector('p')!.style.color).toBe('red')
+    state.set(1)
+    expect([input.value, input.checked, input.required]).toEqual(['1', true, true])
+    expect(circle.getAttribute('class')).toBe('active')
+    expect(circle.style.opacity).toBe('1')
+    expect(host.querySelector('p')!.textContent).toBe('1')
+    expect(host.querySelector('p')!.style.color).toBe('blue')
+    for (const token of [
+      '_$setStyle',
+      '_$setValue',
+      '_$setAttribute',
+      'patchStyle',
+      'patchChildren',
+    ])
+      expect(output).not.toContain(token)
+    handle.dispose()
+    state.set(2)
+    expect(input.value).toBe('1')
+    expect(host.innerHTML).toBe('')
+  })
+
+  it('deletes spread properties, CSS keys and event handlers on the same DOM node', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const { output, host, handle, state } = mountSource(`
+      import { signal } from '@rue-js/rue'
+      export const state = signal({ value: 'one', checked: true, required: true,
+        title: 'hello', style: {color: 'red', backgroundColor: 'blue'},
+        onClick: event => event.currentTarget.dataset.clicked = 'yes' })
+      export const View = () => <input {...state.get()} />
+    `)
+    const input = host.querySelector('input')!
+    expect([input.value, input.checked, input.required]).toEqual(['one', true, true])
+    input.click()
+    expect(input.dataset.clicked).toBe('yes')
+    state.set({ style: { color: 'green' } })
+    expect(host.querySelector('input')).toBe(input)
+    expect([input.value, input.checked, input.required]).toEqual(['', false, false])
+    expect(input.hasAttribute('title')).toBe(false)
+    expect(input.style.backgroundColor).toBe('')
+    expect(input.style.color).toBe('green')
+    delete input.dataset.clicked
+    input.click()
+    expect(input.dataset.clicked).toBeUndefined()
+    expect(output).toContain('_$compiledSpreadAttributes')
+    expect(output).not.toContain('_$spreadAttributes')
+    handle.dispose()
+    state.set({ value: 'disposed', style: { color: 'red' } })
+    expect(input.value).toBe('')
+    expect(input.style.color).toBe('green')
+  })
+
+  it('applies select models after options exist and replaces opaque style values', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const { output, host, handle, state } = mountSource(`
+      import { signal } from '@rue-js/rue'
+      export const state = signal({ selection: ['b'], style: {color: 'red', '--tone': 'warm'} })
+      export const View = () => <section>
+        <select multiple value={state.get().selection}><option value="a">A</option><option value="b">B</option></select>
+        <p style={state.get().style}>style</p>
+      </section>
+    `)
+    const select = host.querySelector('select')!
+    const style = host.querySelector('p')!.style
+    expect([...select.selectedOptions].map(option => option.value)).toEqual(['b'])
+    expect(style.getPropertyValue('--tone')).toBe('warm')
+    state.set({ selection: ['a'], style: { backgroundColor: 'blue' } })
+    expect([...select.selectedOptions].map(option => option.value)).toEqual(['a'])
+    expect(style.color).toBe('')
+    expect(style.backgroundColor).toBe('blue')
+    expect(style.getPropertyValue('--tone')).toBe('')
+    expect(output).not.toContain('_$setValue')
+    expect(output).not.toContain('_$setStyle')
+    handle.dispose()
+  })
+
+  it('expands statically enumerable spreads into direct field instructions', () => {
+    const { output, host, handle } = mountSource(`
+      export const View = () => <input {...{value: 'fixed', required: true, className: 'field', style: {'--tone': 'warm', color: 'red'}}} />
+    `)
+    const input = host.querySelector('input')!
+    expect([input.value, input.required, input.className]).toEqual(['fixed', true, 'field'])
+    expect(input.style.getPropertyValue('--tone')).toBe('warm')
+    expect(input.style.color).toBe('red')
+    expect(output).not.toContain('compiledSpreadAttributes')
+    handle.dispose()
+  })
+
+  it('compiles once/capture event options and disposes native listeners', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const { host, handle } = mountSource(`
+      import {ref} from '@rue-js/rue'
+      const count = ref(0)
+      export const View = () => <section>
+        <button v-on:click-once-capture={() => { count.value++ }}>increment</button>
+        <span>{count.value}</span>
+      </section>
+    `)
+    const button = host.querySelector('button')!
+    const span = host.querySelector('span')!
+    button.click()
+    button.click()
+    expect(span.textContent).toBe('1')
+    handle.dispose()
+    button.click()
+    expect(span.textContent).toBe('1')
+  })
+
+  it('clears conditional classes and preserves false ARIA values', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const { host, handle, state } = mountSource(`
+      import {signal} from '@rue-js/rue'
+      export const state = signal(true)
+      export const View = () => <div className={state.get() && 'active'} aria-hidden={state.get()} />
+    `)
+    const div = host.querySelector('div')!
+    expect(div.className).toBe('active')
+    state.set(false)
+    expect(div.className).toBe('')
+    expect(div.getAttribute('aria-hidden')).toBe('false')
+    handle.dispose()
+  })
+
+  it('lowers v-model and event modifiers to an explicit property/event pair', () => {
+    compiledRuntime.setReactiveScheduling('sync')
+    const { output, host, handle } = mountSource(`
+      import { ref } from '@rue-js/rue'
+      const text = ref('start')
+      export const View = () => <section>
+        <input v-model={text.value} />
+        <span>{text.value}</span>
+        <button v-on:click-stop-prevent={() => { text.value = 'clicked' }}>set</button>
+      </section>
+    `)
+    const input = host.querySelector('input')!
+    const span = host.querySelector('span')!
+    expect(input.value).toBe('start')
+    input.value = 'typed'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(span.textContent).toBe('typed')
+    const bubbled = vi.fn()
+    host.addEventListener('click', bubbled)
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    host.querySelector('button')!.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(bubbled).not.toHaveBeenCalled()
+    expect(input.value).toBe('clicked')
+    expect(output).not.toContain('_$setValue')
+    expect(output).not.toContain('applyDirective')
+    handle.dispose()
   })
 })

@@ -1,6 +1,5 @@
-import { type FC, onMounted, onUnmounted, render, useRef } from '@rue-js/rue'
+import { type FC, onMounted, onUnmounted, ref, useRef } from '@rue-js/rue'
 import { Anchor } from '@rue-js/design'
-
 type PageContentAnchorItem = {
   key: string
   href: string
@@ -110,12 +109,10 @@ const flattenSignature = (items: PageContentAnchorItem[]): string => {
 const PageContentAnchor: FC<PageContentAnchorProps> = ({ containerRef }) => {
   const shellRef = useRef<HTMLElement>()
   const scrollPanelRef = useRef<HTMLDivElement>()
-  const anchorHostRef = useRef<HTMLDivElement>()
   const collectTaskRef = useRef<{ kind: 'idle' | 'timeout'; id: number } | undefined>()
-  const renderTaskRef = useRef<number | undefined>()
-  const pendingAnchorItemsRef = useRef<PageContentAnchorItem[] | null | undefined>()
   const observerRef = useRef<MutationObserver | undefined>()
   const signatureRef = useRef('')
+  const anchorItems = ref<PageContentAnchorItem[]>([])
 
   const scrollAnchorLinkIntoView = (href?: string) => {
     const scrollPanel = scrollPanelRef.current
@@ -161,87 +158,6 @@ const PageContentAnchor: FC<PageContentAnchorProps> = ({ containerRef }) => {
     })
   }
 
-  const commitAnchorRender = (items: PageContentAnchorItem[] | null) => {
-    const shell = shellRef.current
-    const anchorHost = anchorHostRef.current
-    if (!anchorHost) {
-      return
-    }
-
-    if (!shell || !items || items.length === 0) {
-      shell?.setAttribute('aria-hidden', 'true')
-      if (shell) {
-        shell.style.visibility = 'hidden'
-      }
-      render(null as any, anchorHost)
-      return
-    }
-
-    shell.removeAttribute('aria-hidden')
-    shell.style.visibility = ''
-    render(
-      <Anchor
-        affix={false}
-        targetOffset={96}
-        items={items}
-        onChange={href => {
-          scheduleAnchorLinkScroll(href)
-        }}
-        classNames={{
-          root: 'rounded-box border-base-300/60 bg-base-100/95 p-3 shadow-sm backdrop-blur',
-          list: 'space-y-1',
-          link: 'rounded-xl px-2.5 py-1.5',
-          title: 'text-xs',
-          description: 'hidden',
-        }}
-      />,
-      anchorHost,
-    )
-  }
-
-  const flushAnchorRender = () => {
-    renderTaskRef.current = undefined
-    const items = pendingAnchorItemsRef.current
-    pendingAnchorItemsRef.current = undefined
-    if (items === undefined) {
-      return
-    }
-
-    try {
-      commitAnchorRender(items)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (message.includes('Reentrant render detected')) {
-        pendingAnchorItemsRef.current = items
-        scheduleAnchorRender()
-        return
-      }
-      throw error
-    }
-  }
-
-  const scheduleAnchorRender = (items?: PageContentAnchorItem[] | null) => {
-    if (items !== undefined) {
-      pendingAnchorItemsRef.current = items
-    }
-    if (typeof window === 'undefined') {
-      flushAnchorRender()
-      return
-    }
-    if (renderTaskRef.current != null) {
-      return
-    }
-
-    renderTaskRef.current = window.setTimeout(flushAnchorRender, 0)
-  }
-
-  const cancelScheduledAnchorRender = () => {
-    if (typeof window !== 'undefined' && renderTaskRef.current != null) {
-      window.clearTimeout(renderTaskRef.current)
-    }
-    renderTaskRef.current = undefined
-  }
-
   const collectItems = () => {
     const container = containerRef.current
     if (!container) {
@@ -255,7 +171,7 @@ const PageContentAnchor: FC<PageContentAnchorProps> = ({ containerRef }) => {
     }
 
     signatureRef.current = nextSignature
-    scheduleAnchorRender(nextItems)
+    anchorItems.value = nextItems
   }
 
   const cancelScheduledCollect = () => {
@@ -328,16 +244,15 @@ const PageContentAnchor: FC<PageContentAnchorProps> = ({ containerRef }) => {
     observerRef.current = undefined
 
     cancelScheduledCollect()
-    cancelScheduledAnchorRender()
-    scheduleAnchorRender(null)
+    anchorItems.value = []
   })
 
   return (
     <aside
       ref={shellRef}
       className="hidden xl:block w-60 shrink-0"
-      aria-hidden="true"
-      style={{ visibility: 'hidden' }}
+      aria-hidden={anchorItems.value.length === 0 ? 'true' : undefined}
+      style={{ visibility: anchorItems.value.length === 0 ? 'hidden' : '' }}
     >
       <div
         ref={scrollPanelRef}
@@ -349,7 +264,23 @@ const PageContentAnchor: FC<PageContentAnchorProps> = ({ containerRef }) => {
         <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.18em] text-base-content/45">
           页内导航
         </div>
-        <div ref={anchorHostRef} />
+        {anchorItems.value.length ? (
+          <Anchor
+            affix={false}
+            targetOffset={96}
+            items={anchorItems.value}
+            onChange={href => {
+              scheduleAnchorLinkScroll(href)
+            }}
+            classNames={{
+              root: 'rounded-box border-base-300/60 bg-base-100/95 p-3 shadow-sm backdrop-blur',
+              list: 'space-y-1',
+              link: 'rounded-xl px-2.5 py-1.5',
+              title: 'text-xs',
+              description: 'hidden',
+            }}
+          />
+        ) : null}
       </div>
     </aside>
   )

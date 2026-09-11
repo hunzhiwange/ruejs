@@ -1,3 +1,5 @@
+import { PRESENTED_IMAGE_DEFAULT } from '../index'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Empty from '..'
@@ -18,7 +20,7 @@ describe('Empty', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Empty data-testid="empty-basic" />, container)
+    mountTestApp(container, () => render(<Empty data-testid="empty-basic" />, container))
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="empty-basic"]') as HTMLElement
@@ -35,20 +37,22 @@ describe('Empty', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Empty
-        data-testid="empty-string-image"
-        image="https://example.com/empty.svg"
-        description="暂无素材"
-        imageStyle={{ maxWidth: '140px' }}
-        classNames={{ image: 'custom-image-shell', footer: 'custom-footer-shell' }}
-        styles={{ root: { paddingTop: '40px' } }}
-      >
-        <button id="create-asset" type="button">
-          新建素材
-        </button>
-      </Empty>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Empty
+          data-testid="empty-string-image"
+          image="https://example.com/empty.svg"
+          description="暂无素材"
+          imageStyle={{ maxWidth: '140px' }}
+          classNames={{ image: 'custom-image-shell', footer: 'custom-footer-shell' }}
+          styles={{ root: { paddingTop: '40px' } }}
+        >
+          <button id="create-asset" type="button">
+            新建素材
+          </button>
+        </Empty>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -72,16 +76,18 @@ describe('Empty', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Empty
-        data-testid="empty-simple"
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description={false}
-        align="start"
-        variant="outline"
-        size="large"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Empty
+          data-testid="empty-simple"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={false}
+          align="start"
+          variant="outline"
+          size="large"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -99,14 +105,16 @@ describe('Empty', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Empty data-testid="empty-hidden" image={null} description={[]}>
-          {false}
-        </Empty>
-        <Empty.PRESENTED_IMAGE_DEFAULT size="sm" />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Empty data-testid="empty-hidden" image={null} description={null}>
+            {false}
+          </Empty>
+          <PRESENTED_IMAGE_DEFAULT size="sm" />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

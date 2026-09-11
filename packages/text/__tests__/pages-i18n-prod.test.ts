@@ -9,6 +9,7 @@ import {
   PAGES_I18N_DOMAINS_FIXTURE_DIR,
   createIsolatedFixture,
   requestNodeServerWithHost,
+  stripRueSsrMarkers,
 } from './helpers.js'
 
 async function startProdFixture(
@@ -137,8 +138,9 @@ describe('Pages i18n domain routing (production)', () => {
     const res = await requestNodeServerWithHost(prodPort, '/about', 'example.fr')
 
     expect(res.status).toBe(200)
-    expect(res.body).toContain('<p id="locale">fr</p>')
-    expect(res.body).toContain('<p id="defaultLocale">fr</p>')
+    const html = stripRueSsrMarkers(res.body)
+    expect(html).toContain('<p id="locale">fr</p>')
+    expect(html).toContain('<p id="defaultLocale">fr</p>')
     expect(res.body).toContain('href="/about" id="switch-locale"')
     expect(res.body).toContain('"defaultLocale":"fr"')
     expect(res.body).toContain(

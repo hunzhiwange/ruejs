@@ -122,7 +122,7 @@ export default HelloWorld;
     assert_eq!(output.matches("_$compiledRoot(").count(), 3, "{output}");
     assert_eq!(output.matches("_$compiledText(").count(), 2, "{output}");
     assert_eq!(output.matches("_$createComponent(").count(), 2, "{output}");
-    assert_eq!(output.matches("__rue_compiled_explicit_roots: true").count(), 3, "{output}");
+    assert_eq!(output.matches("return [").count(), 3, "{output}");
     assert!(!output.contains("return vapor("), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");
     assert!(!output.contains("untrack"), "{output}");

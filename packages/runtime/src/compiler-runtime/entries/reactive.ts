@@ -1,0 +1,81 @@
+// Compiler capability entry: explicit exports from implementation modules only.
+export { signal } from '../../runtime-core/compiled'
+export { effect } from '../../runtime-core/compiled'
+export { batch } from '../../runtime-core/compiled'
+export { untrack } from '../../runtime-core/compiled'
+export { onCleanup } from '../../runtime-core/compiled'
+export { onOwnerCleanup } from '../../runtime-core/compiled'
+export { createOwner } from '../../runtime-core/compiled'
+export { runWithOwner } from '../../runtime-core/compiled'
+export { disposeOwner } from '../../runtime-core/compiled'
+export { createSelector } from '../../runtime-core/compiled'
+export { setReactiveScheduling } from '../../runtime-core/compiled'
+export { _$compiledSetup } from '../../runtime-core/compiled'
+export { _$compiledUseSetup } from '../hooks'
+export { _$compiledUseRef } from '../hooks'
+export { _$compiledMemo } from '../hooks'
+export { _$compiledPath } from '../../runtime-core/compiled'
+export { _$compiledReadPath } from '../../runtime-core/compiled'
+export { _$compiledStateRoot } from '../../runtime-core/compiled'
+export { _$compiledStateMember } from '../../runtime-core/compiled'
+export { _$compiledStateDelete } from '../../runtime-core/compiled'
+export { _$compiledStateMutator } from '../../runtime-core/compiled'
+export { _$compiledUseState } from '../compact-reactivity'
+export {
+  _$compiledBridgeSignal,
+  _$compiledScalarCleanup,
+  _$compiledScalarEffect,
+  _$compiledScalarRoot,
+  _$compiledScalarSignal,
+  _$compiledScalarText,
+} from '../scalar-reactivity'
+export { _$compiledScalarOwnedRoot } from '../scalar-owned-root'
+export { _$compiledUseEffect } from '../hooks'
+export { signal as _$compiledSignal } from '../../runtime-core/compiled'
+export { batch as _$compiledBatch } from '../../runtime-core/compiled'
+export { _$compiledRenderEffect } from '../../runtime-core/compiled'
+export { onOwnerCleanup as onScopeDispose } from '../../runtime-core/compiled'
+export { getCurrentOwner as getCurrentInstance } from '../../runtime-core/compiled'
+export { getCurrentOwner } from '../../runtime-core/compiled'
+export { getOwnerParent } from '../../runtime-core/compiled'
+export { toValue } from '../compact-reactivity'
+export { watchFn } from '../compact-reactivity'
+export { watchEffect } from '../compact-reactivity'
+export { watchSignal } from '../compact-reactivity'
+export { watchPath } from '../compact-reactivity'
+export { createResource } from '../../reactivity/resource'
+export { watch } from '../compact-reactivity'
+export { useState } from '../hooks'
+export { useEffect } from '../hooks'
+export { ref } from '../compact-reactivity'
+export { shallowRef } from '../compact-reactivity'
+export { isRef } from '../compact-reactivity'
+export { triggerRef } from '../compact-reactivity'
+export { computed } from '../compact-reactivity'
+export { useSetup } from '../hooks'
+export { useRef } from '../hooks'
+export { unref } from '../compact-reactivity'
+export { onBeforeCreate } from '../hooks'
+export { onCreated } from '../hooks'
+export { onBeforeMount } from '../compact-reactivity'
+export { onMounted } from '../compact-reactivity'
+export { onBeforeUpdate } from '../compact-reactivity'
+export { onUpdated } from '../compact-reactivity'
+export { onBeforeUnmount } from '../compact-reactivity'
+export { onUnmounted } from '../compact-reactivity'
+export { onError } from '../component-errors'
+export { _$compiledSetup as _$compiledWithHookId } from '../../runtime-core/compiled'
+
+export {
+  createOwner as _$compiledCreateOwner,
+  runWithOwner as _$compiledRunWithOwner,
+} from '../../runtime-core/compiled'
+export { _$compiledBindUseRef } from '../hooks'
+export { onActivated, onDeactivated } from '../hooks'
+
+export { _$planContext, _$planUseContext, _$planAsyncComponent } from '../plan-context'
+
+export type { CompiledSignalHandle } from '../../runtime-core/compiled'
+export { adoptOwner } from '../../runtime-core/compiled'
+
+export { useActionState, _$compiledUseActionState } from '../action-state'

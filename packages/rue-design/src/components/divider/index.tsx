@@ -64,6 +64,7 @@ export interface DividerProps {
   /** contentStyle 内联样式。 */
   contentStyle?: Record<string, any>
   /** 组件子内容。 */
+  content?: string | number
   children?: any
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
@@ -93,14 +94,6 @@ const normalizeSpacingValue = (value?: string | number) => {
   if (typeof value === 'number') return value
   if (typeof value !== 'string') return undefined
   return /^\d+(\.\d+)?$/.test(value) ? Number(value) : value
-}
-
-/** 判断 Divider 是否存在可见内容。 */
-const hasDividerContent = (value: any): boolean => {
-  if (value == null || typeof value === 'boolean') return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (Array.isArray(value)) return value.some(hasDividerContent)
-  return true
 }
 
 /** 解析 Legacy Direction Class 的内部工具函数。 */
@@ -138,6 +131,7 @@ const Divider: FC<DividerProps> = ({
   style,
   contentStyle,
   children,
+  content,
   ...rest
 }) => {
   const resolvedTone = color ?? (isTone(variant) ? variant : undefined)
@@ -151,7 +145,9 @@ const Divider: FC<DividerProps> = ({
   const isVerticalSeparator =
     (orientation ?? type ?? (vertical ? 'vertical' : 'horizontal')) === 'vertical'
   const contentMargin = normalizeSpacingValue(orientationMargin)
-  const hasContent = !isVerticalSeparator && hasDividerContent(children)
+  const hasContent =
+    !isVerticalSeparator &&
+    (content !== undefined ? String(content).trim().length > 0 : children != null)
 
   let cls = 'divider'
   if (orientationClass) cls += ` ${orientationClass}`
@@ -175,15 +171,6 @@ const Divider: FC<DividerProps> = ({
 
   return (
     <div
-      ref={(element: HTMLDivElement | null) => {
-        if (!element || isVerticalSeparator) return
-        Promise.resolve().then(() => {
-          const content = element.querySelector(':scope > span')
-          const empty = !content || (content.textContent ?? '').trim().length === 0
-          element.classList.toggle('gap-0', empty)
-          if (empty) content?.remove()
-        })
-      }}
       className={cls}
       style={style}
       role="separator"
@@ -192,7 +179,7 @@ const Divider: FC<DividerProps> = ({
     >
       {hasContent ? (
         <span className={textCls} style={textStyle}>
-          {children}
+          {content !== undefined ? <span>{String(content)}</span> : children}
         </span>
       ) : null}
     </div>

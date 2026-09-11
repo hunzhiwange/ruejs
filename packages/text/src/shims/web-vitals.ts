@@ -1,4 +1,4 @@
-import { useEffect, useRef } from './hooks-adapter.js'
+import { useEffect, useRef } from '@rue-js/rue'
 import { onCLS, onFID, onLCP, onINP, onFCP, onTTFB, type MetricType } from 'web-vitals'
 
 type WebVitalsMetric = MetricType

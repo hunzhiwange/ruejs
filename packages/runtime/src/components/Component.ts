@@ -7,10 +7,8 @@ Component 组件概述
 
 import type { ComponentInstance, ComponentProps, FC, PropsWithChildren } from '../runtime-types'
 import { withParentContextProps } from '../context'
-import { resolveCurrentRuntimeComponent } from '../component-registry'
 import { _$createComponent } from '../compiled-component-call'
 import { _$compiledBranch } from '../compiled-component'
-import { _$compiledValue } from '../compiled-render-anchor'
 
 /** <Component> 动态组件属性。 */
 export interface DynamicComponentProps extends PropsWithChildren<Record<string, unknown>> {
@@ -34,7 +32,7 @@ const resolveDynamicComponentType = (
     return value
   }
 
-  return registry?.[value] ?? resolveCurrentRuntimeComponent(value) ?? value
+  return registry?.[value] ?? value
 }
 
 type ForwardedComponentInput = {
@@ -69,7 +67,9 @@ export const Component: FC<DynamicComponentProps> = props => {
     if (!resolvedType || resolvedType === BUILTIN_COMPONENT_TAG || resolvedType === Component) {
       return {
         __rue_compiled_branch_key: null,
-        create: () => _$compiledValue(null),
+        create: () => {
+          throw new Error('[rue] dynamic components must be enumerated by the Rue compiler')
+        },
       }
     }
     return {

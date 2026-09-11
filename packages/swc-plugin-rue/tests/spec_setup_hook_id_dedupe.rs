@@ -1,4 +1,4 @@
-use swc_plugin_rue::apply_pre;
+use swc_plugin_rue::{apply, apply_pre};
 
 mod utils;
 
@@ -41,4 +41,16 @@ const Page: FC = () => {
     );
     assert!(!stripped.contains("\"useSetup:0:0:dup1\""));
     assert!(!stripped.contains("\"useSetup:0:0:dup2\""));
+}
+
+#[test]
+fn web_components_page_does_not_emit_removed_render_anchor_helper() {
+    let src = include_str!("../../../app/pages/examples/WebComponents.tsx");
+    let (program, cm) = utils::parse(src, "WebComponents.tsx");
+    let program = apply(program);
+    let out = utils::emit(program, cm);
+
+    assert!(!out.contains("renderAnchor"), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt"), "{out}");
+    assert!(out.contains("_$createComponent(BridgeContextProvider"), "{out}");
 }

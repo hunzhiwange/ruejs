@@ -8,8 +8,8 @@
 // the body. That isolation keeps the overlay alive even when the app tree
 // itself is torn down by the error we want to surface.
 
-import { useEffect, useSyncExternalStore } from '../shims/hooks-adapter.js'
-
+import { useSyncExternalStore } from '../shims/hooks-adapter.js'
+import { useEffect } from '@rue-js/rue'
 import { isNavigationSignalError } from '../utils/navigation-signal.js'
 import {
   type OverlayState,

@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -176,7 +176,7 @@ describe('Pages Router _text/data client navigation', () => {
     globalThis.fetch = fetchMock as any
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       const result = await Router.push('/about')
 
@@ -221,7 +221,7 @@ describe('Pages Router _text/data client navigation', () => {
     const onRouteChangeError = vi.fn()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.on('routeChangeError', onRouteChangeError)
 
@@ -263,7 +263,7 @@ describe('Pages Router _text/data client navigation', () => {
     const onRouteChangeError = vi.fn()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.on('routeChangeError', onRouteChangeError)
 
@@ -301,7 +301,7 @@ describe('Pages Router _text/data client navigation', () => {
     globalThis.fetch = fetchMock as any
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       await Router.push('/about')
 
@@ -338,7 +338,7 @@ describe('Pages Router _text/data client navigation', () => {
     globalThis.fetch = fetchMock as any
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       await Router.push('/blog/my-post')
 
@@ -377,7 +377,7 @@ describe('Pages Router _text/data client navigation', () => {
     ) as any
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       // Search param `slug` should NOT shadow the dynamic route param `slug`.
       // Search params `q` and `tag` should appear in query alongside `slug`.
@@ -422,7 +422,7 @@ describe('Pages Router _text/data client navigation', () => {
     const onRouteChangeError = vi.fn()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       Router.events.on('routeChangeError', onRouteChangeError)
 
@@ -472,7 +472,7 @@ describe('Pages Router _text/data client navigation', () => {
     vi.resetModules()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       await Router.prefetch('/about')
 
@@ -512,7 +512,7 @@ describe('Pages Router _text/data client navigation', () => {
     vi.resetModules()
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       await Router.prefetch('/unmapped')
 
@@ -562,7 +562,7 @@ describe('Pages Router _text/data client navigation', () => {
     globalThis.fetch = fetchMock as any
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       const result = await Router.push('/fr/about')
 
@@ -619,7 +619,7 @@ describe('Pages Router _text/data client navigation', () => {
     ) as any
 
     try {
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
       await Router.push('/about', undefined, { locale: 'en' })
 
@@ -686,14 +686,14 @@ describe('text/server enhancements', () => {
 
 describe('text/image enhancements', () => {
   it('exports StaticImageData type', async () => {
-    const imageModule = await import('../src/shims/image.js')
+    const imageModule = await import('../src/shims/image.js?text-ssr')
     // StaticImageData is an interface, so we can't check at runtime
     // but getImageProps uses it — verify that function exists
     expect(typeof imageModule.getImageProps).toBe('function')
   })
 
   it('getImageProps returns img props from Image props', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/photo.jpg',
       alt: 'Test',
@@ -712,7 +712,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps handles fill mode', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/bg.jpg',
       alt: 'Background',
@@ -724,7 +724,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps handles StaticImageData', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: { src: '/imported.jpg', width: 1200, height: 800, blurDataURL: 'data:...' },
       alt: 'Imported',
@@ -737,7 +737,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps generates srcSet for local images with width', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/photo.jpg',
       alt: 'Test',
@@ -752,7 +752,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps does not generate srcSet for fill images', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/bg.jpg',
       alt: 'Background',
@@ -763,7 +763,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps includes fetchPriority for priority images', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/hero.jpg',
       alt: 'Hero',
@@ -776,7 +776,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps includes data-nimg attribute', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/photo.jpg',
       alt: 'Photo',
@@ -794,7 +794,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps includes blur placeholder background styles', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const blurUrl = 'data:image/jpeg;base64,/9j/4AAQ'
     const result = getImageProps({
       src: '/photo.jpg',
@@ -809,7 +809,7 @@ describe('text/image enhancements', () => {
   })
 
   it('getImageProps uses custom loader function', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/photo.jpg',
       alt: 'Custom',
@@ -823,7 +823,7 @@ describe('text/image enhancements', () => {
   })
 
   it('unoptimized prop bypasses /_text/image endpoint', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/photo.jpg',
       alt: 'Unoptimized',
@@ -837,7 +837,7 @@ describe('text/image enhancements', () => {
   })
 
   it('SVG src auto-skips optimization endpoint (default behavior)', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/logo.svg',
       alt: 'SVG logo',
@@ -850,7 +850,7 @@ describe('text/image enhancements', () => {
   })
 
   it('non-SVG src still uses optimization endpoint', async () => {
-    const { getImageProps } = await import('../src/shims/image.js')
+    const { getImageProps } = await import('../src/shims/image.js?text-ssr')
     const result = getImageProps({
       src: '/photo.png',
       alt: 'PNG photo',
@@ -862,7 +862,7 @@ describe('text/image enhancements', () => {
 })
 describe('text/image component rendering', () => {
   it('renders basic image with src, alt, width, height', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/photo.jpg', alt: 'Test photo', width: 800, height: 600 }),
@@ -876,7 +876,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders fill image with absolute positioning', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/bg.jpg', alt: 'Background', fill: true }),
@@ -889,7 +889,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders priority image with fetchpriority=high and loading=eager', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -905,7 +905,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders lazy loading by default (no priority)', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/photo.jpg', alt: 'Photo', width: 800, height: 600 }),
@@ -915,7 +915,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders srcSet for local images with width', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/photo.jpg', alt: 'Photo', width: 1200, height: 800 }),
@@ -927,7 +927,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders blur placeholder with background-image', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const blurUrl = 'data:image/jpeg;base64,/9j/4AAQ'
     const html = await renderRueToString(
@@ -946,7 +946,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders with custom loader function', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -962,7 +962,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders with custom sizes attribute', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -977,7 +977,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders fill image with sizes=100vw by default', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/bg.jpg', alt: 'BG', fill: true }),
@@ -986,7 +986,7 @@ describe('text/image component rendering', () => {
   })
 
   it('handles StaticImageData import objects', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const staticImport = {
       src: '/imported.jpg',
@@ -1004,7 +1004,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders with className', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -1019,7 +1019,7 @@ describe('text/image component rendering', () => {
   })
 
   it('includes data-nimg=1 for non-fill images', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/photo.jpg', alt: 'Test', width: 800, height: 600 }),
@@ -1028,7 +1028,7 @@ describe('text/image component rendering', () => {
   })
 
   it('always sets decoding=async', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, { src: '/photo.jpg', alt: 'Test', width: 800, height: 600 }),
@@ -1042,7 +1042,7 @@ describe('text/image component rendering', () => {
   // tested in the Playwright E2E test suite.
 
   it('renders with onError callback attached (SSR smoke test)', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -1059,7 +1059,7 @@ describe('text/image component rendering', () => {
   })
 
   it('renders with both onLoad and onError callbacks (SSR smoke test)', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -1075,9 +1075,9 @@ describe('text/image component rendering', () => {
     expect(html).toContain('/_text/image')
   })
 
-  it('forwards ref to img element via mergedRef (SSR smoke test)', async () => {
+  it('renders img without assigning a browser ref during SSR', async () => {
     const ref = { current: null as HTMLImageElement | null }
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {
@@ -1090,11 +1090,11 @@ describe('text/image component rendering', () => {
     )
     expect(html).toContain('<img')
     expect(html).toContain('/_text/image')
-    expect(ref.current?.tagName).toBe('img')
+    expect(ref.current).toBeNull()
   })
 
   it('renders with onError in loader path (SSR smoke test)', async () => {
-    const Image = (await import('../src/shims/image.js')).default
+    const Image = (await import('../src/shims/image.js?text-ssr')).default
 
     const html = await renderRueToString(
       createRueElement(Image, {

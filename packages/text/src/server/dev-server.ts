@@ -31,19 +31,14 @@ import { getScriptNonceFromNodeHeaderSources } from './csp.js'
 import { mergeRouteParamsIntoQuery, parseQueryString as parseQuery } from '../utils/query.js'
 import {
   resolveClientRuntimeModule,
+  resolveRuntimeEntryModule,
   resolveShimRuntimeModule,
 } from '../entries/runtime-entry-module.js'
 import path from 'node:path'
 import type { TextCompatComponentType } from '../shims/text-compat-types.js'
 import type { TextRenderable } from './renderable.js'
-import {
-  createPagesDocumentElement,
-  createPagesPageElement,
-  renderPagesRenderableToReadableStream,
-  renderPagesRenderableToString,
-  withPagesScriptNonce,
-  type PagesRouterContextWrapper,
-} from './pages-renderer-adapter.js'
+import type { PagesRouterContextWrapper } from './pages-renderer-adapter.js'
+type PagesRenderer = typeof import('./pages-renderer-adapter.js')
 import { logRequest, now } from './request-log.js'
 import {
   createValidFileMatcher,
@@ -58,12 +53,10 @@ import {
 } from './pages-i18n.js'
 import { buildDefaultPagesNotFoundResponse } from './pages-default-404.js'
 
-/** Render a Pages renderable to a string for _document and error pages. */
-async function renderToStringAsync(element: TextRenderable): Promise<string> {
-  return renderPagesRenderableToString(element)
-}
-
-async function renderIsrPassToStringAsync(element: TextRenderable): Promise<string> {
+async function renderIsrPassToStringAsync(
+  element: TextRenderable,
+  renderToStringAsync: PagesRenderer['renderPagesRenderableToString'],
+): Promise<string> {
   // The cache-fill render is a second render pass for the same request.
   // Reset render-scoped state so it cannot leak from the streamed response
   // render or affect async work that is still draining from that stream.
@@ -110,7 +103,7 @@ async function streamPageToResponse(
     extraHeaders?: Record<string, string | string[]>
     /** Called after renderToReadableStream resolves (shell ready) to collect head HTML */
     getHeadHTML: () => string | Promise<string>
-    renderRueToString?: (element: TextRenderable) => Promise<string> | string
+    renderer: PagesRenderer
   },
 ): Promise<void> {
   const {
@@ -122,17 +115,17 @@ async function streamPageToResponse(
     statusCode = 200,
     extraHeaders,
     getHeadHTML,
-    renderRueToString,
+    renderer,
   } = options
 
   // Start the body stream FIRST — the promise resolves when the
   // shell is ready (synchronous content outside Suspense boundaries).
   // This triggers the render which populates <Head> tags.
-  const bodyStream = await renderPagesRenderableToReadableStream(
-    element,
-    undefined,
-    renderRueToString,
-  )
+  const bodyStream = await renderer.renderPagesRenderableToReadableStream(element)
+  const shellReady = Reflect.get(bodyStream, 'shellReady')
+  if (shellReady && typeof (shellReady as PromiseLike<void>).then === 'function') {
+    await shellReady
+  }
 
   // Now that the shell has rendered, collect head HTML
   const headHTML = await getHeadHTML()
@@ -141,8 +134,8 @@ async function streamPageToResponse(
   let shellTemplate: string
 
   if (DocumentComponent) {
-    const docElement = createPagesDocumentElement(DocumentComponent)
-    let docHtml = await renderToStringAsync(docElement)
+    const docElement = renderer.createPagesDocumentElement(DocumentComponent)
+    let docHtml = await renderer.renderPagesRenderableToString(docElement)
     // Replace __TEXT_MAIN__ with our stream marker
     docHtml = docHtml.replace('__TEXT_MAIN__', STREAM_BODY_MARKER)
     // Inject head tags
@@ -276,17 +269,10 @@ export function createSSRHandler(
     runner.import('text/head-state'),
     runner.import('text/router-state'),
   ])
-  const renderRueToStringWithRunner = async (element: TextRenderable) => {
-    const renderer = (await runner.import('@rue-js/server-renderer')) as {
-      renderToString?: (element: TextRenderable) => string | Promise<string>
-    }
-    if (typeof renderer.renderToString !== 'function') {
-      throw new Error('text: @rue-js/server-renderer did not export renderToString.')
-    }
-    return renderer.renderToString(element)
-  }
-  ;(globalThis as Record<string, unknown>).__TEXT_RUE_RENDER_TO_STRING__ =
-    renderRueToStringWithRunner
+  const rendererPromise = runner.import(
+    resolveRuntimeEntryModule('pages-renderer-adapter'),
+  ) as Promise<PagesRenderer>
+  rendererPromise.catch(() => {})
   // Suppress unhandled-rejection if the server closes before the first
   // request (common in tests). Errors still propagate when the first
   // request handler awaits _alsRegistration.
@@ -386,8 +372,12 @@ export function createSSRHandler(
       ensureFetchPatch()
       try {
         await _alsRegistration
-        ;(globalThis as Record<string, unknown>).__TEXT_RUE_RENDER_TO_STRING__ =
-          renderRueToStringWithRunner
+        const renderer = await rendererPromise
+        const {
+          createPagesPageElement,
+          withPagesScriptNonce,
+          renderPagesRenderableToString: renderToStringAsync,
+        } = renderer
 
         // Set SSR context for the Pages Router provider so useRouter() returns
         // the correct URL and params during server-side rendering.
@@ -780,6 +770,7 @@ export function createSSRHandler(
                       })
                       const freshBody = await renderIsrPassToStringAsync(
                         withPagesScriptNonce(el, scriptNonce),
+                        renderToStringAsync,
                       )
 
                       // Rebuild __TEXT_DATA__ with fresh props. The hydration
@@ -1146,7 +1137,7 @@ hydrate();
               : typeof headShim.getSSRHeadHTML === 'function'
                 ? headShim.getSSRHeadHTML()
                 : '',
-          renderRueToString: renderRueToStringWithRunner,
+          renderer,
         })
         _renderEnd = now()
 
@@ -1167,6 +1158,7 @@ hydrate();
           })
           const isrBodyHtml = await renderIsrPassToStringAsync(
             withPagesScriptNonce(isrElement, scriptNonce),
+            renderToStringAsync,
           )
           const isrHtml = `<!DOCTYPE html><html><head></head><body><div id="__text">${isrBodyHtml}</div>${allScripts}</body></html>`
           const cacheKey = isrCacheKey(
@@ -1240,6 +1232,11 @@ async function renderErrorPage(
   wrapWithRouterContext?: PagesRouterContextWrapper | null,
   fileMatcher?: ValidFileMatcher,
 ): Promise<void> {
+  const {
+    createPagesPageElement,
+    createPagesDocumentElement,
+    renderPagesRenderableToString: renderToStringAsync,
+  } = (await runner.import(resolveRuntimeEntryModule('pages-renderer-adapter'))) as PagesRenderer
   const matcher = fileMatcher ?? createValidFileMatcher()
   // Try specific status page first, then _error, then fallback
   const candidates =

@@ -4,6 +4,7 @@ Theme 组件概述
 - 额外挂载 Provider、主题算法、token 计算工具。
 - Provider 通过 data-theme 与 CSS 变量做“作用域主题岛”，不依赖运行时 context，也能支持嵌套继承。
 */
+import { provideContext } from '@rue-js/rue/internal/app'
 import { computed, createContext, useContext, type FC } from '@rue-js/rue'
 
 type ThemeInputType = 'checkbox' | 'radio'
@@ -311,7 +312,7 @@ export interface ThemeProviderProps extends ThemeConfig {
   /** 根节点附加类名。 */
   className?: string
   /** render 配置项。 */
-  render?: (scope: ThemeTokenRuntime) => any
+  render?: (runtime: ThemeTokenRuntime) => any
   /** 根节点内联样式。 */
   style?: ThemeStyleRecord | string
   /** 组件子内容。 */
@@ -538,8 +539,7 @@ const defaultConfig: ThemeConfig = {
   theme: 'default',
 }
 
-const ThemeRuntimeContext = createContext<ThemeTokenRuntime | undefined>(undefined)
-const ThemeRuntimeProvider = ThemeRuntimeContext.Provider
+const ThemeRuntimeContext = createContext<(() => ThemeTokenRuntime) | undefined>(undefined)
 
 /** clone Theme Token 的内部工具函数。 */
 const cloneThemeToken = (token: ThemeDesignToken): ThemeDesignToken => {
@@ -1125,7 +1125,18 @@ const createThemeRuntime = (
 /** use Token 的内部工具函数。 */
 const useToken = (config?: ThemeConfig): ThemeTokenRuntime => {
   const inheritedRuntime = useContext(ThemeRuntimeContext)
-  return createThemeRuntime(config, inheritedRuntime)
+  return config === undefined && inheritedRuntime
+    ? inheritedRuntime()
+    : createThemeRuntime(config, inheritedRuntime?.())
+}
+
+export const useThemeRuntime = (config?: ThemeConfig) => {
+  const inheritedRuntime = useContext(ThemeRuntimeContext)
+  return computed(() =>
+    config === undefined && inheritedRuntime
+      ? inheritedRuntime()
+      : createThemeRuntime(config, inheritedRuntime?.()),
+  )
 }
 
 /** use Token Tuple 的内部工具函数。 */
@@ -1180,13 +1191,28 @@ const ThemeInput: FC<ThemeControllerProps> = ({ type = 'checkbox', theme, classN
   )
 }
 
+const ThemeScopedContent: FC<{
+  runtime: () => ThemeTokenRuntime
+  render?: (runtime: ThemeTokenRuntime) => any
+  children?: any
+}> = ({ runtime, render, children }) => (
+  <>
+    {runtime().componentStyleText ? (
+      <style data-rue-theme-components={runtime().scopeId}>
+        {String(runtime().componentStyleText)}
+      </style>
+    ) : null}
+    {render ? render(runtime()) : children}
+  </>
+)
+
 /** 作用域主题容器：通过 data-theme 与 CSS 变量把 token 限定在当前子树。 */
 const ThemeProvider: FC<ThemeProviderProps> = ({
   as = 'div',
   className,
-  render,
   style,
   children,
+  render,
   theme,
   token,
   algorithm,
@@ -1213,23 +1239,10 @@ const ThemeProvider: FC<ThemeProviderProps> = ({
         zeroRuntime,
         baseToken,
       },
-      inheritedRuntime,
+      inheritedRuntime?.(),
     ),
   )
-  const content = () => (render ? render(runtime.get()) : children)
-  const scopedContent = () => {
-    const currentRuntime = runtime.get()
-    return currentRuntime.componentStyleText ? (
-      <>
-        <style data-rue-theme-components={currentRuntime.scopeId}>
-          {currentRuntime.componentStyleText}
-        </style>
-        {content()}
-      </>
-    ) : (
-      content()
-    )
-  }
+  provideContext(ThemeRuntimeContext, () => () => runtime.get())
   const mergedStyle = () => {
     const currentRuntime = runtime.get()
     return mergeStyleInput(
@@ -1267,21 +1280,33 @@ const ThemeProvider: FC<ThemeProviderProps> = ({
     }
   }
 
-  const contextContent = () => (
-    <ThemeRuntimeProvider value={runtime.get()}>{scopedContent()}</ThemeRuntimeProvider>
-  )
-
   if (as === 'section') {
-    return <section {...commonProps()}>{contextContent()}</section>
+    return (
+      <section {...commonProps()}>
+        <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+      </section>
+    )
   }
   if (as === 'article') {
-    return <article {...commonProps()}>{contextContent()}</article>
+    return (
+      <article {...commonProps()}>
+        <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+      </article>
+    )
   }
   if (as === 'span') {
-    return <span {...commonProps()}>{contextContent()}</span>
+    return (
+      <span {...commonProps()}>
+        <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+      </span>
+    )
   }
 
-  return <div {...commonProps()}>{contextContent()}</div>
+  return (
+    <div {...commonProps()}>
+      <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+    </div>
+  )
 }
 
 type ThemeControllerCompound = FC<ThemeControllerProps> & {
@@ -1336,3 +1361,5 @@ export { ConfigProvider, theme }
 
 /** 默认导出主题组件。 */
 export default ThemeController
+
+export { ThemeProvider }

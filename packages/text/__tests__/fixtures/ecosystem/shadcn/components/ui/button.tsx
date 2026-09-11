@@ -33,8 +33,19 @@ export interface ButtonProps extends VariantProps<typeof buttonVariants>, Record
   className?: string
 }
 
-function Button({ className, variant, size, asChild: _asChild = false, ...props }: ButtonProps) {
-  return <button className={cn(buttonVariants({ variant, size, className }))} {...props} />
+function Button({
+  children,
+  className,
+  variant,
+  size,
+  asChild: _asChild = false,
+  ...props
+}: ButtonProps) {
+  return (
+    <button className={cn(buttonVariants({ variant, size, className }))} {...props}>
+      {children}
+    </button>
+  )
 }
 
 export { Button, buttonVariants }

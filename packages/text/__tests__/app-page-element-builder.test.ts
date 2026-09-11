@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
-import { createElement, type RenderableOutput } from './rue-test-utils.js'
+import { createElement, renderToString } from './rue-ssr-test-utils.js'
+import type { RenderableOutput } from '@rue-js/rue'
 import {
   APP_INTERCEPTION_KEY,
   APP_INTERCEPTION_CONTEXT_KEY,
@@ -84,34 +85,6 @@ function createBaseOptions(overrides?: {
   }
 }
 
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-  return (
-    (typeof value === 'object' || typeof value === 'function') &&
-    value !== null &&
-    typeof (value as { then?: unknown }).then === 'function'
-  )
-}
-
-async function findElementByType(
-  value: unknown,
-  type: unknown,
-): Promise<{ props?: Record<string, unknown> } | null> {
-  if (isThenable(value)) {
-    return findElementByType(await value, type)
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = await findElementByType(item, type)
-      if (found) return found
-    }
-    return null
-  }
-  if (typeof value !== 'object' || value === null) return null
-  const element = value as { type?: unknown; props?: { children?: unknown } }
-  if (element.type === type) return element as { props?: Record<string, unknown> }
-  return findElementByType(element.props?.children, type)
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -165,9 +138,8 @@ describe('buildPageElements', () => {
     )
 
     const record = result as Record<string, unknown>
-    const element = await findElementByType(Object.values(record), clientPageReference)
-    expect(element).not.toBeNull()
-    expect(element?.props?.params).toBeDefined()
+    expect(typeof record['route:/client-page']).toBe('function')
+    expect(typeof record['page:/client-page']).toBe('function')
   })
 
   it('includes interception context in the error payload route ID', async () => {
@@ -541,7 +513,9 @@ describe('buildPageElements', () => {
     function MainPage(): RenderableOutput {
       return createElement('div', null, 'main')
     }
-    function SlotPage(): RenderableOutput {
+    let receivedParams: unknown
+    function SlotPage(props: { params: unknown }): RenderableOutput {
+      receivedParams = props.params
       return createElement('span', null, 'slot')
     }
 
@@ -585,13 +559,10 @@ describe('buildPageElements', () => {
     })
 
     const record = result as Record<string, unknown>
-    const slotElement = record['slot:bc:/'] as {
-      props: {
-        params: PromiseLike<AppPageParams>
-      }
-    }
-    expect(slotElement).toBeDefined()
-    const slotParams = await slotElement.props.params
+    const slotElement = record['slot:bc:/']
+    expect(typeof slotElement).toBe('function')
+    await renderToString(slotElement as any)
+    const slotParams = await receivedParams
     // Without the fix, urlParts would be ["base","distinct","alice"], the
     // pattern match would fail, and slotParams would silently fall back to
     // the route's matched params ({ id: "alice" }) — leaving the slot

@@ -179,9 +179,7 @@ const instanceApiRows: ApiRow[] = [
   },
 ]
 
-const declarativeCode = `import { Message } from '@rue-js/design'
-
-<div className="relative min-h-72 overflow-hidden rounded-[1.25rem] border border-base-300">
+const declarativeCode = `import { Message } from '@rue-js/design'<div className="relative min-h-72 overflow-hidden rounded-[1.25rem] border border-base-300">
   <Message className="absolute" placement="top" top={16} gap={12}>
     <Message.Item type="success" content="发布完成，静态资源已刷新。" />
     <Message.Item type="info" content="设计规范已同步到内容工作台。" />
@@ -189,9 +187,7 @@ const declarativeCode = `import { Message } from '@rue-js/design'
   </Message>
 </div>`
 
-const richCode = `import { Message } from '@rue-js/design'
-
-<div className="grid gap-4">
+const richCode = `import { Message } from '@rue-js/design'<div className="grid gap-4">
   <Message.Item
     type="success"
     content={
@@ -214,7 +210,6 @@ const richCode = `import { Message } from '@rue-js/design'
 </div>`
 
 const hookCode = `import { Message } from '@rue-js/design'
-
 const [messageApi, contextHolder] = Message.useMessage({
   getContainer: false,
   placement: 'top-end',
@@ -256,7 +251,6 @@ const [messageApi, contextHolder] = Message.useMessage({
 </div>`
 
 const promiseCode = `import { Message } from '@rue-js/design'
-
 const [messageApi, contextHolder] = Message.useMessage({
   getContainer: false,
   placement: 'bottom-start',
@@ -435,9 +429,7 @@ const MessagePromiseHandlePreview: FC = () => {
   )
 }
 
-const staticCode = `import { Message } from '@rue-js/design'
-
-Message.config({
+const staticCode = `import { Message } from '@rue-js/design'Message.config({
   placement: 'top',
   top: 88,
   maxCount: 3,

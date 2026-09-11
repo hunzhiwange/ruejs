@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Filter from '../index'
@@ -18,11 +19,13 @@ describe('Filter', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Filter data-testid="filter-root">
-        <Filter.Item name="demo" aria-label="All" />
-      </Filter>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Filter data-testid="filter-root">
+          <Filter.Item name="demo" aria-label="All" />
+        </Filter>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -37,12 +40,14 @@ describe('Filter', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Filter.Reset mode="form" data-testid="form-reset" value="×" />
-        <Filter.Reset mode="div" data-testid="div-reset" aria-label="×" name="demo" />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Filter.Reset mode="form" data-testid="form-reset" value="×" />
+          <Filter.Reset mode="div" data-testid="div-reset" aria-label="×" name="demo" />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -60,27 +65,29 @@ describe('Filter', () => {
     resetActiveRuntime()
     const changes: Array<string | undefined> = []
 
-    render(
-      <Filter
-        as="div"
-        data-testid="filter-root"
-        color="primary"
-        variant="outlined"
-        items={[
-          { label: 'All', value: 'all' },
-          { label: 'Open', value: 'open' },
-          { label: 'Closed', value: 'closed' },
-        ]}
-        reset={{ label: 'Clear' }}
-        onChange={value => {
-          changes.push(
-            Array.isArray(value)
-              ? String(value[0] ?? '') || undefined
-              : (value as string | undefined),
-          )
-        }}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Filter
+          as="div"
+          data-testid="filter-root"
+          color="primary"
+          variant="outlined"
+          items={[
+            { label: 'All', value: 'all' },
+            { label: 'Open', value: 'open' },
+            { label: 'Closed', value: 'closed' },
+          ]}
+          reset={{ label: 'Clear' }}
+          onChange={value => {
+            changes.push(
+              Array.isArray(value)
+                ? String(value[0] ?? '') || undefined
+                : (value as string | undefined),
+            )
+          }}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -144,7 +151,7 @@ describe('Filter', () => {
       )
     }
 
-    render(<ControlledFilter />, container)
+    mountTestApp(container, () => render(<ControlledFilter />, container))
 
     await waitForContent(() => {
       const open = container.querySelector('[aria-label="Open"]') as HTMLInputElement
@@ -172,23 +179,25 @@ describe('Filter', () => {
     resetActiveRuntime()
     const changes: Array<string | undefined> = []
 
-    render(
-      <Filter
-        data-testid="filter-form-items"
-        items={[
-          { label: 'Draft', value: 'draft' },
-          { label: 'Published', value: 'published' },
-        ]}
-        defaultValue="draft"
-        onChange={value => {
-          changes.push(
-            Array.isArray(value)
-              ? String(value[0] ?? '') || undefined
-              : (value as string | undefined),
-          )
-        }}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Filter
+          data-testid="filter-form-items"
+          items={[
+            { label: 'Draft', value: 'draft' },
+            { label: 'Published', value: 'published' },
+          ]}
+          defaultValue="draft"
+          onChange={value => {
+            changes.push(
+              Array.isArray(value)
+                ? String(value[0] ?? '') || undefined
+                : (value as string | undefined),
+            )
+          }}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -225,21 +234,23 @@ describe('Filter', () => {
     resetActiveRuntime()
     const changes: string[][] = []
 
-    render(
-      <Filter
-        multiple
-        items={[
-          { label: 'Search', value: 'search' },
-          { label: 'Alerts', value: 'alerts' },
-        ]}
-        defaultValue={['search']}
-        onChange={value => {
-          changes.push(
-            Array.isArray(value) ? value.map(item => String(item)) : value ? [String(value)] : [],
-          )
-        }}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Filter
+          multiple
+          items={[
+            { label: 'Search', value: 'search' },
+            { label: 'Alerts', value: 'alerts' },
+          ]}
+          defaultValue={['search']}
+          onChange={value => {
+            changes.push(
+              Array.isArray(value) ? value.map(item => String(item)) : value ? [String(value)] : [],
+            )
+          }}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -272,16 +283,18 @@ describe('Filter', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Filter
-        multiple
-        items={[
-          { label: 'Search', value: 'search' },
-          { label: 'Alerts', value: 'alerts' },
-        ]}
-        reset={{ label: 'Clear' }}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Filter
+          multiple
+          items={[
+            { label: 'Search', value: 'search' },
+            { label: 'Alerts', value: 'alerts' },
+          ]}
+          reset={{ label: 'Clear' }}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

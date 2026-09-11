@@ -40,8 +40,7 @@ export const renderDesignPreview = (title: string, preview: PreviewFactory) => {
   }
 
   if (typeof preview === 'function') {
-    const PreviewComponent = preview as any
-    return <PreviewComponent />
+    return preview()
   }
 
   return preview ?? null

@@ -1,2 +1,2 @@
-export * from './reactive.shared.js'
-export { default } from './reactive.shared.js'
+export * from './reactive.browser'
+export { default } from './reactive.browser'

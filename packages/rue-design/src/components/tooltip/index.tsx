@@ -178,35 +178,6 @@ const serializeStyle = (style?: string | Record<string, any>) => {
     .join('; ')
 }
 
-/** toggle Class Tokens 的内部工具函数。 */
-const toggleClassTokens = (
-  element: HTMLElement,
-  className: string | undefined,
-  active: boolean,
-) => {
-  if (!className) return
-  className
-    .split(/\s+/)
-    .map(token => token.trim())
-    .filter(Boolean)
-    .forEach(token => element.classList.toggle(token, active))
-}
-
-/** sync Tooltip Open State 的内部工具函数。 */
-const syncTooltipOpenState = (
-  element: EventTarget | null,
-  nextOpen: boolean,
-  manualOnly: boolean,
-  openClassName?: string,
-) => {
-  if (!(element instanceof HTMLElement)) return
-  element.classList.toggle('tooltip-open', nextOpen)
-  toggleClassTokens(element, openClassName, nextOpen)
-  element.classList.toggle('before:!opacity-0', manualOnly && !nextOpen)
-  element.classList.toggle('after:!opacity-0', manualOnly && !nextOpen)
-  element.classList.toggle('[&>.tooltip-content]:!opacity-0', manualOnly && !nextOpen)
-}
-
 /** 归一化 Trigger 的内部工具函数。 */
 const normalizeTrigger = (trigger?: TooltipTrigger | TooltipTrigger[]) => {
   const source = Array.isArray(trigger) ? trigger : trigger ? [trigger] : ['hover', 'focus']
@@ -326,68 +297,102 @@ const Content: FC<TooltipContentProps> = ({ as = 'div', className, style, childr
     )
   }
 
-  return (
-    <Component {...rest} className={contentClassName} style={style}>
+  return Component === 'div' ? (
+    <div {...rest} className={contentClassName} style={style}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={contentClassName} style={style}>
+      {children}
+    </span>
+  ) : Component === 'p' ? (
+    <p {...rest} className={contentClassName} style={style}>
+      {children}
+    </p>
+  ) : Component === 'section' ? (
+    <section {...rest} className={contentClassName} style={style}>
+      {children}
+    </section>
+  ) : Component === 'label' ? (
+    <label {...rest} className={contentClassName} style={style}>
+      {children}
+    </label>
+  ) : Component === 'button' ? (
+    <button {...rest} className={contentClassName} style={style}>
+      {children}
+    </button>
+  ) : Component === 'article' ? (
+    <article {...rest} className={contentClassName} style={style}>
+      {children}
+    </article>
+  ) : (
+    <></>
   )
 }
 
 /** Root 的内部工具函数。 */
-const Root: FC<TooltipProps> = ({
-  as = 'div',
-  tip,
-  title,
-  content,
-  overlay,
-  placement = 'top',
-  color,
-  open,
-  defaultOpen,
-  disabled,
-  arrow = true,
-  trigger,
-  openClassName,
-  overlayClassName,
-  overlayStyle,
-  classNames,
-  styles,
-  className,
-  style,
-  onOpenChange,
-  children,
-  ...rest
-}) => {
+const Root: FC<TooltipProps> = (
+  {
+    as = 'div',
+    tip,
+    title,
+    content,
+    overlay,
+    placement = 'top',
+    color,
+    open,
+    defaultOpen,
+    disabled,
+    arrow = true,
+    trigger,
+    openClassName,
+    overlayClassName,
+    overlayStyle,
+    classNames,
+    styles,
+    className,
+    style,
+    onOpenChange,
+    children,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const Component = as as any
   const bodyId = `rue-tooltip-${tooltipIdSeed++}`
   const uncontrolledOpen = ref(defaultOpen ?? false)
   let openIntent = defaultOpen ?? false
   const resolvedContent = resolveTooltipContent(overlay, title, content, tip)
   const hasContent =
-    resolvedContent !== undefined && resolvedContent !== null && resolvedContent !== false
+    slots.content != null ||
+    (resolvedContent !== undefined && resolvedContent !== null && resolvedContent !== false)
   const triggerList = normalizeTrigger(trigger)
   const allowHover = triggerList.includes('hover')
   const allowFocus = triggerList.includes('focus')
   const allowClick = triggerList.includes('click')
   const allowContextMenu = triggerList.includes('contextMenu')
-  const currentOpen = open ?? uncontrolledOpen.value
+  const currentOpen = () => open ?? uncontrolledOpen.value
   const hasCustomColor = !!color && !isPresetColor(color)
   const bodyClassName = mergeClassNames(classNames?.body, overlayClassName)
   const bodyStyle = mergeStyles(styles?.body, overlayStyle)
   const useBodyNode =
     hasContent &&
-    (hasCustomColor ||
+    (slots.content != null ||
+      hasCustomColor ||
       !isPrimitiveTooltipContent(resolvedContent) ||
       !!bodyClassName ||
       Object.keys(bodyStyle ?? {}).length > 0)
   const useDataTip = hasContent && !useBodyNode && isPrimitiveTooltipContent(resolvedContent)
   const manualOnly = !allowHover && !allowFocus
-  const shouldForceHidden = !disabled && (open === false || (!currentOpen && manualOnly))
+  const shouldForceHidden = () => !disabled && (open === false || (!currentOpen() && manualOnly))
 
   const updateOpen = (nextOpen: boolean) => {
     const latestOpen = open ?? openIntent
     if (disabled || nextOpen === latestOpen) return
-    if (open === undefined) openIntent = nextOpen
+    if (open === undefined) {
+      openIntent = nextOpen
+      uncontrolledOpen.value = nextOpen
+    }
     if (onOpenChange) onOpenChange(nextOpen)
   }
 
@@ -399,35 +404,38 @@ const Root: FC<TooltipProps> = ({
       })
     : mergeStyles(bodyStyle)
 
-  let rootClassName = disabled ? '' : 'tooltip'
-  if (!disabled) {
-    rootClassName = mergeClassNames(rootClassName, `tooltip-${PLACEMENT_CLASS_MAP[placement]}`)
-    if (color && isPresetColor(color)) {
-      rootClassName = mergeClassNames(rootClassName, `tooltip-${color}`)
+  const getRootClassName = () => {
+    let rootClassName = disabled ? '' : 'tooltip'
+    if (!disabled) {
+      rootClassName = mergeClassNames(rootClassName, `tooltip-${PLACEMENT_CLASS_MAP[placement]}`)
+      if (color && isPresetColor(color)) {
+        rootClassName = mergeClassNames(rootClassName, `tooltip-${color}`)
+      }
+      if (currentOpen()) {
+        rootClassName = mergeClassNames(rootClassName, 'tooltip-open', openClassName)
+      }
+      if (!arrow || hasCustomColor) {
+        rootClassName = mergeClassNames(rootClassName, 'after:!hidden')
+      }
+      if (shouldForceHidden()) {
+        rootClassName = mergeClassNames(
+          rootClassName,
+          'before:!opacity-0',
+          'after:!opacity-0',
+          '[&>.tooltip-content]:!opacity-0',
+        )
+      }
     }
-    if (currentOpen) {
-      rootClassName = mergeClassNames(rootClassName, 'tooltip-open', openClassName)
-    }
-    if (!arrow || hasCustomColor) {
-      rootClassName = mergeClassNames(rootClassName, 'after:!hidden')
-    }
-    if (shouldForceHidden) {
-      rootClassName = mergeClassNames(
-        rootClassName,
-        'before:!opacity-0',
-        'after:!opacity-0',
-        '[&>.tooltip-content]:!opacity-0',
-      )
-    }
+
+    rootClassName = mergeClassNames(rootClassName, classNames?.root, className)
+
+    return rootClassName
   }
-
-  rootClassName = mergeClassNames(rootClassName, classNames?.root, className)
-
   const { onMouseEnter, onMouseLeave, onFocus, onBlur, onClick, onContextMenu, ...domProps } = rest
 
   const rootProps = {
     ...domProps,
-    className: rootClassName || undefined,
+    className: getRootClassName() || undefined,
     style: serializeStyle(rootStyle),
     onMouseEnter: (event: any) => {
       callHandler(onMouseEnter, event)
@@ -451,7 +459,6 @@ const Root: FC<TooltipProps> = ({
         const nextOpen = !(open ?? openIntent)
         updateOpen(nextOpen)
         if (open === undefined) {
-          syncTooltipOpenState(event?.currentTarget, nextOpen, manualOnly, openClassName)
         }
       }
     },
@@ -462,7 +469,6 @@ const Root: FC<TooltipProps> = ({
         const nextOpen = !(open ?? openIntent)
         updateOpen(nextOpen)
         if (open === undefined) {
-          syncTooltipOpenState(event?.currentTarget, nextOpen, manualOnly, openClassName)
         }
       }
     },
@@ -478,8 +484,8 @@ const Root: FC<TooltipProps> = ({
     rootProps['aria-describedby'] = bodyId
   }
 
-  const renderOverlayBody = () => {
-    if (!useBodyNode || disabled) return null
+  const RenderOverlayBody = () => {
+    if (!useBodyNode || disabled) return <></>
 
     return (
       <div
@@ -487,15 +493,15 @@ const Root: FC<TooltipProps> = ({
         className={mergeClassNames('tooltip-content', bodyClassName)}
         style={Object.keys(bodyFinalStyle ?? {}).length > 0 ? bodyFinalStyle : undefined}
       >
-        {resolvedContent}
+        {slots.content ? slots.content : <span>{String(resolvedContent ?? '')}</span>}
       </div>
     )
   }
 
   if (as === 'span') {
     return (
-      <span {...rootProps}>
-        {renderOverlayBody()}
+      <span {...rootProps} className={getRootClassName()}>
+        <RenderOverlayBody />
         {children}
       </span>
     )
@@ -503,8 +509,8 @@ const Root: FC<TooltipProps> = ({
 
   if (as === 'label') {
     return (
-      <label {...rootProps}>
-        {renderOverlayBody()}
+      <label {...rootProps} className={getRootClassName()}>
+        <RenderOverlayBody />
         {children}
       </label>
     )
@@ -512,8 +518,8 @@ const Root: FC<TooltipProps> = ({
 
   if (as === 'button') {
     return (
-      <button {...rootProps}>
-        {renderOverlayBody()}
+      <button {...rootProps} className={getRootClassName()}>
+        <RenderOverlayBody />
         {children}
       </button>
     )
@@ -521,8 +527,8 @@ const Root: FC<TooltipProps> = ({
 
   if (as === 'section') {
     return (
-      <section {...rootProps}>
-        {renderOverlayBody()}
+      <section {...rootProps} className={getRootClassName()}>
+        <RenderOverlayBody />
         {children}
       </section>
     )
@@ -530,8 +536,8 @@ const Root: FC<TooltipProps> = ({
 
   if (as === 'article') {
     return (
-      <article {...rootProps}>
-        {renderOverlayBody()}
+      <article {...rootProps} className={getRootClassName()}>
+        <RenderOverlayBody />
         {children}
       </article>
     )
@@ -539,18 +545,50 @@ const Root: FC<TooltipProps> = ({
 
   if (as === 'div') {
     return (
-      <div {...rootProps}>
-        {renderOverlayBody()}
+      <div {...rootProps} className={getRootClassName()}>
+        <RenderOverlayBody />
         {children}
       </div>
     )
   }
 
-  return (
-    <Component {...rootProps}>
-      {renderOverlayBody()}
+  return Component === 'div' ? (
+    <div {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
+      {children}
+    </span>
+  ) : Component === 'p' ? (
+    <p {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
+      {children}
+    </p>
+  ) : Component === 'section' ? (
+    <section {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
+      {children}
+    </section>
+  ) : Component === 'label' ? (
+    <label {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
+      {children}
+    </label>
+  ) : Component === 'button' ? (
+    <button {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
+      {children}
+    </button>
+  ) : Component === 'article' ? (
+    <article {...rootProps} className={getRootClassName()}>
+      <RenderOverlayBody />
+      {children}
+    </article>
+  ) : (
+    <></>
   )
 }
 

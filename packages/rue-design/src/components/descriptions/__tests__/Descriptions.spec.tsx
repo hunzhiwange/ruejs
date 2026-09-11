@@ -1,3 +1,5 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp, disposeTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -25,7 +27,7 @@ const setViewportWidth = (width: number) => {
 
 afterEach(() => {
   for (const container of mountedContainers) {
-    render(null as any, container)
+    disposeTestApp(container)
   }
   mountedContainers.length = 0
   document.body.innerHTML = ''
@@ -36,17 +38,19 @@ describe('Descriptions', () => {
   it('renders items with bordered rows and fills the last row span', async () => {
     const container = mountTestContainer()
 
-    render(
-      <Descriptions
-        bordered
-        column={3}
-        items={[
-          { key: 'status', label: 'Status', children: 'Running' },
-          { key: 'owner', label: 'Owner', children: 'Mina', span: 2 },
-          { key: 'address', label: 'Address', children: 'Shanghai HQ' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Descriptions
+          bordered
+          column={3}
+          items={[
+            { key: 'status', label: 'Status', content: 'Running' },
+            { key: 'owner', label: 'Owner', content: 'Mina', span: 2 },
+            { key: 'address', label: 'Address', content: 'Shanghai HQ' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -64,21 +68,27 @@ describe('Descriptions', () => {
     })
   })
 
-  it('supports Descriptions.Item children in vertical mode', async () => {
+  it('supports explicit items and an extra slot in vertical mode', async () => {
     const container = mountTestContainer()
 
-    render(
-      <Descriptions
-        title="Workspace"
-        extra={<button className="btn btn-ghost btn-xs">Sync</button>}
-        bordered
-        layout="vertical"
-        column={2}
-      >
-        <Descriptions.Item label="Project">Nebula</Descriptions.Item>
-        <Descriptions.Item label="Owner">Ari</Descriptions.Item>
-      </Descriptions>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Descriptions
+          title="Workspace"
+          bordered
+          layout="vertical"
+          column={2}
+          items={[
+            { label: 'Project', content: 'Nebula' },
+            { label: 'Owner', content: 'Ari' },
+          ]}
+        >
+          <Template slot="extra">
+            <button className="btn btn-ghost btn-xs">Sync</button>
+          </Template>
+        </Descriptions>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -98,20 +108,27 @@ describe('Descriptions', () => {
     })
   })
 
-  it('renders complex jsx children in plain vertical mode', async () => {
+  it('renders styled text tokens from a data schema in plain vertical mode', async () => {
     const container = mountTestContainer()
 
-    render(
-      <Descriptions layout="vertical" column={2}>
-        <Descriptions.Item label="Headline">Orbit launch week</Descriptions.Item>
-        <Descriptions.Item label="Assets">
-          <div className="flex flex-wrap gap-2">
-            <span className="badge badge-outline badge-sm">KV</span>
-            <span className="badge badge-outline badge-sm">Motion</span>
-          </div>
-        </Descriptions.Item>
-      </Descriptions>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Descriptions
+          layout="vertical"
+          column={2}
+          items={[
+            { label: 'Headline', content: 'Orbit launch week' },
+            {
+              label: 'Assets',
+              tokens: [
+                { text: 'KV', className: 'badge badge-outline badge-sm' },
+                { text: 'Motion', className: 'badge badge-outline badge-sm' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -122,22 +139,22 @@ describe('Descriptions', () => {
     })
   })
 
-  it('renders label and content from slot-backed Descriptions.Item metadata', async () => {
+  it('renders explicit labels and token content in bordered mode', async () => {
     const container = mountTestContainer()
 
-    render(
-      <Descriptions bordered layout="vertical" column={2}>
-        <Descriptions.Item label={<span>Headline</span>}>
-          <span>Orbit launch week</span>
-        </Descriptions.Item>
-        <Descriptions.Item label={<span>Assets</span>}>
-          <div className="flex flex-wrap gap-2">
-            <span>KV</span>
-            <span>Motion</span>
-          </div>
-        </Descriptions.Item>
-      </Descriptions>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Descriptions
+          bordered
+          layout="vertical"
+          column={2}
+          items={[
+            { label: 'Headline', content: 'Orbit launch week' },
+            { label: 'Assets', tokens: [{ text: 'KV' }, { text: 'Motion' }] },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -153,16 +170,18 @@ describe('Descriptions', () => {
     setViewportWidth(520)
     const container = mountTestContainer()
 
-    render(
-      <Descriptions
-        column={{ xs: 1, md: 2 }}
-        items={[
-          { key: 'signal', label: 'Signal', children: 'Warm' },
-          { key: 'owner', label: 'Owner', children: 'Luna' },
-          { key: 'region', label: 'Region', children: 'APAC' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Descriptions
+          column={{ xs: 1, md: 2 }}
+          items={[
+            { key: 'signal', label: 'Signal', content: 'Warm' },
+            { key: 'owner', label: 'Owner', content: 'Luna' },
+            { key: 'region', label: 'Region', content: 'APAC' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

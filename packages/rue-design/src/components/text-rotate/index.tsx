@@ -38,7 +38,7 @@ export interface TextRotateItem extends TypographyInlineProps {
   /** 数据项唯一标识。 */
   key?: string | number
   /** text 区域配置。 */
-  text?: any
+  text?: string | number
   /** 链接地址。 */
   href?: string
   /** 链接或定位目标。 */
@@ -85,21 +85,25 @@ const mergeStyle = (base?: any, extra?: any) => {
 }
 
 /** 渲染 Item 的内部工具函数。 */
-const renderItem = (
-  item: TextRotateItem,
-  index: number,
-  itemClassName?: string,
-  itemStyle?: any,
-) => {
+const RenderItem = ({
+  arg0: item,
+  arg1: index,
+  arg2: itemClassName,
+  arg3: itemStyle,
+}: {
+  arg0: TextRotateItem
+  arg1: number
+  arg2?: string
+  arg3?: any
+}) => {
   const key = item.key ?? index
-  const content = item.children ?? item.text
+  const content = item.text
   const mergedClassName = appendClassName(itemClassName ?? '', item.className).trim() || undefined
   const mergedStyle = mergeStyle(itemStyle, item.style)
 
   if (item.href) {
     return (
       <Typography.Link
-        key={key}
         href={item.href}
         target={item.target}
         rel={item.rel}
@@ -114,15 +118,13 @@ const renderItem = (
         italic={item.italic}
         className={mergedClassName}
         style={mergedStyle}
-      >
-        {content}
-      </Typography.Link>
+        text={content}
+      />
     )
   }
 
   return (
     <Typography.Text
-      key={key}
       as={item.as}
       type={item.type}
       disabled={item.disabled}
@@ -135,9 +137,8 @@ const renderItem = (
       italic={item.italic}
       className={mergedClassName}
       style={mergedStyle}
-    >
-      {content}
-    </Typography.Text>
+      text={content}
+    />
   )
 }
 
@@ -162,7 +163,9 @@ const TextRotateRoot: FC<TextRotateProps> = ({
       <div {...rest} className={cls} style={style}>
         {hasItems ? (
           <span className={innerClassName} style={innerStyle}>
-            {items.map((item, index) => renderItem(item, index, itemClassName, itemStyle))}
+            {items.map((item, index) => (
+              <RenderItem arg0={item} arg1={index} arg2={itemClassName} arg3={itemStyle} />
+            ))}
           </span>
         ) : (
           children
@@ -175,7 +178,9 @@ const TextRotateRoot: FC<TextRotateProps> = ({
     <span {...rest} className={cls} style={style}>
       {hasItems ? (
         <span className={innerClassName} style={innerStyle}>
-          {items.map((item, index) => renderItem(item, index, itemClassName, itemStyle))}
+          {items.map((item, index) => (
+            <RenderItem arg0={item} arg1={index} arg2={itemClassName} arg3={itemStyle} />
+          ))}
         </span>
       ) : (
         children

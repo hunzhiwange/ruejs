@@ -90,6 +90,9 @@ pub(crate) fn extract_reactive_jsx_key_expr(jsx_el: &JSXElement) -> Option<Expr>
 }
 
 fn jsx_element_to_slot_expr(vt: &mut VaporTransform, jsx_el: &JSXElement) -> Expr {
+    if let Some(builtin) = crate::element_builtin::build(vt, jsx_el) {
+        return builtin;
+    }
     if crate::utils::is_component(&jsx_el.opening.name) {
         if let Some(dynamic) =
             crate::element_component::build_compiled_dynamic_component_expr(vt, jsx_el)
@@ -97,14 +100,12 @@ fn jsx_element_to_slot_expr(vt: &mut VaporTransform, jsx_el: &JSXElement) -> Exp
             return dynamic;
         }
         if crate::element_component::is_compiled_component_element(vt, jsx_el)
-            && let JSXElementName::Ident(component) = &jsx_el.opening.name
             && let Some(read_props) =
                 crate::element_component::build_compiled_component_read_props(vt, jsx_el)
         {
-            return call_ident(
-                "_$compiledComponent",
-                vec![Expr::Ident(component.clone()), read_props],
-            );
+            let component = crate::element_component::jsx_name_to_expr(&jsx_el.opening.name)
+                .expect("compiled component names exclude namespaces");
+            return call_ident("_$compiledComponent", vec![component, read_props]);
         }
         let mut component = jsx_el.clone();
         let rewrite =
@@ -189,31 +190,41 @@ fn jsx_expr_to_slot_expr(vt: &mut VaporTransform, inner: &Expr) -> Option<Expr> 
 
 pub(crate) fn is_compiled_slot_source_expr(expr: &Expr) -> bool {
     let inner = crate::utils::unwrap_expr(expr);
-    matches!(
-        inner,
-        Expr::Member(MemberExpr { obj, prop: MemberProp::Ident(_), .. })
-            if matches!(
-                    crate::utils::unwrap_expr(obj.as_ref()),
-                    Expr::Ident(id)
-                        if matches!(id.sym.as_ref(), "props" | "__rue_props")
-                )
-    ) || matches!(
-        inner,
-        Expr::Call(CallExpr { callee: Callee::Expr(callee), args, .. })
-            if args.is_empty()
-                && matches!(
-                    crate::utils::unwrap_expr(callee.as_ref()),
-                    Expr::Member(MemberExpr { obj, prop: MemberProp::Ident(prop), .. })
-                        if prop.sym.as_ref() == "get"
-                            && matches!(crate::utils::unwrap_expr(obj.as_ref()), Expr::Ident(id) if id.sym.as_ref().starts_with("_$rueCompiledSlot"))
-                )
-    )
+    matches!(inner, Expr::Member(MemberExpr { obj, .. }) if matches!(crate::utils::unwrap_expr(obj), Expr::Ident(id) if id.sym == "slots"))
+        || matches!(
+            inner,
+            Expr::Member(MemberExpr { obj, prop: MemberProp::Ident(prop), .. })
+                if prop.sym.as_ref() == "children" && matches!(
+                        crate::utils::unwrap_expr(obj.as_ref()),
+                        Expr::Ident(id)
+                            if matches!(id.sym.as_ref(), "props" | "__rue_props")
+                    )
+        )
+        || matches!(
+            inner,
+            Expr::Call(CallExpr { callee: Callee::Expr(callee), args, .. })
+                if args.is_empty()
+                    && matches!(
+                        crate::utils::unwrap_expr(callee.as_ref()),
+                        Expr::Member(MemberExpr { obj, prop: MemberProp::Ident(prop), .. })
+                            if prop.sym.as_ref() == "get"
+                                && matches!(crate::utils::unwrap_expr(obj.as_ref()), Expr::Ident(id) if id.sym.as_ref().starts_with("_$rueCompiledSlot"))
+                    )
+        )
 }
 
-/// Build the closed compiled slot ABI: `(target, slotProps, owner) -> CompiledBlock`.
-/// The mount helper receives a compiler-generated block factory, never a Renderable value.
+pub(crate) fn is_compiled_slot_expr(vt: &VaporTransform, expr: &Expr) -> bool {
+    is_compiled_slot_source_expr(expr)
+        || matches!(crate::utils::unwrap_expr(expr),
+        Expr::Member(MemberExpr {obj, ..}) if matches!(crate::utils::unwrap_expr(obj), Expr::Ident(id)
+            if vt.reactive_kind(id.sym.as_ref()) == Some(crate::reactive_provenance::ReactiveKind::SlotsValue)))
+}
+
+/// Build the compiled slot ABI. A mounted call returns `CompiledBlock`; a value-style
+/// call without a target returns the compact root so ordinary children helpers remain compatible.
 pub(crate) fn compiled_slot_factory_expr(vt: &mut VaporTransform, inner: &Expr) -> Option<Expr> {
     let compiled = compiled_branch_result(vt, inner)?;
+    let create_ident = vt.next_slot_ident();
     let create = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![],
@@ -224,24 +235,51 @@ pub(crate) fn compiled_slot_factory_expr(vt: &mut VaporTransform, inner: &Expr) 
         return_type: None,
         ctxt: SyntaxContext::empty(),
     });
-    let body = call_ident(
+    let mount = call_ident(
         "_$mountCompiledSlotFactory",
-        vec![Expr::Ident(ident("target")), Expr::Ident(ident("owner")), create],
+        vec![
+            Expr::Ident(ident("target")),
+            Expr::Ident(ident("owner")),
+            Expr::Ident(create_ident.clone()),
+        ],
     );
-    Some(Expr::Arrow(ArrowExpr {
+    let factory = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![
             Pat::Ident(BindingIdent { id: ident("target"), type_ann: None }),
             Pat::Ident(BindingIdent { id: ident("slotProps"), type_ann: None }),
             Pat::Ident(BindingIdent { id: ident("owner"), type_ann: None }),
         ],
-        body: Box::new(BlockStmtOrExpr::Expr(Box::new(body))),
+        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+            span: DUMMY_SP,
+            ctxt: SyntaxContext::empty(),
+            stmts: vec![
+                const_decl(create_ident.clone(), create),
+                Stmt::Return(ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: Some(Box::new(Expr::Cond(CondExpr {
+                        span: DUMMY_SP,
+                        test: Box::new(Expr::Bin(BinExpr {
+                            span: DUMMY_SP,
+                            op: BinaryOp::EqEq,
+                            left: Box::new(Expr::Ident(ident("target"))),
+                            right: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
+                        })),
+                        cons: Box::new(call_ident(create_ident.sym.as_ref(), vec![])),
+                        alt: Box::new(mount),
+                    }))),
+                }),
+            ],
+        })),
         is_async: false,
         is_generator: false,
         type_params: None,
         return_type: None,
         ctxt: SyntaxContext::empty(),
-    }))
+    });
+    (crate::compiled_invariants::compiled_slot_factory_proof(&factory)
+        == crate::compiled_invariants::CompiledSlotMountProof::Mountable)
+        .then_some(factory)
 }
 
 fn compiled_root_from_stmts(stmts: Vec<Stmt>) -> Expr {
@@ -400,19 +438,21 @@ pub(crate) fn compiled_branch_result(vt: &mut VaporTransform, expr: &Expr) -> Op
             stmts.push(return_root(root));
             Some(compiled_root_from_stmts(stmts))
         }
-        _ if is_compiled_slot_source_expr(inner) => Some(call_ident(
-            "_$compiledSlotValue",
-            vec![Expr::Arrow(ArrowExpr {
-                span: DUMMY_SP,
-                params: vec![],
-                body: Box::new(BlockStmtOrExpr::Expr(Box::new(inner.clone()))),
-                is_async: false,
-                is_generator: false,
-                type_params: None,
-                return_type: None,
-                ctxt: SyntaxContext::empty(),
-            })],
-        )),
+        _ if is_compiled_slot_expr(vt, inner) => {
+            let root = ident("_root");
+            let anchor = ident("__rue_slot_anchor");
+            let mut stmts = vec![
+                const_decl(root.clone(), call_ident("_$createDocumentFragment", vec![])),
+                const_decl(
+                    anchor.clone(),
+                    call_ident("_$compiledCreateComment", vec![string_expr("rue:slot")]),
+                ),
+                crate::emit::append_child(root.clone(), Expr::Ident(anchor.clone())),
+            ];
+            crate::element_slot::render_between_for_slot_at(vt, &root, &anchor, inner, &mut stmts);
+            stmts.push(return_root(root));
+            Some(compiled_root_from_stmts(stmts))
+        }
         _ if is_static_empty_like(inner) => Some(empty_compiled_root_expr()),
         _ if crate::vapor::is_compiled_reactive_scalar_expr(
             vt,
@@ -557,6 +597,16 @@ pub(crate) fn try_make_compiled_branch_expr(vt: &mut VaporTransform, expr: &Expr
                 BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing
             ) =>
         {
+            if binary.op != BinaryOp::LogicalAnd
+                && !is_static_empty_like(binary.left.as_ref())
+                && !crate::vapor::is_compiled_reactive_scalar_expr(
+                    vt,
+                    binary.left.as_ref(),
+                    &shadows,
+                )
+            {
+                return None;
+            }
             let value = ident("__rue_branch_value");
             let value_expr = Expr::Ident(value.clone());
             let right = compiled_branch_result(vt, binary.right.as_ref())?;
@@ -670,7 +720,7 @@ pub(crate) fn is_compiled_branch_expr(vt: &VaporTransform, expr: &Expr) -> bool 
                 crate::element_children::is_compiled_safe_fragment(vt, fragment)
             }
             Expr::Call(call) => crate::element_children::compiled_list_call_is_safe(vt, call),
-            _ if is_compiled_slot_source_expr(inner) => true,
+            _ if is_compiled_slot_expr(vt, inner) => true,
             _ if is_static_empty_like(inner) => true,
             _ if crate::vapor::is_compiled_reactive_scalar_expr(
                 vt,
@@ -699,7 +749,16 @@ pub(crate) fn is_compiled_branch_expr(vt: &VaporTransform, expr: &Expr) -> bool 
                     BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing
                 ) =>
             {
-                result_is_safe(vt, binary.right.as_ref())
+                // OR/nullish may return the left value itself. Only a proven scalar
+                // can use scalar_compiled_root_expr; unknown renderables stay opaque.
+                (binary.op == BinaryOp::LogicalAnd
+                    || is_static_empty_like(binary.left.as_ref())
+                    || crate::vapor::is_compiled_reactive_scalar_expr(
+                        vt,
+                        binary.left.as_ref(),
+                        &vt.current_scalar_constructor_shadows(),
+                    ))
+                    && result_is_safe(vt, binary.right.as_ref())
             }
             _ => false,
         }
@@ -842,6 +901,16 @@ fn call_returns_jsx_renderable(call: &CallExpr) -> bool {
     compiled_memo_call_returns_jsx_renderable(call)
         || hook_wrapped_call_returns_jsx_renderable(call)
         || map_call_returns_jsx_renderable(call)
+        || matches!(
+            call_callee_ident_name(call),
+            Some(
+                "_$compiledRoot"
+                    | "_$compiledStaticRoot"
+                    | "_$compiledScalarRoot"
+                    | "_$compiledBranch"
+                    | "_$compiledComponent"
+            )
+        )
         || match &call.callee {
             Callee::Expr(callee) => arrow_returns_jsx_renderable(callee.as_ref()),
             _ => false,
@@ -1062,7 +1131,7 @@ pub(crate) fn is_accessor_get_call_expr(call: &CallExpr) -> bool {
     prop.sym.as_ref() == "get"
 }
 
-fn is_opaque_renderable_call_expr(call: &CallExpr) -> bool {
+fn is_potentially_renderable_call_expr(call: &CallExpr) -> bool {
     if is_accessor_get_call_expr(call) {
         return true;
     }
@@ -1070,8 +1139,44 @@ fn is_opaque_renderable_call_expr(call: &CallExpr) -> bool {
     let Some(callee_name) = call_callee_ident_name(call) else {
         return false;
     };
-
     !is_text_coercion_call_name(callee_name)
+}
+
+fn is_opaque_renderable_call_expr(vt: &VaporTransform, call: &CallExpr) -> bool {
+    if !is_potentially_renderable_call_expr(call) {
+        return false;
+    }
+    if is_accessor_get_call_expr(call) {
+        return true;
+    }
+    let Some(callee_name) = call_callee_ident_name(call) else {
+        return false;
+    };
+    if vt.current_renderable_local_names().contains(callee_name) {
+        return true;
+    }
+    !vt.current_plain_local_names().contains(callee_name)
+}
+
+pub(crate) fn is_proven_plain_call_expr(vt: &VaporTransform, expr: &Expr) -> bool {
+    let Expr::Call(call) = crate::utils::unwrap_expr(expr) else {
+        return false;
+    };
+    let Some(callee_name) = call_callee_ident_name(call) else {
+        return false;
+    };
+    vt.current_plain_local_names().contains(callee_name)
+        && !vt.current_renderable_local_names().contains(callee_name)
+}
+
+pub(crate) fn is_known_renderable_call_expr(vt: &VaporTransform, expr: &Expr) -> bool {
+    let Expr::Call(call) = crate::utils::unwrap_expr(expr) else {
+        return false;
+    };
+    call_returns_jsx_renderable(call)
+        || call_callee_ident_name(call)
+            .map(|name| vt.current_renderable_local_names().contains(name))
+            .unwrap_or(false)
 }
 
 fn arrow_returns_known_renderable(vt: &VaporTransform, expr: &Expr) -> bool {
@@ -1117,9 +1222,10 @@ fn expr_is_renderable_local_alias_source(
 
     match unwrapped {
         Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+        Expr::Arrow(_) | Expr::Fn(_) => arrow_returns_jsx_renderable(unwrapped),
         Expr::Ident(id) => known_renderable_locals.contains(id.sym.as_ref()),
         Expr::Call(call) => {
-            call_returns_jsx_renderable(call) || is_opaque_renderable_call_expr(call)
+            call_returns_jsx_renderable(call) || is_potentially_renderable_call_expr(call)
         }
         Expr::Cond(CondExpr { cons, alt, .. }) => {
             expr_is_renderable_local_alias_source(cons.as_ref(), known_renderable_locals)
@@ -1172,6 +1278,113 @@ pub(crate) fn collect_renderable_local_alias_names<'a>(
     aliases
 }
 
+fn is_proven_plain_return_expr(expr: &Expr) -> bool {
+    match crate::utils::unwrap_expr(expr) {
+        Expr::Lit(_) | Expr::Object(_) => true,
+        Expr::Member(_) => true,
+        Expr::Unary(unary) => {
+            !matches!(unary.op, UnaryOp::Delete) && is_proven_plain_return_expr(unary.arg.as_ref())
+        }
+        Expr::Bin(binary) => {
+            is_proven_plain_return_expr(binary.left.as_ref())
+                && is_proven_plain_return_expr(binary.right.as_ref())
+        }
+        Expr::Cond(cond) => {
+            is_proven_plain_return_expr(cond.cons.as_ref())
+                && is_proven_plain_return_expr(cond.alt.as_ref())
+        }
+        Expr::Tpl(template) => {
+            template.exprs.iter().all(|expr| is_proven_plain_return_expr(expr.as_ref()))
+        }
+        Expr::Call(call) => {
+            call_callee_ident_name(call).map(is_text_coercion_call_name).unwrap_or(false)
+        }
+        Expr::OptChain(chain) => match chain.base.as_ref() {
+            OptChainBase::Member(_) => true,
+            OptChainBase::Call(call) => {
+                matches!(
+                    crate::utils::unwrap_expr(call.callee.as_ref()),
+                    Expr::Ident(name) if is_text_coercion_call_name(name.sym.as_ref())
+                )
+            }
+        },
+        _ => false,
+    }
+}
+
+#[derive(Default)]
+struct PlainFunctionReturns {
+    saw_return: bool,
+    all_plain: bool,
+}
+
+impl Visit for PlainFunctionReturns {
+    fn visit_return_stmt(&mut self, ret: &ReturnStmt) {
+        self.saw_return = true;
+        self.all_plain &= ret.arg.as_deref().map(is_proven_plain_return_expr).unwrap_or(true);
+    }
+
+    fn visit_function(&mut self, _: &Function) {}
+
+    fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+}
+
+fn function_has_proven_plain_return(function: &Function) -> bool {
+    let Some(body) = &function.body else {
+        return false;
+    };
+    let mut returns = PlainFunctionReturns { saw_return: false, all_plain: true };
+    body.visit_with(&mut returns);
+    returns.saw_return && returns.all_plain
+}
+
+fn arrow_has_proven_plain_return(arrow: &ArrowExpr) -> bool {
+    match arrow.body.as_ref() {
+        BlockStmtOrExpr::Expr(expr) => is_proven_plain_return_expr(expr.as_ref()),
+        BlockStmtOrExpr::BlockStmt(body) => {
+            let mut returns = PlainFunctionReturns { saw_return: false, all_plain: true };
+            body.visit_with(&mut returns);
+            returns.saw_return && returns.all_plain
+        }
+    }
+}
+
+pub(crate) fn collect_plain_local_function_names<'a>(
+    decls: impl IntoIterator<Item = &'a Decl>,
+    renderable_names: &HashSet<String>,
+) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for decl in decls {
+        match decl {
+            Decl::Fn(function)
+                if !renderable_names.contains(function.ident.sym.as_ref())
+                    && function_has_proven_plain_return(&function.function) =>
+            {
+                names.insert(function.ident.sym.to_string());
+            }
+            Decl::Var(var) if var.kind == VarDeclKind::Const => {
+                for declarator in &var.decls {
+                    let Pat::Ident(binding) = &declarator.name else {
+                        continue;
+                    };
+                    if renderable_names.contains(binding.id.sym.as_ref()) {
+                        continue;
+                    }
+                    let Some(init) = declarator.init.as_deref() else {
+                        continue;
+                    };
+                    if matches!(crate::utils::unwrap_expr(init), Expr::Arrow(arrow) if arrow_has_proven_plain_return(arrow))
+                    {
+                        names.insert(binding.id.sym.to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    names
+}
+
 fn contains_nested_opaque_renderable_expr(vt: &VaporTransform, inner: &Expr) -> bool {
     let unwrapped = crate::utils::unwrap_expr(inner);
     if crate::utils::is_static_empty_like(unwrapped) {
@@ -1191,7 +1404,7 @@ fn contains_nested_opaque_renderable_expr(vt: &VaporTransform, inner: &Expr) -> 
             !is_plain_local_member_expr(vt, unwrapped) && is_non_ref_member_expr(unwrapped)
         }
         Expr::Call(call) => {
-            is_opaque_renderable_call_expr(call) || map_call_returns_known_renderable(vt, call)
+            is_opaque_renderable_call_expr(vt, call) || map_call_returns_known_renderable(vt, call)
         }
         Expr::Cond(CondExpr { cons, alt, .. }) => {
             contains_nested_opaque_renderable_expr(vt, cons.as_ref())
@@ -1232,7 +1445,7 @@ fn contains_opaque_renderable_expr(vt: &VaporTransform, inner: &Expr) -> bool {
             !is_plain_local_member_expr(vt, unwrapped) && is_non_ref_member_expr(unwrapped)
         }
         Expr::Call(call) => {
-            is_opaque_renderable_call_expr(call) || map_call_returns_known_renderable(vt, call)
+            is_opaque_renderable_call_expr(vt, call) || map_call_returns_known_renderable(vt, call)
         }
         Expr::Cond(CondExpr { cons, alt, .. }) => {
             contains_nested_opaque_renderable_expr(vt, cons.as_ref())
@@ -1431,6 +1644,33 @@ pub fn contains_jsx_in_expr(inner_top: &Expr) -> bool {
     }
 }
 
+// Objects and arrays are not closed child capabilities. A map that reaches
+// this fallback has already failed the compiled list lowering contract.
+fn reject_unsupported_child_value(inner: &Expr) -> bool {
+    let unsupported = match crate::utils::unwrap_expr(inner) {
+        Expr::Object(_) | Expr::Array(_) => true,
+        Expr::Call(call) => matches!(
+            &call.callee,
+            Callee::Expr(callee) if matches!(
+                crate::utils::unwrap_expr(callee),
+                Expr::Member(member) if matches!(&member.prop, MemberProp::Ident(prop) if prop.sym == "map")
+            )
+        ),
+        _ => false,
+    };
+    if unsupported {
+        let message = "Rue children value requires a compiled scalar, block, or slot factory";
+        if swc_core::common::errors::HANDLER.is_set() {
+            swc_core::common::errors::HANDLER.with(|handler| {
+                handler.struct_span_err(swc_core::common::Spanned::span(inner), message).emit();
+            });
+        } else {
+            panic!("{message}");
+        }
+    }
+    unsupported
+}
+
 pub fn emit_element_expr_container_child(
     vt: &mut VaporTransform,
     el_ident: &Ident,
@@ -1440,7 +1680,7 @@ pub fn emit_element_expr_container_child(
     log::debug("element_expr: emit container child");
     // 处理元素子节点中的表达式容器：
     // - 若为 `obj.map(cb)` 且回调返回 JSX，生成 compiled keyed row factory
-    // - 若为 `props.children` 或普通插槽，生成单个注释并以 `renderAnchor` 渲染
+    // - 若为 `props.children` 或普通插槽，生成单个注释并以 compiled slot ABI 渲染
     // - 若表达式包含 JSX（条件/逻辑），统一改写为可挂载槽值再作为插槽渲染
     // - 若不含 JSX：
     //   - 父标签为 `style`：直接设置一次或 watch 更新 `textContent`
@@ -1460,6 +1700,9 @@ pub fn emit_element_expr_container_child(
                 return;
             }
 
+            if reject_unsupported_child_value(inner) {
+                return;
+            }
             let inner_expr = crate::utils::unwrap_expr(expr.as_ref()).clone();
             // 识别任意对象的 .children 作为插槽（不再局限 props.children）
             if crate::utils::is_children_member_expr(&inner_expr) {
@@ -1478,8 +1721,13 @@ pub fn emit_element_expr_container_child(
                 let parent_tag = vt.el_tag_by_ident.get(&el_ident.sym.to_string()).cloned();
                 let parent_is_style = matches!(parent_tag.as_deref(), Some("style"));
                 let parent_is_svg = parent_tag.as_deref().map(is_svg_tag).unwrap_or(false);
-                let is_opaque_renderable_expr =
-                    crate::element_expr::contains_opaque_renderable_expr(vt, &inner_top);
+                let is_proven_scalar = crate::vapor::is_compiled_reactive_scalar_expr(
+                    vt,
+                    &inner_top,
+                    &vt.current_scalar_constructor_shadows(),
+                );
+                let is_opaque_renderable_expr = !is_proven_scalar
+                    && crate::element_expr::contains_opaque_renderable_expr(vt, &inner_top);
                 if contains_jsx || (!parent_is_style && !parent_is_svg && is_opaque_renderable_expr)
                 {
                     // 含 JSX 或“可能返回可挂载内容”的不透明表达式走 slot path；
@@ -1651,6 +1899,9 @@ pub(crate) fn emit_element_expr_container_child_at(
         return;
     }
 
+    if reject_unsupported_child_value(inner) {
+        return;
+    }
     let is_children = crate::utils::is_children_member_expr(inner);
     if !is_children && let Some(compiled_branch) = try_make_compiled_branch_expr(vt, inner) {
         crate::element_slot::render_compiled_branch_for_slot_at(

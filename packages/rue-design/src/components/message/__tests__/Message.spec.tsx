@@ -1,3 +1,5 @@
+import { ToastHolder } from '../../toast'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Message from '..'
@@ -23,11 +25,13 @@ describe('Message', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Message data-testid="message-root">
-        <Message.Item type="success" content="发布成功" data-testid="message-item" />
-      </Message>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Message data-testid="message-root">
+          <Message.Item type="success" content="发布成功" data-testid="message-item" />
+        </Message>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -48,7 +52,7 @@ describe('Message', () => {
 
       return (
         <div>
-          {contextHolder}
+          <ToastHolder state={contextHolder} />
           <button
             type="button"
             data-testid="open"
@@ -80,7 +84,7 @@ describe('Message', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await click(container.querySelector('[data-testid="open"]'))
 
@@ -114,7 +118,7 @@ describe('Message', () => {
 
       return (
         <div data-testid="scope-box">
-          {contextHolder}
+          <ToastHolder state={contextHolder} />
           <button
             type="button"
             data-testid="open-local"
@@ -128,7 +132,7 @@ describe('Message', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await click(container.querySelector('[data-testid="open-local"]'))
     await flush(5)

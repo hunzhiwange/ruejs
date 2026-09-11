@@ -4,7 +4,7 @@ Textarea 组件概述
 - 继续兼容原有 color / size / ghost 用法，避免设计页和业务代码回退。
 */
 import type { FC } from '@rue-js/rue'
-import { onMounted, ref, render as renderRue, useRef, watch } from '@rue-js/rue'
+import { onMounted, ref, useRef, watch } from '@rue-js/rue'
 
 /** TextareaTone 语义色类型。 */
 export type TextareaTone =
@@ -56,7 +56,7 @@ export interface TextareaShowCountInfo {
 /** TextareaShowCountConfig 配置对象。 */
 export interface TextareaShowCountConfig {
   /** formatter 配置项。 */
-  formatter?: (info: TextareaShowCountInfo) => any
+  formatter?: (info: TextareaShowCountInfo) => string | number
 }
 
 /** TextareaAllowClearConfig 配置对象。 */
@@ -287,29 +287,6 @@ const Textarea: FC<TextareaProps> = ({
     )
   }
 
-  const syncCountDisplay = () => {
-    if (!countElementRef.current || !hasCount) return
-    renderRue(
-      stringifyCountContent(
-        renderCountContent(showCount, {
-          count: currentLength(),
-          maxLength,
-        }),
-      ),
-      countElementRef.current,
-    )
-  }
-
-  const syncClearButtonVisibility = () => {
-    if (!clearButtonElementRef.current?.classList) return
-    clearButtonElementRef.current.classList.toggle('hidden', currentLength() <= 0 || !!disabled)
-  }
-
-  const syncAffixes = () => {
-    syncCountDisplay()
-    syncClearButtonVisibility()
-  }
-
   const syncAutoSize = () => {
     const element = textareaRef.current
     if (!element) return
@@ -387,7 +364,7 @@ const Textarea: FC<TextareaProps> = ({
     const target = event.target as HTMLTextAreaElement | null
     currentValue.value = target?.value ?? ''
     syncAutoSize()
-    syncAffixes()
+
     if (onInput) onInput(event)
   }
 
@@ -395,7 +372,7 @@ const Textarea: FC<TextareaProps> = ({
     const target = event.target as HTMLTextAreaElement | null
     currentValue.value = target?.value ?? ''
     syncAutoSize()
-    syncAffixes()
+
     if (onChange) onChange(event)
   }
 
@@ -413,7 +390,7 @@ const Textarea: FC<TextareaProps> = ({
     element.value = ''
     currentValue.value = ''
     syncAutoSize()
-    syncAffixes()
+
     element.focus()
     triggerNativeChangeEvents(element)
     if (onClear) onClear(event)
@@ -422,7 +399,6 @@ const Textarea: FC<TextareaProps> = ({
   onMounted(() => {
     syncValueState()
     syncAutoSize()
-    syncAffixes()
   })
 
   watch(
@@ -433,7 +409,6 @@ const Textarea: FC<TextareaProps> = ({
       }
       syncValueState()
       syncAutoSize()
-      syncAffixes()
     },
     { immediate: true },
   )
@@ -442,7 +417,6 @@ const Textarea: FC<TextareaProps> = ({
     () => autoSize,
     () => {
       syncAutoSize()
-      syncAffixes()
     },
     { immediate: true },
   )
@@ -528,7 +502,6 @@ const Textarea: FC<TextareaProps> = ({
           <button
             ref={(element: HTMLButtonElement | null) => {
               clearButtonElementRef.current = element ?? undefined
-              syncClearButtonVisibility()
             }}
             type="button"
             tabIndex={-1}
@@ -536,13 +509,17 @@ const Textarea: FC<TextareaProps> = ({
             className={appendClassName(
               appendClassName(
                 'btn btn-ghost btn-xs absolute right-2 top-2 h-7 min-h-0 w-7 rounded-full p-0 text-base-content/55 hover:text-base-content',
-                initialTextValue.length > 0 ? undefined : 'hidden',
+                currentLength() > 0 ? undefined : 'hidden',
               ),
               clearButtonClassName,
             )}
             onClick={handleClear}
           >
-            {clearConfig?.clearIcon ?? <DefaultClearIcon />}
+            {clearConfig?.clearIcon ? (
+              <span>{String(clearConfig.clearIcon)}</span>
+            ) : (
+              <DefaultClearIcon />
+            )}
           </button>
         ) : null}
       </div>
@@ -550,14 +527,19 @@ const Textarea: FC<TextareaProps> = ({
         <div
           ref={(element: HTMLDivElement | null) => {
             countElementRef.current = element ?? undefined
-            syncCountDisplay()
           }}
           className={appendClassName(
             'flex justify-end text-xs leading-5 text-base-content/60',
             countClassName,
           )}
           data-rue-textarea-count="true"
-        />
+        >
+          {String(
+            stringifyCountContent(
+              renderCountContent(showCount, { count: currentLength(), maxLength }),
+            ),
+          )}
+        </div>
       ) : null}
     </div>
   )

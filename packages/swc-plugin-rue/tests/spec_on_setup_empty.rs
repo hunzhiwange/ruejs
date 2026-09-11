@@ -20,7 +20,7 @@ const Comp: FC = () => {
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { _$compiledSetup } from "@rue-js/rue/internal/compiler";
+import { _$compiledSetup } from "@rue-js/rue/internal/reactive";
 import { type FC } from '@rue-js/rue';
 const Comp: FC = ()=>{
     const _$useSetup = _$compiledSetup("useSetup:0:0", ()=>{

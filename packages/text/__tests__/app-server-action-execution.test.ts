@@ -521,9 +521,10 @@ describe('app server action execution helpers', () => {
       formState: null,
       actionError: error,
       actionFailed: true,
+      cookies: ['session=1; Path=/'],
     })
     expect(reportedErrors.map(e => e.message)).toEqual(['boom'])
-    expect(clearedCookies).not.toHaveBeenCalled() // Only cleared if response is rendered here
+    expect(clearedCookies).toHaveBeenCalledTimes(1) // Cookies travel with the progressive render result
     expect(clearContext).not.toHaveBeenCalled() // Handled by app-rsc-handler
 
     errorSpy.mockRestore()

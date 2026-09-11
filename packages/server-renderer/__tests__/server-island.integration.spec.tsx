@@ -2,16 +2,15 @@
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { type FC } from '@rue-js/rue'
 import {
-  createRueIslandDescriptor,
-  createRueServerIslandDescriptor,
+  createIslandContainerHtml,
+  escapeIslandAttribute,
+  escapeIslandJson,
   startRueIslandLoader,
 } from '@rue-js/runtime/island'
 import { startRueServerIslandLoader } from '@rue-js/runtime/server-island'
-
-import { renderToString } from '../src'
 import { createServerIslandHandler, encodeServerIslandPayload } from '../src/server-island'
+import { compileNodePlan } from '../../runtime/__tests__/node-plan-test-utils'
 
 const waitFor = async (assertion: () => void) => {
   let lastError: unknown
@@ -29,57 +28,54 @@ const waitFor = async (assertion: () => void) => {
 
 describe('server island end-to-end protocol', () => {
   const key = crypto.getRandomValues(new Uint8Array(32))
-  const ClientBadge: FC<{ label: string }> = props => (
-    <button data-client-badge>{`hydrated ${props.label}`}</button>
+  const badgeSource =
+    'export const View = props => <button data-client-badge>{`hydrated ${props.label}`}</button>'
+  const badgeServer = compileNodePlan(badgeSource, 'server')
+  const badgeClient = compileNodePlan(badgeSource, 'hydrate')
+  const panelServer = compileNodePlan(
+    'export const View = props => <section data-user-panel={props.layout}><h2>{`Welcome, ${props.username}`}</h2><div innerHTML={props.island}/></section>',
+    'server',
   )
-  const UserPanel: FC<{ layout: string; username: string }> = props => (
-    <section data-user-panel={props.layout}>
-      <h2>{`Welcome, ${props.username}`}</h2>
-      {
-        createRueIslandDescriptor({
-          component: ClientBadge,
-          props: { label: 'client badge' },
-          metadata: {
-            id: 'client-badge',
-            component: '/private/ClientBadge.tsx',
-            exportName: 'default',
-            hydrate: 'load',
-          },
-        }) as any
-      }
-    </section>
+  const fallbackServer = compileNodePlan(
+    'export const View = () => <p data-user-fallback>Loading your account</p>',
+    'server',
   )
-
-  const handler = createServerIslandHandler<FC<any>>({
+  const ClientBadge = badgeClient.View
+  const handler = createServerIslandHandler({
     key,
-    resolve: id => (id === 'user-panel' ? UserPanel : null),
-    render: ({ component, props, request }) => {
-      const cookie = request.headers.get('cookie') || ''
-      const username = cookie.includes('session=ada') ? 'Ada Lovelace' : 'Guest'
-      return renderToString(component, { props: { ...props, username } })
+    resolve: id => (id === 'user-panel' ? panelServer.View : null),
+    render: async ({ component, props, request }) => {
+      const username = request.headers.get('cookie')?.includes('session=ada')
+        ? 'Ada Lovelace'
+        : 'Guest'
+      const island = createIslandContainerHtml({
+        id: 'client-badge',
+        component: 'client-badge',
+        hydrate: 'load',
+        props: { label: 'client badge' },
+        html: await badgeServer.renderToString(badgeServer.View, {
+          props: { label: 'client badge' },
+        }),
+      })
+      return panelServer.renderToString(component, { props: { ...props, username, island } })
     },
   })
 
-  const renderShell = (props: Record<string, unknown>, maxGetUrlLength = 2048) =>
-    renderToString(
-      createRueServerIslandDescriptor({
-        id: 'user-panel',
-        props,
-        fallback: <p data-user-fallback>Loading your account</p>,
-      }) as any,
-      {
-        serverIslands: {
-          endpoint: '/_rue/server-island',
-          maxGetUrlLength,
-          encode: payload =>
-            encodeServerIslandPayload({
-              ...payload,
-              expiresAt: Date.now() + 60_000,
-              key,
-            }),
-        },
-      },
-    )
+  // Server-island transport emits protocol HTML explicitly, outside the node writer.
+  const renderShell = async (props: Record<string, unknown>, maxGetUrlLength = 2048) => {
+    const envelope = await encodeServerIslandPayload({
+      id: 'user-panel',
+      props,
+      expiresAt: Date.now() + 60_000,
+      key,
+    })
+    const payload = JSON.stringify(envelope)
+    const url = '/_rue/server-island?payload=' + encodeURIComponent(payload)
+    const fallback = await fallbackServer.renderToString(fallbackServer.View)
+    return url.length <= maxGetUrlLength
+      ? `<rue-server-island data-rue-method="GET" data-rue-url="${escapeIslandAttribute(url)}">${fallback}</rue-server-island>`
+      : `<rue-server-island data-rue-method="POST" data-rue-endpoint="/_rue/server-island">${fallback}<script type="application/json" data-rue-server-island-payload>${escapeIslandJson(payload)}</script></rue-server-island>`
+  }
 
   const createFetch =
     (cookie = 'session=ada') =>

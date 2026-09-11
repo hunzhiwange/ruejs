@@ -27,8 +27,6 @@
 - [ref()](/api/api/reactivity-core#ref)
 - [computed()](/api/api/reactivity-core#computed)
 - [watchEffect()](/api/api/reactivity-core#watcheffect)
-- [watchPostEffect()](/api/api/reactivity-core#watchposteffect)
-- [watchSyncEffect()](/api/api/reactivity-core#watchsynceffect)
 - [watch()](/api/api/reactivity-core#watch)
 
 ### 响应式：工具 {#reactivity-utilities}
@@ -41,9 +39,6 @@
 
 - [shallowRef()](/api/api/reactivity-advanced#shallowref)
 - [triggerRef()](/api/api/reactivity-advanced#triggerref)
-- [customRef()](/api/api/reactivity-advanced#customref)
-- [effectScope()](/api/api/reactivity-advanced#effectscope)
-- [getCurrentScope()](/api/api/reactivity-advanced#getcurrentscope)
 - [onScopeDispose()](/api/api/reactivity-advanced#onscopedispose)
 
 ### 生命周期钩子 {#lifecycle-hooks}
@@ -55,7 +50,6 @@
 - [onBeforeUpdate()](/api/api/composition-api-lifecycle#onbeforeupdate)
 - [onBeforeUnmount()](/api/api/composition-api-lifecycle#onbeforeunmount)
 - [onErrorCaptured()](/api/api/composition-api-lifecycle#onerrorcaptured)
-- [onRenderTracked()](/api/api/composition-api-lifecycle#onrendertracked)
 - [onRenderTriggered()](/api/api/composition-api-lifecycle#onrendertriggered)
 - [onActivated()](/api/api/composition-api-lifecycle#onactivated)
 - [onDeactivated()](/api/api/composition-api-lifecycle#ondeactivated)

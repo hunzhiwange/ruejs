@@ -29,11 +29,11 @@ const FileInputMessage: FC<FileInputMessageProps> = ({ message }) => {
 }
 
 const createImageDataUrl = (label: string, background: string, foreground = '#ffffff') => {
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+  return `data:image/svg+xml;charset=UTF-8, ${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320">
       <rect width="480" height="320" rx="24" fill="${background}" />
-      <circle cx="122" cy="110" r="34" fill="rgba(255,255,255,.25)" />
-      <path d="M82 232l78-78 68 68 45-45 125 125H82Z" fill="rgba(255,255,255,.25)" />
+      <circle cx="122" cy="110" r="34" fill="rgba(255, 255, 255, .25)" />
+      <path d="M82 232l78-78 68 68 45-45 125 125H82Z" fill="rgba(255, 255, 255, .25)" />
       <text x="240" y="174" text-anchor="middle" font-size="34" font-family="Arial, sans-serif" fill="${foreground}">${label}</text>
     </svg>`,
   )}`
@@ -277,7 +277,7 @@ const FileInputDemo: FC = () => {
                 variant="primary"
                 multiple
                 maxCount={3}
-                accept=".pdf,.png,.mp4,application/pdf,image/png,video/mp4"
+                accept=".pdf, .png, .mp4, application/pdf, image/png, video/mp4"
                 defaultFileList={cloneFiles(recommendedSeed)}
                 onChange={(info: FileInputChangeInfo | Event) =>
                   handleRecommendedChange(info as FileInputChangeInfo)
@@ -296,7 +296,6 @@ const FileInputDemo: FC = () => {
             </div>
           }
           code={`import { FileInput } from '@rue-js/design'
-
 const defaultFileList = [
   {
     uid: 'brief',
@@ -366,7 +365,6 @@ const defaultFileList = [
           }
           code={`import { ref } from '@rue-js/rue'
 import { FileInput } from '@rue-js/design'
-
 const fileList = ref([
   { uid: 'deck', name: 'launch-deck.key', status: 'ready', description: '等待上传' },
   { uid: 'copy', name: 'copy-review.docx', status: 'done', description: '已同步' },
@@ -408,9 +406,7 @@ const fileList = ref([
               }}
             />
           }
-          code={`import { FileInput } from '@rue-js/design'
-
-<FileInput.Dragger
+          code={`import { FileInput } from '@rue-js/design'<FileInput.Dragger
   multiple
   variant="secondary"
   title="拖拽附件、截图或压缩包到这里"
@@ -441,7 +437,6 @@ const fileList = ref([
             </div>
           }
           code={`import { FileInput } from '@rue-js/design'
-
 const fileList = [
   {
     uid: 'cover',
@@ -506,7 +501,6 @@ const fileList = [
           }
           code={`import { ref } from '@rue-js/rue'
 import { FileInput } from '@rue-js/design'
-
 const fileList = ref([])
 
 <FileInput.Dragger
@@ -539,9 +533,7 @@ const fileList = ref([])
           title="File input"
           tab={tabs.basic}
           preview={<FileInput />}
-          code={`import { FileInput } from '@rue-js/design'
-
-<FileInput />`}
+          code={`import { FileInput } from '@rue-js/design'<FileInput />`}
         />
 
         <PreviewBlock

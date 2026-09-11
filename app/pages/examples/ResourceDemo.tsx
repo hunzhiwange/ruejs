@@ -26,95 +26,30 @@ type CommitResource = ReturnType<typeof createResource<Branch, CommitItem[]>>
 type BranchSignal = SignalHandle<Branch>
 
 const SOURCE_CODE = [
-  "import { _$compiledRoot } from '@rue-js/rue/internal';",
-  "import { createResource, renderAnchor, type SignalHandle, type FC, signal, watchEffect } from '@rue-js/rue';",
+  "import { createResource, type FC, signal } from '@rue-js/rue'",
   '',
-  "const API_URL = 'https://api.github.com/repos/rust-lang/rust/commits?per_page=3&sha=';",
-  "const BRANCHES = ['main', 'beta', 'stable'] as const;",
+  'const CommitRow: FC<{ item: CommitItem }> = ({ item }) => (',
+  '  <li>{item.commit.message}</li>',
+  ')',
   '',
-  'type Branch = (typeof BRANCHES)[number];',
-  '',
-  'type CommitItem = {',
-  '  html_url: string;',
-  '  sha: string;',
-  '  author: { html_url: string } | null;',
-  '  commit: {',
-  '    message: string;',
-  '    author: {',
-  '      name: string;',
-  '      date: string;',
-  '    };',
-  '  };',
-  '};',
-  '',
-  'type CommitResource = ReturnType<typeof createResource<Branch, CommitItem[]>>;',
-  'type BranchSignal = SignalHandle<Branch>;',
-  '',
-  'const truncate = (value: string) => {',
-  "  const newline = value.indexOf('\\n');",
-  '  return newline > 0 ? value.slice(0, newline) : value;',
-  '};',
-  '',
-  "const formatDate = (value: string) => value.replace(/T|Z/g, ' ');",
-  '',
-  'const renderResourceResult = (resource: CommitResource) => {',
-  '  const error = resource.error.get();',
-  '  if (error) {',
-  '    return <p>Error: {String(error)}</p>;',
-  '  }',
-  '',
-  '  const commits = resource.data.get();',
-  '  return commits?.length ? (',
-  '    <ul>',
-  '      {commits.map(item => (',
-  '        <li key={item.sha}>',
-  '          <a href={item.html_url} target="_blank" rel="noreferrer">',
-  '            {item.sha.slice(0, 7)}',
-  '          </a>',
-  '          <span> - </span>',
-  '          <span>{truncate(item.commit.message)}</span>',
-  '          <br />',
-  '          <span>by {item.commit.author.name} at {formatDate(item.commit.author.date)}</span>',
-  '        </li>',
-  '      ))}',
-  '    </ul>',
-  '  ) : null;',
-  '};',
+  'const CommitList: FC<{ commits: CommitItem[] }> = ({ commits }) => (',
+  '  <ul>{commits.map(item => <CommitRow key={item.sha} item={item} />)}</ul>',
+  ')',
   '',
   'const PreviewPanel: FC = () => {',
-  '  const currentBranch = signal<Branch>(BRANCHES[0]);',
-  '  const commits = createResource<Branch, CommitItem[]>(currentBranch, async branch => {',
-  '    const response = await fetch(`${API_URL}${branch}`);',
-  '    if (!response.ok) {',
-  '      throw new Error(`请求失败：${response.status}`);',
-  '    }',
+  "  const currentBranch = signal<'main' | 'beta' | 'stable'>('main')",
+  '  const commits = createResource(currentBranch, async branch => {',
+  '    const response = await fetch(API_URL + branch)',
+  "    if (!response.ok) throw new Error('请求失败：' + response.status)",
+  '    return response.json()',
+  '  })',
   '',
-  '    const data = (await response.json()) as CommitItem[];',
-  '    return Array.isArray(data) ? data : [];',
-  '  });',
-  '',
-  '  return _$compiledRoot(() => {',
-  '    const root = document.createDocumentFragment();',
-  "    const anchor = document.createComment('rue:resource-demo-preview-anchor');",
-  '    root.appendChild(anchor);',
-  '',
-  '    watchEffect(() => {',
-  '      const parent = (anchor.parentNode || root) as any;',
-  '      renderAnchor(',
-  '        <div>',
-  '          <p>rust@{currentBranch.get()}</p>',
-  '          <p>resource.loading = {String(commits.loading.get())}</p>',
-  '          {commits.loading.get() && <p>Loading...</p>}',
-  '          {!commits.loading.get() && renderResourceResult(commits)}',
-  '        </div>,',
-  '        parent,',
-  '        anchor as any,',
-  '      );',
-  '    });',
-  '',
-  '    return root as any;',
-  '  }) as any;',
-  '};',
+  '  return commits.loading.get() ? (',
+  '    <p>Loading...</p>',
+  '  ) : (',
+  '    <CommitList commits={commits.data.get() ?? []} />',
+  '  )',
+  '}',
 ].join('\n')
 
 const formatError = (value: unknown) => {
@@ -131,7 +66,7 @@ const truncate = (value: string) => {
 
 const formatDate = (value: string) => value.replace(/T|Z/g, ' ')
 
-const renderResourceResult = (resource: CommitResource) => {
+const ResourceResult: FC<{ resource: CommitResource }> = ({ resource }) => {
   const error = resource.error.get()
   if (error) {
     return (
@@ -176,7 +111,10 @@ const renderResourceResult = (resource: CommitResource) => {
   ) : null
 }
 
-const renderPreviewCard = (currentBranch: BranchSignal, resource: CommitResource) => {
+const PreviewCard: FC<{ currentBranch: BranchSignal; resource: CommitResource }> = ({
+  currentBranch,
+  resource,
+}) => {
   return (
     <div className="card bg-base-100 shadow">
       <div className="card-body gap-4">
@@ -219,7 +157,7 @@ const renderPreviewCard = (currentBranch: BranchSignal, resource: CommitResource
           </div>
         )}
 
-        {!resource.loading.get() && renderResourceResult(resource)}
+        {!resource.loading.get() && <ResourceResult resource={resource} />}
       </div>
     </div>
   )
@@ -237,7 +175,7 @@ const PreviewPanel: FC = () => {
     return Array.isArray(data) ? data : []
   })
 
-  return renderPreviewCard(currentBranch, resource)
+  return <PreviewCard currentBranch={currentBranch} resource={resource} />
 }
 
 const ResourceDemo: FC = () => {

@@ -123,18 +123,18 @@ export const View = () => {
     assert!(!out.contains("_$compiledCreateElement"), "{output}");
     assert!(!out.contains("_$compiledAppendChild"), "{output}");
     assert!(!out.contains("document.createElement"), "{output}");
-    assert!(out.contains("_el1.className"), "{output}");
-    assert!(out.contains("_$setStyle(_el1"), "{output}");
+    assert!(out.contains("_el1.setAttribute(\"class\""), "{output}");
+    assert!(out.contains("_el1.style.cssText"), "{output}");
     assert!(out.contains("_el1.removeAttribute(\"title\")"), "{output}");
-    assert!(out.contains("_$setValue(_el2"), "{output}");
+    assert!(out.contains("_el2.value"), "{output}");
     assert!(out.contains(".checked ="), "{output}");
     assert!(out.contains(".disabled ="), "{output}");
     assert!(out.contains(".multiple ="), "{output}");
     assert!(!out.contains("watchEffect"), "{output}");
     assert!(!out.contains("_$setClassName"), "{output}");
-    assert!(out.contains("_$setStyle"), "{output}");
+    assert!(!out.contains("_$setStyle"), "{output}");
     assert!(!out.contains("_$setAttribute"), "{output}");
-    assert!(out.contains("_$setValue"), "{output}");
+    assert!(!out.contains("_$setValue"), "{output}");
     assert!(!out.contains("_$setChecked"), "{output}");
     assert!(!out.contains("_$setDisabled"), "{output}");
 }
@@ -216,7 +216,7 @@ export const View = () => <p style={{ color: loadColor() }} />;
 
         assert!(out.contains("from \"@rue-js/rue/internal"), "{output}");
         assert!(out.contains("effect"), "{output}");
-        assert!(out.contains("_$setStyle"), "{output}");
+        assert!(!out.contains("_$setStyle"), "{output}");
         assert!(out.contains("_$compiledRoot"), "{output}");
         assert!(!out.contains("vapor("), "{output}");
     }
@@ -234,7 +234,7 @@ export const View = () => <div style={makeStyle()} title={loadValue()} />;
 
     assert!(out.contains("from \"@rue-js/rue/internal"), "{output}");
     assert!(out.contains("effect"), "{output}");
-    assert!(out.contains("_$setStyle"), "{output}");
+    assert!(!out.contains("_$setStyle"), "{output}");
     assert!(out.contains(".setAttribute(\"title\""), "{output}");
     assert!(out.contains("_$compiledRoot"), "{output}");
 }
@@ -274,7 +274,7 @@ export const View = (props) => (
     let out = normalize(&output);
     let compiled_import = output
         .lines()
-        .find(|line| line.contains("@rue-js/rue/internal"))
+        .find(|line| line.contains("@rue-js/rue/internal/reactive"))
         .expect("compiled runtime import");
 
     assert!(out.contains("from \"@rue-js/rue/internal"), "{output}");
@@ -323,14 +323,15 @@ export const View = () => (
 }
 
 #[test]
-fn keeps_complex_event_and_ref_capabilities_on_the_vapor_fallback() {
+fn compiles_complex_events_and_refs_without_legacy_fallback() {
     let output = transform_module(
         r#"
 export const Modified = () => <button r-on:click-stop={handleClick}>Modified</button>;
 export const DynamicEvents = () => <button {...eventProps}>Dynamic</button>;
 export const DynamicRef = () => <button ref={chooseRef()}>Ref</button>;
+import { Panel } from './compiled-components';
 export const ComponentRef = () => <Panel ref={panelRef} />;
-export const NativeBridge = () => <Panel r-on:click-native={handleClick} />;
+export const EventBoundary = () => <div r-on:click={handleClick}><Panel /></div>;
 "#,
     );
     let out = normalize(&output);
@@ -340,7 +341,7 @@ export const NativeBridge = () => <Panel r-on:click-native={handleClick} />;
     assert!(out.contains("_$compiledSpreadAttributes"), "{output}");
     assert!(out.contains("_$compiledBindUseRef"), "{output}");
     assert!(out.contains("_$createComponent"), "{output}");
-    assert!(out.contains("_$compiledWithNativeEvents"), "{output}");
+    assert!(!out.contains("_$compiledWithNativeEvents"), "{output}");
     assert!(out.contains("_$compiledRoot"), "{output}");
 }
 
@@ -645,5 +646,34 @@ fn native_key_is_structural_metadata_only() {
             "effect(()=>{ _$setAttribute(el, \"title\", String((row.title))); })"
         )),
         "ordinary native attributes must still be emitted: {out}"
+    );
+}
+
+#[test]
+fn task3_native_fields_do_not_import_legacy_setters() {
+    let output = transform_module(
+        r#"
+import { signal } from '@rue-js/rue';
+export const state = signal('red');
+export const View = () => <section style={String(state.get())}>
+  <input value={state.get()} checked={Boolean(state.get())} required={Boolean(state.get())}/>
+  <svg><circle className={state.get()} /></svg>
+</section>;
+"#,
+    );
+    for token in ["_$setStyle", "_$setValue", "_$setAttribute", "patchStyle", "patchChildren"] {
+        assert!(!output.contains(token), "unexpected {token}: {output}");
+    }
+    assert!(output.contains(".cssText ="), "{output}");
+    assert!(output.contains(".value ="), "{output}");
+    assert!(output.contains(".required ="), "{output}");
+    assert!(output.contains("setAttribute(\"class\""), "{output}");
+}
+
+#[test]
+#[should_panic(expected = "requires an explicit DOM event boundary")]
+fn rejects_component_native_events_without_a_dom_boundary() {
+    transform_module(
+        "import Panel from './Panel'; export const View = () => <Panel r-on:click-native={handleClick} />;",
     );
 }

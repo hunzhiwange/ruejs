@@ -4,9 +4,9 @@
  * Handles `export const metadata` and `export async function generateMetadata()`.
  * Resolves metadata from layouts and pages (pages override layouts).
  */
-import type { TextElement } from '../runtime/render-protocol.js'
-import { createServerProtocolElement } from '../server/element-protocol.js'
-import { headRecordToHTML, reduceHeadChildren } from './head.js'
+import type { ServerPlan } from '@rue-js/runtime/server'
+import type { HeadRecord as TextElement } from './head-records.js'
+import { createHeadRecord, headRecordToHTML, reduceHeadChildren } from './head-records.js'
 import { makeThenableParams } from './thenable-params.js'
 import { isAbsoluteOrProtocolRelativeUrl } from './url-utils.js'
 
@@ -19,7 +19,15 @@ function headElement(
   props: MetadataHeadElementProps,
   ...children: unknown[]
 ): TextElement {
-  return createServerProtocolElement(type, props, ...(children as never[])) as TextElement
+  const { key, ...attributes } = props
+  return createHeadRecord(
+    type,
+    {
+      ...attributes,
+      ...(children.length ? { children: children.length === 1 ? children[0] : children } : {}),
+    },
+    key ?? null,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -83,7 +91,7 @@ export function mergeViewport(viewportList: Viewport[]): Viewport {
 /**
  * Component that renders viewport meta tags into <head>.
  */
-export function ViewportHead({ viewport }: { viewport: Viewport }): TextElement[] {
+export function createViewportHeadRecords({ viewport }: { viewport: Viewport }): TextElement[] {
   const elements: TextElement[] = []
   let key = 0
 
@@ -742,12 +750,15 @@ type MetadataHeadProps = {
 }
 
 export function renderMetadataToHtml(metadata: Metadata, pathname = '/'): string {
-  return reduceHeadChildren([MetadataHead({ metadata, pathname })])
+  return reduceHeadChildren([createMetadataHeadRecords({ metadata, pathname })])
     .map(record => headRecordToHTML(record))
     .join('')
 }
 
-export function MetadataHead({ metadata, pathname = '/' }: MetadataHeadProps): TextElement[] {
+export function createMetadataHeadRecords({
+  metadata,
+  pathname = '/',
+}: MetadataHeadProps): TextElement[] {
   const elements: TextElement[] = []
   let key = 0
 
@@ -1403,4 +1414,19 @@ export function MetadataHead({ metadata, pathname = '/' }: MetadataHeadProps): T
   }
 
   return elements
+}
+
+export function MetadataHead(props: MetadataHeadProps): ServerPlan {
+  return writer => {
+    writer.chunks.push(renderMetadataToHtml(props.metadata, props.pathname))
+  }
+}
+export function ViewportHead(props: { viewport: Viewport }): ServerPlan {
+  return writer => {
+    writer.chunks.push(
+      createViewportHeadRecords(props)
+        .map(record => headRecordToHTML(record))
+        .join(''),
+    )
+  }
 }

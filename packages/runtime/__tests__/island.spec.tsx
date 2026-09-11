@@ -1,199 +1,303 @@
 // @vitest-environment jsdom
-
 import { describe, expect, it, vi } from 'vitest'
-
+import { compileNodePlan } from './node-plan-test-utils'
+import { fixture } from './node-plan.fixture'
 import {
-  createCompiledComponent as createDefaultComponent,
-  renderAnchor,
-  signal,
-  type FC,
-} from '@rue-js/runtime'
-import {
-  _$createComponent as createVaporComponent,
-  renderAnchor as renderVaporAnchor,
-  _$compiledRoot as createVaporHandle,
-} from './legacy-test-render'
-import {
-  RUE_ISLAND_DESCRIPTOR,
-  createIslandContainerHtml,
-  createRueIslandDescriptor,
-  deserializeIslandProps,
-  hydrateRoot,
   mountRueIsland,
-  registerRueIsland,
   serializeIslandProps,
+  deserializeIslandProps,
+  createIslandContainerHtml,
   startRueIslandLoader,
-} from '@rue-js/runtime/island'
+  registerRueIsland,
+} from '../src/island'
 
-import { flush, waitForContent } from './page-test-utils'
-
-import { createTestRenderable, _$compiledRoot } from './legacy-test-render'
-
-describe('Rue island runtime', () => {
-  it('creates a shared island descriptor without executing its component', () => {
-    const componentCalls: string[] = []
-    const Component: FC<{ label: string }> = props => {
-      componentCalls.push(props.label)
-      return createTestRenderable('p', null, props.label)
-    }
-    const props = { label: 'shared descriptor' }
-    const fallback = createTestRenderable('p', null, 'loading')
-
-    const descriptor = createRueIslandDescriptor({
-      component: Component,
-      props,
-      fallback,
-      metadata: {
-        id: 'shared-counter',
-        component: '/src/SharedCounter.tsx',
-        exportName: 'default',
-        hydrate: 'visible',
-      },
-    })
-
-    expect(descriptor[RUE_ISLAND_DESCRIPTOR]).toBe(true)
-    expect(descriptor.component).toBe(Component)
-    expect(descriptor.props).toBe(props)
-    expect(descriptor.fallback).toBe(fallback)
-    expect(descriptor.metadata).toEqual({
-      id: 'shared-counter',
-      component: '/src/SharedCounter.tsx',
-      exportName: 'default',
-      hydrate: 'visible',
-    })
-    expect(componentCalls).toEqual([])
+const flush = async () => {
+  await Promise.resolve()
+  await new Promise(resolve => setTimeout(resolve, 40))
+}
+describe('compiled hydration and Island scheduling boundary', () => {
+  it('claims the exact SSR nodes and binds text, props, events, component slots, branches and keyed lists', async () => {
+    const server = compileNodePlan(fixture, 'server')
+    const client = compileNodePlan(fixture, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const button = host.querySelector('button')!
+    const rows = Array.from(host.querySelectorAll('li'))
+    const handle = client.hydrateRoot(host, client.View)
+    expect(host.querySelector('button')).toBe(button)
+    expect(host.querySelector('svg text')?.namespaceURI).toBe('http://www.w3.org/2000/svg')
+    expect(host.querySelector('foreignObject div')?.namespaceURI).toBe(
+      'http://www.w3.org/1999/xhtml',
+    )
+    button.click()
+    expect(client.clicks.get()).toBe(1)
+    client.title.set('next')
+    client.active.set(false)
+    client.rows.set([
+      { id: 2, label: 'TWO' },
+      { id: 1, label: 'ONE' },
+      { id: 3, label: 'three' },
+    ])
+    await flush()
+    expect(button.textContent).toBe('next')
+    expect(host.querySelector('main')?.getAttribute('title')).toBe('next')
+    expect(host.querySelector('strong')?.textContent).toBe('nextslot')
+    expect(host.querySelector('i')?.textContent).toBe('no')
+    const reordered = Array.from(host.querySelectorAll('li'))
+    expect(reordered.map(node => node.textContent)).toEqual(['TWO', 'ONE', 'three'])
+    expect(reordered[0]).toBe(rows[1])
+    expect(reordered[1]).toBe(rows[0])
+    expect(client.code).not.toMatch(/internal\/dom|internal\/block|serverElement|renderAnchor/)
+    expect(client.modules.join('\n')).not.toMatch(
+      /js-runtime|compiled-render-anchor|\/island\.ts|\/dom\.ts/,
+    )
+    handle.unmount()
+    expect(host.childNodes).toHaveLength(0)
+    button.click()
+    expect(client.clicks.get()).toBe(1)
   })
-
-  it('mounts island descriptors produced inside default and Vapor subtrees', () => {
-    const Component: FC<{ label: string }> = props =>
-      createTestRenderable('button', null, props.label)
-    const createDescriptor = (id: string) =>
-      createRueIslandDescriptor({
-        component: Component,
-        props: { label: id },
-        metadata: { id, component: `/src/${id}.tsx`, hydrate: 'load' },
-      })
-
-    const mountDescriptor = (
-      id: string,
-      createHandle: typeof _$compiledRoot,
-      renderHandle: typeof renderAnchor,
-    ) => {
-      const host = document.createElement('section')
-      const hostAnchor = document.createComment('host')
-      host.appendChild(hostAnchor)
-      const handle = createHandle(() => {
-        const root = document.createDocumentFragment()
-        const anchor = document.createComment('descriptor')
-        root.appendChild(anchor)
-        renderHandle(createDescriptor(id) as any, root as any, anchor as any)
-        return root as any
-      })
-      renderHandle(handle as any, host as any, hostAnchor as any)
-      return {
-        host,
-        dispose: () => renderHandle(null as any, host as any, hostAnchor as any),
-      }
-    }
-
-    for (const mounted of [
-      mountDescriptor('default-descriptor', _$compiledRoot, renderAnchor),
-      mountDescriptor('vapor-descriptor', createVaporHandle, renderVaporAnchor),
+  it('reports the node path on mismatch and never redraws the SSR tree', async () => {
+    const source = 'export const View = () => <section><button>stable</button></section>'
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const section = host.firstElementChild!
+    host.querySelector('button')!.outerHTML = '<input value="typed">'
+    const input = host.querySelector('input')!
+    expect(() => client.hydrateRoot(host, client.View)).toThrow(/hydration mismatch at root\/0\/1/)
+    expect(host.firstElementChild).toBe(section)
+    expect(host.querySelector('input')).toBe(input)
+    expect(input.value).toBe('typed')
+  })
+  it('rejects missing or extra markers without a client render fallback', async () => {
+    const source = 'export const View = () => <p>text</p>'
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    for (const html of [
+      '<p>text</p>',
+      (await server.renderToString(server.View)) + '<aside>extra</aside>',
     ]) {
-      const { host } = mounted
-      const island = host.querySelector('rue-island')
-      expect(island?.getAttribute('data-rue-hydrate')).toBe('load')
-      expect(island?.querySelector('button')?.textContent).toBe(island?.getAttribute('data-rue-id'))
-      expect(island?.querySelector('script[data-rue-props]')).not.toBeNull()
-      mounted.dispose()
-      expect(host.querySelector('rue-island')).toBeNull()
-    }
-  })
-
-  it('accepts island descriptors as component children without accepting arbitrary objects', () => {
-    const IslandContent: FC<{ label: string }> = props => <button>{props.label}</button>
-    const Frame: FC = props => <section data-frame>{props.children}</section>
-    const createDescriptor = (id: string) =>
-      createRueIslandDescriptor({
-        component: IslandContent,
-        props: { label: id },
-        metadata: { id, component: `/src/${id}.tsx`, hydrate: 'load' },
-      })
-
-    const cases = [
-      {
-        id: 'default-child-descriptor',
-        createComponent: createDefaultComponent,
-        render: renderAnchor,
-      },
-      {
-        id: 'vapor-child-descriptor',
-        createComponent: createVaporComponent,
-        render: renderVaporAnchor,
-      },
-    ]
-
-    for (const testCase of cases) {
       const host = document.createElement('div')
-      const anchor = document.createComment(testCase.id)
-      host.appendChild(anchor)
-      const handle = testCase.createComponent(Frame, {
-        children: createDescriptor(testCase.id) as any,
-      })
-      testCase.render(handle as any, host as any, anchor as any)
-
-      const island = host.querySelector('rue-island')
-      expect(island?.getAttribute('data-rue-id')).toBe(testCase.id)
-      expect(island?.querySelector('button')?.textContent).toBe(testCase.id)
-      expect(() =>
-        testCase.createComponent(Frame, { children: { arbitrary: true } as any }),
-      ).toThrow(/Unsupported object inputs are no longer accepted/)
-      testCase.render(null as any, host as any, anchor as any)
-      expect(host.querySelector('rue-island')).toBeNull()
+      host.innerHTML = html
+      const first = host.firstChild
+      expect(() => client.hydrateRoot(host, client.View)).toThrow(/hydration mismatch/)
+      expect(host.firstChild).toBe(first)
     }
   })
-
-  it('renders component handles used as client:only fallbacks', () => {
-    const ClientContent: FC = () => <button>client</button>
-    const Fallback: FC<{ label: string }> = props => <p>{props.label}</p>
-    const Frame: FC = props => <section>{props.children}</section>
-    const cases = [
-      {
-        id: 'default-only-fallback',
-        createComponent: createDefaultComponent,
-        render: renderAnchor,
-      },
-      {
-        id: 'vapor-only-fallback',
-        createComponent: createVaporComponent,
-        render: renderVaporAnchor,
-      },
-    ]
-
-    for (const testCase of cases) {
-      const host = document.createElement('div')
-      const anchor = document.createComment(testCase.id)
-      host.appendChild(anchor)
-      const descriptor = createRueIslandDescriptor({
-        component: ClientContent,
-        props: {},
-        fallback: testCase.createComponent(Fallback, { label: testCase.id }),
-        metadata: {
-          id: testCase.id,
-          component: `/src/${testCase.id}.tsx`,
-          hydrate: 'only',
-        },
-      })
-      const handle = testCase.createComponent(Frame, { children: descriptor as any })
-
-      testCase.render(handle as any, host as any, anchor as any)
-
-      expect(host.querySelector('rue-island p')?.textContent).toBe(testCase.id)
-      testCase.render(null as any, host as any, anchor as any)
-      expect(host.querySelector('rue-island')).toBeNull()
-    }
+  it('keeps Island module loading separate from the root claim entry', async () => {
+    const source = 'export const View = props => <button>{props.label}</button>'
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const island = document.createElement('rue-island')
+    island.innerHTML = await server.renderToString(server.View, { props: { label: 'island' } })
+    const button = island.querySelector('button')
+    const result = await mountRueIsland(
+      island,
+      { default: client.View },
+      { island, props: { label: 'island' }, strategy: 'load' },
+      client.hydrateRoot,
+    )
+    expect(island.querySelector('button')).toBe(button)
+    ;(result as { unmount(): void }).unmount()
+    expect(island.childNodes).toHaveLength(0)
+    expect(deserializeIslandProps(serializeIslandProps({ text: '</script>' }))).toEqual({
+      text: '</script>',
+    })
   })
+})
 
+describe('builtin claim lifecycle', () => {
+  it('claims Teleport inline and preserves node identity across target and disabled updates', async () => {
+    const source = `import { Teleport as Portal, signal } from '@rue-js/rue'; export const disabled = signal(false); export const target = signal('#one'); export const View = () => <Portal to={target.get()} disabled={disabled.get()}><input value="initial"/></Portal>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    document.body.innerHTML = '<main></main><aside id="one"></aside><aside id="two"></aside>'
+    const host = document.querySelector('main')!
+    host.innerHTML = await server.renderToString(server.View)
+    const input = host.querySelector('input')!
+    const handle = client.hydrateRoot(host, client.View)
+    expect(document.querySelector('#one input')).toBe(input)
+    input.value = 'typed'
+    client.target.set('#two')
+    await flush()
+    expect(document.querySelector('#two input')).toBe(input)
+    expect(input.value).toBe('typed')
+    client.disabled.set(true)
+    await flush()
+    expect(host.querySelector('input')).toBe(input)
+    client.disabled.set(false)
+    await flush()
+    handle.unmount()
+    expect(document.querySelector('input')).toBeNull()
+  })
+  it('keeps cached hydrated branch nodes and disposes both active and parked owners', async () => {
+    const source = `import { KeepAlive, signal } from '@rue-js/rue'; export const active = signal(true); export const View = () => <KeepAlive max={2}>{active.get() ? <input value="one"/> : <button>two</button>}</KeepAlive>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const input = host.querySelector('input')!
+    const handle = client.hydrateRoot(host, client.View)
+    input.value = 'typed'
+    client.active.set(false)
+    await flush()
+    expect(host.querySelector('input')).toBeNull()
+    client.active.set(true)
+    await flush()
+    expect(host.querySelector('input')).toBe(input)
+    expect(input.value).toBe('typed')
+    handle.unmount()
+    client.active.set(false)
+    await flush()
+    expect(host.childNodes).toHaveLength(0)
+  })
+  it('runs transition leave/enter hooks for a claimed conditional branch', async () => {
+    const source = `import { Transition, signal } from '@rue-js/rue'; export const active = signal(true); export const calls = []; export const View = () => <Transition css={false} onEnter={(node, done) => { calls.push('enter'); done(); }} onLeave={(node, done) => { calls.push('leave'); done(); }}>{active.get() ? <b>one</b> : <i>two</i>}</Transition>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const first = host.querySelector('b')
+    const handle = client.hydrateRoot(host, client.View)
+    expect(host.querySelector('b')).toBe(first)
+    expect(client.calls).toEqual([])
+    client.active.set(false)
+    await flush()
+    expect(client.calls).toEqual(['enter', 'leave'])
+    expect(host.querySelector('i')?.textContent).toBe('two')
+    expect(host.querySelector('b')).toBeNull()
+    handle.unmount()
+  })
+  it('waits for async component claim under Suspense and binds the existing server nodes', async () => {
+    const source = `import { Suspense } from '@rue-js/rue'; export const calls = []; const Child = async () => <button onClick={() => calls.push('click')}>ready</button>; export const View = () => <Suspense onPending={() => calls.push('pending')} onResolve={() => calls.push('resolve')}><Child/></Suspense>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const button = host.querySelector('button')!
+    const handle = client.hydrateRoot(host, client.View)
+    await handle.ready
+    expect(host.querySelector('button')).toBe(button)
+    expect(client.calls).toEqual(['pending', 'resolve'])
+    button.click()
+    expect(client.calls).toEqual(['pending', 'resolve', 'click'])
+    handle.unmount()
+  })
+})
+
+describe('claim edge cases', () => {
+  it('preserves typed input state on claim and updates it on a subsequent binding change', async () => {
+    const source = `import { signal } from '@rue-js/rue'; export const value = signal('server'); export const View = () => <><input value={value.get()}/><textarea>{value.get()}</textarea><svg><use xlink:href="#shape"/></svg></>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const input = host.querySelector('input')!
+    input.value = 'typed'
+    const handle = client.hydrateRoot(host, client.View)
+    expect(input.value).toBe('typed')
+    expect(host.querySelector('textarea')?.value).toBe('server')
+    client.value.set('next')
+    await flush()
+    expect(input.value).toBe('next')
+    expect(host.querySelector('textarea')?.value).toBe('next')
+    expect(host.querySelector('use')?.getAttributeNS('http://www.w3.org/1999/xlink', 'href')).toBe(
+      '#shape',
+    )
+    handle.unmount()
+  })
+  it('diagnoses a server/client keyed order mismatch before rebinding a row', async () => {
+    const source = `import { signal } from '@rue-js/rue'; export const rows = signal([1,2]); export const View = () => <ul>{rows.get().map(row => <li key={row}>{row}</li>)}</ul>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const row = host.querySelector('li')
+    client.rows.set([2, 1])
+    expect(() => client.hydrateRoot(host, client.View)).toThrow(/row:number:2/)
+    expect(host.querySelector('li')).toBe(row)
+    expect(row?.textContent).toBe('1')
+  })
+  it('does not bind a late async component after unmount', async () => {
+    const source = `export let release; export const calls=[]; const Child = async () => { await new Promise(resolve => { release=resolve }); return <button onClick={() => calls.push('click')}>ready</button>; }; export const View = () => <Child/>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const rendered = server.renderToString(server.View)
+    await waitForContent(() => expect(server.release).toBeTypeOf('function'))
+    server.release()
+    const host = document.createElement('div')
+    host.innerHTML = await rendered
+    const button = host.querySelector('button')!
+    const handle = client.hydrateRoot(host, client.View)
+    handle.unmount()
+    client.release()
+    await handle.ready
+    button.click()
+    expect(client.calls).toEqual([])
+    expect(host.childNodes).toHaveLength(0)
+  })
+  it('claims TransitionGroup keyed rows and preserves their identities on reorder', async () => {
+    const source = `import { TransitionGroup, signal } from '@rue-js/rue'; export const rows=signal([1,2]); export const View=()=> <TransitionGroup tag="ul">{rows.get().map(row=><li key={row}>{row}</li>)}</TransitionGroup>;`
+    const server = compileNodePlan(source, 'server'),
+      client = compileNodePlan(source, 'hydrate')
+    const host = document.createElement('div')
+    host.innerHTML = await server.renderToString(server.View)
+    const rows = Array.from(host.querySelectorAll('li'))
+    const handle = client.hydrateRoot(host, client.View)
+    client.rows.set([2, 1, 3])
+    await flush()
+    expect(host.querySelectorAll('li')[0]).toBe(rows[1])
+    expect(host.querySelectorAll('li')[1]).toBe(rows[0])
+    handle.unmount()
+  })
+})
+
+it('keeps nested Context values scoped per compiled component owner', async () => {
+  const source = `import { createContext, useContext, signal } from '@rue-js/rue'; const Theme=createContext('default'); export const value=signal('dark'); const Child=()=> <span>{useContext(Theme)}</span>; export const View=()=> <><Theme.Provider value={value.get()}><Child/></Theme.Provider><Child/></>;`
+  const server = compileNodePlan(source, 'server'),
+    client = compileNodePlan(source, 'hydrate')
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  expect(Array.from(host.querySelectorAll('span'), n => n.textContent)).toEqual(['dark', 'default'])
+  const handle = client.hydrateRoot(host, client.View)
+  client.value.set('light')
+  await flush()
+  expect(Array.from(host.querySelectorAll('span'), n => n.textContent)).toEqual([
+    'light',
+    'default',
+  ])
+  handle.unmount()
+})
+
+it('compiles a conditional component return as a reactive range plan', async () => {
+  const source = `import {signal} from '@rue-js/rue'; export const active=signal(true); export const View=()=>active.get()?<b>yes</b>:null;`
+  const server = compileNodePlan(source, 'server'),
+    client = compileNodePlan(source, 'hydrate')
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  const handle = client.hydrateRoot(host, client.View)
+  client.active.set(false)
+  await flush()
+  expect(host.querySelector('b')).toBeNull()
+  handle.unmount()
+})
+
+const waitForContent = async (assertion: () => void) => {
+  let error: unknown
+  for (let i = 0; i < 50; i++) {
+    try {
+      assertion()
+      return
+    } catch (e) {
+      error = e
+      await flush()
+    }
+  }
+  throw error
+}
+
+describe('Island protocol and scheduling', () => {
   it('serializes props into script-safe JSON and restores typed values', () => {
     const serialized = serializeIslandProps({
       title: '</script><img src=x onerror=alert(1)>',
@@ -307,454 +411,6 @@ describe('Rue island runtime', () => {
     expect(none).toContain('data-rue-hydrate="none"')
     expect(none).not.toContain('data-rue-entry=')
     expect(none).not.toContain('data-rue-props=')
-  })
-
-  it('hydrates load islands through a supplied module resolver', async () => {
-    document.body.innerHTML = createIslandContainerHtml({
-      id: 'counter',
-      component: '/src/Counter.tsx',
-      entry: '/src/Counter.tsx',
-      hydrate: 'load',
-      props: { count: 2 },
-      html: '<button>server</button>',
-    })
-
-    const Counter: FC<{ count: number }> = props =>
-      createTestRenderable('button', null, `client ${props.count}`)
-
-    startRueIslandLoader({
-      resolveModule: async () => ({ default: Counter }),
-    })
-
-    await waitForContent(() => {
-      expect(document.body.textContent).toContain('client 2')
-    })
-    expect(document.querySelector('rue-island')?.getAttribute('data-rue-status')).toBe('hydrated')
-  })
-
-  it('adopts matching SSR DOM roots without replacing the root element', () => {
-    document.body.innerHTML = `
-      <div id="root">
-        <button id="server-button">server</button>
-        <script type="application/json" data-rue-props="counter">{"count":1}</script>
-      </div>
-    `
-    const container = document.querySelector('#root')!
-    const serverButton = container.querySelector('button')!
-    const onMismatch = vi.fn()
-    const onClick = vi.fn()
-
-    const handle = hydrateRoot(
-      container,
-      createTestRenderable(
-        'button',
-        {
-          className: 'hydrated',
-          id: 'client-button',
-          onClick,
-          type: 'button',
-        },
-        'client',
-      ),
-      { replace: false, onMismatch },
-    )
-
-    const adoptedButton = container.querySelector('button')!
-    expect(adoptedButton).toBe(serverButton)
-    expect(adoptedButton.id).toBe('client-button')
-    expect(adoptedButton.className).toBe('hydrated')
-    expect(adoptedButton.textContent).toBe('client')
-    expect(container.querySelector('script[data-rue-props]')).toBeNull()
-    expect(onMismatch).not.toHaveBeenCalled()
-
-    adoptedButton.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
-
-    handle.unmount()
-    adoptedButton.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
-    expect(container.childNodes).toHaveLength(0)
-  })
-
-  it('falls back to replace-mode mounting when SSR and client roots do not match', () => {
-    document.body.innerHTML = '<div id="root"><span id="server-root">server</span></div>'
-    const container = document.querySelector('#root')!
-    const serverRoot = container.firstElementChild
-    const onMismatch = vi.fn()
-
-    hydrateRoot(container, createTestRenderable('button', { type: 'button' }, 'client'), {
-      replace: false,
-      onMismatch,
-    })
-
-    const button = container.querySelector('button')
-    expect(button).not.toBeNull()
-    expect(button).not.toBe(serverRoot)
-    expect(button?.textContent).toContain('client')
-    expect(container.querySelector('#server-root')).toBeNull()
-    expect(onMismatch).toHaveBeenCalledWith(
-      'Rue hydrateRoot SSR root structure did not match the client element.',
-      container,
-    )
-  })
-
-  it('can opt into adopting component island roots through hydrateRoot', () => {
-    document.body.innerHTML = '<div id="root"><section id="server-root">server</section></div>'
-    const container = document.querySelector('#root')!
-    const serverRoot = container.firstElementChild!
-    const onClick = vi.fn()
-
-    const StaticPanel: FC<{ label: string }> = props =>
-      createTestRenderable('section', { className: 'hydrated', onClick }, props.label)
-
-    hydrateRoot(container, createTestRenderable(StaticPanel, { label: 'client' }), {
-      adoptComponents: true,
-      replace: false,
-    })
-
-    const adoptedRoot = container.firstElementChild!
-    expect(adoptedRoot).toBe(serverRoot)
-    expect(adoptedRoot.className).toBe('hydrated')
-    expect(adoptedRoot.textContent).toBe('client')
-
-    adoptedRoot.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(onClick).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not unfold component handles for adoption unless explicitly requested', () => {
-    document.body.innerHTML = '<div id="root"><section id="server-root">server</section></div>'
-    const container = document.querySelector('#root')!
-    const serverRoot = container.firstElementChild
-    const onMismatch = vi.fn()
-
-    const StaticPanel: FC<{ label: string }> = props =>
-      createTestRenderable('section', null, props.label)
-
-    hydrateRoot(container, createTestRenderable(StaticPanel, { label: 'client' }), {
-      replace: false,
-      onMismatch,
-    })
-
-    const renderedRoot = container.firstElementChild
-    expect(renderedRoot).not.toBe(serverRoot)
-    expect(renderedRoot?.textContent).toContain('client')
-    expect(onMismatch).toHaveBeenCalledWith(
-      'Rue hydrateRoot could not find an adoptable element record.',
-      container,
-    )
-  })
-
-  it('asks hydrateRoot to adopt SSR DOM for opted-in default component islands', async () => {
-    const island = document.createElement('rue-island')
-    island.setAttribute('data-rue-hydrate', 'load')
-
-    const Panel: FC = () => createTestRenderable('section', null, 'panel')
-    const hydrateRootImpl = vi.fn()
-
-    await mountRueIsland(
-      island,
-      { adopt: true, default: Panel },
-      {
-        island,
-        props: {},
-        strategy: 'load',
-      },
-      hydrateRootImpl,
-    )
-
-    expect(hydrateRootImpl).toHaveBeenCalledWith(
-      island,
-      expect.anything(),
-      expect.objectContaining({ adoptComponents: true, replace: false }),
-    )
-  })
-
-  it('retains matching SSR DOM for opted-in default component islands', async () => {
-    document.body.innerHTML = createIslandContainerHtml({
-      id: 'static-panel',
-      component: '/src/StaticPanel.tsx',
-      entry: '/src/StaticPanel.tsx',
-      hydrate: 'load',
-      props: { label: 'client static panel' },
-      html: '<section id="server-panel">server static panel</section>',
-    })
-    const serverPanel = document.querySelector('#server-panel')!
-
-    const StaticPanel: FC<{ label: string }> = props =>
-      createTestRenderable('section', { className: 'hydrated' }, props.label)
-    const onMismatch = vi.fn()
-
-    startRueIslandLoader({
-      resolveModule: async () => ({ adopt: true, default: StaticPanel }),
-      hydrateRoot: (container, value, options) =>
-        hydrateRoot(container, value, { ...options, onMismatch }),
-    })
-
-    await waitForContent(() => {
-      expect(document.querySelector('rue-island')?.getAttribute('data-rue-status')).toBe('hydrated')
-    })
-
-    const hydratedPanel = document.querySelector('rue-island section')!
-    expect(hydratedPanel).toBe(serverPanel)
-    expect(hydratedPanel.className).toBe('hydrated')
-    expect(document.querySelector('script[data-rue-props]')).toBeNull()
-    expect(onMismatch).not.toHaveBeenCalled()
-  })
-
-  it('morphs nested SSR children for opted-in component islands without replacing them', async () => {
-    document.body.innerHTML = createIslandContainerHtml({
-      id: 'nested-list',
-      component: '/src/NestedList.tsx',
-      entry: '/src/NestedList.tsx',
-      hydrate: 'load',
-      props: {},
-      html: [
-        '<ul id="server-list" data-stale="remove-me">',
-        '<li id="server-a" class="server">server A</li>',
-        '<li id="server-b" class="server">server B</li>',
-        '</ul>',
-      ].join(''),
-    })
-    const serverList = document.querySelector('#server-list')!
-    const serverA = document.querySelector('#server-a')!
-    const serverB = document.querySelector('#server-b')!
-
-    const NestedList: FC = () =>
-      createTestRenderable(
-        'ul',
-        { id: 'client-list', 'data-fresh': 'yes' },
-        createTestRenderable('li', { id: 'client-a', className: 'hydrated' }, 'client A'),
-        createTestRenderable('li', { id: 'client-b', className: 'hydrated' }, 'client B'),
-      )
-
-    startRueIslandLoader({
-      resolveModule: async () => ({ adopt: true, default: NestedList }),
-    })
-
-    await waitForContent(() => {
-      expect(document.querySelector('rue-island')?.getAttribute('data-rue-status')).toBe('hydrated')
-    })
-
-    const hydratedList = document.querySelector('rue-island ul')!
-    expect(hydratedList).toBe(serverList)
-    expect(hydratedList.id).toBe('client-list')
-    expect(hydratedList.getAttribute('data-stale')).toBeNull()
-    expect(hydratedList.getAttribute('data-fresh')).toBe('yes')
-    expect(document.querySelector('#client-a')).toBe(serverA)
-    expect(document.querySelector('#client-b')).toBe(serverB)
-    expect([...hydratedList.querySelectorAll('li')].map(li => li.textContent)).toEqual([
-      'client A',
-      'client B',
-    ])
-  })
-
-  it('applies form state, removed attributes, and refs to renderer-adopted roots', () => {
-    document.body.innerHTML =
-      '<div id="root"><input id="server-input" class="server" value="server" disabled data-stale="yes"></div>'
-    const container = document.querySelector('#root')!
-    const serverInput = document.querySelector('#server-input') as HTMLInputElement
-    const ref = { current: null as HTMLInputElement | null }
-
-    const Field: FC = () =>
-      createTestRenderable('input', {
-        ref,
-        id: 'client-input',
-        className: 'hydrated',
-        value: 'client',
-        disabled: false,
-        'data-fresh': 'yes',
-      })
-
-    hydrateRoot(container, createTestRenderable(Field, null), {
-      adoptComponents: true,
-      replace: false,
-    })
-
-    const hydratedInput = document.querySelector('#client-input') as HTMLInputElement
-    expect(hydratedInput).toBe(serverInput)
-    expect(hydratedInput.className).toBe('hydrated')
-    expect(hydratedInput.value).toBe('client')
-    expect(hydratedInput.disabled).toBe(false)
-    expect(hydratedInput.getAttribute('data-stale')).toBeNull()
-    expect(hydratedInput.getAttribute('data-fresh')).toBe('yes')
-    expect(ref.current).toBe(serverInput)
-  })
-
-  it('binds stateful opted-in component islands to the adopted SSR DOM owner', async () => {
-    document.body.innerHTML = createIslandContainerHtml({
-      id: 'stateful-counter',
-      component: '/src/Counter.tsx',
-      entry: '/src/Counter.tsx',
-      hydrate: 'load',
-      props: { initial: 1 },
-      html: '<button id="server-count" class="server" type="button"><span>1</span></button>',
-    })
-    const serverButton = document.querySelector('#server-count')!
-
-    const onIncrement = vi.fn()
-    let latestCount = 0
-    let updateRuns = 0
-    const count = signal(1)
-    let updateDom = () => {}
-    const CounterValue: FC = () =>
-      _$compiledRoot(() => {
-        const root = document.createElement('span')
-        const anchor = document.createComment('counter-value')
-        root.appendChild(anchor)
-        updateDom = () => {
-          updateRuns += 1
-          renderAnchor(String(count.get()), root as any, anchor as any)
-        }
-        updateDom()
-        return root as any
-      }) as any
-
-    const Counter: FC<{ initial: number }> = props => {
-      count.set(props.initial)
-
-      return (
-        <button
-          className="hydrated"
-          id="client-count"
-          onClick={() => {
-            onIncrement()
-            count.set(count.peek() + 1)
-            latestCount = count.peek()
-            updateDom()
-          }}
-          type="button"
-        >
-          <CounterValue />
-        </button>
-      )
-    }
-
-    const onMismatch = vi.fn()
-    startRueIslandLoader({
-      resolveModule: async () => ({ adopt: true, default: Counter }),
-      hydrateRoot: (container, value, options) =>
-        hydrateRoot(container, value, { ...options, onMismatch }),
-    })
-
-    await waitForContent(() => {
-      expect(document.querySelector('rue-island')?.getAttribute('data-rue-status')).toBe('hydrated')
-    })
-
-    const hydratedButton = document.querySelector('rue-island button')!
-    expect(hydratedButton).toBe(serverButton)
-    expect(hydratedButton.id).toBe('client-count')
-    expect(hydratedButton.className).toBe('hydrated')
-    expect((hydratedButton as any).__rue_hydrated_adopted).toBe(true)
-    expect(hydratedButton.textContent).toBe('1')
-
-    hydratedButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await flush()
-
-    expect(onIncrement).toHaveBeenCalledTimes(1)
-    expect(latestCount).toBe(2)
-    expect(updateRuns).toBeGreaterThanOrEqual(2)
-    expect(document.querySelector('rue-island button')).toBe(serverButton)
-    expect(serverButton.textContent).toBe('2')
-  })
-
-  it('removes transferred listeners from renderer-adopted roots on unmount', () => {
-    document.body.innerHTML =
-      '<div id="root"><button id="server-button" type="button"><span>server</span></button></div>'
-    const container = document.querySelector('#root')!
-    const serverButton = document.querySelector('#server-button') as HTMLButtonElement
-    const onClick = vi.fn()
-    const onMismatch = vi.fn()
-    const label = signal('ready')
-    let updateDom = () => {}
-
-    const ButtonLabel: FC = () =>
-      _$compiledRoot(() => {
-        const root = document.createElement('span')
-        const anchor = document.createComment('button-label')
-        root.appendChild(anchor)
-        updateDom = () => renderAnchor(label.get(), root as any, anchor as any)
-        updateDom()
-        return root as any
-      }) as any
-
-    const Button: FC = () =>
-      createTestRenderable(
-        'button',
-        { id: 'client-button', onClick, type: 'button' },
-        createTestRenderable(ButtonLabel, null),
-      )
-
-    const handle = hydrateRoot(container, createTestRenderable(Button, null), {
-      adoptComponents: true,
-      onMismatch,
-      replace: false,
-    })
-    expect(onMismatch).not.toHaveBeenCalled()
-
-    const hydratedButton = document.querySelector('#client-button') as HTMLButtonElement
-    expect(hydratedButton).toBe(serverButton)
-    hydratedButton.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
-
-    label.set('updated')
-    updateDom()
-    expect(serverButton.textContent).toBe('updated')
-
-    handle.unmount()
-    expect(container.childNodes).toHaveLength(0)
-
-    serverButton.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
-  })
-
-  it('cleans up renderer hydration attempts before falling back on component tag mismatch', () => {
-    document.body.innerHTML = '<div id="root"><section id="server-root">server</section></div>'
-    const container = document.querySelector('#root')!
-    const onMismatch = vi.fn()
-
-    const Article: FC = () => createTestRenderable('article', { id: 'client-root' }, 'client')
-
-    hydrateRoot(container, createTestRenderable(Article, null), {
-      adoptComponents: true,
-      replace: false,
-      onMismatch,
-    })
-
-    expect(container.querySelector('#server-root')).toBeNull()
-    expect(container.querySelector('#client-root')?.tagName).toBe('ARTICLE')
-    expect(container.textContent).toBe('client')
-    expect(
-      [...container.childNodes].some(
-        node => node.nodeType === Node.COMMENT_NODE && node.textContent === 'rue-hydration-root',
-      ),
-    ).toBe(false)
-    expect(onMismatch).toHaveBeenCalledWith(
-      'Rue hydrateRoot SSR root structure did not match the client element.',
-      container,
-    )
-  })
-
-  it('client:only islands replace fallback with client-rendered content', async () => {
-    document.body.innerHTML = createIslandContainerHtml({
-      id: 'map',
-      component: '/src/Map.tsx',
-      entry: '/src/Map.tsx',
-      hydrate: 'only',
-      props: { label: 'Map ready' },
-      fallback: '<span>Loading map</span>',
-    })
-
-    const Map: FC<{ label: string }> = props => createTestRenderable('strong', null, props.label)
-
-    expect(document.body.textContent).toContain('Loading map')
-    startRueIslandLoader({
-      resolveModule: async () => ({ default: Map }),
-    })
-
-    await waitForContent(() => {
-      expect(document.querySelector('rue-island strong')?.textContent).toBe('Map ready')
-    })
-    expect(document.body.textContent).not.toContain('Loading map')
   })
 
   it('skips client:none islands', async () => {
@@ -921,30 +577,6 @@ describe('Rue island runtime', () => {
     }
   })
 
-  it('uses manifest props when no props script is present', async () => {
-    document.body.innerHTML =
-      '<rue-island data-rue-id="manifest-only" data-rue-component="/src/Manifest.tsx" data-rue-hydrate="load"><span>server</span></rue-island>'
-
-    const ManifestPanel: FC<{ label: string }> = props =>
-      createTestRenderable('span', null, props.label)
-
-    startRueIslandLoader({
-      manifest: {
-        'manifest-only': {
-          component: '/src/Manifest.tsx',
-          entry: '/src/Manifest.tsx',
-          hydrate: 'load',
-          props: serializeIslandProps({ label: 'from manifest' }),
-        },
-      },
-      resolveModule: async () => ({ default: ManifestPanel }),
-    })
-
-    await waitForContent(() => {
-      expect(document.body.textContent).toContain('from manifest')
-    })
-  })
-
   it('waits for interaction islands and passes the triggering event to hydrate()', async () => {
     document.body.innerHTML = createIslandContainerHtml({
       id: 'interactive',
@@ -1032,7 +664,7 @@ describe('Rue island runtime', () => {
     document.querySelector('rue-island[data-rue-id="dynamic"]')?.remove()
     await flush()
     resolveModulePromise({ mount })
-    await flush(6)
+    await flush()
     expect(mount).not.toHaveBeenCalled()
 
     stop()
@@ -1045,7 +677,7 @@ describe('Rue island runtime', () => {
         hydrate: 'load',
       }),
     )
-    await flush(6)
+    await flush()
     expect(resolveModule).toHaveBeenCalledTimes(1)
   })
 
@@ -1086,7 +718,7 @@ describe('Rue island runtime', () => {
     })
     const stop = startRueIslandLoader({ resolveModule })
 
-    await flush(6)
+    await flush()
     expect(resolveModule).toHaveBeenCalledTimes(1)
     expect(order).toEqual(['rue:before-hydrate:parent', 'load:parent'])
 
@@ -1119,4 +751,89 @@ describe('Rue island runtime', () => {
     expect(details.every(detail => !('props' in detail))).toBe(true)
     stop()
   })
+})
+
+it('keeps destructured component props reactive', async () => {
+  const source = `import { signal } from '@rue-js/rue'; export const label=signal('one'); const Child=({label: text='fallback'})=><span>{text}</span>; export const View=()=> <Child label={label.get()}/>;`
+  const server = compileNodePlan(source, 'server'),
+    client = compileNodePlan(source, 'hydrate')
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  const handle = client.hydrateRoot(host, client.View)
+  client.label.set('two')
+  await flush()
+  expect(host.querySelector('span')?.textContent).toBe('two')
+  handle.unmount()
+})
+
+it('hydrates and updates real published ESM package output', async () => {
+  const server = compileNodePlan(fixture, 'server', true),
+    client = compileNodePlan(fixture, 'hydrate', true)
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  const button = host.querySelector('button')!
+  const handle = client.hydrateRoot(host, client.View)
+  client.title.set('published')
+  await flush()
+  expect(host.querySelector('button')).toBe(button)
+  expect(button.textContent).toBe('published')
+  expect(
+    client.modules.some((id: string) => id.includes('/dist/compiler-runtime/hydrate-claim.js')),
+  ).toBe(true)
+  expect(client.modules.join('\n')).not.toMatch(
+    /js-runtime|compiled-render-anchor|\/island\.js|\/dom\.js/,
+  )
+  handle.unmount()
+})
+
+it('rolls back new list rows when a later row fails during an update', async () => {
+  const source = `import { signal, onCleanup, setReactiveScheduling } from '@rue-js/rue'; setReactiveScheduling('sync'); export const disposed=[]; export const rows=signal([{id:1,value:'one'}]); const Item=props=>{onCleanup(()=>disposed.push(props.id));return <li>{props.value}</li>}; export const View=()=> <ul>{rows.get().map(row=><Item key={row.id} id={row.id} value={row.value}/>)}</ul>;`
+  const server = compileNodePlan(source, 'server'),
+    client = compileNodePlan(source, 'hydrate')
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  const first = host.querySelector('li')
+  const handle = client.hydrateRoot(host, client.View)
+  expect(() =>
+    client.rows.set([
+      { id: 1, value: 'one' },
+      { id: 2, value: 'two' },
+      { id: 3, value: { bad: true } },
+    ]),
+  ).toThrow(/scalar/)
+  expect(host.querySelectorAll('li')).toHaveLength(1)
+  expect(host.querySelector('li')).toBe(first)
+  expect(client.disposed.sort()).toEqual([2, 3])
+  handle.unmount()
+})
+
+it('distinguishes element and range markers when separate modules reuse node IDs', async () => {
+  const source = `import {View as Child} from './child.mjs'; export const View=()=> <Child/>;`
+  const dependencies = { 'child.mjs': 'export const View=()=> <div>child</div>;' }
+  const server = compileNodePlan(source, 'server', false, dependencies),
+    client = compileNodePlan(source, 'hydrate', false, dependencies)
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  expect(host.innerHTML).toContain('<!--r:b:0--><!--r:e:0-->')
+  const node = host.querySelector('div')
+  const handle = client.hydrateRoot(host, client.View)
+  expect(host.querySelector('div')).toBe(node)
+  handle.unmount()
+})
+
+it('lowers useState and useEffect to owned slots in both compiler targets', async () => {
+  const source = `import {useState,useEffect} from '@rue-js/rue';export const calls=[];export const View=()=>{const [count,setCount]=useState(0);useEffect(()=>{calls.push(count);return ()=>calls.push('cleanup')},[count]);return <button onClick={()=>setCount(count+1)}>{count}</button>};`
+  const server = compileNodePlan(source, 'server'),
+    client = compileNodePlan(source, 'hydrate')
+  const host = document.createElement('div')
+  host.innerHTML = await server.renderToString(server.View)
+  expect(server.calls).toEqual([])
+  const handle = client.hydrateRoot(host, client.View)
+  const button = host.querySelector('button')!
+  button.click()
+  await flush()
+  expect(button.textContent).toBe('1')
+  expect(client.calls).toContain(1)
+  handle.unmount()
+  expect(client.calls.at(-1)).toBe('cleanup')
 })

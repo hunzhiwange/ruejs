@@ -122,7 +122,6 @@ const apiRows: ApiRow[] = [
 
 const basicCode = `import { ref, useRef } from '@rue-js/rue'
 import { Tour } from '@rue-js/design'
-
 const visible = ref(false)
 const current = ref(0)
 const session = ref(0)
@@ -192,7 +191,6 @@ const openTour = () => {
 
 const welcomeCode = `import { ref, useRef } from '@rue-js/rue'
 import { Tour } from '@rue-js/design'
-
 const open = ref(false)
 const current = ref(0)
 const heroRef = useRef<HTMLDivElement>()
@@ -228,7 +226,6 @@ const steps = [
 
 const placementCode = `import { ref, useRef } from '@rue-js/rue'
 import { Tour } from '@rue-js/design'
-
 const open = ref(false)
 const current = ref(0)
 const activePlacement = ref<'top' | 'right' | 'bottom' | 'left'>('right')
@@ -257,7 +254,6 @@ const anchorRef = useRef<HTMLButtonElement>()
 
 const customCode = `import { ref, useRef } from '@rue-js/rue'
 import { Tour } from '@rue-js/design'
-
 const open = ref(false)
 const current = ref(0)
 const summaryRef = useRef<HTMLDivElement>()

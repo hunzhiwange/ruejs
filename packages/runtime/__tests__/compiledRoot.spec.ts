@@ -1,333 +1,203 @@
 // @vitest-environment jsdom
-
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-type SharedBridgeGlobal = typeof globalThis & {
-  __rue_compiled_runtime_bridge?: unknown
-}
-
-const flushCompiledEffects = async (): Promise<void> => {
-  const waitForScheduler = (): Promise<void> =>
-    typeof requestAnimationFrame === 'function'
-      ? new Promise(resolve => requestAnimationFrame(() => resolve()))
-      : Promise.resolve()
-
-  await waitForScheduler()
-  await waitForScheduler()
-  await waitForScheduler()
-}
+import { readFileSync } from 'node:fs'
+import { afterEach, describe, expect, it } from 'vitest'
+import { _$compiledRoot } from '../src/compiler-runtime/compact-root'
+import {
+  createOwner,
+  disposeOwner,
+  effect,
+  onOwnerCleanup,
+  runWithOwner,
+  setReactiveScheduling,
+  signal,
+} from '../src/runtime-core/compiled'
 
 afterEach(() => {
   document.body.innerHTML = ''
-  delete (globalThis as SharedBridgeGlobal).__rue_compiled_runtime_bridge
-  vi.resetModules()
+  setReactiveScheduling('frame')
 })
 
-describe('@rue-js/rue compiled root', () => {
-  it('compiled block owns an explicit contiguous range', async () => {
-    const { createCompiledBlock, moveCompiledBlock } = await import('../src/compiler-runtime/mount')
-    const { createOwner } = await import('../src/internal-reactive')
-    const source = document.createElement('main')
-    const destination = document.createElement('aside')
-    const before = document.createElement('footer')
-    destination.appendChild(before)
+describe('closed compiled blocks', () => {
+  it('moves and disposes only the declared range without reading childNodes', () => {
+    const host = document.createElement('main')
+    const other = document.createElement('aside')
+    const sibling = document.createElement('i')
+    host.append(sibling)
+    Object.defineProperty(host, 'childNodes', {
+      get() {
+        throw new Error('parent scan')
+      },
+    })
     const first = document.createTextNode('first')
-    const middle = document.createElement('span')
     const last = document.createTextNode('last')
-    source.append(first, middle, last)
-    let cleanupCount = 0
-
-    const block = createCompiledBlock(
-      { parent: source, before: null },
-      createOwner(),
-      { first, last },
-      () => {
-        cleanupCount += 1
-      },
-    )
-
-    expect(block).toMatchObject({ first, last })
-    moveCompiledBlock(block, { parent: destination, before })
-    expect(Array.from(destination.childNodes)).toEqual([first, middle, last, before])
-    expect(source.childNodes).toHaveLength(0)
-
-    block.dispose()
-    block.dispose()
-    expect(cleanupCount).toBe(1)
-    expect(Array.from(destination.childNodes)).toEqual([before])
-  })
-
-  it('cleans the surviving owned range nodes after its first boundary is removed externally', async () => {
-    const { createCompiledBlock } = await import('../src/compiler-runtime/mount')
-    const { createOwner } = await import('../src/internal-reactive')
-    const parent = document.createElement('main')
-    const first = document.createComment('first')
-    const middle = document.createElement('span')
-    const last = document.createComment('last')
-    const sibling = document.createElement('aside')
-    parent.append(first, middle, last, sibling)
-    const block = createCompiledBlock({ parent, before: null }, createOwner(), { first, last })
-
-    first.remove()
-    expect(() => block.dispose()).not.toThrow()
-    expect(Array.from(parent.childNodes)).toEqual([sibling])
-  })
-
-  it('does not remove a compiled root that was moved outside its mount parent', async () => {
-    const { _$compiledRoot } = await import('../src/compiled-root')
-    const mountParent = document.createElement('main')
-    const externalParent = document.createElement('aside')
-    const sibling = document.createElement('i')
-    externalParent.appendChild(sibling)
-    const handle = _$compiledRoot(parent => {
-      const root = document.createElement('section')
-      parent!.appendChild(root)
-      return root
+    const root = _$compiledRoot(() => {
+      const fragment = document.createDocumentFragment()
+      fragment.append(first, last)
+      return [first, last]
     })
-
-    const root = handle.__rue_compiled_mount(mountParent)
-    if (root == null) throw new Error('Expected a compiled root')
-    externalParent.appendChild(root)
-    expect(() => handle.dispose()).not.toThrow()
-    expect(Array.from(externalParent.childNodes)).toEqual([sibling, root])
+    root.__rue_compiled_mount(host)
+    expect(host.textContent).toBe('firstlast')
+    other.append(first, last)
+    root.dispose()
+    root.dispose()
+    expect(other.textContent).toBe('')
+    expect(host.firstChild).toBe(sibling)
   })
 
-  it('mounts safely without deleting siblings after the anchor is removed externally', async () => {
-    const { renderAnchor } = await import('../src/compiled-render-anchor')
-    const parent = document.createElement('main')
-    const anchor = document.createComment('anchor')
-    const sibling = document.createElement('aside')
-    parent.append(anchor, sibling)
-
-    renderAnchor('first', parent, anchor)
-    anchor.remove()
-    expect(() => renderAnchor('second', parent, anchor)).not.toThrow()
-    expect(parent.contains(sibling)).toBe(true)
-    expect(parent.textContent).toBe('firstsecond')
-  })
-
-  it('does not remove a Vapor compiled root moved outside its mount parent', async () => {
-    const { _$compiledRoot } = await import('../src/compiled-root')
-    const mountParent = document.createElement('main')
-    const externalParent = document.createElement('aside')
-    const sibling = document.createElement('i')
-    externalParent.appendChild(sibling)
-    const handle = _$compiledRoot(parent => {
-      const root = document.createElement('section')
-      parent!.appendChild(root)
-      return root
-    })
-
-    const root = handle.__rue_compiled_mount(mountParent)
-    if (root == null) throw new Error('Expected a Vapor compiled root')
-    externalParent.appendChild(root)
-    expect(() => handle.dispose()).not.toThrow()
-    expect(Array.from(externalParent.childNodes)).toEqual([sibling, root])
-  })
-
-  it('uses explicit roots without scanning the parent and returns the mount host', async () => {
-    const { _$compiledRoot } = await import('../src/compiled-root')
-    const container = document.createElement('main')
-    const existing = document.createElement('i')
-    const owned = document.createElement('section')
-    const unowned = document.createElement('aside')
-    container.append(existing)
-    let childNodesReads = 0
-    const childNodesGetter = Object.getOwnPropertyDescriptor(Node.prototype, 'childNodes')!.get!
-    Object.defineProperty(container, 'childNodes', {
-      configurable: true,
-      get() {
-        childNodesReads += 1
-        return childNodesGetter.call(this)
-      },
-    })
-
-    const handle = _$compiledRoot(
-      Object.assign(
-        (parent: ParentNode | null) => {
-          parent!.append(owned, unowned)
-          return {
-            __rue_compiled_host: owned,
-            __rue_compiled_roots: [owned],
-          }
-        },
-        { __rue_compiled_explicit_roots: true as const },
-      ),
-    )
-
-    expect(handle.__rue_compiled_mount(container)).toBe(owned)
-    expect(childNodesReads).toBe(0)
-
-    handle.dispose()
-    expect(childNodesReads).toBe(0)
-    expect(Array.from(childNodesGetter.call(container))).toEqual([existing, unowned])
-  })
-
-  it('keeps scanning legacy setup results for inserted root ownership', async () => {
-    const { _$compiledRoot } = await import('../src/compiled-root')
-    const container = document.createElement('main')
-    let childNodesReads = 0
-    const childNodesGetter = Object.getOwnPropertyDescriptor(Node.prototype, 'childNodes')!.get!
-    Object.defineProperty(container, 'childNodes', {
-      configurable: true,
-      get() {
-        childNodesReads += 1
-        return childNodesGetter.call(this)
-      },
-    })
-    const handle = _$compiledRoot(parent => {
-      const root = document.createElement('section')
-      parent!.appendChild(root)
-      return root
-    })
-
-    expect(handle.__rue_compiled_mount(container)).toBeInstanceOf(HTMLElement)
-    expect(childNodesReads).toBe(2)
-    handle.dispose()
-    expect(Array.from(childNodesGetter.call(container))).toEqual([])
-  })
-
-  it('rolls back reported roots and owner cleanup when explicit setup reports an error', async () => {
-    const [{ _$compiledRoot }, { onCleanup }] = await Promise.all([
-      import('../src/compiled-root'),
-      import('../src/internal-reactive'),
-    ])
-    const container = document.createElement('main')
-    const existing = document.createElement('i')
-    container.appendChild(existing)
-    let cleanupCount = 0
-    const failure = new Error('explicit setup failed')
-    const handle = _$compiledRoot(
-      Object.assign(
-        (parent: ParentNode | null) => {
-          const root = document.createElement('section')
-          parent!.appendChild(root)
-          onCleanup(() => {
-            cleanupCount += 1
-          })
-          return {
-            __rue_compiled_host: root,
-            __rue_compiled_roots: [root],
-            __rue_compiled_error: failure,
-          }
-        },
-        { __rue_compiled_explicit_roots: true as const },
-      ),
-    )
-
-    expect(() => handle.__rue_compiled_mount(container)).toThrow(failure)
-    expect(Array.from(container.childNodes)).toEqual([existing])
-    expect(cleanupCount).toBe(1)
-  })
-
-  it('mounts without the Vapor bridge and disposes owned DOM effects once', async () => {
-    delete (globalThis as SharedBridgeGlobal).__rue_compiled_runtime_bridge
-
-    const [{ _$compiledRoot }, { effect, onCleanup, signal }] = await Promise.all([
-      import('../src/compiled-root'),
-      import('../src/internal-reactive'),
-    ])
-    const source = signal('first')
-    const cleanupOrder: string[] = []
-    let effectRuns = 0
-    let effectCleanups = 0
-    let ownerCleanups = 0
-
-    expect((globalThis as SharedBridgeGlobal).__rue_compiled_runtime_bridge).toBeUndefined()
-
-    const handle = _$compiledRoot(parent => {
-      const root = document.createElement('section')
-      const label = document.createTextNode('')
-      root.appendChild(label)
-
-      effect(() => {
-        effectRuns += 1
-        label.data = source.get()
-        onCleanup(() => {
-          effectCleanups += 1
-          cleanupOrder.push(`effect:${root.parentNode === parent}`)
+  it('retains owner subscriptions until disposal and cleans setup once', () => {
+    setReactiveScheduling('sync')
+    const owner = createOwner()
+    const value = signal('one')
+    let cleanups = 0
+    let runs = 0
+    const root = runWithOwner(owner, () =>
+      _$compiledRoot(() => {
+        const text = document.createTextNode('')
+        effect(() => {
+          runs++
+          text.data = value.get()
         })
-      })
-      onCleanup(() => {
-        ownerCleanups += 1
-        cleanupOrder.push(`owner:${root.parentNode === parent}`)
-      })
-      return root
-    })
-
-    const container = document.createElement('main')
-    document.body.appendChild(container)
-    const root = handle.__rue_compiled_mount(container)
-    expect(root).toBeInstanceOf(HTMLElement)
-    if (root == null) throw new Error('Expected compiled root setup to return a node')
-    container.appendChild(root)
-
-    expect(container.innerHTML).toBe('<section>first</section>')
-    expect(effectRuns).toBe(1)
-    expect(effectCleanups).toBe(0)
-
-    source.set('second')
-    await flushCompiledEffects()
-
-    expect(container.innerHTML).toBe('<section>second</section>')
-    expect(effectRuns).toBe(2)
-    expect(effectCleanups).toBe(1)
-
-    handle.dispose()
-    handle.dispose()
-
-    expect(container.innerHTML).toBe('')
-    expect(effectRuns).toBe(2)
-    expect(effectCleanups).toBe(2)
-    expect(ownerCleanups).toBe(1)
-    expect(cleanupOrder.slice(-2)).toEqual(['effect:true', 'owner:true'])
-
-    source.set('third')
-    await flushCompiledEffects()
-
-    expect(container.innerHTML).toBe('')
-    expect(effectRuns).toBe(2)
-    expect(effectCleanups).toBe(2)
-    expect(ownerCleanups).toBe(1)
-    expect((globalThis as SharedBridgeGlobal).__rue_compiled_runtime_bridge).toBeUndefined()
+        onOwnerCleanup(() => cleanups++)
+        return [text, text]
+      }),
+    )!
+    const host = document.createElement('main')
+    root.__rue_compiled_mount(host)
+    value.set('two')
+    expect(host.textContent).toBe('two')
+    root.dispose()
+    disposeOwner(owner)
+    value.set('three')
+    expect(cleanups).toBe(1)
+    expect(runs).toBe(2)
+    expect(host.textContent).toBe('')
   })
 
-  it('disposes the owner and removes nodes inserted before setup throws', async () => {
-    const [{ _$compiledRoot }, { effect, onCleanup, signal }] = await Promise.all([
-      import('../src/compiled-root'),
-      import('../src/internal-reactive'),
-    ])
-    const source = signal(0)
-    const container = document.createElement('main')
-    const existing = document.createElement('i')
-    container.appendChild(existing)
-    let effectRuns = 0
-    let cleanupCount = 0
+  it('removes the owned DOM when its parent owner is disposed', () => {
+    const owner = createOwner()
+    const host = document.createElement('main')
+    const root = runWithOwner(owner, () =>
+      _$compiledRoot(() => {
+        const node = document.createElement('b')
+        return [node, node]
+      }),
+    )!
+    runWithOwner(owner, () => root.__rue_compiled_mount(host))
+    expect(host.firstChild).toBe(root.first)
+    disposeOwner(owner)
+    expect(host.firstChild).toBeNull()
+    expect(() => root.__rue_compiled_mount(host)).toThrow(/disposed/)
+  })
 
-    const handle = _$compiledRoot(parent => {
-      const inserted = document.createElement('strong')
-      parent!.appendChild(inserted)
-      effect(() => {
-        effectRuns += 1
-        inserted.textContent = String(source.get())
-      })
-      onCleanup(() => {
-        cleanupCount += 1
-      })
+  it('moves a root branch with its active DOM and follows the live boundary on replacement', async () => {
+    const { _$compiledBranch, moveBlockRange } = await import('../src/compiler-runtime/block')
+    setReactiveScheduling('sync')
+    const state = signal(true)
+    const root = _$compiledBranch(() => ({
+      __rue_compiled_branch_key: state.get(),
+      create: () =>
+        _$compiledRoot(() => {
+          const node = document.createTextNode(state.get() ? 'yes' : 'no')
+          return [node, node]
+        }),
+    }))
+    const source = document.createElement('main')
+    const target = document.createElement('aside')
+    const sibling = document.createElement('span')
+    target.append(sibling)
+    root.__rue_compiled_mount(source)
+    moveBlockRange(root.first, root.last, target, sibling)
+    expect(source.textContent).toBe('')
+    expect(target.textContent).toBe('yes')
+    state.set(false)
+    expect(target.textContent).toBe('no')
+    root.dispose()
+    expect(Array.from(target.childNodes)).toEqual([sibling])
+  })
+
+  it('mounts empty blocks and rejects second mounts', () => {
+    const root = _$compiledRoot(() => [null, null])
+    const host = document.createElement('main')
+    expect(root.__rue_compiled_mount(host)).toBeNull()
+    expect(() => root.__rue_compiled_mount(host)).toThrow(/mounted/)
+    root.dispose()
+    expect(() => root.__rue_compiled_mount(host)).toThrow(/disposed/)
+  })
+
+  it('rolls back setup owner effects when setup throws', () => {
+    let cleanups = 0
+    const host = document.createElement('main')
+    const sibling = document.createElement('i')
+    host.append(sibling)
+    const root = _$compiledRoot(() => {
+      onOwnerCleanup(() => cleanups++)
       throw new Error('setup failed')
     })
+    expect(() => root.__rue_compiled_mount(host)).toThrow('setup failed')
+    root.dispose()
+    expect(cleanups).toBe(1)
+    expect(host.firstChild).toBe(sibling)
+  })
 
-    expect(() => handle.__rue_compiled_mount(container)).toThrowError('setup failed')
-    expect(Array.from(container.childNodes)).toEqual([existing])
-    expect(effectRuns).toBe(1)
-    expect(cleanupCount).toBe(1)
+  it('disposes mounted child blocks when parent setup fails without scanning siblings', () => {
+    const host = document.createElement('main')
+    const sibling = document.createElement('i')
+    host.append(sibling)
+    Object.defineProperty(host, 'childNodes', {
+      get() {
+        throw new Error('parent scan')
+      },
+    })
+    let cleanups = 0
+    const root = _$compiledRoot(parent => {
+      const child = _$compiledRoot(() => {
+        onOwnerCleanup(() => cleanups++)
+        const node = document.createTextNode('child')
+        return [node, node]
+      })
+      child.__rue_compiled_mount(parent)
+      throw new Error('parent setup failed')
+    })
+    expect(() => root.__rue_compiled_mount(host)).toThrow('parent setup failed')
+    root.dispose()
+    expect(cleanups).toBe(1)
+    expect(host.firstChild).toBe(sibling)
+    expect(sibling.nextSibling).toBeNull()
+  })
 
-    handle.dispose()
-    source.set(1)
-    await flushCompiledEffects()
+  it('removes the unfinished appended range on setup failure without scanning existing siblings', () => {
+    const host = document.createElement('main')
+    const firstSibling = document.createElement('i')
+    const lastSibling = document.createElement('b')
+    host.append(firstSibling, lastSibling)
+    Object.defineProperty(host, 'childNodes', {
+      get() {
+        throw new Error('parent scan')
+      },
+    })
+    const root = _$compiledRoot(parent => {
+      parent?.appendChild(document.createElement('span'))
+      parent?.appendChild(document.createTextNode('unfinished'))
+      throw new Error('setup failed')
+    })
+    expect(() => root.__rue_compiled_mount(host)).toThrow('setup failed')
+    root.dispose()
+    expect(host.firstChild).toBe(firstSibling)
+    expect(firstSibling.nextSibling).toBe(lastSibling)
+    expect(lastSibling.nextSibling).toBeNull()
+  })
 
-    expect(effectRuns).toBe(1)
-    expect(cleanupCount).toBe(1)
-    expect(Array.from(container.childNodes)).toEqual([existing])
+  it('contains no generic root adapter or parent snapshot', () => {
+    for (const file of [
+      'compiled-root.ts',
+      'compiled-component.ts',
+      'compiler-runtime/compact-root.ts',
+      'compiler-runtime/block.ts',
+    ]) {
+      const source = readFileSync(`${process.cwd()}/packages/runtime/src/${file}`, 'utf8')
+      expect(source).not.toMatch(
+        /__rue_compiled_mountable|__rue_compiled_clone|childNodes|isExplicitSetupResult|resultNodes/,
+      )
+    }
   })
 })

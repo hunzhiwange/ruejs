@@ -40,6 +40,7 @@ export interface MockupBrowserProps {
   className?: string
   /** 组件子内容。 */
   children?: any
+  text?: string
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
@@ -54,6 +55,7 @@ export interface MockupBrowserToolbarProps {
   className?: string
   /** 组件子内容。 */
   children?: any
+  text?: string
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
@@ -74,6 +76,7 @@ export interface MockupBrowserAddressBarProps {
   className?: string
   /** 组件子内容。 */
   children?: any
+  text?: string
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
@@ -90,6 +93,7 @@ export interface MockupBrowserContentProps {
   className?: string
   /** 组件子内容。 */
   children?: any
+  text?: string
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
@@ -98,6 +102,7 @@ interface AddressBarInnerProps {
   prefix?: any
   suffix?: any
   children?: any
+  text?: string
 }
 
 /** join Class Name 的内部工具函数。 */
@@ -134,12 +139,14 @@ const resolvePaddingClass = (padding: MockupBrowserContentPadding = 'none') => {
 }
 
 /** AddressBarInner 的内部工具函数。 */
-const AddressBarInner: FC<AddressBarInnerProps> = ({ prefix, suffix, children }) => {
+const AddressBarInner: FC<AddressBarInnerProps> = ({ prefix, suffix, children, text }) => {
   return (
     <>
-      {prefix != null ? <span className="shrink-0 opacity-55">{prefix}</span> : null}
-      <span className="min-w-0 flex-1 truncate">{children}</span>
-      {suffix != null ? <span className="shrink-0 opacity-55">{suffix}</span> : null}
+      {prefix != null ? <span className="shrink-0 opacity-55">{String(prefix)}</span> : null}
+      <span className="min-w-0 flex-1 truncate">
+        {text !== undefined ? <span>{String(text)}</span> : children}
+      </span>
+      {suffix != null ? <span className="shrink-0 opacity-55">{String(suffix)}</span> : null}
     </>
   )
 }
@@ -155,7 +162,7 @@ const AddressBar: FC<MockupBrowserAddressBarProps> = ({
   children,
   ...rest
 }) => {
-  const content = children ?? href
+  const content = href
   const mergedClassName = joinClassName(
     'input input-sm flex h-8 w-full min-w-0 items-center gap-2 text-sm',
     resolveAddressBarStatusClass(status),
@@ -165,8 +172,8 @@ const AddressBar: FC<MockupBrowserAddressBarProps> = ({
   if ((interactive || href) && typeof href === 'string') {
     return (
       <a {...rest} href={href} className={mergedClassName}>
-        <AddressBarInner prefix={prefix} suffix={suffix}>
-          {content}
+        <AddressBarInner prefix={prefix} suffix={suffix} text={children ? undefined : content}>
+          {children}
         </AddressBarInner>
       </a>
     )
@@ -174,8 +181,8 @@ const AddressBar: FC<MockupBrowserAddressBarProps> = ({
 
   return (
     <div {...rest} className={mergedClassName}>
-      <AddressBarInner prefix={prefix} suffix={suffix}>
-        {content}
+      <AddressBarInner prefix={prefix} suffix={suffix} text={children ? undefined : content}>
+        {children}
       </AddressBarInner>
     </div>
   )
@@ -209,9 +216,11 @@ const Content: FC<MockupBrowserContentProps> = ({
 const Toolbar: FC<MockupBrowserToolbarProps> = ({ start, end, className, children, ...rest }) => {
   return (
     <div {...rest} className={joinClassName('mockup-browser-toolbar gap-3', className)}>
-      {start != null ? <div className="flex shrink-0 items-center gap-2">{start}</div> : null}
+      {start != null ? (
+        <div className="flex shrink-0 items-center gap-2">{String(start)}</div>
+      ) : null}
       {children != null ? <div className="flex min-w-0 flex-1 items-center">{children}</div> : null}
-      {end != null ? <div className="flex shrink-0 items-center gap-2">{end}</div> : null}
+      {end != null ? <div className="flex shrink-0 items-center gap-2">{String(end)}</div> : null}
     </div>
   )
 }
@@ -260,11 +269,7 @@ const Root: FC<MockupBrowserProps> = ({
     >
       {shouldRenderToolbar ? (
         <Toolbar className={toolbarClassName} start={toolbarStart} end={toolbarEnd}>
-          {toolbar != null ? (
-            toolbar
-          ) : url != null ? (
-            <AddressBar href={typeof url === 'string' ? url : undefined}>{url}</AddressBar>
-          ) : null}
+          {toolbar != null ? toolbar : url != null ? <AddressBar href={String(url)} /> : null}
         </Toolbar>
       ) : null}
       {shouldWrapContent ? (

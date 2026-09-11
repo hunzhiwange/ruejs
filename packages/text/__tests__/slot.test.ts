@@ -1,17 +1,12 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import { UNMATCHED_SLOT } from '../src/server/app-elements.js'
 import {
-  ServerProtocolFragment,
-  createServerProtocolElement,
-} from '../src/server/element-protocol.js'
-import {
+  Fragment,
   createElement,
   renderAppServerElementToHtmlAsync,
   type TestServerComponent,
   type TestServerNode,
 } from './app-server-protocol-test-utils.js'
-import { createElement as createRueElement } from './rue-test-utils.js'
-import { deleteContextRuntime, setContextRuntime } from '../src/shims/context-runtime-global.js'
 
 vi.mock('text/navigation', () => ({
   usePathname: () => '/',
@@ -30,8 +25,8 @@ function createContextProvider<TValue>(
   return createElement(context.Provider, { value }, child)
 }
 
-function renderHtml(element: TestServerNode): Promise<string> {
-  return renderAppServerElementToHtmlAsync(element)
+async function renderHtml(element: TestServerNode): Promise<string> {
+  return (await renderAppServerElementToHtmlAsync(element)).replace(/<!--.*?-->/g, '')
 }
 
 describe('slot primitives', () => {
@@ -92,18 +87,18 @@ describe('slot primitives', () => {
     expect(html).toContain('modal content')
   })
 
-  it('Slot expands server protocol fragments from app elements', async () => {
+  it('Slot executes compiled fragments from app elements', async () => {
     const mod = await import('../src/shims/slot.js')
 
     const html = await renderHtml(
       createContextProvider(
         mod.ElementsContext,
         {
-          'page:/': createServerProtocolElement(
-            ServerProtocolFragment,
+          'page:/': createElement(
+            Fragment,
             null,
-            createServerProtocolElement('header', null, 'nav'),
-            createServerProtocolElement('main', null, 'body'),
+            createElement('header', null, 'nav'),
+            createElement('main', null, 'body'),
           ),
         },
         createElement(mod.Slot, { id: 'page:/' }),
@@ -114,98 +109,14 @@ describe('slot primitives', () => {
     expect(html).toContain('<main>body</main>')
   })
 
-  it('Slot expands transport fragments before materializing client references', async () => {
-    const mod = await import('../src/shims/slot-core.js')
-    const createElementMock = vi.fn((type, props, ...children) => {
-      if (type === Symbol.for('rue.fragment')) {
-        throw new TypeError(
-          'Unsupported object inputs are no longer accepted on the default @rue-js/runtime entry.',
-        )
-      }
-      return createRueElement(type, props, ...children)
-    })
-
-    setContextRuntime({
-      createContext(defaultValue: unknown) {
-        return { Provider: ({ children }: { children?: unknown }) => children, defaultValue }
-      },
-      createElement: createElementMock,
-      useContext() {
-        return null
-      },
-    })
-
-    try {
-      const rendered = mod.renderSlotElement({
-        elements: {
-          'route:/client': {
-            $rue: 'element',
-            key: null,
-            type: { $rue: 'fragment' },
-            props: {
-              children: {
-                $rue: 'element',
-                key: null,
-                type: { $rue: 'clientReference', referenceKey: '/client', exportName: 'default' },
-                props: { initialLikes: 16 },
-              },
-            },
-          },
-        },
-        id: 'route:/client',
-      })
-
-      expect(Array.isArray(rendered)).toBe(true)
-      expect(createElementMock).not.toHaveBeenCalledWith(
-        Symbol.for('rue.fragment'),
-        expect.anything(),
-        expect.anything(),
-      )
-      expect(createElementMock).toHaveBeenCalledWith(expect.any(Function), { initialLikes: 16 })
-    } finally {
-      deleteContextRuntime()
-    }
-  })
-
-  it('Slot materializes decoded RSC client reference stubs', async () => {
-    const mod = await import('../src/shims/slot-core.js')
-    const createElementMock = vi.fn((type, props, ...children) =>
-      createRueElement(type, props, ...children),
+  it.each([
+    { $rue: 'element', type: { $rue: 'fragment' }, props: {} },
+    { type: () => {}, props: {} },
+  ])('rejects legacy UI object %j instead of interpreting it', async value => {
+    const { renderSlotElement } = await import('../src/shims/slot-core.js')
+    expect(() => renderSlotElement({ elements: { 'page:/': value } as any, id: 'page:/' })).toThrow(
+      'requires a compiled plan',
     )
-    const decodedClientReference = Object.defineProperties(
-      () => {
-        throw new Error("Unexpectedly client reference export 'default' is called on server")
-      },
-      {
-        $$exportName: { value: 'default' },
-        $$id: { value: '/components/LikeButton.tsx#default' },
-        $$referenceKey: { value: '/components/LikeButton.tsx' },
-        $$typeof: { value: Symbol.for('rue.client.reference') },
-      },
-    )
-
-    setContextRuntime({
-      createContext(defaultValue: unknown) {
-        return { Provider: ({ children }: { children?: unknown }) => children, defaultValue }
-      },
-      createElement: createElementMock,
-      useContext() {
-        return null
-      },
-    })
-
-    try {
-      mod.renderSlotElement({
-        elements: {
-          'page:/client': createServerProtocolElement(decodedClientReference, { initialLikes: 16 }),
-        },
-        id: 'page:/client',
-      })
-
-      expect(createElementMock).toHaveBeenCalledWith(expect.any(Function), { initialLikes: 16 })
-    } finally {
-      deleteContextRuntime()
-    }
   })
 
   it('Slot returns null when the entry is absent', async () => {
@@ -261,32 +172,23 @@ describe('slot primitives', () => {
             createElement(mod.Slot, { id: 'slot:modal:/' }),
           ),
         ),
-      ).rejects.toThrow(/Objects are not valid|object/i)
+      ).rejects.toThrow('requires a compiled plan')
     } finally {
       consoleError.mockRestore()
     }
   })
 
-  it('warns in development when transport metadata appears under a render entry', async () => {
+  it('rejects transport metadata under a render entry', async () => {
     const mod = await import('../src/shims/slot.js')
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    try {
-      const html = await renderHtml(
+    await expect(
+      renderHtml(
         createContextProvider(
           mod.ElementsContext,
           { 'slot:metadata-warning:/': { 'layout:/': 's' } },
           createElement(mod.Slot, { id: 'slot:metadata-warning:/' }),
         ),
-      )
-
-      expect(html).toBe('')
-      expect(warn).toHaveBeenCalledWith(
-        '[text] Transport metadata value found under App Router render entry: slot:metadata-warning:/',
-      )
-    } finally {
-      warn.mockRestore()
-    }
+      ),
+    ).rejects.toThrow('requires a compiled plan')
   })
 
   it('warns in development when a non-slot entry is absent', async () => {
@@ -382,12 +284,12 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'slot:modal:/': createRueElement('div', null, 'previous slot'),
+        'layout:/': createElement('div', null, 'layout'),
+        'slot:modal:/': createElement('div', null, 'previous slot'),
       },
       {
-        'page:/blog/hello': createRueElement('div', null, 'page'),
-        'slot:modal:/': createRueElement('div', null, 'text slot'),
+        'page:/blog/hello': createElement('div', null, 'page'),
+        'slot:modal:/': createElement('div', null, 'text slot'),
       },
       { preserveElementIds: ['layout:/'] },
     )
@@ -403,11 +305,11 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/dashboard': createRueElement('div', null, 'dashboard'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/dashboard': createElement('div', null, 'dashboard'),
       },
       {
-        'page:/settings': createRueElement('div', null, 'settings'),
+        'page:/settings': createElement('div', null, 'settings'),
       },
     )
 
@@ -419,15 +321,15 @@ describe('slot primitives', () => {
   it('mergeElements does not infer unmatched slot preservation from the wire marker', async () => {
     const { mergeElements } = await import('../src/shims/slot.js')
 
-    const previousSlotContent = createRueElement('div', null, 'previous modal')
+    const previousSlotContent = createElement('div', null, 'previous modal')
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
+        'layout:/': createElement('div', null, 'layout'),
         'slot:modal:/': previousSlotContent,
-        'page:/dashboard': createRueElement('div', null, 'dashboard'),
+        'page:/dashboard': createElement('div', null, 'dashboard'),
       },
       {
-        'page:/blog': createRueElement('div', null, 'blog page'),
+        'page:/blog': createElement('div', null, 'blog page'),
         'slot:modal:/': UNMATCHED_SLOT,
       },
       { preserveElementIds: ['layout:/'] },
@@ -441,26 +343,26 @@ describe('slot primitives', () => {
   it('mergeElements preserves previous slot content for planner-approved default/unmatched slots', async () => {
     const { mergeElements } = await import('../src/shims/slot.js')
 
-    const previousSlotContent = createRueElement('div', null, 'previous modal')
-    const defaultSlotContent = createRueElement('div', null, 'default modal')
+    const previousSlotContent = createElement('div', null, 'previous modal')
+    const defaultSlotContent = createElement('div', null, 'default modal')
     const mergedFromUnmatched = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
+        'layout:/': createElement('div', null, 'layout'),
         'slot:modal:/': previousSlotContent,
       },
       {
-        'page:/blog': createRueElement('div', null, 'blog page'),
+        'page:/blog': createElement('div', null, 'blog page'),
         'slot:modal:/': UNMATCHED_SLOT,
       },
       { preserveElementIds: ['layout:/'], preservePreviousSlotIds: ['slot:modal:/'] },
     )
     const mergedFromDefault = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
+        'layout:/': createElement('div', null, 'layout'),
         'slot:modal:/': previousSlotContent,
       },
       {
-        'page:/blog': createRueElement('div', null, 'blog page'),
+        'page:/blog': createElement('div', null, 'blog page'),
         'slot:modal:/': defaultSlotContent,
       },
       { preserveElementIds: ['layout:/'], preservePreviousSlotIds: ['slot:modal:/'] },
@@ -475,11 +377,11 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
+        'layout:/': createElement('div', null, 'layout'),
         'slot:modal:/': null,
       },
       {
-        'page:/blog': createRueElement('div', null, 'blog page'),
+        'page:/blog': createElement('div', null, 'blog page'),
         'slot:modal:/': UNMATCHED_SLOT,
       },
       { preserveElementIds: ['layout:/'], preservePreviousSlotIds: ['slot:modal:/'] },
@@ -494,11 +396,11 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/': createRueElement('div', null, 'home'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/': createElement('div', null, 'home'),
       },
       {
-        'page:/blog': createRueElement('div', null, 'blog'),
+        'page:/blog': createElement('div', null, 'blog'),
         'slot:modal:/': UNMATCHED_SLOT,
       },
       { preserveElementIds: ['layout:/'] },
@@ -513,13 +415,13 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/feed': createRueElement('div', null, 'feed'),
-        'slot:modal:/feed': createRueElement('div', null, 'intercepted modal'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/feed': createElement('div', null, 'feed'),
+        'slot:modal:/feed': createElement('div', null, 'intercepted modal'),
       },
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/feed': createRueElement('div', null, 'feed'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/feed': createElement('div', null, 'feed'),
       },
       true,
     )
@@ -530,16 +432,16 @@ describe('slot primitives', () => {
   it('mergeElements keeps unmatched slot markers on traversal without planner approval', async () => {
     const { mergeElements, UNMATCHED_SLOT } = await import('../src/shims/slot.js')
 
-    const realContent = createRueElement('div', null, 'modal content')
+    const realContent = createElement('div', null, 'modal content')
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/feed': createRueElement('div', null, 'feed'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/feed': createElement('div', null, 'feed'),
         'slot:modal:/feed': realContent,
       },
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/feed': createRueElement('div', null, 'feed'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/feed': createElement('div', null, 'feed'),
         // @ts-expect-error - typescript is not correctly inferring the type of the symbol
         'slot:modal:/feed': UNMATCHED_SLOT,
       },
@@ -555,12 +457,12 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/dashboard': createRueElement('div', null, 'dashboard'),
-        'slot:team:/dashboard': createRueElement('div', null, 'team panel'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/dashboard': createElement('div', null, 'dashboard'),
+        'slot:team:/dashboard': createElement('div', null, 'team panel'),
       },
       {
-        'page:/dashboard/settings': createRueElement('div', null, 'settings'),
+        'page:/dashboard/settings': createElement('div', null, 'settings'),
       },
     )
 
@@ -573,12 +475,12 @@ describe('slot primitives', () => {
 
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'page:/dashboard': createRueElement('div', null, 'dashboard'),
-        'slot:team:/dashboard': createRueElement('div', null, 'team panel'),
+        'layout:/': createElement('div', null, 'layout'),
+        'page:/dashboard': createElement('div', null, 'dashboard'),
+        'slot:team:/dashboard': createElement('div', null, 'team panel'),
       },
       {
-        'page:/dashboard/settings': createRueElement('div', null, 'settings'),
+        'page:/dashboard/settings': createElement('div', null, 'settings'),
       },
       { preserveAbsentSlots: false },
     )
@@ -589,16 +491,16 @@ describe('slot primitives', () => {
   it('mergeElements preserves explicitly approved mounted slots without wire absence semantics', async () => {
     const { mergeElements } = await import('../src/shims/slot.js')
 
-    const mountedSlot = createRueElement('div', null, 'team panel')
+    const mountedSlot = createElement('div', null, 'team panel')
     const merged = mergeElements(
       {
-        'layout:/': createRueElement('div', null, 'layout'),
-        'layout:/dashboard': createRueElement('div', null, 'dashboard layout'),
-        'page:/dashboard': createRueElement('div', null, 'dashboard'),
+        'layout:/': createElement('div', null, 'layout'),
+        'layout:/dashboard': createElement('div', null, 'dashboard layout'),
+        'page:/dashboard': createElement('div', null, 'dashboard'),
         'slot:team:/dashboard': mountedSlot,
       },
       {
-        'page:/dashboard/settings': createRueElement('div', null, 'settings'),
+        'page:/dashboard/settings': createElement('div', null, 'settings'),
       },
       {
         preserveAbsentSlots: false,

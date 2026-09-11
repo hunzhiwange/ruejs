@@ -1,3 +1,5 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref } from '@rue-js/rue'
 
@@ -20,7 +22,7 @@ describe('Modal', () => {
   it('renders when open is true', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(<Modal open={true}>{'content'}</Modal>, c)
+    mountTestApp(c, () => render(<Modal open={true}>{'content'}</Modal>, c))
 
     await waitForContent(() => {
       const root = c.querySelector('.modal.modal-open') as HTMLElement
@@ -34,29 +36,29 @@ describe('Modal', () => {
   it('does not render when open is false', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(<Modal open={false}>{'content'}</Modal>, c)
+    mountTestApp(c, () => render(<Modal open={false}>{'content'}</Modal>, c))
 
     await waitForContent(() => {
       expect(c.querySelector('.modal')).toBeNull()
     })
   })
 
-  it('renders title and legacy actions', async () => {
+  it('renders title and actions through a footer slot', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Modal
-        open={true}
-        title={'Hello'}
-        actions={
-          <button className={'btn'} id={'act'}>
-            {'Action'}
-          </button>
-        }
-      >
-        <div id={'child'}>{'Body'}</div>
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} title={'Hello'}>
+          <Template slot="footer">
+            <button className="btn" id="act">
+              Action
+            </button>
+            <button className="btn">关闭</button>
+          </Template>
+          <div id={'child'}>{'Body'}</div>
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -76,19 +78,21 @@ describe('Modal', () => {
     resetActiveRuntime()
     const onOk = vi.fn()
     const onCancel = vi.fn()
-    render(
-      <Modal
-        open={true}
-        title={'Publish release'}
-        okText={'发布'}
-        cancelText={'返回'}
-        confirmLoading={true}
-        onOk={onOk}
-        onCancel={onCancel}
-      >
-        {'x'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal
+          open={true}
+          title={'Publish release'}
+          okText={'发布'}
+          cancelText={'返回'}
+          confirmLoading={true}
+          onOk={onOk}
+          onCancel={onCancel}
+        >
+          {'x'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -109,11 +113,13 @@ describe('Modal', () => {
     const c = mountContainer()
     resetActiveRuntime()
     const spy = vi.fn()
-    render(
-      <Modal open={true} onClose={spy}>
-        {'x'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} onClose={spy}>
+          {'x'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -128,11 +134,13 @@ describe('Modal', () => {
     const c = mountContainer()
     resetActiveRuntime()
     const spy = vi.fn()
-    render(
-      <Modal open={true} onClose={spy} maskClosable={false} keyboard={false}>
-        {'x'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} onClose={spy} maskClosable={false} keyboard={false}>
+          {'x'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -156,7 +164,7 @@ describe('Modal', () => {
     }
 
     resetActiveRuntime()
-    render(<Demo />, c)
+    mountTestApp(c, () => render(<Demo />, c))
 
     await waitForContent(() => {
       const root = c.querySelector('.modal') as HTMLElement
@@ -170,11 +178,13 @@ describe('Modal', () => {
   it('appends custom className to modal-box', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Modal open={true} className={'w-full'}>
-        {'x'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} className={'w-full'}>
+          {'x'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -186,42 +196,44 @@ describe('Modal', () => {
   it('renders semantic mask and wrapper hooks', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Modal
-        open={true}
-        title={'Styled modal'}
-        onClose={vi.fn()}
-        rootClassName={'root-prop'}
-        rootStyle={{ paddingTop: '1px' }}
-        wrapClassName={'wrap-prop'}
-        wrapProps={{ className: 'wrap-extra', 'data-layout': 'shell' }}
-        maskClassName={'mask-prop'}
-        classNames={{
-          root: 'root-slot',
-          mask: 'mask-slot',
-          wrapper: 'wrapper-slot',
-          container: 'container-slot',
-          box: 'box-slot',
-          header: 'header-slot',
-          title: 'title-slot',
-          body: 'body-slot',
-          footer: 'footer-slot',
-          close: 'close-slot',
-        }}
-        styles={{
-          mask: { opacity: 0.25 },
-          wrapper: { alignItems: 'flex-start' },
-          container: { maxWidth: '640px' },
-          header: { color: 'rgb(255, 0, 0)' },
-          title: { letterSpacing: '1px' },
-          body: { minHeight: '80px' },
-          footer: { justifyContent: 'center' },
-          close: { color: 'rgb(0, 0, 255)' },
-        }}
-      >
-        {'content'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal
+          open={true}
+          title={'Styled modal'}
+          onClose={vi.fn()}
+          rootClassName={'root-prop'}
+          rootStyle={{ paddingTop: '1px' }}
+          wrapClassName={'wrap-prop'}
+          wrapProps={{ className: 'wrap-extra', 'data-layout': 'shell' }}
+          maskClassName={'mask-prop'}
+          classNames={{
+            root: 'root-slot',
+            mask: 'mask-slot',
+            wrapper: 'wrapper-slot',
+            container: 'container-slot',
+            box: 'box-slot',
+            header: 'header-slot',
+            title: 'title-slot',
+            body: 'body-slot',
+            footer: 'footer-slot',
+            close: 'close-slot',
+          }}
+          styles={{
+            mask: { opacity: 0.25 },
+            wrapper: { alignItems: 'flex-start' },
+            container: { maxWidth: '640px' },
+            header: { color: 'rgb(255, 0, 0)' },
+            title: { letterSpacing: '1px' },
+            body: { minHeight: '80px' },
+            footer: { justifyContent: 'center' },
+            close: { color: 'rgb(0, 0, 255)' },
+          }}
+        >
+          {'content'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -256,27 +268,28 @@ describe('Modal', () => {
     })
   })
 
-  it('supports footer helper buttons and disables mask interaction when mask is false', async () => {
+  it('supports a footer slot and disables mask interaction when mask is false', async () => {
     const c = mountContainer()
     resetActiveRuntime()
     const onOk = vi.fn()
     const onClose = vi.fn()
-    render(
-      <Modal
-        open={true}
-        mask={false}
-        onOk={onOk}
-        onClose={onClose}
-        footer={(_originNode: any, { OkBtn, CancelBtn }: any) => (
-          <div id={'custom-footer'}>
-            <CancelBtn id={'cancel-helper'}>{'返回上一步'}</CancelBtn>
-            <OkBtn id={'ok-helper'}>{'立即发布'}</OkBtn>
-          </div>
-        )}
-      >
-        {'content'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} mask={false} onOk={onOk} onClose={onClose}>
+          <Template slot="footer">
+            <div id="custom-footer">
+              <button id="cancel-helper" onClick={onClose}>
+                返回上一步
+              </button>
+              <button id="ok-helper" onClick={onOk}>
+                立即发布
+              </button>
+            </div>
+          </Template>
+          {'content'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -302,11 +315,13 @@ describe('Modal', () => {
   it('renders loading skeleton and hides footer actions', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Modal open={true} title={'Loading modal'} loading={true} onClose={vi.fn()}>
-        {'content'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} title={'Loading modal'} loading={true} onClose={vi.fn()}>
+          {'content'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -325,11 +340,13 @@ describe('Modal', () => {
     target.id = 'modal-target'
     document.body.appendChild(target)
     resetActiveRuntime()
-    render(
-      <Modal open={true} title={'Portal modal'} getContainer={target}>
-        {'content'}
-      </Modal>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} title={'Portal modal'} getContainer={target}>
+          {'content'}
+        </Modal>,
+        c,
+      ),
     )
 
     await waitForContent(() => {

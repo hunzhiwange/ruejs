@@ -40,16 +40,6 @@ const mergeClassName = (base: string, className?: string) => {
   return className ? `${base} ${className}` : base
 }
 
-const toChildArray = (children: any) => {
-  if (Array.isArray(children)) {
-    return children
-  }
-  if (children == null) {
-    return []
-  }
-  return [children]
-}
-
 const ExampleBlock: FC<ExampleBlockProps> = ({ title, summary, tab, preview, code }) => {
   return (
     <div className="component-preview not-prose text-base-content my-6 lg:my-12">
@@ -81,7 +71,7 @@ const ExampleBlock: FC<ExampleBlockProps> = ({ title, summary, tab, preview, cod
 const PreviewSurface: FC<{ className?: string; children?: any }> = ({ className, children }) => {
   return (
     <div className={mergeClassName(previewShellClass, className)}>
-      <div className={previewBodyClass}>{toChildArray(children)}</div>
+      <div className={previewBodyClass}>{children}</div>
     </div>
   )
 }

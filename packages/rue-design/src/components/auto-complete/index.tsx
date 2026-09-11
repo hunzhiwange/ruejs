@@ -5,7 +5,7 @@ AutoComplete 组件概述
 - 视觉上延续 Rue 当前 input 体系，不引入预转换文件头，交由编译器参与 TSX 优化。
 */
 import type { FC } from '@rue-js/rue'
-import { onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
+import { computed, onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
 
 /** AutoCompleteValue 值类型。 */
 export type AutoCompleteValue = string | number
@@ -167,7 +167,8 @@ export interface AutoCompleteProps {
   /** popupMatchSelectWidth 配置项。 */
   popupMatchSelectWidth?: boolean | number
   /** popupRender 自定义渲染函数。 */
-  popupRender?: (originNode: any) => any
+  popupRender?: (panel: any) => any
+
   /** optionLabelProp 配置项。 */
   optionLabelProp?: string
   /** 弹出层或内容展示位置。 */
@@ -257,18 +258,6 @@ interface NormalizedGroup {
 }
 
 let autoCompleteIdSeed = 0
-
-interface AutoCompleteRemountState {
-  value?: string
-  preview?: string | null
-  open?: boolean
-  highlightedIndex?: number
-  focused?: boolean
-  selectionStart?: number | null
-  selectionEnd?: number | null
-}
-
-const autoCompleteRemountStates = /*#__PURE__*/ new Map<string, AutoCompleteRemountState>()
 
 const sizeClassMap = {
   xs: 'xs',
@@ -597,53 +586,140 @@ const DefaultLoadingContent: FC<{ className?: string }> = ({ className }) => {
 }
 
 /** Auto Complete Root 的内部工具函数。 */
-const AutoCompleteRoot: FC<AutoCompleteProps> = ({
-  value,
-  defaultValue,
-  options,
-  open,
-  defaultOpen,
-  disabled,
-  readOnly,
-  loading,
-  placeholder,
-  allowClear,
-  backfill,
-  defaultActiveFirstOption = true,
-  filterOption,
-  notFoundContent = '暂无匹配建议',
-  popupMatchSelectWidth = true,
-  popupRender,
-  optionLabelProp,
-  placement = 'bottom',
-  size,
-  status,
-  variant,
-  prefix,
-  suffix,
-  className,
-  style,
-  rootClassName,
-  controlClassName,
-  inputClassName,
-  popupClassName,
-  clearButtonClassName,
-  popupStyle,
-  classNames,
-  styles,
-  onChange,
-  onSearch,
-  onSelect,
-  onOpenChange,
-  onClear,
-  onFocus,
-  onBlur,
-  onKeyDown,
-  onInputKeyDown,
-  onPressEnter,
-  onPopupScroll,
-  ...rest
-}) => {
+const AutoCompleteRoot: FC<AutoCompleteProps> = (
+  {
+    value,
+    defaultValue,
+    options,
+    open,
+    defaultOpen,
+    disabled,
+    readOnly,
+    loading,
+    placeholder,
+    allowClear,
+    backfill,
+    defaultActiveFirstOption = true,
+    filterOption,
+    notFoundContent = '暂无匹配建议',
+    popupMatchSelectWidth = true,
+    optionLabelProp,
+    placement = 'bottom',
+    size,
+    status,
+    variant,
+    prefix,
+    suffix,
+    className,
+    style,
+    rootClassName,
+    controlClassName,
+    inputClassName,
+    popupClassName,
+    clearButtonClassName,
+    popupStyle,
+    classNames,
+    styles,
+    onChange,
+    onSearch,
+    onSelect,
+    onOpenChange,
+    onClear,
+    onFocus,
+    onBlur,
+    onKeyDown,
+    onInputKeyDown,
+    onPressEnter,
+    onPopupScroll,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
+  const CompiledRow3 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const CompiledRow4 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+      const option = rowArg0
+      const optionIndex = rowArg1
+
+      const globalIndex = itemBaseIndex + optionIndex
+      const active = computed(() => globalIndex === getResolvedActiveIndex())
+
+      return (
+        <button
+          key={option.key}
+          id={instanceId.value ? `${instanceId.value}-option-${option.key}` : undefined}
+          type="button"
+          role="option"
+          data-rue-auto-complete-value={resolveOptionText(option.raw, optionLabelProp)}
+          aria-selected={active.get() ? 'true' : 'false'}
+          disabled={option.disabled}
+          title={option.title}
+          className={buildOptionButtonClassName(option)}
+          style={{
+            ...styles?.item,
+            ...option.style,
+          }}
+          onMouseDown={(event: MouseEvent) => {
+            if (typeof (event as any).preventDefault === 'function') {
+              ;(event as any).preventDefault()
+            }
+          }}
+          onMouseEnter={() => {
+            highlightedIndex.value = globalIndex
+            applyPreview(option)
+            schedulePopupOptionStateSync()
+          }}
+          onClick={() => {
+            selectOption(option)
+          }}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium">{option.label}</span>
+            {option.description !== undefined ? (
+              <span className="mt-1 block truncate text-xs text-base-content/55">
+                {option.description}
+              </span>
+            ) : null}
+          </span>
+        </button>
+      )
+    }
+
+    const group = rowArg0
+    const groupIndex = rowArg1
+
+    let itemBaseIndex = 0
+    const previousGroups = filteredGroupsState.value.slice(0, groupIndex)
+    previousGroups.forEach(previousGroup => {
+      itemBaseIndex += previousGroup.options.length
+    })
+
+    return (
+      <div
+        key={group.key}
+        className={mergeClassName(
+          group.label !== undefined ? 'px-2 pb-2 pt-1' : undefined,
+          classNames?.group,
+          group.className,
+        )}
+        style={{
+          ...styles?.group,
+          ...group.style,
+        }}
+      >
+        {group.label !== undefined ? (
+          <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-base-content/40">
+            {group.label}
+          </div>
+        ) : null}
+        <div className="space-y-1">
+          {group.options.map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow4 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const rootRef = useRef<HTMLDivElement>()
   const inputRef = useRef<HTMLInputElement>()
   const popupListRef = useRef<HTMLDivElement>()
@@ -672,21 +748,12 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
   const clearConfig = allowClear && typeof allowClear === 'object' ? allowClear : undefined
   const clearable = !!allowClear
   const dataTestId = rest['data-testid']
-  const remountKey = dataTestId == null ? '' : String(dataTestId)
-  const remountState = remountKey ? autoCompleteRemountStates.get(remountKey) : undefined
-  const persistRemountState = (patch: AutoCompleteRemountState) => {
-    if (!remountKey) return
-    Object.assign(remountState ?? {}, patch)
-    if (!remountState) autoCompleteRemountStates.set(remountKey, { ...patch })
-  }
-  const valueState = ref(
-    remountState?.value ?? resolveInputValue(isControlled ? value : defaultValue),
-  )
-  const previewValue = ref<string | null>(remountState?.preview ?? null)
-  const popupOpenState = ref(remountState?.open ?? !!defaultOpen)
+  const valueState = ref(resolveInputValue(isControlled ? value : defaultValue))
+  const previewValue = ref<string | null>(null)
+  const popupOpenState = ref(!!defaultOpen)
   const focused = ref(false)
   const composing = ref(false)
-  const highlightedIndex = ref(remountState?.highlightedIndex ?? -1)
+  const highlightedIndex = ref(-1)
   const instanceId = ref('')
   const normalizedGroupsState = ref<NormalizedGroup[]>(normalizeGroups(options))
   const filteredGroupsState = ref<NormalizedGroup[]>([])
@@ -715,89 +782,6 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
   }
 
   const getDisplayedValue = () => previewValue.value ?? valueState.value
-
-  const getLiveRoot = () => {
-    if (dataTestId != null) {
-      return document
-        .querySelector(`input[data-testid="${String(dataTestId)}"]`)
-        ?.closest('[data-rue-auto-complete-root="true"]') as HTMLDivElement | null
-    }
-    return rootRef.current ?? null
-  }
-
-  const renderLivePopup = (query = valueState.value) => {
-    const root = getLiveRoot()
-    const liveInput = root?.querySelector('input[role="combobox"]') as HTMLInputElement | null
-    if (!root || !liveInput || disabled || readOnly) return
-    root.querySelectorAll('[data-rue-auto-complete-popup="true"]').forEach(node => node.remove())
-    const liveGroups = filterGroups(normalizeGroups(options), query, filterOption)
-    const liveOptions = flattenGroups(liveGroups)
-    if (!loading && liveOptions.length === 0) return
-
-    const popup = document.createElement('div')
-    popup.setAttribute('data-rue-auto-complete-popup', 'true')
-    popup.className = mergeClassName(
-      'absolute z-30 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-xl',
-      popupClassName,
-      classNames?.popup,
-    )
-    const list = document.createElement('div')
-    list.setAttribute('role', 'listbox')
-    list.className = mergeClassName('max-h-80 overflow-y-auto py-2', classNames?.list)
-    const selectedOptionIndex = liveOptions.findIndex(
-      option => resolveOptionText(option.raw, optionLabelProp) === query,
-    )
-    liveOptions.forEach((option, index) => {
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.setAttribute('role', 'option')
-      button.setAttribute(
-        'aria-selected',
-        index === (selectedOptionIndex >= 0 ? selectedOptionIndex : 0) ? 'true' : 'false',
-      )
-      button.dataset.rueAutoCompleteIndex = String(index)
-      button.dataset.rueAutoCompleteValue = resolveOptionText(option.raw, optionLabelProp)
-      button.textContent = [
-        stringifySearchPart(option.label),
-        stringifySearchPart(option.description),
-      ]
-        .filter(Boolean)
-        .join(' ')
-      button.disabled = option.disabled
-      button.onclick = () => {
-        const nextText = resolveOptionText(option.raw, optionLabelProp)
-        persistRemountState({ value: nextText, preview: null, open: false, highlightedIndex: -1 })
-        liveInput.value = nextText
-        if (onChange) onChange(nextText)
-        if (onSelect) onSelect(option.value, option.raw)
-        popup.remove()
-        const currentInput = getLiveRoot()?.querySelector(
-          'input[role="combobox"]',
-        ) as HTMLInputElement | null
-        if (currentInput) {
-          currentInput.value = nextText
-          currentInput.setAttribute('aria-expanded', 'false')
-          currentInput.focus()
-        }
-        setTimeout(() => {
-          const settledInput = getLiveRoot()?.querySelector(
-            'input[role="combobox"]',
-          ) as HTMLInputElement | null
-          if (settledInput) settledInput.value = nextText
-        }, 0)
-      }
-      list.appendChild(button)
-    })
-    popup.appendChild(list)
-    root.appendChild(popup)
-    liveInput.setAttribute('aria-expanded', 'true')
-    persistRemountState({ open: true })
-    liveInput.focus()
-  }
-
-  const scheduleLivePopup = (query?: string) => {
-    setTimeout(() => renderLivePopup(query), 0)
-  }
 
   const isClearButtonVisible = () => {
     return clearable && !disabled && !readOnly && getDisplayedValue().length > 0
@@ -935,7 +919,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
   const clearPreview = () => {
     if (previewValue.value == null) return
     previewValue.value = null
-    persistRemountState({ preview: null })
+
     syncNativeValue()
   }
 
@@ -1027,19 +1011,6 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     const resolvedActiveIndex = popupVisibleState.value
       ? resolveNavigableIndex(filteredOptionsState.value)
       : -1
-    const inputElement = inputRef.current
-
-    if (inputElement) {
-      if (popupVisibleState.value && resolvedActiveIndex >= 0 && instanceId.value) {
-        inputElement.setAttribute(
-          'aria-activedescendant',
-          `${instanceId.value}-option-${filteredOptionsState.value[resolvedActiveIndex]?.key}`,
-        )
-      } else {
-        inputElement.removeAttribute('aria-activedescendant')
-      }
-    }
-
     const popupListElement = popupListRef.current
     if (!popupListElement) {
       return
@@ -1048,13 +1019,6 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     const optionNodes = Array.from(
       popupListElement.querySelectorAll<HTMLElement>('[role="option"]'),
     )
-    optionNodes.forEach((optionNode, optionIndex) => {
-      optionNode.setAttribute(
-        'aria-selected',
-        optionIndex === resolvedActiveIndex ? 'true' : 'false',
-      )
-    })
-
     if (resolvedActiveIndex >= 0) {
       optionNodes[resolvedActiveIndex]?.scrollIntoView?.({ block: 'nearest' })
     }
@@ -1079,13 +1043,13 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     if (!isOpenControlled) {
       popupOpenState.value = nextOpen
     }
-    persistRemountState({ open: nextOpen })
+
     if (currentOpen !== nextOpen && onOpenChange) {
       onOpenChange(nextOpen)
     }
     if (!nextOpen) {
       highlightedIndex.value = -1
-      persistRemountState({ highlightedIndex: -1 })
+
       clearPreview()
     }
     syncPopupVisibility(nextOpen)
@@ -1100,7 +1064,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
 
     const nextValue = resolveOptionText(option.raw, optionLabelProp)
     previewValue.value = nextValue
-    persistRemountState({ preview: nextValue })
+
     syncNativeValue()
 
     const element = inputRef.current
@@ -1137,7 +1101,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
   const commitValue = (nextValue: string, options?: { emitSearch?: boolean }) => {
     valueState.value = nextValue
     previewValue.value = null
-    persistRemountState({ value: nextValue, preview: null })
+
     syncNativeValue()
     syncFilteredState()
     syncPopupVisibility()
@@ -1160,7 +1124,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     })
     commitValue(nextText)
     highlightedIndex.value = -1
-    persistRemountState({ highlightedIndex: -1 })
+
     setPopupOpen(false)
     scheduleInputFocusRestore()
     if (onSelect) {
@@ -1185,15 +1149,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     previewValue.value = null
     valueState.value = nextValue
     highlightedIndex.value = -1
-    persistRemountState({
-      value: nextValue,
-      preview: null,
-      open: !disabled && !readOnly,
-      highlightedIndex: -1,
-      focused: true,
-      selectionStart: target?.selectionStart,
-      selectionEnd: target?.selectionEnd,
-    })
+
     syncFilteredState()
     if (!disabled && !readOnly) {
       setPopupOpen(true)
@@ -1206,13 +1162,12 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     if (onChange) {
       onChange(nextValue)
     }
-    scheduleLivePopup(nextValue)
     scheduleInputFocusRestore()
   }
 
   const handleFocus = (event: FocusEvent) => {
     focused.value = true
-    persistRemountState({ focused: true })
+
     if (suppressNextFocusOpen.current) {
       suppressNextFocusOpen.current = false
     } else {
@@ -1221,7 +1176,6 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     if (onFocus) {
       onFocus(event)
     }
-    scheduleLivePopup((event.currentTarget as HTMLInputElement).value)
   }
 
   const handleControlMouseDown = (event: MouseEvent) => {
@@ -1266,12 +1220,10 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     }
 
     requestPopupOpen()
-    scheduleLivePopup()
   }
 
   const handleClick = (event: MouseEvent) => {
     requestPopupOpen()
-    scheduleLivePopup((event.currentTarget as HTMLInputElement).value)
     if (typeof rest.onClick === 'function') {
       rest.onClick(event)
     }
@@ -1292,7 +1244,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     }
 
     focused.value = false
-    persistRemountState({ focused: false })
+
     if (!rootRef.current || !nextTarget || !rootRef.current.contains(nextTarget)) {
       setPopupOpen(false)
     }
@@ -1310,63 +1262,6 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     }
 
     const key = (event as any).key
-    const liveRoot = getLiveRoot()
-    const liveInput = liveRoot?.querySelector('input[role="combobox"]') as HTMLInputElement | null
-    let liveOptions = Array.from(
-      liveRoot?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [],
-    )
-    if (liveOptions.length === 0 && (key === 'ArrowDown' || key === 'ArrowUp')) {
-      renderLivePopup(liveInput?.value ?? valueState.value)
-      liveOptions = Array.from(
-        getLiveRoot()?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [],
-      )
-    }
-    if (liveOptions.length && (key === 'ArrowDown' || key === 'ArrowUp')) {
-      event.preventDefault()
-      const selectedIndex = liveOptions.findIndex(
-        option => option.getAttribute('aria-selected') === 'true',
-      )
-      const direction = key === 'ArrowDown' ? 1 : -1
-      const currentIndex = selectedIndex < 0 ? getResolvedActiveIndex() : selectedIndex
-      const nextIndex =
-        currentIndex < 0
-          ? direction === 1
-            ? 0
-            : liveOptions.length - 1
-          : (currentIndex + direction + liveOptions.length) % liveOptions.length
-      liveOptions.forEach((option, index) =>
-        option.setAttribute('aria-selected', index === nextIndex ? 'true' : 'false'),
-      )
-      if (backfill && liveInput) {
-        const nextText = liveOptions[nextIndex]?.dataset.rueAutoCompleteValue ?? ''
-        liveInput.value = nextText
-        persistRemountState({ preview: nextText, highlightedIndex: nextIndex })
-        setTimeout(() => {
-          const settledInput = getLiveRoot()?.querySelector(
-            'input[role="combobox"]',
-          ) as HTMLInputElement | null
-          if (settledInput) settledInput.value = nextText
-        }, 0)
-      }
-      return
-    }
-    if (liveOptions.length && key === 'Enter') {
-      event.preventDefault()
-      const selected =
-        liveOptions.find(option => option.getAttribute('aria-selected') === 'true') ??
-        liveOptions[0]
-      selected?.click()
-      return
-    }
-    if (key === 'Escape' && liveRoot) {
-      liveRoot.querySelector('[data-rue-auto-complete-popup="true"]')?.remove()
-      if (liveInput) {
-        liveInput.value = valueState.value
-        liveInput.setAttribute('aria-expanded', 'false')
-      }
-      persistRemountState({ preview: null, open: false })
-      return
-    }
     const flatOptions = filteredOptionsState.value
     const resolvedActiveIndex = resolveNavigableIndex(flatOptions)
 
@@ -1383,7 +1278,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
       const baseIndex = resolvedActiveIndex < 0 ? (direction === 1 ? -1 : 0) : resolvedActiveIndex
       const nextIndex = findNextEnabledIndex(flatOptions, baseIndex, direction)
       highlightedIndex.value = nextIndex
-      persistRemountState({ highlightedIndex: nextIndex })
+
       applyPreview(flatOptions[nextIndex])
       schedulePopupOptionStateSync()
       return
@@ -1429,7 +1324,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
     captureInputFocusSnapshot(target)
     valueState.value = nextValue
     previewValue.value = null
-    persistRemountState({ value: nextValue, preview: null })
+
     syncFilteredState()
     syncPopupVisibility()
     if (onSearch) {
@@ -1597,7 +1492,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
       >
         {prefix !== undefined ? (
           <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center self-center text-sm leading-none text-base-content/60">
-            {prefix}
+            {String(prefix ?? '')}
           </span>
         ) : null}
         <input
@@ -1611,25 +1506,15 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
             syncForwardedRef()
             syncNativeDataTestId()
             restoreInputFocusSnapshot(element ?? undefined)
-            if (element && remountState?.focused) {
-              queueMicrotask(() => {
-                element.focus()
-                if (
-                  remountState.selectionStart != null &&
-                  remountState.selectionEnd != null &&
-                  typeof element.setSelectionRange === 'function'
-                ) {
-                  element.setSelectionRange(
-                    Math.min(remountState.selectionStart, element.value.length),
-                    Math.min(remountState.selectionEnd, element.value.length),
-                  )
-                }
-              })
-            }
           }}
           type={rest.type ?? 'text'}
           value={getDisplayedValue()}
           role="combobox"
+          aria-activedescendant={
+            popupVisibleState.value && getResolvedActiveIndex() >= 0 && instanceId.value
+              ? `${instanceId.value}-option-${filteredOptionsState.value[getResolvedActiveIndex()]?.key}`
+              : undefined
+          }
           aria-autocomplete="list"
           aria-expanded={popupVisibleState.value ? 'true' : 'false'}
           className={mergeClassName(
@@ -1676,276 +1561,75 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = ({
               handleClear(event)
             }}
           >
-            {clearConfig?.clearIcon ?? <DefaultClearIcon />}
+            {clearConfig?.clearIcon ? (
+              <span>{String(clearConfig.clearIcon)}</span>
+            ) : (
+              <DefaultClearIcon />
+            )}
           </button>
         ) : null}
         {suffix !== undefined ? (
           <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center self-center text-sm leading-none text-base-content/60">
-            {suffix}
+            {String(suffix ?? '')}
           </span>
         ) : null}
       </label>
       {popupVisibleState.value ? (
-        popupRender ? (
-          popupRender(
-            <div
-              className={mergeClassName(
-                'absolute z-30 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-xl',
-                placement === 'top' ? 'bottom-[calc(100%+0.5rem)]' : 'top-[calc(100%+0.5rem)]',
-                popupClassName,
-                classNames?.popup,
-              )}
-              style={{
-                ...popupWidthStyle,
-                ...popupStyle,
-                ...styles?.popup,
-              }}
-              data-rue-auto-complete-popup="true"
-            >
-              <div
-                ref={(element: HTMLDivElement | null) => {
-                  popupListRef.current = element ?? undefined
-                  schedulePopupOptionStateSync()
-                }}
-                id={popupId}
-                role="listbox"
-                className={mergeClassName('max-h-80 overflow-y-auto py-2', classNames?.list)}
-                style={styles?.list}
-                onScroll={(event: Event) => {
-                  if (onPopupScroll) {
-                    onPopupScroll(event as Event)
-                  }
-                }}
-              >
-                {loading ? (
-                  <DefaultLoadingContent className={classNames?.loading} />
-                ) : filteredOptionsState.value.length > 0 ? (
-                  filteredGroupsState.value.map((group, groupIndex) => {
-                    let itemBaseIndex = 0
-                    const previousGroups = filteredGroupsState.value.slice(0, groupIndex)
-                    previousGroups.forEach(previousGroup => {
-                      itemBaseIndex += previousGroup.options.length
-                    })
-
-                    return (
-                      <div
-                        key={group.key}
-                        className={mergeClassName(
-                          group.label !== undefined ? 'px-2 pb-2 pt-1' : undefined,
-                          classNames?.group,
-                          group.className,
-                        )}
-                        style={{
-                          ...styles?.group,
-                          ...group.style,
-                        }}
-                      >
-                        {group.label !== undefined ? (
-                          <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-base-content/40">
-                            {group.label}
-                          </div>
-                        ) : null}
-                        <div className="space-y-1">
-                          {group.options.map((option, optionIndex) => {
-                            const globalIndex = itemBaseIndex + optionIndex
-                            const active = globalIndex === resolvedActiveIndex
-
-                            return (
-                              <button
-                                key={option.key}
-                                id={
-                                  instanceId.value
-                                    ? `${instanceId.value}-option-${option.key}`
-                                    : undefined
-                                }
-                                type="button"
-                                role="option"
-                                data-rue-auto-complete-value={resolveOptionText(
-                                  option.raw,
-                                  optionLabelProp,
-                                )}
-                                aria-selected={active ? 'true' : 'false'}
-                                disabled={option.disabled}
-                                title={option.title}
-                                className={buildOptionButtonClassName(option)}
-                                style={{
-                                  ...styles?.item,
-                                  ...option.style,
-                                }}
-                                onMouseDown={(event: MouseEvent) => {
-                                  if (typeof (event as any).preventDefault === 'function') {
-                                    ;(event as any).preventDefault()
-                                  }
-                                }}
-                                onMouseEnter={() => {
-                                  highlightedIndex.value = globalIndex
-                                  applyPreview(option)
-                                  schedulePopupOptionStateSync()
-                                }}
-                                onClick={() => {
-                                  selectOption(option)
-                                }}
-                              >
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate font-medium">{option.label}</span>
-                                  {option.description !== undefined ? (
-                                    <span className="mt-1 block truncate text-xs text-base-content/55">
-                                      {option.description}
-                                    </span>
-                                  ) : null}
-                                </span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })
-                ) : emptyStateVisible.value ? (
-                  <div
-                    className={mergeClassName(
-                      'px-3 py-2 text-sm text-base-content/55',
-                      classNames?.empty,
-                    )}
-                    style={styles?.empty}
-                  >
-                    {notFoundContent}
-                  </div>
-                ) : null}
-              </div>
-            </div>,
-          )
-        ) : (
+        <div
+          className={mergeClassName(
+            'absolute z-30 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-xl',
+            !popupVisibleState.value && 'hidden',
+            placement === 'top' ? 'bottom-[calc(100%+0.5rem)]' : 'top-[calc(100%+0.5rem)]',
+            popupClassName,
+            classNames?.popup,
+          )}
+          style={{
+            ...popupWidthStyle,
+            ...popupStyle,
+            ...styles?.popup,
+          }}
+          data-rue-auto-complete-popup="true"
+        >
           <div
-            className={mergeClassName(
-              'absolute z-30 overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-xl',
-              !popupVisibleState.value && 'hidden',
-              placement === 'top' ? 'bottom-[calc(100%+0.5rem)]' : 'top-[calc(100%+0.5rem)]',
-              popupClassName,
-              classNames?.popup,
-            )}
-            style={{
-              ...popupWidthStyle,
-              ...popupStyle,
-              ...styles?.popup,
+            ref={(element: HTMLDivElement | null) => {
+              popupListRef.current = element ?? undefined
+              schedulePopupOptionStateSync()
             }}
-            data-rue-auto-complete-popup="true"
+            id={popupId}
+            role="listbox"
+            className={mergeClassName('max-h-80 overflow-y-auto py-2', classNames?.list)}
+            style={styles?.list}
+            onScroll={(event: Event) => {
+              if (onPopupScroll) {
+                onPopupScroll(event as Event)
+              }
+            }}
           >
-            <div
-              ref={(element: HTMLDivElement | null) => {
-                popupListRef.current = element ?? undefined
-                schedulePopupOptionStateSync()
-              }}
-              id={popupId}
-              role="listbox"
-              className={mergeClassName('max-h-80 overflow-y-auto py-2', classNames?.list)}
-              style={styles?.list}
-              onScroll={(event: Event) => {
-                if (onPopupScroll) {
-                  onPopupScroll(event as Event)
-                }
-              }}
-            >
-              {popupVisibleState.value ? (
-                loading ? (
-                  <DefaultLoadingContent className={classNames?.loading} />
-                ) : filteredOptionsState.value.length > 0 ? (
-                  filteredGroupsState.value.map((group, groupIndex) => {
-                    let itemBaseIndex = 0
-                    const previousGroups = filteredGroupsState.value.slice(0, groupIndex)
-                    previousGroups.forEach(previousGroup => {
-                      itemBaseIndex += previousGroup.options.length
-                    })
-
-                    return (
-                      <div
-                        key={group.key}
-                        className={mergeClassName(
-                          group.label !== undefined ? 'px-2 pb-2 pt-1' : undefined,
-                          classNames?.group,
-                          group.className,
-                        )}
-                        style={{
-                          ...styles?.group,
-                          ...group.style,
-                        }}
-                      >
-                        {group.label !== undefined ? (
-                          <div className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-base-content/40">
-                            {group.label}
-                          </div>
-                        ) : null}
-                        <div className="space-y-1">
-                          {group.options.map((option, optionIndex) => {
-                            const globalIndex = itemBaseIndex + optionIndex
-                            const active = globalIndex === resolvedActiveIndex
-
-                            return (
-                              <button
-                                key={option.key}
-                                id={
-                                  instanceId.value
-                                    ? `${instanceId.value}-option-${option.key}`
-                                    : undefined
-                                }
-                                type="button"
-                                role="option"
-                                data-rue-auto-complete-value={resolveOptionText(
-                                  option.raw,
-                                  optionLabelProp,
-                                )}
-                                aria-selected={active ? 'true' : 'false'}
-                                disabled={option.disabled}
-                                title={option.title}
-                                className={buildOptionButtonClassName(option)}
-                                style={{
-                                  ...styles?.item,
-                                  ...option.style,
-                                }}
-                                onMouseDown={(event: MouseEvent) => {
-                                  if (typeof (event as any).preventDefault === 'function') {
-                                    ;(event as any).preventDefault()
-                                  }
-                                }}
-                                onMouseEnter={() => {
-                                  highlightedIndex.value = globalIndex
-                                  applyPreview(option)
-                                  schedulePopupOptionStateSync()
-                                }}
-                                onClick={() => {
-                                  selectOption(option)
-                                }}
-                              >
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate font-medium">{option.label}</span>
-                                  {option.description !== undefined ? (
-                                    <span className="mt-1 block truncate text-xs text-base-content/55">
-                                      {option.description}
-                                    </span>
-                                  ) : null}
-                                </span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })
-                ) : emptyStateVisible.value ? (
-                  <div
-                    className={mergeClassName(
-                      'px-3 py-2 text-sm text-base-content/55',
-                      classNames?.empty,
-                    )}
-                    style={styles?.empty}
-                  >
-                    {notFoundContent}
-                  </div>
-                ) : null
-              ) : null}
-            </div>
+            {popupVisibleState.value ? (
+              loading ? (
+                <DefaultLoadingContent className={classNames?.loading} />
+              ) : filteredOptionsState.value.length > 0 ? (
+                <>
+                  {' '}
+                  {filteredGroupsState.value.map((rowArg0: any, rowArg1: number) => (
+                    <CompiledRow3 rowArg0={rowArg0} rowArg1={rowArg1} />
+                  ))}{' '}
+                </>
+              ) : emptyStateVisible.value ? (
+                <div
+                  className={mergeClassName(
+                    'px-3 py-2 text-sm text-base-content/55',
+                    classNames?.empty,
+                  )}
+                  style={styles?.empty}
+                >
+                  {String(notFoundContent ?? '')}
+                </div>
+              ) : null
+            ) : null}
           </div>
-        )
+          {slots.footer ? <div>{slots.footer}</div> : null}
+        </div>
       ) : null}
     </div>
   )

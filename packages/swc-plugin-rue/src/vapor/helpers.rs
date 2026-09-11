@@ -27,7 +27,7 @@ impl VaporTransform {
     ///   - `__childX`：组件 children 片段
     ///   - `_mapX*`：列表渲染内部使用的当前项数组与元素映射（如 `_map1_current`/`_map1_elements`）
     ///     生成下一个注释标识符：`_listX`
-    /// - 用途：作为注释锚点标识符插入 DOM，供 renderAnchor/列表渲染定位位置
+    /// - 用途：作为注释锚点标识符插入 DOM，供 compiled slot/list 渲染定位位置
     pub(crate) fn next_list_ident(&mut self) -> Ident {
         // 递增注释锚点计数，并返回 `_list{n}`
         self.next_list += 1;

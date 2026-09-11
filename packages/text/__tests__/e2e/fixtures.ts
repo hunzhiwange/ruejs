@@ -38,7 +38,7 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       if (msg.type() === 'error') {
         const text = msg.text()
         if (!shouldIgnoreError(text)) {
-          errors.push(text)
+          errors.push(msg.location().url ? `${text} (${msg.location().url})` : text)
         }
       }
     })

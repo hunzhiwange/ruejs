@@ -1,3 +1,6 @@
+import { Template } from '@rue-js/rue'
+import { TimePickerRangePicker } from '..'
+import { mountTestApp, disposeTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import TimePicker from '../index'
@@ -32,7 +35,7 @@ const fastPickerProps = {
 afterEach(async () => {
   resetActiveRuntime()
   for (const container of mountedContainers) {
-    render(null as any, container)
+    disposeTestApp(container)
   }
   mountedContainers.length = 0
   await flush(4)
@@ -103,13 +106,15 @@ describe('TimePicker', () => {
     resetActiveRuntime()
     const handleOpenChange = vi.fn()
 
-    render(
-      <TimePicker
-        {...fastPickerProps}
-        onOpenChange={handleOpenChange}
-        data-testid="open-once-picker"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TimePicker
+          {...fastPickerProps}
+          onOpenChange={handleOpenChange}
+          data-testid="open-once-picker"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -131,14 +136,16 @@ describe('TimePicker', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <TimePicker
-        {...fastPickerProps}
-        defaultValue="09:15:15"
-        onChange={handleChange}
-        data-testid="time-picker-input"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TimePicker
+          {...fastPickerProps}
+          defaultValue="09:15:15"
+          onChange={handleChange}
+          data-testid="time-picker-input"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -182,15 +189,17 @@ describe('TimePicker', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <TimePicker
-        {...fastPickerProps}
-        defaultValue="08:00:00"
-        needConfirm
-        onChange={handleChange}
-        data-testid="confirm-picker"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TimePicker
+          {...fastPickerProps}
+          defaultValue="08:00:00"
+          needConfirm
+          onChange={handleChange}
+          data-testid="confirm-picker"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -260,7 +269,7 @@ describe('TimePicker', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForPickerContent(() => {
       const input = container.querySelector(
@@ -312,19 +321,21 @@ describe('TimePicker', () => {
     const container = mountTestContainer()
     resetActiveRuntime()
 
-    render(
-      <TimePicker
-        {...fastPickerProps}
-        defaultValue="09:20:00"
-        allowClear
-        hideDisabledOptions
-        disabledTime={() => ({
-          disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 7, 8, 19, 20, 21, 22, 23],
-          disabledMinutes: selectedHour => (selectedHour === 9 ? [0, 15, 30, 45] : []),
-        })}
-        data-testid="disabled-picker"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <TimePicker
+          {...fastPickerProps}
+          defaultValue="09:20:00"
+          allowClear
+          hideDisabledOptions
+          disabledTime={() => ({
+            disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 7, 8, 19, 20, 21, 22, 23],
+            disabledMinutes: selectedHour => (selectedHour === 9 ? [0, 15, 30, 45] : []),
+          })}
+          data-testid="disabled-picker"
+        />,
+        container,
+      ),
     )
 
     await waitForPickerContent(() => {
@@ -377,7 +388,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledCase />, container)
+      mountTestApp(container, () => render(<ControlledCase />, container))
 
       await waitForPickerContent(() => {
         const input = container.querySelector(
@@ -419,14 +430,19 @@ describe('TimePicker', () => {
       const container = mountTestContainer()
       resetActiveRuntime()
 
-      render(
-        <TimePicker
-          {...fastPickerProps}
-          defaultValue="21:15:00"
-          renderExtraFooter={() => <span data-testid="time-picker-extra-footer">Manual hint</span>}
-          data-testid="manual-footer-picker"
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <TimePicker
+            {...fastPickerProps}
+            defaultValue="21:15:00"
+            data-testid="manual-footer-picker"
+          >
+            <Template slot="footer">
+              <span data-testid="time-picker-extra-footer">Manual hint</span>
+            </Template>
+          </TimePicker>,
+          container,
+        ),
       )
 
       await waitForPickerContent(() => {
@@ -490,7 +506,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledCase />, container)
+      mountTestApp(container, () => render(<ControlledCase />, container))
 
       await waitForPickerContent(() => {
         const input = container.querySelector(
@@ -568,7 +584,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledCase />, container)
+      mountTestApp(container, () => render(<ControlledCase />, container))
 
       await waitForPickerContent(() => {
         const input = container.querySelector(
@@ -634,7 +650,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledCase />, container)
+      mountTestApp(container, () => render(<ControlledCase />, container))
 
       await waitForPickerContent(() => {
         const input = container.querySelector(
@@ -703,7 +719,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledCase />, container)
+      mountTestApp(container, () => render(<ControlledCase />, container))
 
       await waitForPickerContent(() => {
         const input = container.querySelector(
@@ -780,7 +796,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledCase />, container)
+      mountTestApp(container, () => render(<ControlledCase />, container))
 
       await waitForPickerContent(() => {
         const input = container.querySelector(
@@ -870,9 +886,11 @@ describe('TimePicker', () => {
       const container = mountTestContainer()
       resetActiveRuntime()
 
-      render(
-        <TimePicker {...fastPickerProps} defaultValue="09:30:15" data-testid="reopen-picker" />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <TimePicker {...fastPickerProps} defaultValue="09:30:15" data-testid="reopen-picker" />,
+          container,
+        ),
       )
 
       await waitForPickerContent(() => {
@@ -923,14 +941,16 @@ describe('TimePicker', () => {
       const container = mountTestContainer()
       resetActiveRuntime()
 
-      render(
-        <TimePicker
-          {...fastPickerProps}
-          defaultValue="09:30:15"
-          allowClear
-          data-testid="keyboard-reopen-picker"
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <TimePicker
+            {...fastPickerProps}
+            defaultValue="09:30:15"
+            allowClear
+            data-testid="keyboard-reopen-picker"
+          />,
+          container,
+        ),
       )
 
       await waitForPickerContent(() => {
@@ -998,13 +1018,15 @@ describe('TimePicker', () => {
       resetActiveRuntime()
       const handleChange = vi.fn()
 
-      render(
-        <TimePicker.RangePicker
-          {...fastPickerProps}
-          defaultValue={['09:00:00', '18:00:00']}
-          onChange={handleChange}
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <TimePickerRangePicker
+            {...fastPickerProps}
+            defaultValue={['09:00:00', '18:00:00']}
+            onChange={handleChange}
+          />,
+          container,
+        ),
       )
 
       await waitForContent(() => {
@@ -1052,7 +1074,7 @@ describe('TimePicker', () => {
 
         return (
           <div>
-            <TimePicker.RangePicker
+            <TimePickerRangePicker
               {...fastPickerProps}
               value={rangeValue}
               allowClear
@@ -1066,7 +1088,7 @@ describe('TimePicker', () => {
         )
       }
 
-      render(<ControlledRange />, container)
+      mountTestApp(container, () => render(<ControlledRange />, container))
 
       await waitForContent(() => {
         const inputs = container.querySelectorAll('input') as NodeListOf<HTMLInputElement>

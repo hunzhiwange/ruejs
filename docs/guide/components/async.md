@@ -28,13 +28,12 @@ const AsyncComp = useComponent(() => import('./components/MyComponent.tsx'))
 
 生成的 `AsyncComp` 是一个包装器组件，仅在页面上实际渲染时才调用加载器函数。此外，它会将任何 props 和插槽传递给内部组件，因此你可以使用异步包装器无缝替换原始组件，同时实现懒加载。
 
-与常规组件一样，异步组件可以使用 `app.component()` [注册到运行时名称表](/guide/guide/components/registration#global-registration)：
+异步组件必须绑定到静态标识符并直接用于 JSX；不支持运行时名称注册：
 
 ```tsx
-app.component(
-  'MyComponent',
-  useComponent(() => import('./components/MyComponent.tsx')),
-)
+const MyComponent = useComponent(() => import('./components/MyComponent.tsx'))
+
+<MyComponent />
 ```
 
 它们也可以直接在父组件中定义：

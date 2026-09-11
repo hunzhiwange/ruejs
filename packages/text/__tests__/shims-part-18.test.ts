@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -614,7 +614,7 @@ describe('text/navigation enhancements', () => {
 
 describe('text/legacy/image shim', () => {
   it('renders LegacyImage with layout=fill as modern Image with fill prop', async () => {
-    const LegacyImage = (await import('../src/shims/legacy-image.js')).default
+    const LegacyImage = (await import('../src/shims/legacy-image.js?text-ssr')).default
 
     const html = await renderRueToString(() =>
       createRueElement(LegacyImage, {
@@ -632,7 +632,7 @@ describe('text/legacy/image shim', () => {
   })
 
   it('renders LegacyImage with layout=intrinsic using width/height', async () => {
-    const LegacyImage = (await import('../src/shims/legacy-image.js')).default
+    const LegacyImage = (await import('../src/shims/legacy-image.js?text-ssr')).default
 
     const html = await renderRueToString(() =>
       createRueElement(LegacyImage, {
@@ -648,7 +648,7 @@ describe('text/legacy/image shim', () => {
   })
 
   it('renders LegacyImage with string width/height (converts to number)', async () => {
-    const LegacyImage = (await import('../src/shims/legacy-image.js')).default
+    const LegacyImage = (await import('../src/shims/legacy-image.js?text-ssr')).default
 
     const html = await renderRueToString(() =>
       createRueElement(LegacyImage, {
@@ -665,25 +665,29 @@ describe('text/legacy/image shim', () => {
 
 describe('text/error shim', () => {
   it('renders 404 error page', async () => {
-    const ErrorComponent = (await import('../src/shims/error.js')).default
+    const ErrorComponent = (await import('../src/shims/error.js?text-ssr')).default
 
-    const html = renderAppServerElementToHtml(createElement(ErrorComponent, { statusCode: 404 }))
+    const html = await renderAppServerElementToHtml(
+      createElement(ErrorComponent, { statusCode: 404 }),
+    )
     expect(html).toContain('404')
     expect(html).toContain('could not be found')
   })
 
   it('renders 500 error page', async () => {
-    const ErrorComponent = (await import('../src/shims/error.js')).default
+    const ErrorComponent = (await import('../src/shims/error.js?text-ssr')).default
 
-    const html = renderAppServerElementToHtml(createElement(ErrorComponent, { statusCode: 500 }))
+    const html = await renderAppServerElementToHtml(
+      createElement(ErrorComponent, { statusCode: 500 }),
+    )
     expect(html).toContain('500')
     expect(html).toContain('Internal Server Error')
   })
 
   it('renders custom title', async () => {
-    const ErrorComponent = (await import('../src/shims/error.js')).default
+    const ErrorComponent = (await import('../src/shims/error.js?text-ssr')).default
 
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(ErrorComponent, { statusCode: 403, title: 'Forbidden' }),
     )
     expect(html).toContain('403')
@@ -703,36 +707,24 @@ describe('text/error shim', () => {
 // Without a runtime default export, every such fixture fails to build with
 // "[MISSING_EXPORT] 'default' is not exported by ...shims/app.js".
 describe('text/app shim', () => {
-  it('exports a Text-compatible class component as default', async () => {
-    const AppDefault = (await import('../src/shims/app.js')).default
-    expect(typeof AppDefault).toBe('function')
-    // Class component: prototype must have a render method and the
-    // Text-compatible class lifecycle surface used by Pages Router shims.
-    expect(typeof AppDefault.prototype.render).toBe('function')
-    const instance = new AppDefault({ Component: () => null, pageProps: {} })
-    expect(typeof instance.render).toBe('function')
-    expect(typeof instance.setState).toBe('function')
-    expect(typeof instance.forceUpdate).toBe('function')
-  })
-
-  it('default App.render() returns <Component {...pageProps} />', async () => {
-    const AppDefault = (await import('../src/shims/app.js')).default
+  it('default compiled App renders Component with pageProps', async () => {
+    const AppDefault = (await import('../src/shims/app.js?text-ssr')).default
 
     function Page(props: { greeting: string }) {
       return createElement('p', null, props.greeting)
     }
 
-    const html = renderAppServerElementToHtml(
+    const html = await renderAppServerElementToHtml(
       createElement(AppDefault<unknown, { greeting: string }> as never, {
         Component: Page,
         pageProps: { greeting: 'hello world' },
       }),
     )
-    expect(html).toBe('<p>hello world</p>')
+    expect(html.replace(/<!--.*?-->/g, '')).toBe('<p>hello world</p>')
   })
 
   it('App.getInitialProps is a function and forwards Component.getInitialProps result as pageProps', async () => {
-    const AppDefault = (await import('../src/shims/app.js')).default
+    const AppDefault = (await import('../src/shims/app.js?text-ssr')).default
     expect(typeof AppDefault.getInitialProps).toBe('function')
     // origGetInitialProps is preserved for userland code that introspects it.
     expect(typeof AppDefault.origGetInitialProps).toBe('function')
@@ -755,7 +747,7 @@ describe('text/app shim', () => {
   })
 
   it('App.getInitialProps returns { pageProps: {} } when Component has no getInitialProps', async () => {
-    const AppDefault = (await import('../src/shims/app.js')).default
+    const AppDefault = (await import('../src/shims/app.js?text-ssr')).default
     const result = await AppDefault.getInitialProps({
       Component: () => null,
       AppTree: () => null,

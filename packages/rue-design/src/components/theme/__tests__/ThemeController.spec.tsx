@@ -1,3 +1,6 @@
+import { useThemeRuntime } from '../index'
+import { ThemeProvider } from '../index'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import ThemeController, { ConfigProvider, theme as rueTheme, type ThemeDesignToken } from '../index'
@@ -18,9 +21,11 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController className="toggle" value="synthwave" checked={true} data-testid="theme" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeController className="toggle" value="synthwave" checked={true} data-testid="theme" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -37,9 +42,16 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController type="radio" name="theme-radios" className="radio radio-sm" value="retro" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeController
+          type="radio"
+          name="theme-radios"
+          className="radio radio-sm"
+          value="retro"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -56,7 +68,9 @@ describe('ThemeController', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(<ThemeController data-testid="controller" onChange={handleChange} />, container)
+    mountTestApp(container, () =>
+      render(<ThemeController data-testid="controller" onChange={handleChange} />, container),
+    )
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="controller"]')).toBeTruthy()
@@ -167,22 +181,21 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController.Provider
-        data-testid="theme-scope"
-        theme="retro"
-        render={runtime => (
-          <div data-testid="theme-summary">
-            {runtime.theme}|{runtime.token.colors.primary}|{runtime.token.appearance}
-          </div>
-        )}
-        token={{
-          colors: {
-            primary: '#445566',
-          },
-        }}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider
+          data-testid="theme-scope"
+          theme="retro"
+          token={{
+            colors: {
+              primary: '#445566',
+            },
+          }}
+        >
+          <ThemeSummary8 />
+        </ThemeProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -202,40 +215,34 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController.Provider
-        data-testid="component-token-scope"
-        theme="night"
-        components={{
-          Button: {
-            selector: '.demo-button',
-            colors: {
-              primary: '#ff8800',
-              primaryContent: '#1c0b00',
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider
+          data-testid="component-token-scope"
+          theme="night"
+          components={{
+            Button: {
+              selector: '.demo-button',
+              colors: {
+                primary: '#ff8800',
+                primaryContent: '#1c0b00',
+              },
+              radius: {
+                field: '999px',
+              },
             },
-            radius: {
-              field: '999px',
+            Card: {
+              selector: '.demo-card',
+              radius: {
+                box: '2rem',
+              },
             },
-          },
-          Card: {
-            selector: '.demo-card',
-            radius: {
-              box: '2rem',
-            },
-          },
-        }}
-        render={runtime => (
-          <div>
-            <button className="demo-button" data-testid="component-button">
-              {runtime.components.Button.colors.primary}
-            </button>
-            <div className="demo-card" data-testid="component-card">
-              {runtime.components.Card.radius.box}
-            </div>
-          </div>
-        )}
-      />,
-      container,
+          }}
+        >
+          <ThemeSummary7 />
+        </ThemeProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -259,27 +266,13 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController.Provider
-        theme="garden"
-        render={parentRuntime => (
-          <ThemeController.Provider
-            data-testid="nested-base-token-scope"
-            baseToken={parentRuntime.token}
-            token={{
-              colors: {
-                secondary: '#202020',
-              },
-            }}
-            render={runtime => (
-              <span data-testid="nested-base-token-summary">
-                {runtime.theme}|{runtime.token.colors.primary}|{runtime.token.colors.secondary}
-              </span>
-            )}
-          />
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider theme="garden">
+          <ThemeSummary6 />
+        </ThemeProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -297,16 +290,18 @@ describe('ThemeController', () => {
       const runtime = ThemeController.useToken()
       return (
         <span data-testid="theme-runtime-reader">
-          {runtime.theme}|{runtime.token.colors.primary}
+          {String(runtime.theme)}|{String(runtime.token.colors.primary)}
         </span>
       )
     }
 
-    render(
-      <ThemeController.Provider theme="garden">
-        <ThemeRuntimeReader />
-      </ThemeController.Provider>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider theme="garden">
+          <ThemeRuntimeReader />
+        </ThemeProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -320,23 +315,22 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController.Provider theme="garden">
-        <ThemeController.Provider
-          data-testid="direct-nested-scope"
-          token={{
-            colors: {
-              secondary: '#202020',
-            },
-          }}
-          render={runtime => (
-            <span data-testid="direct-nested-summary">
-              {runtime.theme}|{runtime.token.colors.primary}|{runtime.token.colors.secondary}
-            </span>
-          )}
-        />
-      </ThemeController.Provider>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider theme="garden">
+          <ThemeProvider
+            data-testid="direct-nested-scope"
+            token={{
+              colors: {
+                secondary: '#202020',
+              },
+            }}
+          >
+            <ThemeSummary4 />
+          </ThemeProvider>
+        </ThemeProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -423,13 +417,11 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController.Provider
-        data-testid="hashed-scope"
-        cssVar={{ key: 'tuple-demo' }}
-        hashed={false}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider data-testid="hashed-scope" cssVar={{ key: 'tuple-demo' }} hashed={false} />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -463,24 +455,23 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ConfigProvider
-        data-testid="config-provider-scope"
-        theme="garden"
-        components={{
-          Button: {
-            colors: {
-              primary: '#112233',
+    mountTestApp(container, () =>
+      render(
+        <ConfigProvider
+          data-testid="config-provider-scope"
+          theme="garden"
+          components={{
+            Button: {
+              colors: {
+                primary: '#112233',
+              },
             },
-          },
-        }}
-        render={runtime => (
-          <span data-testid="config-provider-summary">
-            {runtime.theme}|{runtime.components.Button.colors.primary}
-          </span>
-        )}
-      />,
-      container,
+          }}
+        >
+          <ThemeSummary3 />
+        </ConfigProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -497,24 +488,23 @@ describe('ThemeController', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <ThemeController.Provider
-        data-testid="zero-runtime-scope"
-        zeroRuntime={true}
-        components={{
-          Button: {
-            colors: {
-              primary: '#998877',
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider
+          data-testid="zero-runtime-scope"
+          zeroRuntime={true}
+          components={{
+            Button: {
+              colors: {
+                primary: '#998877',
+              },
             },
-          },
-        }}
-        render={runtime => (
-          <span data-testid="zero-runtime-summary">
-            {runtime.zeroRuntime ? 'zero' : 'runtime'}|{runtime.components.Button.colors.primary}
-          </span>
-        )}
-      />,
-      container,
+          }}
+        >
+          <ThemeSummary2 />
+        </ThemeProvider>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -545,21 +535,18 @@ describe('ThemeController', () => {
           >
             Theme
           </button>
-          <ThemeController.Provider
+          <ThemeProvider
             data-testid="dynamic-scope"
             theme={activeTheme.value}
             style={{ borderColor: 'rgb(1, 2, 3)' }}
-            render={runtime => (
-              <span data-testid="dynamic-summary">
-                {runtime.theme}|{runtime.token.colors.primary}
-              </span>
-            )}
-          />
+          >
+            <ThemeSummary1 />
+          </ThemeProvider>
         </div>
       )
     }
 
-    render(<DynamicProvider />, container)
+    mountTestApp(container, () => render(<DynamicProvider />, container))
 
     await waitForContent(() => {
       const scope = container.querySelector('[data-testid="dynamic-scope"]') as HTMLElement
@@ -585,3 +572,89 @@ describe('ThemeController', () => {
     })
   })
 })
+
+const ThemeSummary1 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <span data-testid="dynamic-summary">
+      {String(runtime.get().theme)}|{String(runtime.get().token.colors.primary)}
+    </span>
+  )
+}
+const ThemeSummary2 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <span data-testid="zero-runtime-summary">
+      {String(
+        `${runtime.get().zeroRuntime ? 'zero' : 'runtime'}|${runtime.get().components.Button.colors.primary}`,
+      )}
+    </span>
+  )
+}
+const ThemeSummary3 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <span data-testid="config-provider-summary">
+      {String(runtime.get().theme)}|{String(runtime.get().components.Button.colors.primary)}
+    </span>
+  )
+}
+const ThemeSummary4 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <span data-testid="direct-nested-summary">
+      {String(
+        `${runtime.get().theme}|${runtime.get().token.colors.primary}|${runtime.get().token.colors.secondary}`,
+      )}
+    </span>
+  )
+}
+const ThemeSummary5 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <span data-testid="nested-base-token-summary">
+      {String(
+        `${runtime.get().theme}|${runtime.get().token.colors.primary}|${runtime.get().token.colors.secondary}`,
+      )}
+    </span>
+  )
+}
+const ThemeSummary6 = () => {
+  const parentRuntime = useThemeRuntime()
+  return (
+    <ThemeProvider
+      data-testid="nested-base-token-scope"
+      baseToken={parentRuntime.get().token}
+      token={{
+        colors: {
+          secondary: '#202020',
+        },
+      }}
+    >
+      <ThemeSummary5 />
+    </ThemeProvider>
+  )
+}
+const ThemeSummary7 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <div>
+      <button className="demo-button" data-testid="component-button">
+        {String(runtime.get().components.Button.colors.primary)}
+      </button>
+      <div className="demo-card" data-testid="component-card">
+        {String(runtime.get().components.Card.radius.box)}
+      </div>
+    </div>
+  )
+}
+const ThemeSummary8 = () => {
+  const runtime = useThemeRuntime()
+  return (
+    <div data-testid="theme-summary">
+      {String(
+        `${runtime.get().theme}|${runtime.get().token.colors.primary}|${runtime.get().token.appearance}`,
+      )}
+    </div>
+  )
+}

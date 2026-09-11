@@ -102,15 +102,15 @@ fn uses_a_direct_item_slot_for_simple_native_rows() {
 }
 
 #[test]
-fn emits_ownerless_mount_only_for_resource_free_simple_native_rows() {
+fn emits_closed_factory_for_resource_free_simple_native_rows() {
     let resource_free = compile_list(
         "items.map(item => <li key={item.id} className={item.className}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(resource_free.contains("_$mountCompiledKeyedSingleRowOwnerless("), "{resource_free}");
+    assert!(resource_free.contains("_$mountCompiledKeyedSingleRow("), "{resource_free}");
     assert!(resource_free.contains("_$reconcileKeyedSingle("), "{resource_free}");
     assert!(!resource_free.contains("_$reconcileKeyed("), "{resource_free}");
-    assert!(!resource_free.contains("_$mountCompiledSlotFactory("), "{resource_free}");
+    assert!(resource_free.contains("_$mountCompiledSlotFactory("), "{resource_free}");
 
     for source in [
         "items.map(item => <li key={item.id} v-memo={[item.name]}>{item.name}</li>)",
@@ -122,19 +122,19 @@ fn emits_ownerless_mount_only_for_resource_free_simple_native_rows() {
 }
 
 #[test]
-fn emits_ownerless_mount_for_delegated_events_and_direct_selector_subscriptions() {
+fn emits_closed_factory_for_delegated_events_and_direct_selector_subscriptions() {
     let delegated = compile_list(
         "items.map(item => <li key={item.id} onClick={() => select(item)}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(delegated.contains("_$mountCompiledKeyedSingleRowOwnerless("), "{delegated}");
+    assert!(delegated.contains("_$mountCompiledKeyedSingleRow("), "{delegated}");
     assert!(delegated.contains("_$compiledDelegateEvent("), "{delegated}");
 
     let selector = compile_list(
         "items.map(item => <li key={item.id} className={item.id === selected.get() ? 'selected' : ''}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(selector.contains("_$mountCompiledKeyedSingleRowOwnerless("), "{selector}");
+    assert!(selector.contains("_$mountCompiledKeyedSingleRow("), "{selector}");
     assert!(selector.contains("_selector.subscribe("), "{selector}");
     assert!(!selector.contains("effect("), "{selector}");
 
@@ -252,10 +252,9 @@ fn compiles_index_keyed_rows_at_a_precomputed_anchor() {
 }
 
 #[test]
-fn diagnoses_rows_without_a_closed_factory_and_emits_no_legacy_output() {
+fn adapts_call_rows_and_diagnoses_other_rows_without_a_closed_factory() {
     for source in [
         "rows.map(row => <Row key={row.id} row={row} />)",
-        "rows.map(row => <li key={row.id} {...row.attrs}>{row.label}</li>)",
         "rows.map(row => opaqueRow(row))",
         "rows.map(async row => <li key={row.id}>{row.label}</li>)",
         "rows.map(row => <svg:path key={row.id}>{row.label}</svg:path>)",
@@ -266,7 +265,14 @@ fn diagnoses_rows_without_a_closed_factory_and_emits_no_legacy_output() {
 
         let handled = try_build_list_from_map(&mut vt, &ident("root"), &call, &mut stmts);
         assert_eq!(handled, !source.contains("async row"), "{source}");
-        assert!(stmts.is_empty(), "{source}: {}", emit_stmts(stmts));
+        if source.contains("opaqueRow") {
+            let out = emit_stmts(stmts);
+            assert!(out.contains("_$reconcileKeyed"), "{source}: {out}");
+            assert!(out.contains("_$compiledValueFactory"), "{source}: {out}");
+            assert!(!out.contains("renderAnchor"), "{source}: {out}");
+        } else {
+            assert!(stmts.is_empty(), "{source}: {}", emit_stmts(stmts));
+        }
     }
 }
 
@@ -281,13 +287,13 @@ fn rejects_non_map_calls_without_output() {
 }
 
 #[test]
-fn resource_row_setup_requires_proven_native_row_without_memo_or_ref() {
+fn resource_rows_share_the_closed_factory_protocol() {
     let out = compile_list(
         "items.map(item => <li key={item.id} onClick={event => select(event, item)}>{item.name}</li>)",
     )
     .expect("compiled list");
-    assert!(out.contains("_$mountCompiledKeyedSingleRowSetup("), "{out}");
-    assert!(!out.contains("_$mountCompiledSlotFactory("), "{out}");
+    assert!(out.contains("_$mountCompiledKeyedSingleRow("), "{out}");
+    assert!(out.contains("_$mountCompiledSlotFactory("), "{out}");
     for source in [
         "items.map(item => <li key={item.id} v-memo={[item.name]} onClick={() => select(item)}>{item.name}</li>)",
         "items.map(item => <li key={item.id} ref={capture}>{item.name}</li>)",

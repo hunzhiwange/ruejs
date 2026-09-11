@@ -102,7 +102,12 @@ describe('vite-plugin-rue island registry', () => {
 
     const page = path.join(src, 'Page.tsx')
     const source = fs.readFileSync(page, 'utf8')
-    const transformed = await callHook(plugin.transform, {}, source, page)
+    const transformed = await callHook(
+      plugin.transform,
+      { environment: { name: 'ssr' } },
+      source,
+      page,
+    )
 
     expect(String(transformed?.code ?? '')).toContain(`"id": "${loadId}"`)
   })

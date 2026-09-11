@@ -103,7 +103,7 @@ describe('AppElementsWire', () => {
         return thenable
       },
       readThenable(input) {
-        expect(input).toBe(thenable)
+        expect(typeof input.then).toBe('function')
         readCalls += 1
         return payload
       },
@@ -759,7 +759,7 @@ describe('isAppElementsRecord', () => {
   })
 
   it('returns false for an App Server protocol element', () => {
-    const element = createAppServerElement('div', null, 'x')
+    const element = createAppServerElement(() => () => {})
     expect(isAppElementsRecord(element)).toBe(false)
   })
 

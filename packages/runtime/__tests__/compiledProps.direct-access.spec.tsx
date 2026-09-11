@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest'
 import { createCompiledProps } from '../src/compiled-props'
-import { effect, setReactiveScheduling } from '../src/internal-reactive'
+import { effect, setReactiveScheduling } from '../src/runtime-core/compiled'
 
 afterEach(() => setReactiveScheduling('frame'))
 
@@ -55,8 +55,45 @@ it('snapshots only enumerable own keys without inheriting prototype properties',
 import { resolve } from 'node:path'
 import { types } from 'node:util'
 import swc from '@swc/core'
-import * as runtime from '../src/internal'
-import * as compiler from '../src/compiler-internal'
+import * as reactive from '../src/compiler-runtime/entries/reactive'
+import * as component from '../src/compiler-runtime/entries/component'
+import { resolveCompilerCapability } from './compiler-capability-test-runtime'
+const runtime = { ...reactive, ...component }
+
+it('treats omitted props as an empty object for directly invoked compiled components', () => {
+  const code = swc.transformSync(
+    `
+    export const Preview = ({ label, ...rest }) => (
+      <p>{label ?? 'missing'}:{Object.keys(rest).length}:{'label' in rest ? 'yes' : 'no'}</p>
+    );
+  `,
+    {
+      filename: 'compiled-omitted-props.tsx',
+      jsc: {
+        parser: { syntax: 'typescript', tsx: true },
+        target: 'es2022',
+        experimental: { plugins: [[resolve('packages/swc-plugin-rue/swc-plugin-rue.wasm'), {}]] },
+      },
+      module: { type: 'commonjs' },
+    },
+  ).code
+  const module = { exports: {} as any }
+  new Function('require', 'module', 'exports', code)(
+    (id: string) => {
+      const entry = resolveCompilerCapability(id)
+      if (!entry) throw new Error(`Unexpected generated import: ${id}`)
+      return entry
+    },
+    module,
+    module.exports,
+  )
+
+  const block = module.exports.Preview()
+  block.__rue_compiled_mount(document.body)
+  expect(document.body.textContent).toBe('missing:0:no')
+  block.dispose()
+  document.body.innerHTML = ''
+})
 
 it('updates real compiled components through static, dynamic, rest, spread, and prototype inputs', () => {
   setReactiveScheduling('sync')
@@ -92,7 +129,11 @@ it('updates real compiled components through static, dynamic, rest, spread, and 
   expect(code).not.toContain('props.first')
   const module = { exports: {} as any }
   new Function('require', 'module', 'exports', code)(
-    () => ({ ...runtime, ...compiler }),
+    (id: string) => {
+      const entry = resolveCompilerCapability(id)
+      if (!entry) throw new Error(`Unexpected generated import: ${id}`)
+      return entry
+    },
     module,
     module.exports,
   )
@@ -147,7 +188,7 @@ it('updates real compiled components through static, dynamic, rest, spread, and 
 
 it('shares the props controller across independently loaded runtime entries', async () => {
   setReactiveScheduling('sync')
-  const entry = '../src/compiled-props' + '?independent-props-entry'
+  const entry = '../src/compiler-runtime/props' + '?independent-props-entry'
   const isolated = (await import(entry)) as typeof import('../src/compiled-props')
   const props = createCompiledProps<Record<string, unknown>>({ first: 1 })
   let runs = 0

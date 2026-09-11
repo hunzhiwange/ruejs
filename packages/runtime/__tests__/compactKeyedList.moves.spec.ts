@@ -1,9 +1,24 @@
+import { _$compiledRoot, type BlockSetup } from '../src/compiler-runtime/block'
+import { _$mountCompiledSlotFactory } from '../src/compiler-runtime/block-factory'
+
+// Test fixtures exercise the production closed factory with explicit node ranges.
+const mountRowFactory = <T>(
+  setup: BlockSetup,
+  patch: (item: T, index: number) => void,
+  target?: CompactCompiledKeyedMountTarget,
+) =>
+  _$mountCompiledKeyedRow<T>(
+    (target, _props, owner) =>
+      _$mountCompiledSlotFactory(target, owner, () => _$compiledRoot(setup)),
+    patch,
+    undefined,
+    target,
+  )
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   _$mountCompiledKeyedRow,
-  _$mountCompiledKeyedRowSetup,
   _$reconcileKeyed,
   _$reconcileKeyedSingle,
   type CompactCompiledKeyedMountTarget,
@@ -180,8 +195,8 @@ describe('compact keyed list DOM moves', () => {
     expect(render([])).toEqual([])
     expect(remove).not.toHaveBeenCalled()
     expect([...parent.childNodes]).toEqual([anchor])
-    expect(createRange).toHaveBeenCalledTimes(1)
-    expect(replaceChildren).toHaveBeenCalledExactlyOnceWith(anchor)
+    expect(createRange).toHaveBeenCalledTimes(2)
+    expect(replaceChildren).not.toHaveBeenCalled()
   })
 
   it('keeps single-root duplicate, mount rollback and cleanup failure semantics atomic', () => {
@@ -192,7 +207,7 @@ describe('compact keyed list DOM moves', () => {
     ])
     const mountCount = duplicate.mounts
     expect(() => duplicate.render([old[0].item, { id: 1, label: 'duplicate' }])).toThrow(
-      'duplicate keys',
+      /duplicate.*key/,
     )
     expect(duplicate.mounts).toBe(mountCount)
     expect([...duplicate.parent.childNodes]).toEqual([old[0].node, old[1].node, duplicate.anchor])
@@ -232,21 +247,23 @@ describe('compact keyed list DOM moves', () => {
       const parent = document.createElement('div')
       const anchor = document.createComment('end')
       parent.append(anchor)
-      const mounts: ReturnType<typeof _$mountCompiledKeyedRowSetup<Item>>[] = []
+      const mounts: Array<
+        Pick<ReturnType<typeof mountRowFactory<Item>>, 'node' | 'last' | 'patch' | 'dispose'>
+      > = []
       const disposed: number[] = []
       const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) => {
         const actualTarget =
           mode === 'wrong target'
             ? { parent: document.createDocumentFragment(), before: null, batch: true as const }
             : target
-        const result = _$mountCompiledKeyedRowSetup<Item>(
+        const result = mountRowFactory<Item>(
           () => {
             const fragment = document.createDocumentFragment()
             const node = document.createElement('span')
             node.textContent = item.label
             fragment.append(node, document.createTextNode('tail'))
             onOwnerCleanup(() => disposed.push(item.id))
-            return fragment
+            return [fragment.firstChild, fragment.lastChild] as const
           },
           () => {},
           actualTarget,
@@ -301,13 +318,13 @@ describe('compact keyed list DOM moves', () => {
       const nodes: Node[] = []
       const error = new Error('mount failed')
       const mount = (item: Item, _index: number, target?: CompactCompiledKeyedMountTarget) =>
-        _$mountCompiledKeyedRowSetup<Item>(
+        mountRowFactory<Item>(
           () => {
             onOwnerCleanup(() => disposed.push(item.id))
             if (item.id === 4) throw error
             const node = document.createElement('span')
             nodes.push(node)
-            return node
+            return [node, node] as const
           },
           () => {},
           target,
@@ -654,7 +671,7 @@ describe('compact keyed list DOM moves', () => {
         { id: 3, label: 'three' },
         { id: 1, label: 'duplicate' },
       ]),
-    ).toThrow('duplicate keys')
+    ).toThrow(/duplicate.*key/)
     expect([...parent.childNodes]).toEqual([previous[0].node, previous[1].node, anchor])
 
     expect(() =>
@@ -664,7 +681,7 @@ describe('compact keyed list DOM moves', () => {
         { id: 3, label: 'three' },
         { id: 3, label: 'duplicate tail' },
       ]),
-    ).toThrow('duplicate keys')
+    ).toThrow(/duplicate.*key/)
     expect([...parent.childNodes]).toEqual([previous[0].node, previous[1].node, anchor])
   })
 
@@ -1062,7 +1079,7 @@ describe('compact keyed list DOM moves', () => {
     }
     expect(() =>
       _$reconcileKeyed(parent, null, [], [...items.slice(0, -1), 0], getKey, mount),
-    ).toThrow('[rue] duplicate keys are not supported by compiled keyed lists')
+    ).toThrow(/duplicate.*key/)
     expect(keyReads).toBe(1000)
     expect(mounts).toBe(0)
     expect(parent.childNodes).toHaveLength(0)
@@ -1091,7 +1108,7 @@ describe('compact keyed list DOM moves', () => {
         Array.from({ length: 1000 }, (_, i) => i),
         item => item,
         (item, _index, target) =>
-          _$mountCompiledKeyedRowSetup(
+          mountRowFactory(
             () => {
               onOwnerCleanup(() => {
                 cleaned.push(item)
@@ -1100,7 +1117,7 @@ describe('compact keyed list DOM moves', () => {
               if (item === 500) throw failure
               const node = document.createElement('span')
               nodes.push(node)
-              return node
+              return [node, node] as const
             },
             () => {},
             target,
@@ -1130,12 +1147,14 @@ describe('compact keyed list DOM moves', () => {
           rowTarget.parent.insertBefore(node, rowTarget.before)
           if (item.id === 2) throw new Error('compiled row failed')
           return {
+            owner,
             first: node,
             last: node,
             dispose: () => disposeOwner(owner),
           }
         },
         () => {},
+        undefined,
         target,
       )
 
@@ -1167,12 +1186,14 @@ describe('single owner native setup lifecycle', () => {
     const events: string[] = []
     const roots = [document.createElement('span'), document.createTextNode('tail')]
     const row = runWithOwner(parentOwner, () =>
-      _$mountCompiledKeyedRowSetup(
+      mountRowFactory(
         () => {
-          expect(getOwnerParent(getCurrentOwner()!)).toBe(parentOwner)
+          expect(getOwnerParent(getOwnerParent(getCurrentOwner()!)!)).toBe(parentOwner)
           registerOwnerLifecycle('mounted', () => events.push('mounted'))
           onOwnerCleanup(() => events.push('cleanup'))
-          return { __rue_compiled_host: roots[0], __rue_compiled_roots: roots }
+          const fragment = document.createDocumentFragment()
+          fragment.append(...roots)
+          return [roots[0], roots[1]] as const
         },
         () => {},
         { parent, before: anchor },
@@ -1189,18 +1210,15 @@ describe('single owner native setup lifecycle', () => {
 
     const failedRoot = document.createElement('span')
     expect(() =>
-      _$mountCompiledKeyedRowSetup(
+      mountRowFactory(
         () => {
           parent.insertBefore(failedRoot, anchor)
           onOwnerCleanup(() => {
             throw new Error('cleanup failed')
           })
           onOwnerCleanup(() => events.push('second cleanup'))
-          return {
-            __rue_compiled_host: failedRoot,
-            __rue_compiled_roots: [failedRoot],
-            __rue_compiled_error: new Error('setup failed'),
-          }
+          onOwnerCleanup(() => failedRoot.remove())
+          throw new Error('setup failed')
         },
         () => {},
         { parent, before: anchor },
@@ -1210,4 +1228,32 @@ describe('single owner native setup lifecycle', () => {
     expect(events).toContain('second cleanup')
     expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
   })
+})
+
+it('disposes staged factories when removing an old row fails during a mixed update', () => {
+  const parent = document.createElement('div')
+  const baseline = __rueGetCompiledReactiveDebugState()
+  const cleaned: number[] = []
+  const mount = (id: number, _index: number, target?: CompactCompiledKeyedMountTarget) =>
+    mountRowFactory(
+      () => {
+        const node = document.createElement('span')
+        node.textContent = String(id)
+        onOwnerCleanup(() => {
+          cleaned.push(id)
+          if (id === 1) throw new Error('old row cleanup failed')
+        })
+        return [node, node] as const
+      },
+      () => {},
+      target,
+    )
+  const previous = _$reconcileKeyed(parent, null, [], [1, 2], id => id, mount)
+  expect(() => _$reconcileKeyed(parent, null, previous, [2, 3], id => id, mount)).toThrow(
+    'old row cleanup failed',
+  )
+  expect(cleaned).toEqual([1, 3])
+  expect(parent.textContent).toBe('2')
+  previous[1].dispose()
+  expect(__rueGetCompiledReactiveDebugState()).toEqual(baseline)
 })

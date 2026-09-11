@@ -7,14 +7,13 @@
 在组件基础章节中，我们介绍了 [动态组件](/guide/guide/essentials/component-basics#dynamic-components) 的语法，使用 `Component` 运行时组件：
 
 ```tsx
-import { useState } from '@rue-js/rue'
-import { Component } from '@rue-js/rue'
+import { Component, ref } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
-  const [activeComponent, setActiveComponent] = useState('ComponentA')
+  const activeComponent = ref<'a' | 'b'>('a')
 
-  return <Component is={activeComponent} />
+  return <Component is={activeComponent.value} registry={{ a: ComponentA, b: ComponentB }} />
 }
 ```
 
@@ -27,16 +26,15 @@ const App: FC = () => {
 在切换时创建新的组件实例通常是有用的行为，但在这种情况下，我们真的希望即使在组件处于非活动状态时也能保留两个组件实例。为了解决这个问题，我们可以使用 `<KeepAlive>` 内置组件包装我们的动态组件：
 
 ```tsx
-import { useState } from '@rue-js/rue'
-import { Component, KeepAlive } from '@rue-js/rue'
+import { Component, KeepAlive, ref } from '@rue-js/rue'
 import type { FC } from '@rue-js/rue'
 
 const App: FC = () => {
-  const [activeComponent, setActiveComponent] = useState('ComponentA')
+  const activeComponent = ref<'a' | 'b'>('a')
 
   return (
     <KeepAlive>
-      <Component is={activeComponent} />
+      <Component is={activeComponent.value} registry={{ a: ComponentA, b: ComponentB }} />
     </KeepAlive>
   )
 }
@@ -53,21 +51,21 @@ const App: FC = () => {
   /* 逗号分隔的字符串 */
 }
 ;<KeepAlive include="a,b">
-  <Component is={view} />
+  <Component is={view.value} registry={{ a: ComponentA, b: ComponentB }} />
 </KeepAlive>
 
 {
   /* 正则表达式 */
 }
 ;<KeepAlive include={/a|b/}>
-  <Component is={view} />
+  <Component is={view.value} registry={{ a: ComponentA, b: ComponentB }} />
 </KeepAlive>
 
 {
   /* 数组 */
 }
 ;<KeepAlive include={['a', 'b']}>
-  <Component is={view} />
+  <Component is={view.value} registry={{ a: ComponentA, b: ComponentB }} />
 </KeepAlive>
 ```
 
@@ -79,7 +77,7 @@ const App: FC = () => {
 
 ```tsx
 <KeepAlive max={10}>
-  <Component is={activeComponent} />
+  <Component is={activeComponent.value} registry={{ a: ComponentA, b: ComponentB }} />
 </KeepAlive>
 ```
 

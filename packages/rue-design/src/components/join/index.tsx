@@ -10,6 +10,7 @@ export type JoinDirection = 'horizontal' | 'vertical'
 
 /** JoinItemProps 组件属性。 */
 export interface JoinItemProps {
+  text?: string | number
   /** 自定义渲染的宿主元素。 */
   as?: any
   /** tag 配置项。 */
@@ -35,7 +36,7 @@ export interface JoinItemConfig extends JoinItemProps {
   /** 数据项唯一标识。 */
   key?: string | number
   /** 展示标签。 */
-  label?: any
+  label?: string | number
 }
 
 /** JoinProps 组件属性。 */
@@ -79,9 +80,8 @@ const isButtonLikeClass = (className?: string) => {
 }
 
 /** 判断是否存在 Renderable Children 的内部工具函数。 */
-const hasRenderableChildren = (children: any) => {
-  return !(children == null || (Array.isArray(children) && children.length === 0))
-}
+const hasRenderableChildren = (children: any) =>
+  children != null && children !== false && children !== ''
 
 /** Item 的内部工具函数。 */
 const Item: FC<JoinItemProps> = ({
@@ -93,6 +93,7 @@ const Item: FC<JoinItemProps> = ({
   href,
   onClick,
   children,
+  text,
   ...rest
 }) => {
   const Tag = (as ?? tag ?? 'button') as any
@@ -127,7 +128,7 @@ const Item: FC<JoinItemProps> = ({
         aria-disabled={disabled ? 'true' : undefined}
         onClick={handleClick}
       >
-        {children}
+        {text !== undefined ? <span>{String(text)}</span> : children}
       </a>
     )
   }
@@ -141,7 +142,7 @@ const Item: FC<JoinItemProps> = ({
         className={mergedClassName}
         onClick={handleClick}
       >
-        {children}
+        {text !== undefined ? <span>{String(text)}</span> : children}
       </button>
     )
   }
@@ -167,7 +168,7 @@ const Item: FC<JoinItemProps> = ({
         aria-disabled={disabled ? 'true' : undefined}
         onClick={handleClick}
       >
-        {children}
+        {text !== undefined ? <span>{String(text)}</span> : children}
       </select>
     )
   }
@@ -181,13 +182,13 @@ const Item: FC<JoinItemProps> = ({
         aria-disabled={disabled ? 'true' : undefined}
         onClick={handleClick}
       >
-        {children}
+        {text !== undefined ? <span>{String(text)}</span> : children}
       </textarea>
     )
   }
 
-  return (
-    <Tag
+  return Tag === 'div' ? (
+    <div
       {...rest}
       {...(Tag === 'a' && !disabled && href != null ? { href } : {})}
       disabled={supportsDisabledAttr ? disabled : undefined}
@@ -195,8 +196,54 @@ const Item: FC<JoinItemProps> = ({
       aria-disabled={!supportsDisabledAttr && disabled ? 'true' : undefined}
       onClick={handleClick}
     >
-      {children}
-    </Tag>
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </div>
+  ) : Tag === 'span' ? (
+    <span
+      {...rest}
+      {...(Tag === 'a' && !disabled && href != null ? { href } : {})}
+      disabled={supportsDisabledAttr ? disabled : undefined}
+      className={mergedClassName}
+      aria-disabled={!supportsDisabledAttr && disabled ? 'true' : undefined}
+      onClick={handleClick}
+    >
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </span>
+  ) : Tag === 'button' ? (
+    <button
+      {...rest}
+      {...(Tag === 'a' && !disabled && href != null ? { href } : {})}
+      disabled={supportsDisabledAttr ? disabled : undefined}
+      className={mergedClassName}
+      aria-disabled={!supportsDisabledAttr && disabled ? 'true' : undefined}
+      onClick={handleClick}
+    >
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </button>
+  ) : Tag === 'fieldset' ? (
+    <fieldset
+      {...rest}
+      {...(Tag === 'a' && !disabled && href != null ? { href } : {})}
+      disabled={supportsDisabledAttr ? disabled : undefined}
+      className={mergedClassName}
+      aria-disabled={!supportsDisabledAttr && disabled ? 'true' : undefined}
+      onClick={handleClick}
+    >
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </fieldset>
+  ) : Tag === 'a' ? (
+    <a
+      {...rest}
+      {...(Tag === 'a' && !disabled && href != null ? { href } : {})}
+      disabled={supportsDisabledAttr ? disabled : undefined}
+      className={mergedClassName}
+      aria-disabled={!supportsDisabledAttr && disabled ? 'true' : undefined}
+      onClick={handleClick}
+    >
+      {text !== undefined ? <span>{String(text)}</span> : children}
+    </a>
+  ) : (
+    <></>
   )
 }
 
@@ -212,6 +259,11 @@ const JoinRoot: FC<JoinProps> = ({
   children,
   ...rest
 }) => {
+  const readItemProps = (item: JoinItemConfig) => ({
+    ...item,
+    text: item.label,
+    className: mergeClassNames(itemClassName, item.className),
+  })
   const Tag = (as ?? 'div') as any
   const mergedClassName = mergeClassNames(
     'join',
@@ -221,34 +273,86 @@ const JoinRoot: FC<JoinProps> = ({
     className,
   )
 
-  return (
-    <Tag {...rest} className={mergedClassName}>
-      {hasRenderableChildren(children)
-        ? children
-        : items
-          ? items.map((item, index) => {
-              const {
-                key,
-                label,
-                children: itemChildren,
-                className: itemClassNameFromItem,
-                ...itemRest
-              } = item
-              const content = Object.prototype.hasOwnProperty.call(item, 'children')
-                ? itemChildren
-                : label
-              return (
-                <Item
-                  key={key ?? index}
-                  {...itemRest}
-                  className={mergeClassNames(itemClassName, itemClassNameFromItem)}
-                >
-                  {content}
-                </Item>
-              )
-            })
-          : null}
-    </Tag>
+  return Tag === 'section' ? (
+    <section {...rest} className={mergedClassName}>
+      {hasRenderableChildren(children) ? (
+        children
+      ) : items ? (
+        <>
+          {' '}
+          {items.map((rowArg0: any, rowArg1: number) => (
+            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
+          ))}{' '}
+        </>
+      ) : null}
+    </section>
+  ) : Tag === 'div' ? (
+    <div {...rest} className={mergedClassName}>
+      {hasRenderableChildren(children) ? (
+        children
+      ) : items ? (
+        <>
+          {' '}
+          {items.map((rowArg0: any, rowArg1: number) => (
+            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
+          ))}{' '}
+        </>
+      ) : null}
+    </div>
+  ) : Tag === 'span' ? (
+    <span {...rest} className={mergedClassName}>
+      {hasRenderableChildren(children) ? (
+        children
+      ) : items ? (
+        <>
+          {' '}
+          {items.map((rowArg0: any, rowArg1: number) => (
+            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
+          ))}{' '}
+        </>
+      ) : null}
+    </span>
+  ) : Tag === 'button' ? (
+    <button {...rest} className={mergedClassName}>
+      {hasRenderableChildren(children) ? (
+        children
+      ) : items ? (
+        <>
+          {' '}
+          {items.map((rowArg0: any, rowArg1: number) => (
+            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
+          ))}{' '}
+        </>
+      ) : null}
+    </button>
+  ) : Tag === 'fieldset' ? (
+    <fieldset {...rest} className={mergedClassName}>
+      {hasRenderableChildren(children) ? (
+        children
+      ) : items ? (
+        <>
+          {' '}
+          {items.map((rowArg0: any, rowArg1: number) => (
+            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
+          ))}{' '}
+        </>
+      ) : null}
+    </fieldset>
+  ) : Tag === 'a' ? (
+    <a {...rest} className={mergedClassName}>
+      {hasRenderableChildren(children) ? (
+        children
+      ) : items ? (
+        <>
+          {' '}
+          {items.map((rowArg0: any, rowArg1: number) => (
+            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
+          ))}{' '}
+        </>
+      ) : null}
+    </a>
+  ) : (
+    <></>
   )
 }
 

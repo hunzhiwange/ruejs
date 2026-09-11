@@ -3,13 +3,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   createCompiledBlock,
   _$mountCompiledSlotAt,
-  mountCompiledDynamic,
   mountCompiledSlot,
   replaceCompiledBlock,
   type CompiledSlotFactory,
 } from '../src/compiler-runtime/mount'
-import { _$compiledSignal } from '../src/compiled-component'
-import { createOwner, setReactiveScheduling } from '../src/internal-reactive'
+import { signal as _$compiledSignal } from '../src/runtime-core/compiled'
+import { createOwner, setReactiveScheduling } from '../src/runtime-core/compiled'
 
 setReactiveScheduling('sync')
 
@@ -54,26 +53,6 @@ describe('compiled slot and dynamic component ABI', () => {
     expect(container.textContent).toBe('named:two')
     expect(next.first.parentNode).toBe(container)
     expect(next.last.nextSibling).toBe(anchor)
-  })
-
-  it('switches only through an explicit dynamic component registry', () => {
-    const container = document.createElement('div')
-    const anchor = document.createComment('component-anchor')
-    container.append(anchor)
-    const target = { parent: container, before: anchor }
-    const registry = {
-      alpha: textFactory('A:'),
-      beta: textFactory('B:'),
-    }
-
-    const alpha = mountCompiledDynamic(target, 'alpha', registry, { label: 'one' }, createOwner())
-    expect(container.textContent).toBe('A:one')
-    alpha.dispose()
-    mountCompiledDynamic(target, 'beta', registry, { label: 'two' }, createOwner())
-    expect(container.textContent).toBe('B:two')
-    expect(() => mountCompiledDynamic(target, 'missing', registry, {}, createOwner())).toThrow(
-      '[rue] unknown compiled dynamic component: missing',
-    )
   })
 
   it('reactively replaces a production slot getter at one stable anchor', () => {

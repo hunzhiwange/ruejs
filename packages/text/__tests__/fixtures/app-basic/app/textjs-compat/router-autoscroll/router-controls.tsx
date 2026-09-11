@@ -31,5 +31,5 @@ export function RouterAutoscrollControls() {
     }
   }, [router])
 
-  return null
+  return <></>
 }

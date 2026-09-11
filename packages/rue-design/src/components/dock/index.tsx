@@ -35,11 +35,11 @@ export interface DockItemData {
   /** 根节点附加类名。 */
   className?: string
   /** 图标内容。 */
-  icon?: any
+  icon?: string | number
   /** iconClassName 附加类名。 */
   iconClassName?: string
   /** 展示标签。 */
-  label?: any
+  label?: string | number
   /** labelClassName 附加类名。 */
   labelClassName?: string
   /** 链接地址。 */
@@ -275,6 +275,56 @@ const Item: FC<DockItemProps> = ({
 }
 
 /** 停靠栏组件：数据驱动或 children 渲染。 */
+const RenderDataItem = ({
+  arg0: item,
+  currentSelectedKey,
+  handleItemClick,
+}: {
+  arg0: NormalizedDockItem
+  currentSelectedKey: any
+  handleItemClick: (event: MouseEvent, item: NormalizedDockItem, context: DockChangeContext) => void
+}) => {
+  const active = () =>
+    currentSelectedKey.get() != null ? currentSelectedKey.get() === item.key : item.active
+  const click = (event: MouseEvent) =>
+    handleItemClick(event, item, { key: item.key, index: item.index, item })
+  return (
+    <>
+      {item.href || item.as === 'a' ? (
+        <a
+          href={item.disabled ? undefined : item.href}
+          target={item.target}
+          rel={resolveAnchorRel(item.target, item.rel)}
+          className={buildItemClassName(active(), item.disabled, item.className)}
+          aria-label={item.ariaLabel}
+          aria-current={active() ? 'page' : undefined}
+          aria-disabled={item.disabled ? 'true' : undefined}
+          onClick={click}
+        >
+          <span className={item.iconClassName}>{String(item.icon ?? '')}</span>
+          <span className={appendClassName('dock-label', item.labelClassName)}>
+            {String(item.label ?? '')}
+          </span>
+        </a>
+      ) : (
+        <button
+          type={item.htmlType ?? 'button'}
+          disabled={item.disabled}
+          className={buildItemClassName(active(), item.disabled, item.className)}
+          aria-label={item.ariaLabel}
+          aria-current={active() ? 'page' : undefined}
+          onClick={click}
+        >
+          <span className={item.iconClassName}>{String(item.icon ?? '')}</span>
+          <span className={appendClassName('dock-label', item.labelClassName)}>
+            {String(item.label ?? '')}
+          </span>
+        </button>
+      )}
+    </>
+  )
+}
+
 const Dock: FC<DockProps> = ({
   as = 'div',
   size,
@@ -327,59 +377,30 @@ const Dock: FC<DockProps> = ({
       if (onChange) onChange(item.index, context)
       if (onSelect) onSelect(item.key, context)
     }
-    const renderItemContent = (item: NormalizedDockItem) => (
-      <>
-        {item.icon != null ? (
-          <span
-            className={appendClassName(
-              'inline-flex items-center justify-center',
-              item.iconClassName,
-            )}
-          >
-            {item.icon}
-          </span>
-        ) : null}
-        {item.label != null ? <Label className={item.labelClassName}>{item.label}</Label> : null}
-      </>
-    )
-    const renderDataItem = (item: NormalizedDockItem) => {
-      const context: DockChangeContext = {
-        key: item.key,
-        index: item.index,
-        item,
-      }
-
-      return (
-        <Item
-          key={item.key}
-          as={item.as}
-          active={item.active}
-          activeKeySource={currentSelectedKey}
-          itemKey={item.key}
-          disabled={item.disabled}
-          className={item.className}
-          href={item.href}
-          target={item.target}
-          rel={item.rel}
-          htmlType={item.htmlType}
-          ariaLabel={item.ariaLabel}
-          onClick={(event: MouseEvent) => handleItemClick(event, item, context)}
-        >
-          {renderItemContent(item)}
-        </Item>
-      )
-    }
-
     if (as === 'nav') {
       return (
         <nav className={cls} aria-label={ariaLabel}>
-          {normalizedItems.map(item => renderDataItem(item))}
+          {normalizedItems.map(item => (
+            <RenderDataItem
+              key={item.key}
+              arg0={item}
+              currentSelectedKey={currentSelectedKey}
+              handleItemClick={handleItemClick}
+            />
+          ))}
         </nav>
       )
     }
     return (
       <div className={cls} aria-label={ariaLabel}>
-        {normalizedItems.map(item => renderDataItem(item))}
+        {normalizedItems.map(item => (
+          <RenderDataItem
+            key={item.key}
+            arg0={item}
+            currentSelectedKey={currentSelectedKey}
+            handleItemClick={handleItemClick}
+          />
+        ))}
       </div>
     )
   }

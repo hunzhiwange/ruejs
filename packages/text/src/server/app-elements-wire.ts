@@ -12,7 +12,6 @@ import type {
 } from './cache-proof.js'
 import { isInterceptionMatchedUrlPath } from './normalize-path.js'
 import { isRueRenderableHandle, type TextRenderable } from './renderable.js'
-import { isAppServerProtocolElement } from './app-server-tree.js'
 
 const APP_INTERCEPTION_SEPARATOR = '\0'
 
@@ -627,7 +626,8 @@ function parseInterceptionMetadata(value: unknown): AppElementsInterception | nu
 export function isAppElementsRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   if (typeof value !== 'object' || value === null) return false
   if (Array.isArray(value)) return false
-  if (isAppServerProtocolElement(value)) return false
+  if ('$$typeof' in value) return false
+  if ('version' in value && 'html' in value && 'references' in value) return false
   if (isRueRenderableHandle(value)) return false
   return true
 }

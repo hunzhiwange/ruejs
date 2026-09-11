@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -34,11 +35,13 @@ describe('Affix', () => {
     })
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
 
-    render(
-      <Affix offsetTop={24} onChange={handleChange}>
-        <div>Filters</div>
-      </Affix>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Affix offsetTop={24} onChange={handleChange}>
+          <div>Filters</div>
+        </Affix>,
+        container,
+      ),
     )
 
     const root = container.querySelector('[data-rue-affix="true"]') as HTMLDivElement
@@ -97,11 +100,13 @@ describe('Affix', () => {
     scrollHost.appendChild(container)
     document.body.appendChild(scrollHost)
 
-    render(
-      <Affix offsetTop={24} onChange={handleChange}>
-        <div>Default container rail</div>
-      </Affix>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Affix offsetTop={24} onChange={handleChange}>
+          <div>Default container rail</div>
+        </Affix>,
+        container,
+      ),
     )
 
     const root = container.querySelector('[data-rue-affix="true"]') as HTMLDivElement
@@ -155,11 +160,13 @@ describe('Affix', () => {
     scrollHost.getBoundingClientRect = () => rect(100, 320, 0, 360) as DOMRect
     document.body.appendChild(scrollHost)
 
-    render(
-      <Affix offsetTop={24} target={() => scrollHost}>
-        <div>Panel actions</div>
-      </Affix>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Affix offsetTop={24} target={() => scrollHost}>
+          <div>Panel actions</div>
+        </Affix>,
+        container,
+      ),
     )
 
     const root = container.querySelector('[data-rue-affix="true"]') as HTMLDivElement
@@ -197,11 +204,13 @@ describe('Affix', () => {
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
     vi.stubGlobal('innerHeight', 900)
 
-    render(
-      <Affix offsetBottom={16}>
-        <div>Composer</div>
-      </Affix>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Affix offsetBottom={16}>
+          <div>Composer</div>
+        </Affix>,
+        container,
+      ),
     )
 
     const root = container.querySelector('[data-rue-affix="true"]') as HTMLDivElement

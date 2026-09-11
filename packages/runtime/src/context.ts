@@ -15,14 +15,11 @@ import {
   signal,
   setOwnerValue,
 } from './reactive-core'
-import { createCompiledDynamic, createCompiledFragment } from './compiled-dynamic'
 import { _$compiledBranch } from './compiled-component'
-import { _$compiledValue } from './compiled-render-anchor'
 import type { CompiledRootHandle } from './compiled-root'
 import { invokeCompiledComponent } from './compiled-runtime-bridge'
 import type { ComponentProps } from './runtime-types'
 
-void createCompiledDynamic
 const RUE_PORTABLE_COMPONENT_TYPE_KEY = '__rue_component_type'
 const RUE_REPEATABLE_MOUNT_FACTORY_KEY = '__rue_repeatable_mount_factory__'
 const RUE_COMPILED_COMPONENT_FACTORY_KEY = '__rue_compiled_component_factory__'
@@ -107,7 +104,7 @@ const resolveProviderChildren = (children: unknown) => {
     return children[0]
   }
 
-  return createCompiledFragment(children)
+  throw new Error('[rue] context children must be compiled to a closed fragment block')
 }
 
 const isObjectLike = (value: unknown): value is Record<string, unknown> =>
@@ -347,7 +344,7 @@ const refreshPortableComponentHandleReplayFactory = (handle: PortableComponentHa
 
 const bindProviderChildrenToCurrentInstance = (
   children: unknown,
-  explicitContextParent?: object,
+  explicitContextParent?: unknown,
 ): unknown => {
   if (Array.isArray(children)) {
     children.forEach(child => {
@@ -443,9 +440,9 @@ export const createContext = <T>(defaultValue: T): RueContext<T> => {
               typeof (resolved as CompiledRootHandle).__rue_compiled_mount === 'function'
             ) {
               const handle = resolved as CompiledRootHandle
-              return !handle.__rue_compiled_mountable() ? handle.__rue_compiled_clone() : handle
+              return handle
             }
-            return _$compiledValue(resolved)
+            throw new Error('[rue] context children must be compiled to a closed block')
           },
         }
       })
@@ -505,14 +502,7 @@ export const useContext = <T>(context: RueContext<T>): T => {
     if (store?.has(context as RueContext<unknown>)) {
       return readStoredContextValue<T>(store.get(context as RueContext<unknown>))
     }
-    const directParent = getOwnerParent(owner)
-    const carrier = asContextCarrier(owner)
-    const explicitParent = carrier?.[RUE_CONTEXT_EXPLICIT_OWNER_PARENT_PROP]
-    const bridgedParent = carrier?.[RUE_CONTEXT_OWNER_PARENT_PROP]
-    owner =
-      (isObjectLike(explicitParent) ? (explicitParent as typeof owner) : undefined) ??
-      directParent ??
-      (isObjectLike(bridgedParent) ? (bridgedParent as typeof owner) : undefined)
+    owner = getOwnerParent(owner)
   }
 
   const pendingInstances: unknown[] = [getCurrentInstance()]

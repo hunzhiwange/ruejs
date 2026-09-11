@@ -1,11 +1,16 @@
-import createHomeSplitExamplePage from './createHomeSplitExamplePage'
+import HomeSplitExamplePage from './createHomeSplitExamplePage'
 import UseStateArrayDemo from './home-demos/UseStateArrayDemo'
 import source from './home-demos/UseStateArrayDemo.tsx?raw'
 
-const UseStateArray = createHomeSplitExamplePage({
-  title: 'useState 数组',
-  source,
-  Demo: UseStateArrayDemo,
-})
+const UseStateArray = () => (
+  <HomeSplitExamplePage
+    options={{
+      title: 'useState 数组',
+      source,
+    }}
+  >
+    <UseStateArrayDemo />
+  </HomeSplitExamplePage>
+)
 
 export default UseStateArray

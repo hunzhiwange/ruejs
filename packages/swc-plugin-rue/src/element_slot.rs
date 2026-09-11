@@ -4,13 +4,7 @@ use swc_core::ecma::ast::*;
 use crate::emit::*;
 use crate::vapor::VaporTransform;
 
-/*
-插槽渲染：
-- 目标：统一 props.children 或任意 slot 的渲染路径，在锚点前插入片段；
-- 新协议策略：直接把原始 slot / children 值交给 `renderAnchor`，由 runtime 的 Renderable/compat 边界统一处理。
-- 动机：编译器不再提前依赖旧的中间对象规范化 helper，避免把历史 compat 逻辑继续固化进输出。
-- 当前统一使用单注释锚点 + `renderAnchor`，不再生成或维护双边界区间。
-*/
+// Slots use only compiler-created BlockFactory values.
 pub fn render_between_for_slot(
     vt: &mut VaporTransform,
     el_ident: &Ident,
@@ -27,79 +21,76 @@ pub fn render_between_for_slot(
 }
 
 pub(crate) fn render_between_for_slot_at(
-    _vt: &mut VaporTransform,
+    vt: &mut VaporTransform,
     el_ident: &Ident,
     anchor: &Ident,
     inner_expr: &Expr,
     stmts: &mut Vec<Stmt>,
 ) {
-    if crate::element_expr::is_compiled_slot_source_expr(inner_expr) {
-        render_compiled_slot_for_at(el_ident, &Expr::Ident(anchor.clone()), inner_expr, stmts);
-        return;
-    }
-    // 槽值：对于标识符/成员表达式使用括号包裹以保证后续判断
-    let expr_for_slot = match inner_expr.clone() {
-        Expr::Member(_) | Expr::Ident(_) => {
-            Expr::Paren(ParenExpr { span: DUMMY_SP, expr: Box::new(inner_expr.clone()) })
-        }
-        _ => inner_expr.clone(),
-    };
-    // 保存 slot 原值，并直接交给 runtime 新协议入口进行渲染
-    let decl_slot = const_decl(ident("__slot"), expr_for_slot);
+    render_compiled_slot_for_at(vt, el_ident, &Expr::Ident(anchor.clone()), inner_expr, stmts);
+}
 
-    let render_call = Expr::Call(CallExpr {
-        span: DUMMY_SP,
-        callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
-        args: vec![
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(ident("__slot"))) },
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(el_ident.clone())) },
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-        ],
-        type_args: None,
-        ctxt: SyntaxContext::empty(),
-    });
-    let untrack_render = Expr::Call(CallExpr {
-        span: DUMMY_SP,
-        callee: Callee::Expr(Box::new(Expr::Ident(ident("untrack")))),
-        args: vec![ExprOrSpread {
-            spread: None,
-            expr: Box::new(Expr::Arrow(ArrowExpr {
+// Lift compiler-created block expressions in fallback value positions into factories.
+// The runtime never guesses whether a slot value is a block or a factory.
+pub(crate) fn closed_slot_value(vt: &mut VaporTransform, expr: &Expr) -> Expr {
+    // Proven slot sources already carry the target/props/owner factory ABI.
+    if crate::element_expr::is_compiled_slot_expr(vt, expr) {
+        return expr.clone();
+    }
+    match crate::utils::unwrap_expr(expr) {
+        Expr::Call(call)
+            if matches!(&call.callee, Callee::Expr(callee)
+            if matches!(callee.as_ref(), Expr::Ident(name)
+                if matches!(
+                    name.sym.as_ref(),
+                    "_$compiledRoot"
+                        | "_$compiledBranch"
+                        | "_$compiledWithKey"
+                        | "_$createComponent"
+                        | "_$compiledComponent"
+                ))) =>
+        {
+            let create = Expr::Arrow(ArrowExpr {
                 span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
                 params: vec![],
-                body: Box::new(BlockStmtOrExpr::Expr(Box::new(render_call))),
+                body: Box::new(BlockStmtOrExpr::Expr(Box::new(expr.clone()))),
                 is_async: false,
                 is_generator: false,
                 type_params: None,
                 return_type: None,
+            });
+            Expr::Arrow(ArrowExpr {
+                span: DUMMY_SP,
                 ctxt: SyntaxContext::empty(),
-            })),
-        }],
-        type_args: None,
-        ctxt: SyntaxContext::empty(),
-    });
-    let arrow = Expr::Arrow(ArrowExpr {
-        span: DUMMY_SP,
-        params: vec![],
-        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-            span: DUMMY_SP,
-            ctxt: SyntaxContext::empty(),
-            stmts: vec![
-                decl_slot,
-                Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(untrack_render) }),
-            ],
-        })),
-        is_async: false,
-        is_generator: false,
-        type_params: None,
-        return_type: None,
-        ctxt: SyntaxContext::empty(),
-    });
-    // watch 包裹，保证插槽值变化时进行增量更新
-    let watch = call_ident("effect", vec![arrow]);
-    stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(watch) }));
+                params: ["target", "slotProps", "owner"]
+                    .iter()
+                    .map(|name| Pat::Ident(BindingIdent { id: ident(name), type_ann: None }))
+                    .collect(),
+                body: Box::new(BlockStmtOrExpr::Expr(Box::new(call_ident(
+                    "_$mountCompiledSlotFactory",
+                    vec![Expr::Ident(ident("target")), Expr::Ident(ident("owner")), create],
+                )))),
+                is_async: false,
+                is_generator: false,
+                type_params: None,
+                return_type: None,
+            })
+        }
+        Expr::Cond(cond) => {
+            let mut cond = cond.clone();
+            cond.cons = Box::new(closed_slot_value(vt, &cond.cons));
+            cond.alt = Box::new(closed_slot_value(vt, &cond.alt));
+            Expr::Cond(cond)
+        }
+        Expr::Lit(_) => crate::element_expr::compiled_slot_factory_expr(vt, expr)
+            .unwrap_or_else(|| panic!("Rue slot literal requires a compiled factory")),
+        _ => call_ident("_$compiledValueFactory", vec![expr.clone()]),
+    }
 }
 
 pub(crate) fn render_compiled_slot_for_at(
+    vt: &mut VaporTransform,
     el_ident: &Ident,
     before: &Expr,
     inner_expr: &Expr,
@@ -121,7 +112,7 @@ pub(crate) fn render_compiled_slot_for_at(
     let read_factory = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![],
-        body: Box::new(BlockStmtOrExpr::Expr(Box::new(inner_expr.clone()))),
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(closed_slot_value(vt, inner_expr)))),
         is_async: false,
         is_generator: false,
         type_params: None,
@@ -278,27 +269,18 @@ pub(crate) fn render_once_for_slot_at(
     inner_expr: &Expr,
     stmts: &mut Vec<Stmt>,
 ) {
-    let slot_ident = vt.next_list_ident();
-    let expr_for_slot = match inner_expr.clone() {
-        Expr::Member(_) | Expr::Ident(_) => {
-            Expr::Paren(ParenExpr { span: DUMMY_SP, expr: Box::new(inner_expr.clone()) })
-        }
-        _ => inner_expr.clone(),
-    };
-    stmts.push(const_decl(slot_ident.clone(), expr_for_slot));
-
-    let render_call = Expr::Call(CallExpr {
-        span: DUMMY_SP,
-        callee: Callee::Expr(Box::new(Expr::Ident(ident("renderAnchor")))),
-        args: vec![
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(slot_ident)) },
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(el_ident.clone())) },
-            ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(anchor.clone())) },
-        ],
-        type_args: None,
-        ctxt: SyntaxContext::empty(),
-    });
-    stmts.push(Stmt::Expr(ExprStmt { span: DUMMY_SP, expr: Box::new(render_call) }));
+    if matches!(crate::utils::unwrap_expr(inner_expr), Expr::Object(_) | Expr::Array(_)) {
+        panic!("Rue slots require a compiled BlockFactory");
+    }
+    let factory = vt.next_list_ident();
+    stmts.push(const_decl(factory.clone(), inner_expr.clone()));
+    render_compiled_slot_for_at(
+        vt,
+        el_ident,
+        &Expr::Ident(anchor.clone()),
+        &Expr::Ident(factory),
+        stmts,
+    );
 }
 
 #[cfg(test)]

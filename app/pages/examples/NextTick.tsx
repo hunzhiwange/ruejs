@@ -2,6 +2,13 @@ import { type FC, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 import { businessScenarios, retainedScenarios, type NextTickScenario } from './next-tick-demos'
+import ChatScrollDemo from './next-tick-demos/ChatScrollDemo'
+import DomReadDemo from './next-tick-demos/DomReadDemo'
+import FilterFocusDemo from './next-tick-demos/FilterFocusDemo'
+import FocusErrorFieldDemo from './next-tick-demos/FocusErrorFieldDemo'
+import ModalMeasureListDemo from './next-tick-demos/ModalMeasureListDemo'
+import PanelMeasureDemo from './next-tick-demos/PanelMeasureDemo'
+import TableFilterScrollDemo from './next-tick-demos/TableFilterScrollDemo'
 
 type DemoTab = 'preview' | 'code'
 
@@ -11,9 +18,24 @@ type ScenarioSectionProps = {
   activeTab: { value: DemoTab }
 }
 
-const ScenarioSection: FC<ScenarioSectionProps> = props => {
-  const Demo = props.scenario.Demo
+const ScenarioPreview: FC<{ title: string }> = ({ title }) =>
+  title === '读取最新 DOM 文本' ? (
+    <DomReadDemo />
+  ) : title === '消息流自动滚动' ? (
+    <ChatScrollDemo />
+  ) : title === '打开面板后自动聚焦' ? (
+    <FilterFocusDemo />
+  ) : title === '展开后测量高度' ? (
+    <PanelMeasureDemo />
+  ) : title === '表格筛选后滚到首条结果' ? (
+    <TableFilterScrollDemo />
+  ) : title === '提交后聚焦错误字段' ? (
+    <FocusErrorFieldDemo />
+  ) : (
+    <ModalMeasureListDemo />
+  )
 
+const ScenarioSection: FC<ScenarioSectionProps> = props => {
   return (
     <section className="rounded-box border border-base-300 bg-base-100 p-5">
       <div className="text-sm uppercase tracking-[0.24em] text-base-content/50">
@@ -31,7 +53,7 @@ const ScenarioSection: FC<ScenarioSectionProps> = props => {
 
       <div className="mt-4">
         {props.activeTab.value === 'preview' ? (
-          <Demo />
+          <ScenarioPreview title={props.scenario.title} />
         ) : (
           <div className="card bg-base-100 shadow overflow-auto">
             <div className="card-body p-0">

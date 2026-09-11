@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -19,16 +20,18 @@ describe('Validator', () => {
     resetActiveRuntime()
     const handleInput = vi.fn()
 
-    render(
-      <Validator
-        className="input"
-        type="email"
-        required={true}
-        placeholder="mail@site.com"
-        data-testid="validator"
-        onInput={handleInput}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Validator
+          className="input"
+          type="email"
+          required={true}
+          placeholder="mail@site.com"
+          data-testid="validator"
+          onInput={handleInput}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -50,17 +53,19 @@ describe('Validator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Validator as="select" data-testid="validator-select">
-          <option value="">Choose:</option>
-          <option value="tabs">Tabs</option>
-        </Validator>
-        <Validator as="textarea" data-testid="validator-textarea">
-          Notes
-        </Validator>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Validator as="select" data-testid="validator-select">
+            <option value="">Choose:</option>
+            <option value="tabs">Tabs</option>
+          </Validator>
+          <Validator as="textarea" data-testid="validator-textarea">
+            Notes
+          </Validator>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -84,18 +89,20 @@ describe('Validator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Validator appearance="input" size="lg" status="error" data-testid="validator-input" />
-        <Validator
-          appearance="checkbox"
-          size="sm"
-          status="success"
-          type="checkbox"
-          data-testid="validator-checkbox"
-        />
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Validator appearance="input" size="lg" status="error" data-testid="validator-input" />
+          <Validator
+            appearance="checkbox"
+            size="sm"
+            status="success"
+            type="checkbox"
+            data-testid="validator-checkbox"
+          />
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -117,13 +124,15 @@ describe('Validator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Validator.Hint
-        hideUntilInvalid={true}
-        lines={['Required', 'Use company email']}
-        data-testid="validator-hint"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Validator.Hint
+          hideUntilInvalid={true}
+          lines={['Required', 'Use company email']}
+          data-testid="validator-hint"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -141,18 +150,20 @@ describe('Validator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Validator.Field
-        id="validator-email-field"
-        label="Email"
-        hint="Required"
-        extra="We only use it for sign-in"
-        required={true}
-        appearance="input"
-        controlClassName="w-full"
-        data-testid="validator-field-control"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Validator.Field
+          id="validator-email-field"
+          label="Email"
+          hint="Required"
+          extra="We only use it for sign-in"
+          required={true}
+          appearance="input"
+          controlClassName="w-full"
+          data-testid="validator-field-control"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

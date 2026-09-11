@@ -1,3 +1,5 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp, disposeTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { onError, ref, render, setReactiveScheduling } from '@rue-js/rue'
 import AutoComplete from '../index'
@@ -24,7 +26,7 @@ const resetActiveRuntime = () => {
 
 afterEach(() => {
   for (const container of mountedContainers) {
-    render(null as any, container)
+    disposeTestApp(container)
   }
   mountedContainers.length = 0
   document.body.innerHTML = ''
@@ -34,9 +36,9 @@ describe('AutoComplete', () => {
   it('filters options and selects the highlighted item with Enter', async () => {
     const container = mountTestContainer()
     const handleSelect = vi.fn()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -60,7 +62,7 @@ describe('AutoComplete', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)
@@ -99,9 +101,9 @@ describe('AutoComplete', () => {
   it('supports keyboard backfill preview and allowClear', async () => {
     const container = mountTestContainer()
     const handleClear = vi.fn()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -126,7 +128,7 @@ describe('AutoComplete', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)
@@ -181,10 +183,10 @@ describe('AutoComplete', () => {
 
   it('opens suggestions on control click when open state is controlled externally', async () => {
     const container = mountTestContainer()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     const handleOpenChange = vi.fn()
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -213,7 +215,7 @@ describe('AutoComplete', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)
@@ -241,9 +243,9 @@ describe('AutoComplete', () => {
   it('moves from the current selection with arrow keys and confirms with Enter', async () => {
     const container = mountTestContainer()
     const handleSelect = vi.fn()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -269,7 +271,7 @@ describe('AutoComplete', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)
@@ -337,9 +339,9 @@ describe('AutoComplete', () => {
 
   it('preserves focus after the first character in grouped popupRender mode', async () => {
     const container = mountTestContainer()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -351,7 +353,7 @@ describe('AutoComplete', () => {
           data-testid="auto-complete-grouped-focus"
           value={value.value}
           allowClear
-          prefix={<span>Search</span>}
+          prefix="Search"
           filterOption={false}
           options={[
             {
@@ -360,20 +362,18 @@ describe('AutoComplete', () => {
             },
           ]}
           optionLabelProp="title"
-          popupRender={panel => (
-            <div>
-              {panel}
-              <div data-testid="auto-complete-grouped-footer">Footer</div>
-            </div>
-          )}
           onChange={text => {
             value.value = text
           }}
-        />
+        >
+          <Template slot="footer">
+            <div data-testid="auto-complete-grouped-footer">Footer</div>
+          </Template>
+        </AutoComplete>
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)
@@ -401,9 +401,9 @@ describe('AutoComplete', () => {
 
   it('preserves focus when controlled open remounts after focus', async () => {
     const container = mountTestContainer()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -417,7 +417,7 @@ describe('AutoComplete', () => {
           value={value.value}
           open={open.value}
           allowClear
-          prefix={<span>Search</span>}
+          prefix="Search"
           options={[
             { value: 'runtime/useComponent', title: 'useComponent lazy route' },
             { value: 'docs/routing', title: 'Routing guide' },
@@ -433,7 +433,7 @@ describe('AutoComplete', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)
@@ -460,21 +460,23 @@ describe('AutoComplete', () => {
 
   it('updates visible highlight with arrow keys without backfill', async () => {
     const container = mountTestContainer()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
-    render(
-      <AutoComplete
-        data-testid="auto-complete-warning-navigation"
-        status="warning"
-        filterOption={false}
-        defaultValue="runtime/watch"
-        options={[{ value: 'useComponent' }, { value: 'useRouter' }, { value: 'Mentions' }]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <AutoComplete
+          data-testid="auto-complete-warning-navigation"
+          status="warning"
+          filterOption={false}
+          defaultValue="runtime/watch"
+          options={[{ value: 'useComponent' }, { value: 'useRouter' }, { value: 'Mentions' }]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -522,9 +524,9 @@ describe('AutoComplete', () => {
 
   it('reopens the popup when clicking the input in controlled-open mode with a selected value', async () => {
     const container = mountContainer()
-    const reportedErrors: Error[] = []
+    const reportedErrors: unknown[] = []
     resetActiveRuntime()
-    const stopListening = onError((error: Error) => {
+    const stopListening = onError((error: unknown) => {
       reportedErrors.push(error)
     })
 
@@ -540,7 +542,7 @@ describe('AutoComplete', () => {
           allowClear
           backfill
           filterOption={false}
-          prefix={<span>Search</span>}
+          prefix="Search"
           options={[{ value: 'Routing guide' }, { value: 'render' }]}
           onChange={text => {
             value.value = text
@@ -552,7 +554,7 @@ describe('AutoComplete', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       expect(reportedErrors).toHaveLength(0)

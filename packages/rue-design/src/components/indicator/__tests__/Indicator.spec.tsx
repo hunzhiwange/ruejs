@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Indicator from '..'
@@ -18,11 +19,13 @@ describe('Indicator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Indicator className="max-w-xs" data-testid="indicator-root">
-        content
-      </Indicator>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Indicator className="max-w-xs" data-testid="indicator-root">
+          content
+        </Indicator>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -36,13 +39,15 @@ describe('Indicator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Indicator>
-        <Indicator.Item horizontal="center" vertical="bottom" data-testid="indicator-item">
-          Apply
-        </Indicator.Item>
-      </Indicator>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Indicator>
+          <Indicator.Item horizontal="center" vertical="bottom" data-testid="indicator-item">
+            Apply
+          </Indicator.Item>
+        </Indicator>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -57,17 +62,19 @@ describe('Indicator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Indicator>
-        <Indicator.Item
-          placement="bottom-start"
-          horizontal="center"
-          data-testid="indicator-item-placement"
-        >
-          Review
-        </Indicator.Item>
-      </Indicator>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Indicator>
+          <Indicator.Item
+            placement="bottom-start"
+            horizontal="center"
+            data-testid="indicator-item-placement"
+          >
+            Review
+          </Indicator.Item>
+        </Indicator>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -85,16 +92,23 @@ describe('Indicator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Indicator
-        item={<span data-testid="indicator-shortcut-content">9</span>}
-        itemProps={{ placement: 'top-end', offset: [10, 6], className: 'badge badge-primary' }}
-      >
-        <button data-testid="indicator-shortcut-target" className="btn">
-          Inbox
-        </button>
-      </Indicator>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Indicator
+          item="9"
+          itemProps={{
+            'data-testid': 'indicator-shortcut-content',
+            placement: 'top-end',
+            offset: [10, 6],
+            className: 'badge badge-primary',
+          }}
+        >
+          <button data-testid="indicator-shortcut-target" className="btn">
+            Inbox
+          </button>
+        </Indicator>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -118,31 +132,31 @@ describe('Indicator', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Indicator
-        items={[
-          {
-            key: 'presence',
-            children: <span data-testid="indicator-presence">live</span>,
-            className: 'badge badge-success',
-          },
-          {
-            key: 'cta',
-            as: 'div',
-            placement: 'bottom-center',
-            children: (
-              <button data-testid="indicator-cta" className="btn btn-sm">
-                Apply
-              </button>
-            ),
-          },
-        ]}
-      >
-        <div className="card" data-testid="indicator-card">
-          Card
-        </div>
-      </Indicator>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Indicator
+          items={[
+            {
+              key: 'presence',
+              text: 'live',
+              'data-testid': 'indicator-presence',
+              className: 'badge badge-success',
+            },
+            {
+              key: 'cta',
+              as: 'div',
+              placement: 'bottom-center',
+              text: 'Apply',
+              'data-testid': 'indicator-cta',
+            },
+          ]}
+        >
+          <div className="card" data-testid="indicator-card">
+            Card
+          </div>
+        </Indicator>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

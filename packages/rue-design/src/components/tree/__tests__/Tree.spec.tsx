@@ -1,3 +1,4 @@
+import { mountTestApp, disposeTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { effect, ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Tree from '../index'
@@ -104,7 +105,7 @@ const modifiedLabelClick = async (
 
 afterEach(() => {
   for (const container of mountedContainers.splice(0)) {
-    render(null as any, container)
+    disposeTestApp(container)
   }
   document.body.innerHTML = ''
 })
@@ -115,21 +116,23 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleSelect = vi.fn()
 
-    render(
-      <Tree
-        onSelect={handleSelect}
-        treeData={[
-          {
-            title: '团队目录',
-            key: 'team',
-            children: [
-              { title: '设计系统', key: 'design' },
-              { title: '工程平台', key: 'platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          onSelect={handleSelect}
+          treeData={[
+            {
+              title: '团队目录',
+              key: 'team',
+              children: [
+                { title: '设计系统', key: 'design' },
+                { title: '工程平台', key: 'platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -156,24 +159,26 @@ describe('Tree', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tree
-        allowSearch
-        checkable
-        showIcon
-        blockNode
-        defaultExpandAll
-        selectedKeys={['design']}
-        checkedKeys={['design']}
-        treeData={[
-          {
-            title: '团队目录',
-            key: 'team',
-            children: [{ title: '设计系统', key: 'design' }],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          allowSearch
+          checkable
+          showIcon
+          blockNode
+          defaultExpandAll
+          selectedKeys={['design']}
+          checkedKeys={['design']}
+          treeData={[
+            {
+              title: '团队目录',
+              key: 'team',
+              children: [{ title: '设计系统', key: 'design' }],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -205,28 +210,30 @@ describe('Tree', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tree
-        defaultExpandAll
-        treeData={[
-          {
-            title: '产品平台',
-            key: 'platform',
-            children: [{ title: '文档中心', key: 'docs' }],
-          },
-          {
-            title: '工程效率',
-            key: 'engineering',
-            children: [{ title: '构建链路', key: 'pipeline' }],
-          },
-          {
-            title: '增长分析',
-            key: 'growth',
-            children: [{ title: '实验看板', key: 'board' }],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          defaultExpandAll
+          treeData={[
+            {
+              title: '产品平台',
+              key: 'platform',
+              children: [{ title: '文档中心', key: 'docs' }],
+            },
+            {
+              title: '工程效率',
+              key: 'engineering',
+              children: [{ title: '构建链路', key: 'pipeline' }],
+            },
+            {
+              title: '增长分析',
+              key: 'growth',
+              children: [{ title: '实验看板', key: 'board' }],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -255,28 +262,30 @@ describe('Tree', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tree
-        defaultExpandAll
-        treeData={[
-          {
-            title: '产品平台',
-            key: 'platform',
-            children: [{ title: '文档中心', key: 'docs' }],
-          },
-          {
-            title: '工程效率',
-            key: 'engineering',
-            children: [{ title: '构建链路', key: 'pipeline' }],
-          },
-          {
-            title: '增长分析',
-            key: 'growth',
-            children: [{ title: '实验看板', key: 'board' }],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          defaultExpandAll
+          treeData={[
+            {
+              title: '产品平台',
+              key: 'platform',
+              children: [{ title: '文档中心', key: 'docs' }],
+            },
+            {
+              title: '工程效率',
+              key: 'engineering',
+              children: [{ title: '构建链路', key: 'pipeline' }],
+            },
+            {
+              title: '增长分析',
+              key: 'growth',
+              children: [{ title: '实验看板', key: 'board' }],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -323,23 +332,25 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleCheck = vi.fn()
 
-    render(
-      <Tree
-        checkable
-        onCheck={handleCheck}
-        defaultExpandAll
-        treeData={[
-          {
-            title: '平台团队',
-            key: 'team',
-            children: [
-              { title: '构建链路', key: 'build' },
-              { title: '发布平台', key: 'release' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          checkable
+          onCheck={handleCheck}
+          defaultExpandAll
+          treeData={[
+            {
+              title: '平台团队',
+              key: 'team',
+              children: [
+                { title: '构建链路', key: 'build' },
+                { title: '发布平台', key: 'release' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -395,7 +406,7 @@ describe('Tree', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(getNode(container, 'team')).toBeTruthy()
@@ -422,22 +433,24 @@ describe('Tree', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tree
-        allowSearch
-        defaultExpandAll
-        treeData={[
-          {
-            title: '团队目录',
-            key: 'team',
-            children: [
-              { title: '产品增长', key: 'growth' },
-              { title: '产品平台', key: 'product-platform' },
-            ],
-          },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          allowSearch
+          defaultExpandAll
+          treeData={[
+            {
+              title: '团队目录',
+              key: 'team',
+              children: [
+                { title: '产品增长', key: 'growth' },
+                { title: '产品平台', key: 'product-platform' },
+              ],
+            },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -477,7 +490,7 @@ describe('Tree', () => {
       return <Tree treeData={treeData.value} loadData={handleLoadData} />
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(getNode(container, 'async-root')).toBeTruthy()
@@ -529,12 +542,7 @@ describe('Tree', () => {
           itemHeight={24}
           virtual
           loadData={handleLoadData}
-          titleRender={({ node, loading }) => (
-            <span>
-              {node.title}
-              {loading ? ' loading' : ''}
-            </span>
-          )}
+          titleFormatter={({ node, loading }) => `${node.title}${loading ? ' loading' : ''}`}
           onExpand={nextKeys => {
             expandedKeys.value = nextKeys as string[]
           }}
@@ -542,7 +550,7 @@ describe('Tree', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(getNode(container, 'resource-0')).toBeTruthy()
@@ -610,7 +618,7 @@ describe('Tree', () => {
       )
     }
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(getNode(container, 'resource-0')).toBeTruthy()
@@ -634,20 +642,22 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleSelect = vi.fn()
 
-    render(
-      <Tree.DirectoryTree
-        multiple
-        onSelect={handleSelect}
-        treeData={[
-          {
-            title: 'src',
-            key: 'src',
-            children: [{ title: 'index.ts', key: 'index-ts' }],
-          },
-          { title: 'README.md', key: 'readme' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree.DirectoryTree
+          multiple
+          onSelect={handleSelect}
+          treeData={[
+            {
+              title: 'src',
+              key: 'src',
+              children: [{ title: 'index.ts', key: 'index-ts' }],
+            },
+            { title: 'README.md', key: 'readme' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -677,45 +687,47 @@ describe('Tree', () => {
     const selectedKeys = ref<string[]>(['dir-app'])
     resetActiveRuntime()
 
-    render(
-      <Tree.DirectoryTree
-        multiple
-        selectedKeys={selectedKeys.value}
-        onSelect={nextKeys => {
-          selectedKeys.value = nextKeys as string[]
-        }}
-        treeData={[
-          {
-            title: 'app',
-            key: 'dir-app',
-            children: [
-              {
-                title: 'pages',
-                key: 'dir-pages',
-                children: [
-                  { title: 'Tree.tsx', key: 'file-tree-page' },
-                  { title: 'Transfer.tsx', key: 'file-transfer-page' },
-                ],
-              },
-              {
-                title: 'site',
-                key: 'dir-site',
-                children: [{ title: 'SidebarPlaygroundDesign.tsx', key: 'file-sidebar' }],
-              },
-            ],
-          },
-          {
-            title: 'packages',
-            key: 'dir-packages',
-            children: [
-              { title: 'runtime', key: 'dir-runtime' },
-              { title: 'rue-design', key: 'dir-rue-design' },
-            ],
-          },
-          { title: 'README.md', key: 'file-readme' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree.DirectoryTree
+          multiple
+          selectedKeys={selectedKeys.value}
+          onSelect={nextKeys => {
+            selectedKeys.value = nextKeys as string[]
+          }}
+          treeData={[
+            {
+              title: 'app',
+              key: 'dir-app',
+              children: [
+                {
+                  title: 'pages',
+                  key: 'dir-pages',
+                  children: [
+                    { title: 'Tree.tsx', key: 'file-tree-page' },
+                    { title: 'Transfer.tsx', key: 'file-transfer-page' },
+                  ],
+                },
+                {
+                  title: 'site',
+                  key: 'dir-site',
+                  children: [{ title: 'SidebarPlaygroundDesign.tsx', key: 'file-sidebar' }],
+                },
+              ],
+            },
+            {
+              title: 'packages',
+              key: 'dir-packages',
+              children: [
+                { title: 'runtime', key: 'dir-runtime' },
+                { title: 'rue-design', key: 'dir-rue-design' },
+              ],
+            },
+            { title: 'README.md', key: 'file-readme' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -783,20 +795,22 @@ describe('Tree', () => {
 
       resetActiveRuntime()
 
-      render(
-        <Tree.DirectoryTree
-          treeData={treeData}
-          selectedKeys={selectedKeys.value}
-          expandedKeys={expandedKeys.value}
-          onSelect={nextKeys => {
-            selectedKeys.value = nextKeys as string[]
-          }}
-          onExpand={nextKeys => {
-            expandedKeys.value = nextKeys as string[]
-          }}
-          {...props}
-        />,
-        container,
+      mountTestApp(container, () =>
+        render(
+          <Tree.DirectoryTree
+            treeData={treeData}
+            selectedKeys={selectedKeys.value}
+            expandedKeys={expandedKeys.value}
+            onSelect={nextKeys => {
+              selectedKeys.value = nextKeys as string[]
+            }}
+            onExpand={nextKeys => {
+              expandedKeys.value = nextKeys as string[]
+            }}
+            {...props}
+          />,
+          container,
+        ),
       )
 
       await waitForContent(() => {
@@ -828,7 +842,7 @@ describe('Tree', () => {
     })
 
     combined.dispose()
-    render(null as any, combined.container)
+    disposeTestApp(combined.container)
 
     const separate = await mountControlledDirectoryTree({ expandAction: false })
 
@@ -862,22 +876,24 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleSelect = vi.fn()
 
-    render(
-      <Tree.DirectoryTree
-        multiple
-        toggleSelect={false}
-        rangeSelect="replace"
-        onSelect={handleSelect}
-        treeData={[
-          {
-            title: 'src',
-            key: 'src',
-            children: [{ title: 'index.ts', key: 'index-ts' }],
-          },
-          { title: 'README.md', key: 'readme' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree.DirectoryTree
+          multiple
+          toggleSelect={false}
+          rangeSelect="replace"
+          onSelect={handleSelect}
+          treeData={[
+            {
+              title: 'src',
+              key: 'src',
+              children: [{ title: 'index.ts', key: 'index-ts' }],
+            },
+            { title: 'README.md', key: 'readme' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -949,8 +965,8 @@ describe('Tree', () => {
       />
     )
 
-    render(<AppendDemo />, appendContainer)
-    render(<ReplaceDemo />, replaceContainer)
+    mountTestApp(appendContainer, () => render(<AppendDemo />, appendContainer))
+    mountTestApp(replaceContainer, () => render(<ReplaceDemo />, replaceContainer))
 
     await waitForContent(() => {
       expect(getNode(appendContainer, 'range-beta')).toBeTruthy()
@@ -1024,8 +1040,8 @@ describe('Tree', () => {
       />
     )
 
-    render(<AppendDemo />, appendContainer)
-    render(<ReplaceDemo />, replaceContainer)
+    mountTestApp(appendContainer, () => render(<AppendDemo />, appendContainer))
+    mountTestApp(replaceContainer, () => render(<ReplaceDemo />, replaceContainer))
 
     await waitForContent(() => {
       expect(getNode(appendContainer, 'range-beta')).toBeTruthy()
@@ -1085,8 +1101,8 @@ describe('Tree', () => {
       />
     )
 
-    render(<TreeDemo />, treeContainer)
-    render(<DirectoryDemo />, directoryContainer)
+    mountTestApp(treeContainer, () => render(<TreeDemo />, treeContainer))
+    mountTestApp(directoryContainer, () => render(<DirectoryDemo />, directoryContainer))
 
     await waitForContent(() => {
       expect(getNode(treeContainer, 'item-1')).toBeTruthy()
@@ -1128,7 +1144,7 @@ describe('Tree', () => {
       />
     )
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(getSelectedNodeKeys(container)).toEqual(['item-1'])
@@ -1147,17 +1163,19 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleDrop = vi.fn()
 
-    render(
-      <Tree
-        draggable
-        defaultExpandAll
-        onDrop={handleDrop}
-        treeData={[
-          { title: 'Alpha', key: 'alpha' },
-          { title: 'Beta', key: 'beta' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          draggable
+          defaultExpandAll
+          onDrop={handleDrop}
+          treeData={[
+            { title: 'Alpha', key: 'alpha' },
+            { title: 'Beta', key: 'beta' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1201,16 +1219,18 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleDrop = vi.fn()
 
-    render(
-      <Tree
-        draggable
-        onDrop={handleDrop}
-        treeData={[
-          { title: 'Alpha', key: 'alpha' },
-          { title: 'Beta', key: 'beta' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          draggable
+          onDrop={handleDrop}
+          treeData={[
+            { title: 'Alpha', key: 'alpha' },
+            { title: 'Beta', key: 'beta' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1278,23 +1298,25 @@ describe('Tree', () => {
     resetActiveRuntime()
     const handleDrop = vi.fn()
 
-    render(
-      <Tree
-        draggable
-        defaultExpandAll
-        allowDrop={({ dropNode, dropToGap }) => dropToGap || dropNode.key === 'folder'}
-        onDrop={handleDrop}
-        treeData={[
-          {
-            title: 'Folder',
-            key: 'folder',
-            children: [{ title: 'Nested', key: 'nested' }],
-          },
-          { title: 'Locked.md', key: 'locked' },
-          { title: 'Alpha', key: 'alpha' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          draggable
+          defaultExpandAll
+          allowDrop={({ dropNode, dropToGap }) => dropToGap || dropNode.key === 'folder'}
+          onDrop={handleDrop}
+          treeData={[
+            {
+              title: 'Folder',
+              key: 'folder',
+              children: [{ title: 'Nested', key: 'nested' }],
+            },
+            { title: 'Locked.md', key: 'locked' },
+            { title: 'Alpha', key: 'alpha' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1365,20 +1387,22 @@ describe('Tree', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tree
-        draggable
-        defaultExpandAll
-        treeData={[
-          {
-            title: 'Folder',
-            key: 'folder',
-            children: [{ title: 'Nested', key: 'nested' }],
-          },
-          { title: 'Alpha', key: 'alpha' },
-        ]}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          draggable
+          defaultExpandAll
+          treeData={[
+            {
+              title: 'Folder',
+              key: 'folder',
+              children: [{ title: 'Nested', key: 'nested' }],
+            },
+            { title: 'Alpha', key: 'alpha' },
+          ]}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -1427,7 +1451,9 @@ describe('Tree', () => {
       key: `node-${index}`,
     }))
 
-    render(<Tree treeData={treeData} height={96} itemHeight={24} />, container)
+    mountTestApp(container, () =>
+      render(<Tree treeData={treeData} height={96} itemHeight={24} />, container),
+    )
 
     await waitForContent(() => {
       expect(getNode(container, 'node-0')).toBeTruthy()
@@ -1464,25 +1490,22 @@ describe('Tree', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Tree
-        showIcon
-        defaultExpandAll
-        treeData={[
-          {
-            title: 'Root',
-            key: 'root',
-            children: [{ title: 'Leaf', key: 'leaf' }],
-          },
-        ]}
-        titleRender={({ node }) => (
-          <div className="flex items-center gap-2">
-            <span>{String(node.title)}</span>
-            <span>{node.children.length ? 'branch' : 'leaf'}</span>
-          </div>
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Tree
+          showIcon
+          defaultExpandAll
+          treeData={[
+            {
+              title: 'Root',
+              key: 'root',
+              children: [{ title: 'Leaf', key: 'leaf' }],
+            },
+          ]}
+          titleFormatter={({ node }) => `${node.title} ${node.children.length ? 'branch' : 'leaf'}`}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

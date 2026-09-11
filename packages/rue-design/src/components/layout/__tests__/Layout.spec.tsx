@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Layout } from '@rue-js/design'
+import Layout from '..'
 import type { LayoutSiderTriggerRenderMeta } from '../index'
 import {
   click,
@@ -33,16 +34,18 @@ describe('Layout', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Layout hasSider className="rounded-box" data-testid="layout-root">
-        <Layout.Sider data-testid="layout-sider">nav</Layout.Sider>
-        <Layout>
-          <Layout.Header data-testid="layout-header">header</Layout.Header>
-          <Layout.Content data-testid="layout-content">content</Layout.Content>
-          <Layout.Footer data-testid="layout-footer">footer</Layout.Footer>
-        </Layout>
-      </Layout>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Layout hasSider className="rounded-box" data-testid="layout-root">
+          <Layout.Sider data-testid="layout-sider">nav</Layout.Sider>
+          <Layout>
+            <Layout.Header data-testid="layout-header">header</Layout.Header>
+            <Layout.Content data-testid="layout-content">content</Layout.Content>
+            <Layout.Footer data-testid="layout-footer">footer</Layout.Footer>
+          </Layout>
+        </Layout>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -65,23 +68,25 @@ describe('Layout', () => {
     resetActiveRuntime()
     const onCollapse = vi.fn()
 
-    render(
-      <Layout hasSider>
-        <Layout.Sider
-          collapsible
-          defaultCollapsed
-          collapsedWidth={72}
-          footer="Auto save every 24s"
-          data-testid="layout-sider"
-          onCollapse={onCollapse}
-        >
-          aside
-        </Layout.Sider>
-        <Layout>
-          <Layout.Content>content</Layout.Content>
-        </Layout>
-      </Layout>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Layout hasSider>
+          <Layout.Sider
+            collapsible
+            defaultCollapsed
+            collapsedWidth={72}
+            footer="Auto save every 24s"
+            data-testid="layout-sider"
+            onCollapse={onCollapse}
+          >
+            aside
+          </Layout.Sider>
+          <Layout>
+            <Layout.Content>content</Layout.Content>
+          </Layout>
+        </Layout>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -129,34 +134,36 @@ describe('Layout', () => {
     const onBreakpoint = vi.fn()
     const onCollapse = vi.fn()
 
-    render(
-      <Layout hasSider>
-        <Layout.Sider
-          collapsible
-          breakpoint="md"
-          collapsedWidth={0}
-          width={280}
-          data-testid="responsive-sider"
-          onBreakpoint={onBreakpoint}
-          onCollapse={onCollapse}
-          trigger={({ collapsed, below, zeroWidth }: LayoutSiderTriggerRenderMeta) => (
-            <Layout.Trigger data-testid="custom-trigger">
-              {`${collapsed ? 'closed' : 'open'}-${below ? 'below' : 'above'}-${zeroWidth ? 'zero' : 'solid'}`}
-            </Layout.Trigger>
-          )}
-        >
-          responsive
-        </Layout.Sider>
-        <Layout>
-          <Layout.Content>content</Layout.Content>
-        </Layout>
-      </Layout>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Layout hasSider>
+          <Layout.Sider
+            collapsible
+            breakpoint="md"
+            collapsedWidth={0}
+            width={280}
+            data-testid="responsive-sider"
+            onBreakpoint={onBreakpoint}
+            onCollapse={onCollapse}
+            triggerFormatter={({ collapsed, below, zeroWidth }: LayoutSiderTriggerRenderMeta) =>
+              `${collapsed ? 'closed' : 'open'}-${below ? 'below' : 'above'}-${zeroWidth ? 'zero' : 'solid'}`
+            }
+          >
+            responsive
+          </Layout.Sider>
+          <Layout>
+            <Layout.Content>content</Layout.Content>
+          </Layout>
+        </Layout>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
       const sider = container.querySelector('[data-testid="responsive-sider"]') as HTMLElement
-      const trigger = container.querySelector('[data-testid="custom-trigger"]') as HTMLElement
+      const trigger = container.querySelector(
+        '[data-rue-layout-trigger-custom="true"]',
+      ) as HTMLElement
       const triggerButton = sider.querySelector(
         '[data-rue-layout-sider-trigger="zero"]',
       ) as HTMLElement
@@ -195,7 +202,7 @@ describe('Layout', () => {
       )
     }
 
-    render(<ControlledLayout />, container)
+    mountTestApp(container, () => render(<ControlledLayout />, container))
 
     await waitForContent(() => {
       const sider = container.querySelector('[data-testid="controlled-sider"]') as HTMLElement
@@ -204,7 +211,7 @@ describe('Layout', () => {
     })
 
     state.value = false
-    render(<ControlledLayout />, container)
+    mountTestApp(container, () => render(<ControlledLayout />, container))
 
     await waitForContent(() => {
       const sider = container.querySelector('[data-testid="controlled-sider"]') as HTMLElement

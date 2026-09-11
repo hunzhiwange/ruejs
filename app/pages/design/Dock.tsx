@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Dock, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 type DockKey = 'home' | 'inbox' | 'settings' | 'profile'
 

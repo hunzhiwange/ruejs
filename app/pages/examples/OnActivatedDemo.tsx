@@ -77,84 +77,29 @@ const views: Record<ViewKey, FC<{ onEvent: (message: string) => void }>> = {
   settings: props => <LifecyclePanel name="settings" onEvent={props.onEvent} />,
 }
 
-const demoCode = `import {
-  Component,
-  KeepAlive,
-  onActivated,
-  onDeactivated,
-  ref,
-  renderAnchor,
-  vapor,
-  watchEffect,
-  type FC,
-} from '@rue-js/rue'
+const demoCode = `import { Component, KeepAlive, onActivated, onDeactivated, ref, type FC } from '@rue-js/rue'
 
-const Panel: FC<{ name: string; onEvent: (message: string) => void }> = props => {
-  const clicks = ref(0)
-
-  onActivated(() => props.onEvent(\`\${props.name} onActivated\`))
-  onDeactivated(() => props.onEvent(\`\${props.name} onDeactivated\`))
-
-  return (
-    <section>
-      <h2>{props.name}</h2>
-      <input placeholder="本地输入状态会被保留" />
-      <button onClick={() => (clicks.value += 1)}>本地计数 +1</button>
-      <span>{clicks.value}</span>
-    </section>
-  )
+const Profile: FC = () => {
+  onActivated(() => console.log('profile activated'))
+  onDeactivated(() => console.log('profile deactivated'))
+  return <section>Profile</section>
 }
 
-const views = {
-  profile: (props) => <Panel name="profile" onEvent={props.onEvent} />,
-  settings: (props) => <Panel name="settings" onEvent={props.onEvent} />,
-}
-
-const KeepAliveViewport: FC<{
-  activeView: { value: 'profile' | 'settings' }
-  onEvent: (message: string) => void
-}> = props => {
-  return vapor(() => {
-    const root = document.createDocumentFragment()
-    const anchor = document.createComment('keep-alive-anchor')
-    root.appendChild(anchor)
-
-    watchEffect(() => {
-      renderAnchor(
-        <KeepAlive>
-          <Component
-            is={views[props.activeView.value]}
-            key={props.activeView.value}
-            onEvent={props.onEvent}
-          />
-        </KeepAlive>,
-        root as any,
-        anchor as any,
-      )
-    })
-
-    return root as any
-  }) as any
-}
+const Settings: FC = () => <section>Settings</section>
 
 const App: FC = () => {
   const active = ref<'profile' | 'settings'>('profile')
-  const events = ref<string[]>([])
-  const pushEvent = (message: string) => {
-    events.value = [message, ...events.value].slice(0, 6)
-  }
-
   return (
-    <>
-      <button onClick={() => (active.value = 'profile')}>资料面板</button>
-      <button onClick={() => (active.value = 'settings')}>设置面板</button>
-
-      <KeepAliveViewport activeView={active} onEvent={pushEvent} />
-
-      <ul>{events.value.map(event => <li>{event}</li>)}</ul>
-    </>
+    <KeepAlive>
+      <Component
+        is={active.value}
+        registry={{ profile: Profile, settings: Settings }}
+        key={active.value}
+      />
+    </KeepAlive>
   )
-}`
+}
+`
 
 const KeepAliveViewport: FC<{
   activeView: { value: ViewKey }

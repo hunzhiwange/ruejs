@@ -11,14 +11,14 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
@@ -94,7 +94,7 @@ describe('window.text debug global', () => {
     try {
       vi.resetModules()
       // Side-effecting import: installs window.text.router at module load.
-      const routerModule = await import('../src/shims/router.js')
+      const routerModule = await import('../src/shims/router.js?text-ssr')
       const Router = routerModule.default
 
       expect(win.text).toBeDefined()
@@ -150,7 +150,7 @@ describe('window.text debug global', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
+      await import('../src/shims/router.js?text-ssr')
 
       const fired: unknown[] = []
       win.text.router.events.on('routeChangeStart', (url: unknown) => {
@@ -191,7 +191,7 @@ describe('window.text debug global', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
+      await import('../src/shims/router.js?text-ssr')
 
       // Shallow push avoids the HTML fetch + render path so this unit test
       // does not need a navigateClient stub. The boolean-return contract
@@ -223,7 +223,7 @@ describe('window.text debug global', () => {
 
     try {
       vi.resetModules()
-      await import('../src/shims/router.js')
+      await import('../src/shims/router.js?text-ssr')
 
       const result = await win.text.router.replace('/foo', undefined, { shallow: true })
       expect(result).toBe(true)
@@ -330,12 +330,12 @@ describe('text/router withRouter HOC', () => {
   })
 
   it('exports withRouter as a named function', async () => {
-    const { withRouter } = await import('../src/shims/router.js')
+    const { withRouter } = await import('../src/shims/router.js?text-ssr')
     expect(typeof withRouter).toBe('function')
   })
 
   it('text/router useRouter reads the mounted RouterContext value', async () => {
-    const { useRouter } = await import('../src/shims/router.js')
+    const { useRouter } = await import('../src/shims/router.js?text-ssr')
     const { RouterContext } = await import('../src/shims/internal/router-context.js')
 
     const providedRouter = createTestRouter({ pathname: '/from-context' })
@@ -346,7 +346,7 @@ describe('text/router withRouter HOC', () => {
       return createElement('span', null, 'ok')
     }
 
-    renderAppServerElementToHtml(
+    await renderAppServerElementToHtml(
       createElement(RouterContext.Provider, { value: providedRouter }, createElement(Probe)),
     )
 
@@ -354,14 +354,14 @@ describe('text/router withRouter HOC', () => {
   })
 
   it('text/router useRouter throws when the Pages Router context is not mounted', async () => {
-    const { useRouter } = await import('../src/shims/router.js')
+    const { useRouter } = await import('../src/shims/router.js?text-ssr')
 
     function Probe() {
       useRouter()
       return createElement('span', null, 'ok')
     }
 
-    expect(() => renderAppServerElementToHtml(createElement(Probe))).toThrow(
+    await expect(renderAppServerElementToHtml(createElement(Probe))).rejects.toThrow(
       'TextRouter was not mounted',
     )
   })
@@ -380,35 +380,19 @@ describe('text/router withRouter HOC', () => {
     }
 
     vi.resetModules()
-    vi.doMock('@rue-js/rue', async importOriginal => {
-      const actual = await importOriginal<typeof import('@rue-js/rue')>()
-      const rue = {
-        ...actual,
-        createContext(defaultValue: unknown) {
-          return { Provider: 'Provider', Consumer: 'Consumer', defaultValue }
-        },
-        createElement(type: unknown, props: unknown, ...children: unknown[]) {
-          return { type, props, children }
-        },
-        useContext() {
-          return providedRouter
-        },
-        useState(initialValue: unknown) {
-          return [typeof initialValue === 'function' ? initialValue() : initialValue, vi.fn()]
-        },
-        useEffect(effect: () => void | (() => void)) {
-          effect()
-        },
-      }
-      return { ...rue, default: rue }
-    })
-
     try {
-      const { useRouter } = await import('../src/shims/router.js')
+      const { useRouter } = await import('../src/shims/router.js?text-ssr')
 
-      expect(useRouter()).toBe(providedRouter)
-      expect(useRouter()).toBe(providedRouter)
-      expect(useRouter()).toBe(providedRouter)
+      const { RouterContext } = await import('../src/shims/internal/router-context.js?text-ssr')
+      function Probe() {
+        expect(useRouter()).toBe(providedRouter)
+        expect(useRouter()).toBe(providedRouter)
+        expect(useRouter()).toBe(providedRouter)
+        return createElement('span', null, 'ok')
+      }
+      await renderAppServerElementToHtml(
+        createElement(RouterContext.Provider, { value: providedRouter }, createElement(Probe)),
+      )
 
       const navigateListenerCalls = addEventListener.mock.calls.filter(
         call => call[0] === 'text:navigate',
@@ -426,7 +410,7 @@ describe('text/router withRouter HOC', () => {
   })
 
   it('withRouter wraps a component and forwards static props', async () => {
-    const { withRouter } = await import('../src/shims/router.js')
+    const { withRouter } = await import('../src/shims/router.js?text-ssr')
 
     const Inner = (({ label }: { router: any; label: string }) =>
       createElement('span', null, label)) as any
@@ -440,7 +424,7 @@ describe('text/router withRouter HOC', () => {
   })
 
   it('withRouter injects a router prop into the wrapped component', async () => {
-    const { withRouter, setSSRContext } = await import('../src/shims/router.js')
+    const { withRouter, setSSRContext } = await import('../src/shims/router.js?text-ssr')
     const previousWindow = globalThis.window
 
     let receivedRouter: any = null
@@ -460,7 +444,7 @@ describe('text/router withRouter HOC', () => {
     try {
       ;(globalThis as any).window = undefined
       const html = await renderAppServerElementToHtmlAsync(createElement(Wrapped, { label: 'hi' }))
-      expect(html).toContain('<span>ok</span>')
+      expect(html.replace(/<!--.*?-->/g, '')).toContain('<span>ok</span>')
     } finally {
       ;(globalThis as any).window = previousWindow
       setSSRContext(null)
@@ -483,7 +467,7 @@ describe('text/router withRouter HOC', () => {
   // so a user-passed `router` prop overrides the HOC-injected one. If the
   // spread order is ever inverted in the shim, this test fails.
   it('user-passed router prop overrides the HOC-injected router (Text.js spread order)', async () => {
-    const { withRouter, setSSRContext } = await import('../src/shims/router.js')
+    const { withRouter, setSSRContext } = await import('../src/shims/router.js?text-ssr')
     const previousWindow = globalThis.window
 
     let receivedRouter: any = null
@@ -514,7 +498,7 @@ describe('text/router withRouter HOC', () => {
   })
 
   it('withRouter forwards getInitialProps from the composed component', async () => {
-    const { withRouter } = await import('../src/shims/router.js')
+    const { withRouter } = await import('../src/shims/router.js?text-ssr')
 
     type InnerType = ((props: { router: any }) => null) & {
       getInitialProps?: () => unknown

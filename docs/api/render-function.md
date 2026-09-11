@@ -47,29 +47,32 @@ const Profile: FC<{ name: string }> = props => (
 
 ## 动态组件 {#dynamic-components}
 
-运行时才知道标签或组件身份时，使用 `<Component is={...}>`：
+组件身份必须来自调用点可枚举的有限集合，使用 `<Component>` 的字面量 `registry`：
 
 ```tsx
 import { Component, type FC } from '@rue-js/rue'
 
-const DynamicSurface: FC<{ as: string | FC; title: string }> = props => (
-  <Component is={props.as} className="surface">
-    {props.title}
-  </Component>
+const Card: FC<{ title: string }> = props => <article>{props.title}</article>
+const Notice: FC<{ title: string }> = props => <aside>{props.title}</aside>
+
+const DynamicSurface: FC<{ kind: 'card' | 'notice'; title: string }> = props => (
+  <Component is={props.kind} registry={{ card: Card, notice: Notice }} title={props.title} />
 )
 ```
 
-`is` 可以是原生标签名、组件函数或已注册组件名。普通静态元素和已知组件仍应直接写成 TSX，让编译器选择更窄的输出。
+不支持任意函数值、全局字符串组件注册表或没有字面量 `registry` 的动态组件。普通静态元素和已知组件应直接写成 TSX。
 
 ## 命令式挂载 {#imperative-mount}
 
-需要挂载到既有容器时，先让 TSX 经过 Rue 编译，再将产物交给 `render`：
+需要挂载到既有容器时，使用静态根组件创建应用：
 
 ```tsx
-import { render } from '@rue-js/rue'
+import { useApp } from '@rue-js/rue'
 import App from './App'
 
-render(<App />, document.querySelector('#app')!)
+useApp(App).mount('#app')
 ```
+
+Rue 不公开接受任意 JSX 值的 `render()`；根组件同样必须经过 Rue 编译器。
 
 另请参阅：[编译 JSX 与动态渲染](/guide/guide/extras/render-function)和[渲染机制](/guide/guide/extras/rendering-mechanism)。

@@ -1,9 +1,10 @@
+import { computed, Template } from '@rue-js/rue'
 /*
 Fab 模块概述
 - 汇总悬浮按钮组件的公开类型、渲染入口和局部工具逻辑。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
-import { onMounted, onUnmounted, ref, type FC, useState, watch } from '@rue-js/rue'
+import { onMounted, onUnmounted, ref, type FC, watch } from '@rue-js/rue'
 import Badge from '../badge'
 import type { BadgeProps } from '../badge'
 import Button from '../button'
@@ -101,11 +102,8 @@ const mergeClassName = (...parts: Array<string | undefined | false | null>) =>
   parts.filter(Boolean).join(' ')
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value === undefined || value === null || value === false || value === '') return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 判断是否存在 Structured Fab Props 的内部工具函数。 */
 const hasStructuredFabProps = (props: FabProps) => {
@@ -167,7 +165,7 @@ const MaybeTooltip: FC<{ tooltip?: any; placement: TooltipPlacement; children?: 
   placement,
   children,
 }) => {
-  if (tooltip == null || tooltip === false) return children
+  if (tooltip == null || tooltip === false) return <>{children}</>
   if (isTooltipConfig(tooltip)) {
     return (
       <Tooltip placement={tooltip.placement ?? placement} {...tooltip}>
@@ -184,7 +182,7 @@ const MaybeTooltip: FC<{ tooltip?: any; placement: TooltipPlacement; children?: 
 
 /** Maybe Badge 的内部工具函数。 */
 const MaybeBadge: FC<{ badge?: FabBadgeProps; children?: any }> = ({ badge, children }) => {
-  if (!badge) return children
+  if (!badge) return <>{children}</>
   return <Badge {...badge}>{children}</Badge>
 }
 
@@ -203,9 +201,9 @@ const DefaultCloseIcon: FC = () => (
 )
 
 /** 读取 Menu Open Icon 的内部工具函数。 */
-const renderMenuOpenIcon = (menuIcon: any, icon: any) => {
-  if (menuIcon != null) return menuIcon
-  if (icon != null) return icon
+const RenderMenuOpenIcon = ({ arg0: menuIcon, arg1: icon }: { arg0: any; arg1: any }) => {
+  if (menuIcon != null) return <span>{String(menuIcon)}</span>
+  if (icon != null) return <span>{String(icon)}</span>
   return <DefaultMenuIcon />
 }
 
@@ -219,22 +217,27 @@ const FabToggleIcon: FC<{
   return (
     <span data-rue-fab-toggle-icon="true" className="inline-flex items-center justify-center">
       <span data-rue-fab-open-icon="true" className={open ? 'hidden' : undefined}>
-        {renderMenuOpenIcon(menuIcon, icon)}
+        <RenderMenuOpenIcon arg0={menuIcon} arg1={icon} />
       </span>
       <span data-rue-fab-close-icon="true" className={open ? undefined : 'hidden'}>
-        {closeIcon ?? <DefaultCloseIcon />}
+        {closeIcon != null ? <span>{String(closeIcon)}</span> : <DefaultCloseIcon />}
       </span>
     </span>
   )
 }
 
 /** 渲染 Fab Toggle Icon 的内部工具函数。 */
-const renderFabToggleIcon = (
-  open: boolean | undefined,
-  icon: any,
-  closeIcon: any,
-  menuIcon: any,
-) => {
+const RenderFabToggleIcon = ({
+  arg0: open,
+  arg1: icon,
+  arg2: closeIcon,
+  arg3: menuIcon,
+}: {
+  arg0: boolean | undefined
+  arg1: any
+  arg2: any
+  arg3: any
+}) => {
   return <FabToggleIcon open={open} icon={icon} closeIcon={closeIcon} menuIcon={menuIcon} />
 }
 
@@ -330,24 +333,34 @@ const ActionButton: FC<
 
   if (menuAction) {
     return (
-      <MaybeTooltip tooltip={tooltip} placement={tooltipPlacement}>
-        <MaybeBadge badge={badge}>
-          <Button {...buttonProps} icon={renderFabToggleIcon(open, icon, closeIcon, menuIcon)}>
-            {resolvedShape === 'circle' ? null : mergedContent}
-          </Button>
-        </MaybeBadge>
-      </MaybeTooltip>
+      <span style={{ display: 'contents' }}>
+        <MaybeTooltip tooltip={tooltip} placement={tooltipPlacement}>
+          <MaybeBadge badge={badge}>
+            <Button {...buttonProps}>
+              <Template slot="icon">
+                <RenderFabToggleIcon arg0={open} arg1={icon} arg2={closeIcon} arg3={menuIcon} />
+              </Template>
+              {resolvedShape === 'circle' ? null : <span>{String(mergedContent ?? '')}</span>}
+            </Button>
+          </MaybeBadge>
+        </MaybeTooltip>
+      </span>
     )
   }
 
   return (
-    <MaybeTooltip tooltip={tooltip} placement={tooltipPlacement}>
-      <MaybeBadge badge={badge}>
-        <Button {...buttonProps} icon={icon}>
-          {resolvedShape === 'circle' ? null : mergedContent}
-        </Button>
-      </MaybeBadge>
-    </MaybeTooltip>
+    <span style={{ display: 'contents' }}>
+      <MaybeTooltip tooltip={tooltip} placement={tooltipPlacement}>
+        <MaybeBadge badge={badge}>
+          <Button {...buttonProps}>
+            <Template slot="icon">
+              <span data-rue-fab-icon="true">{String(icon ?? '')}</span>
+            </Template>
+            {resolvedShape === 'circle' ? null : <span>{String(mergedContent ?? '')}</span>}
+          </Button>
+        </MaybeBadge>
+      </MaybeTooltip>
+    </span>
   )
 }
 
@@ -402,6 +415,49 @@ const Item: FC<FabActionProps> = props => {
 
 /** Fab 的内部工具函数。 */
 const Fab: FC<FabProps> = props => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const item = rowArg0
+    const index = rowArg1
+
+    const key = item.key ?? `${placement}-${index}`
+    if (flower) {
+      const offset = getFlowerOffset(index, items.length)
+      return (
+        <div
+          className={mergeClassName(
+            'absolute right-0 top-0 transition-all duration-200',
+            mergedOpen.get()
+              ? 'pointer-events-auto opacity-100 scale-100'
+              : 'pointer-events-none opacity-0 scale-75',
+          )}
+          style={{
+            transform: mergedOpen.get()
+              ? `translate(${offset.x}px, ${offset.y}px)`
+              : 'translate(0px, 0px)',
+          }}
+        >
+          <ActionButton
+            {...item}
+            tooltipPlacement={
+              item.tooltip && item.shape !== 'square' ? 'left' : linearPanel.tooltipPlacement
+            }
+            onActionClick={handleItemClick}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <ActionButton
+        {...item}
+        tooltipPlacement={
+          item.tooltip && item.shape !== 'square' ? 'left' : linearPanel.tooltipPlacement
+        }
+        onActionClick={handleItemClick}
+      />
+    )
+  }
+
   if (!hasStructuredFabProps(props)) {
     const { flower, className, children, ...rest } = props
     let cls = 'fab'
@@ -451,43 +507,17 @@ const Fab: FC<FabProps> = props => {
 
   const isControlled = typeof open === 'boolean'
   const uncontrolledOpen = ref(defaultOpen)
-  const [currentOpen, setCurrentOpen] = useState(isControlled ? !!open : uncontrolledOpen.value)
+  const currentOpenState = ref(isControlled ? !!open : uncontrolledOpen.value)
+  const setCurrentOpen = (value: boolean) => {
+    currentOpenState.value = value
+  }
   const currentTrigger = ref(mergedTrigger)
-  const mergedOpen = currentOpen
+  const mergedOpen = computed(() => currentOpenState.value)
   let rootElement: HTMLDivElement | null = null
 
-  const syncMenuDom = (nextOpen: boolean) => {
-    if (!rootElement || !isMenuMode || typeof rootElement.querySelector !== 'function') return
-    const triggerButton = rootElement.querySelector('[aria-expanded]') as HTMLElement | null
-    const panel = rootElement.querySelector('[data-rue-fab-panel="true"]') as HTMLElement | null
-    if (triggerButton) {
-      triggerButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false')
-      const openIconElement = triggerButton.querySelector(
-        '[data-rue-fab-open-icon="true"]',
-      ) as HTMLElement | null
-      const closeIconElement = triggerButton.querySelector(
-        '[data-rue-fab-close-icon="true"]',
-      ) as HTMLElement | null
-      openIconElement?.classList?.toggle('hidden', nextOpen)
-      closeIconElement?.classList?.toggle('hidden', !nextOpen)
-    }
-    if (panel?.classList) {
-      panel.setAttribute('aria-hidden', nextOpen ? 'false' : 'true')
-      panel.classList.toggle('pointer-events-auto', nextOpen)
-      panel.classList.toggle('opacity-100', nextOpen)
-      panel.classList.toggle('scale-100', nextOpen)
-      panel.classList.toggle('pointer-events-none', !nextOpen)
-      panel.classList.toggle('opacity-0', !nextOpen)
-      panel.classList.toggle('scale-95', !nextOpen)
-    }
-  }
-
   const requestOpenChange = (nextOpen: boolean) => {
-    const liveTrigger = rootElement?.querySelector('[aria-expanded]') as HTMLElement | null
-    const domOpen = liveTrigger?.getAttribute('aria-expanded') === 'true'
-    if ((liveTrigger ? domOpen : currentOpen) === nextOpen) return
-    if (isControlled) setCurrentOpen(nextOpen)
-    syncMenuDom(nextOpen)
+    if (currentOpenState.value === nextOpen) return
+    setCurrentOpen(nextOpen)
     if (onOpenChange) onOpenChange(nextOpen)
   }
 
@@ -496,7 +526,6 @@ const Fab: FC<FabProps> = props => {
     nextOpen => {
       if (typeof nextOpen === 'boolean') {
         setCurrentOpen(nextOpen)
-        syncMenuDom(nextOpen)
       }
     },
     { immediate: true },
@@ -522,7 +551,8 @@ const Fab: FC<FabProps> = props => {
     }
 
     const handleWindowKeydown = (event: KeyboardEvent) => {
-      if (!currentOpen || currentTrigger.value !== 'click' || event.key !== 'Escape') return
+      if (!currentOpenState.value || currentTrigger.value !== 'click' || event.key !== 'Escape')
+        return
       requestOpenChange(false)
     }
 
@@ -536,9 +566,10 @@ const Fab: FC<FabProps> = props => {
   })
 
   const isMenuMode = !!items.length || !!trigger
-  const panelStateClassName = mergedOpen
-    ? 'pointer-events-auto opacity-100 scale-100'
-    : 'pointer-events-none opacity-0 scale-95'
+  const panelStateClassName = () =>
+    mergedOpen.get()
+      ? 'pointer-events-auto opacity-100 scale-100'
+      : 'pointer-events-none opacity-0 scale-95'
   const linearPanel = getLinearPanelPosition(placement)
 
   const handleSingleButtonClick = (event: MouseEvent) => {
@@ -547,9 +578,7 @@ const Fab: FC<FabProps> = props => {
 
   const handleMenuButtonClick = (event: MouseEvent) => {
     if (currentTrigger.value === 'click') {
-      const isOpen =
-        rootElement?.querySelector('[aria-expanded]')?.getAttribute('aria-expanded') === 'true'
-      requestOpenChange(!isOpen)
+      requestOpenChange(!currentOpenState.value)
     }
     if (onClick) onClick(event)
   }
@@ -560,54 +589,11 @@ const Fab: FC<FabProps> = props => {
     }
   }
 
-  const listNodes = items.map((item, index) => {
-    const key = item.key ?? `${placement}-${index}`
-    if (flower) {
-      const offset = getFlowerOffset(index, items.length)
-      return (
-        <div
-          key={String(key)}
-          className={mergeClassName(
-            'absolute right-0 top-0 transition-all duration-200',
-            mergedOpen
-              ? 'pointer-events-auto opacity-100 scale-100'
-              : 'pointer-events-none opacity-0 scale-75',
-          )}
-          style={{
-            transform: mergedOpen
-              ? `translate(${offset.x}px, ${offset.y}px)`
-              : 'translate(0px, 0px)',
-          }}
-        >
-          <ActionButton
-            {...item}
-            tooltipPlacement={
-              item.tooltip && item.shape !== 'square' ? 'left' : linearPanel.tooltipPlacement
-            }
-            onActionClick={handleItemClick}
-          />
-        </div>
-      )
-    }
-
-    return (
-      <ActionButton
-        key={String(key)}
-        {...item}
-        tooltipPlacement={
-          item.tooltip && item.shape !== 'square' ? 'left' : linearPanel.tooltipPlacement
-        }
-        onActionClick={handleItemClick}
-      />
-    )
-  })
-
   return (
     <div
       {...rootProps}
       ref={(element: HTMLDivElement | null) => {
         rootElement = element
-        syncMenuDom(!!mergedOpen)
       }}
       className={mergeClassName(
         'rue-fab pointer-events-none relative inline-flex items-end justify-end',
@@ -628,9 +614,11 @@ const Fab: FC<FabProps> = props => {
         flower ? (
           <div
             className={mergeClassName('pointer-events-none absolute inset-0', panelClassName)}
-            aria-hidden={mergedOpen ? 'false' : 'true'}
+            aria-hidden={mergedOpen.get() ? 'false' : 'true'}
           >
-            {listNodes}
+            {items.map((rowArg0: any, rowArg1: number) => (
+              <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+            ))}
           </div>
         ) : (
           <div
@@ -638,27 +626,44 @@ const Fab: FC<FabProps> = props => {
             className={mergeClassName(
               'absolute transition-all duration-200',
               linearPanel.wrapper,
-              panelStateClassName,
+              panelStateClassName(),
               panelClassName,
             )}
-            aria-hidden={mergedOpen ? 'false' : 'true'}
+            aria-hidden={mergedOpen.get() ? 'false' : 'true'}
           >
-            <div className={mergeClassName('flex gap-3', linearPanel.list)}>{listNodes}</div>
+            <div className={mergeClassName('flex gap-3', linearPanel.list)}>
+              {items.map((rowArg0: any, rowArg1: number) => (
+                <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+              ))}
+            </div>
           </div>
         )
       ) : null}
       <div className="pointer-events-auto relative z-1">
         <ActionButton
-          {...actionProps}
-          children={children}
+          content={actionProps.content}
+          description={actionProps.description}
+          tooltip={actionProps.tooltip}
+          badge={actionProps.badge}
+          type={actionProps.type}
+          color={actionProps.color}
+          shape={actionProps.shape}
+          href={actionProps.href}
+          target={actionProps.target}
+          htmlType={actionProps.htmlType}
+          disabled={actionProps.disabled}
+          className={actionProps.className}
+          style={actionProps.style}
+          size={actionProps.size}
+          aria-label={actionProps['aria-label']}
           icon={actionProps.icon}
           onClick={isMenuMode ? handleMenuButtonClick : handleSingleButtonClick}
           tooltipPlacement={linearPanel.tooltipPlacement}
           menuAction={isMenuMode}
-          open={mergedOpen}
+          open={mergedOpen.get()}
           closeIcon={closeIcon}
           menuIcon={menuIcon}
-          aria-expanded={isMenuMode ? (mergedOpen ? 'true' : 'false') : undefined}
+          aria-expanded={isMenuMode ? (mergedOpen.get() ? 'true' : 'false') : undefined}
         />
       </div>
     </div>
@@ -681,30 +686,60 @@ const Trigger: FC<FabPartProps> = ({ as = 'div', className, children, ...rest })
     }
   }
 
-  return (
-    <Component {...triggerProps} className={className}>
+  return Component === 'div' ? (
+    <div {...triggerProps} className={className}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...triggerProps} className={className}>
+      {children}
+    </span>
+  ) : Component === 'button' ? (
+    <button {...triggerProps} className={className}>
+      {children}
+    </button>
+  ) : (
+    <></>
   )
 }
 
 /** Close 的内部工具函数。 */
 const Close: FC<FabPartProps> = ({ as = 'div', className, children, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={mergeClassName('fab-close', className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={mergeClassName('fab-close', className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={mergeClassName('fab-close', className)}>
+      {children}
+    </span>
+  ) : Component === 'button' ? (
+    <button {...rest} className={mergeClassName('fab-close', className)}>
+      {children}
+    </button>
+  ) : (
+    <></>
   )
 }
 
 /** Main Action 的内部工具函数。 */
 const MainAction: FC<FabPartProps> = ({ as = 'div', className, children, ...rest }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={mergeClassName('fab-main-action', className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={mergeClassName('fab-main-action', className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={mergeClassName('fab-main-action', className)}>
+      {children}
+    </span>
+  ) : Component === 'button' ? (
+    <button {...rest} className={mergeClassName('fab-main-action', className)}>
+      {children}
+    </button>
+  ) : (
+    <></>
   )
 }
 

@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -24,7 +25,7 @@ afterEach(() => {
 describe('Link', () => {
   it('renders with base class', async () => {
     const c = document.createElement('div')
-    render(<Link>{'hello'}</Link>, c)
+    mountTestApp(c, () => render(<Link>{'hello'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLElement
     expect(el).toBeTruthy()
@@ -35,7 +36,7 @@ describe('Link', () => {
 
   it('supports router to without requiring a router at render time', async () => {
     const c = document.createElement('div')
-    render(<Link to={'/about'}>{'go'}</Link>, c)
+    mountTestApp(c, () => render(<Link to={'/about'}>{'go'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLAnchorElement
     expect(el).toBeTruthy()
@@ -56,7 +57,7 @@ describe('Link', () => {
       'error',
     ] as const) {
       c.innerHTML = ''
-      render(<Link variant={v}>{'x'}</Link>, c)
+      mountTestApp(c, () => render(<Link variant={v}>{'x'}</Link>, c))
       await waitLinkRender()
       const el = c.querySelector('.link') as HTMLElement
       expect(el.classList.contains(`link-${v}`)).toBe(true)
@@ -65,7 +66,7 @@ describe('Link', () => {
 
   it('supports typography type tones', async () => {
     const c = document.createElement('div')
-    render(<Link type={'danger'}>{'x'}</Link>, c)
+    mountTestApp(c, () => render(<Link type={'danger'}>{'x'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLElement
     expect(el.classList.contains('link-error')).toBe(true)
@@ -73,7 +74,7 @@ describe('Link', () => {
 
   it('applies hover style', async () => {
     const c = document.createElement('div')
-    render(<Link hover={true}>{'x'}</Link>, c)
+    mountTestApp(c, () => render(<Link hover={true}>{'x'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLElement
     expect(el.classList.contains('link-hover')).toBe(true)
@@ -81,11 +82,13 @@ describe('Link', () => {
 
   it('supports href and safe target rel', async () => {
     const c = document.createElement('div')
-    render(
-      <Link href={'/test'} target={'_blank'}>
-        {'x'}
-      </Link>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Link href={'/test'} target={'_blank'}>
+          {'x'}
+        </Link>,
+        c,
+      ),
     )
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLAnchorElement
@@ -97,7 +100,7 @@ describe('Link', () => {
   it('fires onClick handler', async () => {
     const c = document.createElement('div')
     const fn = vi.fn()
-    render(<Link onClick={fn}>{'x'}</Link>, c)
+    mountTestApp(c, () => render(<Link onClick={fn}>{'x'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLAnchorElement
     el.click()
@@ -107,11 +110,13 @@ describe('Link', () => {
   it('prevents click and removes href when disabled', async () => {
     const c = document.createElement('div')
     const fn = vi.fn()
-    render(
-      <Link href={'/test'} disabled={true} onClick={fn}>
-        {'x'}
-      </Link>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Link href={'/test'} disabled={true} onClick={fn}>
+          {'x'}
+        </Link>,
+        c,
+      ),
     )
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLAnchorElement
@@ -124,7 +129,7 @@ describe('Link', () => {
 
   it('supports ellipsis and title fallback', async () => {
     const c = document.createElement('div')
-    render(<Link ellipsis={true}>{'A very long link'}</Link>, c)
+    mountTestApp(c, () => render(<Link ellipsis={true}>{'A very long link'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.truncate') as HTMLElement
     expect(el).toBeTruthy()
@@ -134,17 +139,19 @@ describe('Link', () => {
   it('supports expandable ellipsis and emits expand callback', async () => {
     const c = mountContainer()
     const onExpand = vi.fn()
-    render(
-      <Link
-        ellipsis={{
-          expandable: 'collapsible',
-          suffix: '.md',
-          onExpand,
-        }}
-      >
-        {'A very long link that should truncate inside a narrow area'}
-      </Link>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Link
+          ellipsis={{
+            expandable: 'collapsible',
+            suffix: '.md',
+            onExpand,
+          }}
+        >
+          {'A very long link that should truncate inside a narrow area'}
+        </Link>,
+        c,
+      ),
     )
     await waitLinkRender()
 
@@ -182,11 +189,13 @@ describe('Link', () => {
 
   it('supports text decorations', async () => {
     const c = document.createElement('div')
-    render(
-      <Link strong={true} italic={true} code={true} mark={true} keyboard={true}>
-        {'K'}
-      </Link>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Link strong={true} italic={true} code={true} mark={true} keyboard={true}>
+          {'K'}
+        </Link>,
+        c,
+      ),
     )
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLElement
@@ -206,7 +215,7 @@ describe('Link', () => {
     })
     const onCopy = vi.fn()
 
-    render(<Link copyable={{ text: 'copy me', onCopy }}>{'Label'}</Link>, c)
+    mountTestApp(c, () => render(<Link copyable={{ text: 'copy me', onCopy }}>{'Label'}</Link>, c))
     await waitLinkRender()
     const button = c.querySelector('[data-rue-link-copy]') as HTMLButtonElement
     button.click()
@@ -232,7 +241,7 @@ describe('Link', () => {
     })
     const onCopy = vi.fn()
 
-    render(<Link copyable={{ text: 'copy me', onCopy }}>{'Label'}</Link>, c)
+    mountTestApp(c, () => render(<Link copyable={{ text: 'copy me', onCopy }}>{'Label'}</Link>, c))
     await waitLinkRender()
     const button = c.querySelector('[data-rue-link-copy]') as HTMLButtonElement
     button.click()
@@ -249,7 +258,9 @@ describe('Link', () => {
   it('renders editable controls and commits changes', async () => {
     const c = document.createElement('div')
     const onChange = vi.fn()
-    render(<Link editable={{ editing: true, text: 'Draft', onChange }}>{'Draft'}</Link>, c)
+    mountTestApp(c, () =>
+      render(<Link editable={{ editing: true, text: 'Draft', onChange }}>{'Draft'}</Link>, c),
+    )
     await waitLinkRender()
 
     const input = c.querySelector('[data-rue-link-editor]') as HTMLInputElement
@@ -263,7 +274,7 @@ describe('Link', () => {
 
   it('enters edit mode after clicking the edit icon', async () => {
     const c = mountContainer()
-    render(<Link editable={{ text: 'Draft' }}>{'Draft'}</Link>, c)
+    mountTestApp(c, () => render(<Link editable={{ text: 'Draft' }}>{'Draft'}</Link>, c))
     let editButton!: HTMLButtonElement
     await waitForContent(() => {
       editButton = c.querySelector('[data-rue-link-edit]') as HTMLButtonElement
@@ -279,7 +290,9 @@ describe('Link', () => {
 
   it('enters edit mode after clicking link text when triggerType includes text', async () => {
     const c = mountContainer()
-    render(<Link editable={{ text: 'Inline', triggerType: ['text'] }}>{'Inline'}</Link>, c)
+    mountTestApp(c, () =>
+      render(<Link editable={{ text: 'Inline', triggerType: ['text'] }}>{'Inline'}</Link>, c),
+    )
     let link!: HTMLAnchorElement
     await waitForContent(() => {
       link = c.querySelector('.link') as HTMLAnchorElement
@@ -295,9 +308,13 @@ describe('Link', () => {
 
   it('renders textarea editor when editable autoSize is enabled', async () => {
     const c = document.createElement('div')
-    render(
-      <Link editable={{ editing: true, text: 'Draft', autoSize: { minRows: 2 } }}>{'Draft'}</Link>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Link editable={{ editing: true, text: 'Draft', autoSize: { minRows: 2 } }}>
+          {'Draft'}
+        </Link>,
+        c,
+      ),
     )
     await waitLinkRender()
 
@@ -309,7 +326,7 @@ describe('Link', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Link className={'extra'}>{'x'}</Link>, c)
+    mountTestApp(c, () => render(<Link className={'extra'}>{'x'}</Link>, c))
     await waitLinkRender()
     const el = c.querySelector('.link') as HTMLElement
     expect(el.classList.contains('extra')).toBe(true)

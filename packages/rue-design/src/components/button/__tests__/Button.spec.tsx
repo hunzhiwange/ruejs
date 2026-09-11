@@ -1,7 +1,8 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { render } from '@rue-js/rue'
-import { Button } from '@rue-js/design'
+import { render, Template } from '@rue-js/rue'
+import Button from '..'
 
 const waitButtonRender = () => new Promise(resolve => setTimeout(resolve, 0))
 const resetActiveRuntime = () => {
@@ -15,7 +16,7 @@ afterEach(() => {
 describe('Button', () => {
   it('renders with base class and children', async () => {
     const c = document.createElement('div')
-    render(<Button>{'click'}</Button>, c)
+    mountTestApp(c, () => render(<Button>{'click'}</Button>, c))
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
     expect(el).toBeTruthy()
@@ -35,7 +36,7 @@ describe('Button', () => {
       'warning',
       'error',
     ] as const) {
-      render(<Button color={color}>{'x'}</Button>, c)
+      mountTestApp(c, () => render(<Button color={color}>{'x'}</Button>, c))
       await waitButtonRender()
       const el = c.querySelector('button') as HTMLButtonElement
       expect(el.classList.contains('btn')).toBe(true)
@@ -46,7 +47,7 @@ describe('Button', () => {
   it('applies size classes', async () => {
     const c = document.createElement('div')
     for (const s of ['xs', 'sm', 'md', 'lg', 'xl'] as const) {
-      render(<Button size={s}>{'x'}</Button>, c)
+      mountTestApp(c, () => render(<Button size={s}>{'x'}</Button>, c))
       await waitButtonRender()
       const el = c.querySelector('button') as HTMLButtonElement
       expect(el.classList.contains(`btn-${s}`)).toBe(true)
@@ -55,18 +56,20 @@ describe('Button', () => {
 
   it('applies type, layout and shape classes', async () => {
     const c = document.createElement('div')
-    render(
-      <Button
-        color={'secondary'}
-        type={'filled'}
-        active={true}
-        block={true}
-        wide={true}
-        shape={'circle'}
-      >
-        {'x'}
-      </Button>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button
+          color={'secondary'}
+          type={'filled'}
+          active={true}
+          block={true}
+          wide={true}
+          shape={'circle'}
+        >
+          {'x'}
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
@@ -80,7 +83,7 @@ describe('Button', () => {
 
   it('applies custom className', async () => {
     const c = document.createElement('div')
-    render(<Button className={'w-full'}>{'x'}</Button>, c)
+    mountTestApp(c, () => render(<Button className={'w-full'}>{'x'}</Button>, c))
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
     expect(el.classList.contains('w-full')).toBe(true)
@@ -88,11 +91,13 @@ describe('Button', () => {
 
   it('sets disabled and native type attributes', async () => {
     const c = document.createElement('div')
-    render(
-      <Button disabled={true} htmlType={'submit'}>
-        {'x'}
-      </Button>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button disabled={true} htmlType={'submit'}>
+          {'x'}
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
@@ -103,7 +108,7 @@ describe('Button', () => {
   it('triggers onClick handler', async () => {
     const c = document.createElement('div')
     const spy = vi.fn()
-    render(<Button onClick={spy}>{'x'}</Button>, c)
+    mountTestApp(c, () => render(<Button onClick={spy}>{'x'}</Button>, c))
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
     el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -113,11 +118,13 @@ describe('Button', () => {
   it('disables click when loading is true', async () => {
     const c = document.createElement('div')
     const spy = vi.fn()
-    render(
-      <Button loading={true} onClick={spy}>
-        {'loading'}
-      </Button>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button loading={true} onClick={spy}>
+          {'loading'}
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
@@ -128,11 +135,13 @@ describe('Button', () => {
 
   it('applies visual type, color and htmlType mapping', async () => {
     const c = document.createElement('div')
-    render(
-      <Button type={'outlined'} color={'secondary'} htmlType={'reset'}>
-        {'save'}
-      </Button>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button type={'outlined'} color={'secondary'} htmlType={'reset'}>
+          {'save'}
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     const el = c.querySelector('button') as HTMLButtonElement
@@ -145,11 +154,13 @@ describe('Button', () => {
     const c = document.createElement('div')
     const spy = vi.fn()
     resetActiveRuntime()
-    render(
-      <Button href={'/docs'} color={'primary'} disabled={true} onClick={spy}>
-        {'Docs'}
-      </Button>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button href={'/docs'} color={'primary'} disabled={true} onClick={spy}>
+          {'Docs'}
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     const el = c.querySelector('a') as HTMLAnchorElement
@@ -164,11 +175,16 @@ describe('Button', () => {
 
   it('supports icon placement and loading object icon', async () => {
     const c = document.createElement('div')
-    render(
-      <Button icon={<span id={'tail-icon'}>{'I'}</span>} iconPlacement={'end'}>
-        {'Next'}
-      </Button>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button iconPlacement={'end'}>
+          <Template slot="icon">
+            <span id={'tail-icon'}>{'I'}</span>
+          </Template>
+          {'Next'}
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     let el = c.querySelector('button') as HTMLButtonElement
@@ -176,9 +192,15 @@ describe('Button', () => {
     expect(el.querySelector('#tail-icon')).toBeTruthy()
     expect(el.classList.contains('gap-2')).toBe(true)
 
-    render(
-      <Button shape={'circle'} icon={<span id={'icon-only'}>{'H'}</span>} aria-label={'收藏'} />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button shape={'circle'} aria-label={'收藏'}>
+          <Template slot="icon">
+            <span id={'icon-only'}>{'H'}</span>
+          </Template>
+        </Button>,
+        c,
+      ),
     )
     await waitButtonRender()
     el = c.querySelector('button') as HTMLButtonElement
@@ -186,7 +208,17 @@ describe('Button', () => {
     expect(el.children).toHaveLength(1)
     expect(el.querySelector('#icon-only')).toBeTruthy()
 
-    render(<Button loading={{ icon: <span id={'loading-icon'}>{'L'}</span> }}>{'Load'}</Button>, c)
+    mountTestApp(c, () =>
+      render(
+        <Button loading>
+          <Template slot="loadingIcon">
+            <span id={'loading-icon'}>{'L'}</span>
+          </Template>
+          {'Load'}
+        </Button>,
+        c,
+      ),
+    )
     await waitButtonRender()
     el = c.querySelector('button') as HTMLButtonElement
     expect(el.disabled).toBe(true)
@@ -195,12 +227,14 @@ describe('Button', () => {
 
   it('renders Button.Group and syncs group size and shape to child buttons', async () => {
     const c = document.createElement('div')
-    render(
-      <Button.Group size={'large'} shape={'circle'} data-testid={'button-group'}>
-        <Button color={'primary'}>{'Left'}</Button>
-        <Button>{'Right'}</Button>
-      </Button.Group>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Button.Group size={'large'} shape={'circle'} data-testid={'button-group'}>
+          <Button color={'primary'}>{'Left'}</Button>
+          <Button>{'Right'}</Button>
+        </Button.Group>,
+        c,
+      ),
     )
     await waitButtonRender()
     await waitButtonRender()

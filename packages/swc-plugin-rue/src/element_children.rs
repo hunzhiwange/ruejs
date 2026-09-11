@@ -118,7 +118,9 @@ fn compiled_tag_name(element: &JSXElement) -> Option<String> {
         return None;
     };
     let tag = name.sym.to_string();
-    (crate::vapor::template::is_native_html_tag(&tag)
+    ((crate::vapor::template::is_native_html_tag(&tag)
+        || matches!(tag.as_str(), "style" | "textarea")
+        || crate::element_node::is_native_svg_tag(&tag))
         && !crate::custom_element::is_custom_element_tag(&tag))
     .then_some(tag)
 }
@@ -136,7 +138,7 @@ fn compiled_child_is_safe(
         JSXElementChild::JSXExprContainer(container) => match &container.expr {
             JSXExpr::JSXEmptyExpr(_) => true,
             JSXExpr::Expr(expr) => match crate::utils::unwrap_expr(expr.as_ref()) {
-                expr if crate::element_expr::is_compiled_slot_source_expr(expr) => true,
+                expr if crate::element_expr::is_compiled_slot_expr(vt, expr) => true,
                 Expr::Call(call) if compiled_list_call_is_safe(vt, call) => true,
                 // A generic `.get()` has no return-type proof and may yield a Vapor renderable.
                 Expr::Call(call) if crate::element_expr::is_accessor_get_call_expr(call) => {
@@ -160,7 +162,7 @@ fn compiled_child_is_safe(
                 // nested render anchor. Rejecting them here forces the enclosing `map()` back
                 // to the Vapor path, which recreates every row whenever any row-local reactive
                 // dependency changes.
-                Expr::Member(_) | Expr::Call(_) if reads_compiled_row_signal(vt, expr) => true,
+                Expr::Member(_) | Expr::Call(_) if reads_compiled_row_signal(expr) => true,
                 expr => crate::element_expr::is_compiled_branch_expr(vt, expr),
             },
         },
@@ -188,12 +190,11 @@ fn compiled_scalar_element_is_safe(
         && element.children.iter().all(|child| compiled_child_is_safe(vt, child, shadowed_names))
 }
 
-struct CompiledRowSignalRead<'a> {
-    vt: &'a VaporTransform,
+struct CompiledRowSignalRead {
     found: bool,
 }
 
-impl Visit for CompiledRowSignalRead<'_> {
+impl Visit for CompiledRowSignalRead {
     fn visit_cond_expr(&mut self, _: &CondExpr) {
         // Defaulted/destructured callback parameters are represented as conditionals and
         // retain their existing fallback path; this exception is only for direct row reads.
@@ -209,8 +210,6 @@ impl Visit for CompiledRowSignalRead<'_> {
             && let Expr::Ident(object) = crate::utils::unwrap_expr(member.obj.as_ref())
             && object.sym.starts_with("_$row")
             && matches!(&member.prop, MemberProp::Ident(prop) if prop.sym == *"get")
-            && self.vt.reactive_kind(object.sym.as_ref())
-                == Some(crate::reactive_provenance::ReactiveKind::Signal)
         {
             self.found = true;
             return;
@@ -219,10 +218,16 @@ impl Visit for CompiledRowSignalRead<'_> {
     }
 }
 
-fn reads_compiled_row_signal(vt: &VaporTransform, expr: &Expr) -> bool {
-    let mut collector = CompiledRowSignalRead { vt, found: false };
+fn reads_compiled_row_signal(expr: &Expr) -> bool {
+    let mut collector = CompiledRowSignalRead { found: false };
     expr.visit_with(&mut collector);
     collector.found
+}
+
+fn is_compiled_row_text_call(vt: &VaporTransform, expr: &Expr) -> bool {
+    matches!(crate::utils::unwrap_expr(expr), Expr::Call(_))
+        && reads_compiled_row_signal(expr)
+        && !crate::element_expr::is_known_renderable_call_expr(vt, expr)
 }
 
 #[derive(Default)]
@@ -233,8 +238,7 @@ struct VaporCapabilityDetector {
 impl Visit for VaporCapabilityDetector {
     fn visit_expr(&mut self, expr: &Expr) {
         if let Expr::Ident(ident) = expr
-            && crate::compiled_capabilities::runtime_tier_for_helper(ident.sym.as_ref())
-                == Some(crate::compiled_capabilities::RuntimeTier::Vapor)
+            && crate::compiled_capabilities::requires_component_context(ident.sym.as_ref())
         {
             self.found = true;
             return;
@@ -384,7 +388,7 @@ fn emit_compiled_children(
             }
             JSXElementChild::JSXExprContainer(container) => {
                 if let JSXExpr::Expr(expr) = &container.expr
-                    && crate::element_expr::is_compiled_slot_source_expr(expr.as_ref())
+                    && crate::element_expr::is_compiled_slot_expr(vt, expr.as_ref())
                 {
                     let anchor = vt.next_el_ident();
                     stmts.push(crate::emit::const_decl(
@@ -718,6 +722,8 @@ fn compiled_dynamic_template_to_block(
                         expr.as_ref(),
                         &vt.current_scalar_constructor_shadows(),
                     )
+                    && !crate::element_expr::is_proven_plain_call_expr(vt, expr.as_ref())
+                    && !is_compiled_row_text_call(vt, expr.as_ref())
                     && let Some(branch) =
                         crate::element_expr::try_make_compiled_branch_reader(vt, expr.as_ref())
                 {
@@ -730,9 +736,10 @@ fn compiled_dynamic_template_to_block(
                 let list_stmt_start = stmts.len();
                 if let JSXExpr::Expr(expr) = &container.expr
                     && anchor.is_none()
-                    && crate::element_expr::is_compiled_slot_source_expr(expr.as_ref())
+                    && crate::element_expr::is_compiled_slot_expr(vt, expr.as_ref())
                 {
                     crate::element_slot::render_compiled_slot_for_at(
+                        vt,
                         parent,
                         before,
                         expr.as_ref(),
@@ -755,12 +762,15 @@ fn compiled_dynamic_template_to_block(
                     continue;
                 }
                 if let JSXExpr::Expr(expr) = &container.expr
-                    && (crate::element_expr::is_compiled_slot_source_expr(expr.as_ref())
-                        || !crate::vapor::is_compiled_reactive_scalar_expr(
+                    && (crate::element_expr::is_compiled_slot_expr(vt, expr.as_ref())
+                        || (!crate::vapor::is_compiled_reactive_scalar_expr(
                             vt,
                             expr.as_ref(),
                             &vt.current_scalar_constructor_shadows(),
-                        ))
+                        ) && !crate::element_expr::is_proven_plain_call_expr(
+                            vt,
+                            expr.as_ref(),
+                        ) && !is_compiled_row_text_call(vt, expr.as_ref())))
                 {
                     crate::element_slot::render_between_for_slot_at(
                         vt,
@@ -848,45 +858,89 @@ pub(crate) fn compiled_fragment_to_block(
     BlockStmt { span: DUMMY_SP, ctxt: SyntaxContext::empty(), stmts }
 }
 
-fn object_prop(name: &str, value: Expr) -> PropOrSpread {
-    PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-        key: PropName::Ident(crate::emit::ident_name(name)),
-        value: Box::new(value),
-    })))
-}
-
-fn is_document_fragment_decl(stmt: &Stmt, root: &Ident) -> bool {
-    let Stmt::Decl(Decl::Var(decl)) = stmt else {
-        return false;
+/// Every root setup has one compiler-known return range; no runtime value classification.
+pub(crate) fn close_root_setup(mut setup: Expr) -> Expr {
+    let Expr::Arrow(arrow) = &mut setup else { return setup };
+    let BlockStmtOrExpr::BlockStmt(block) = arrow.body.as_mut() else { return setup };
+    let Some(Stmt::Return(ReturnStmt { arg: Some(host), .. })) = block.stmts.last() else {
+        return setup;
     };
-    decl.decls.iter().any(|declarator| {
-        let Pat::Ident(binding) = &declarator.name else {
-            return false;
-        };
-        let Some(init) = &declarator.init else {
-            return false;
-        };
-        binding.id.sym == root.sym
-            && matches!(
-                init.as_ref(),
-                Expr::Call(CallExpr {
-                    callee: Callee::Expr(callee),
-                    ..
-                }) if matches!(
-                    callee.as_ref(),
-                    Expr::Member(MemberExpr {
-                        obj,
-                        prop: MemberProp::Ident(property),
-                        ..
-                    }) if matches!(obj.as_ref(), Expr::Ident(object) if object.sym == *"document")
-                        && property.sym == *"createDocumentFragment"
-                )
-            )
-    })
+    if matches!(host.as_ref(), Expr::Array(_)) {
+        return setup;
+    }
+    let host = host.as_ref().clone();
+    let fragment = if let Expr::Ident(root) = &host {
+        block.stmts.iter().any(|stmt| {
+            let Stmt::Decl(Decl::Var(decl)) = stmt else { return false };
+            decl.decls.iter().any(|decl| {
+                let Pat::Ident(binding) = &decl.name else { return false };
+                if binding.id.sym != root.sym { return false; }
+                let Some(init) = &decl.init else { return false };
+                let Expr::Call(call) = init.as_ref() else { return false };
+                let Callee::Expr(callee) = &call.callee else { return false };
+                matches!(callee.as_ref(), Expr::Ident(id) if id.sym == *"_$createDocumentFragment") ||
+                matches!(callee.as_ref(), Expr::Member(member) if matches!(&member.prop, MemberProp::Ident(id) if id.sym == *"createDocumentFragment"))
+            })
+        })
+    } else {
+        false
+    };
+    if fragment && block.stmts.len() > 2 {
+        // Stable empty text boundaries survive replacement of a fragment's edge branches.
+        let first = crate::emit::ident("__rue_first");
+        let last = crate::emit::ident("__rue_last");
+        let at = block.stmts.len() - 1;
+        let statements = vec![
+            crate::emit::const_decl(
+                first.clone(),
+                crate::emit::call_ident(
+                    "_$compiledCreateTextNode",
+                    vec![crate::emit::string_expr("")],
+                ),
+            ),
+            crate::emit::const_decl(
+                last.clone(),
+                crate::emit::call_ident(
+                    "_$compiledCreateTextNode",
+                    vec![crate::emit::string_expr("")],
+                ),
+            ),
+            Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(call_member_expr(
+                    host.clone(),
+                    "insertBefore",
+                    vec![Expr::Ident(first), member_expr(host.clone(), "firstChild")],
+                )),
+            }),
+            Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(call_member_expr(
+                    host.clone(),
+                    "appendChild",
+                    vec![Expr::Ident(last)],
+                )),
+            }),
+        ];
+        block.stmts.splice(at..at, statements);
+    }
+    let first = if fragment { member_expr(host.clone(), "firstChild") } else { host.clone() };
+    let last = if fragment { member_expr(host, "lastChild") } else { host };
+    *block.stmts.last_mut().unwrap() = Stmt::Return(ReturnStmt {
+        span: DUMMY_SP,
+        arg: Some(Box::new(Expr::Array(ArrayLit {
+            span: DUMMY_SP,
+            elems: vec![
+                Some(ExprOrSpread { spread: None, expr: Box::new(first) }),
+                Some(ExprOrSpread { spread: None, expr: Box::new(last) }),
+            ],
+        }))),
+    });
+    setup
 }
 
-fn setup_arrow(block: BlockStmt) -> Expr {
-    Expr::Arrow(ArrowExpr {
+pub(crate) fn compiled_block_to_root_expr(block: BlockStmt) -> Expr {
+    let setup = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
         params: vec![Pat::Ident(BindingIdent {
             id: crate::emit::ident("__rue_parent_context"),
@@ -898,72 +952,7 @@ fn setup_arrow(block: BlockStmt) -> Expr {
         type_params: None,
         return_type: None,
         ctxt: SyntaxContext::empty(),
-    })
-}
-
-fn explicit_compiled_setup(mut block: BlockStmt) -> Result<Expr, BlockStmt> {
-    let Some(Stmt::Return(ReturnStmt { arg: Some(host), .. })) = block.stmts.last() else {
-        return Err(block);
-    };
-    let Expr::Ident(root) = host.as_ref() else {
-        return Err(block);
-    };
-    let root = root.clone();
-    let is_fragment = block.stmts.iter().any(|stmt| is_document_fragment_decl(stmt, &root));
-    let roots_ident = crate::emit::ident("__rue_roots");
-    let roots = if is_fragment {
-        block.stmts.insert(
-            block.stmts.len() - 1,
-            crate::emit::const_decl(
-                roots_ident.clone(),
-                call_member_expr(
-                    Expr::Ident(crate::emit::ident("Array")),
-                    "from",
-                    vec![member_expr(Expr::Ident(root.clone()), "childNodes")],
-                ),
-            ),
-        );
-        Expr::Ident(roots_ident)
-    } else {
-        Expr::Array(ArrayLit {
-            span: DUMMY_SP,
-            elems: vec![Some(ExprOrSpread {
-                spread: None,
-                expr: Box::new(Expr::Ident(root.clone())),
-            })],
-        })
-    };
-    *block.stmts.last_mut().expect("checked final return") = Stmt::Return(ReturnStmt {
-        span: DUMMY_SP,
-        arg: Some(Box::new(Expr::Object(ObjectLit {
-            span: DUMMY_SP,
-            props: vec![
-                object_prop("__rue_compiled_host", Expr::Ident(root)),
-                object_prop("__rue_compiled_roots", roots),
-            ],
-        }))),
     });
-    Ok(setup_arrow(block))
-}
-
-pub(crate) fn compiled_block_to_root_expr(block: BlockStmt) -> Expr {
-    let setup = match explicit_compiled_setup(block) {
-        Ok(setup) => call_member_expr(
-            Expr::Ident(crate::emit::ident("Object")),
-            "assign",
-            vec![
-                setup,
-                Expr::Object(ObjectLit {
-                    span: DUMMY_SP,
-                    props: vec![object_prop(
-                        "__rue_compiled_explicit_roots",
-                        Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })),
-                    )],
-                }),
-            ],
-        ),
-        Err(block) => setup_arrow(block),
-    };
     crate::emit::call_ident("_$compiledRoot", vec![setup])
 }
 

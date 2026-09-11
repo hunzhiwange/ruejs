@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import MockupPhone from '../index'
@@ -18,12 +19,14 @@ describe('MockupPhone', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupPhone className="border-accent" data-testid="phone-root">
-        <MockupPhone.Camera />
-        <MockupPhone.Display>Glowtime</MockupPhone.Display>
-      </MockupPhone>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupPhone className="border-accent" data-testid="phone-root">
+          <MockupPhone.Camera />
+          <MockupPhone.Display>Glowtime</MockupPhone.Display>
+        </MockupPhone>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -38,14 +41,16 @@ describe('MockupPhone', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupPhone>
-        <MockupPhone.Camera data-testid="phone-camera" />
-        <MockupPhone.Display className="bg-neutral text-white" data-testid="phone-display">
-          <div>Wallpaper</div>
-        </MockupPhone.Display>
-      </MockupPhone>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupPhone>
+          <MockupPhone.Camera data-testid="phone-camera" />
+          <MockupPhone.Display className="bg-neutral text-white" data-testid="phone-display">
+            <div>Wallpaper</div>
+          </MockupPhone.Display>
+        </MockupPhone>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -62,18 +67,20 @@ describe('MockupPhone', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupPhone
-        size="small"
-        color="primary"
-        display={{
-          className: 'bg-neutral text-white',
-          contentClassName: 'overlay-shell',
-          children: <div>Dashboard</div>,
-        }}
-        data-testid="phone-short"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupPhone
+          size="small"
+          color="primary"
+          display={{
+            className: 'bg-neutral text-white',
+            contentClassName: 'overlay-shell',
+            text: 'Dashboard',
+          }}
+          data-testid="phone-short"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -94,17 +101,19 @@ describe('MockupPhone', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupPhone
-        camera={false}
-        display={{
-          src: 'https://example.com/wallpaper.png',
-          alt: 'Rue wallpaper',
-          imgClassName: 'wallpaper-img',
-        }}
-        data-testid="phone-image"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupPhone
+          camera={false}
+          display={{
+            src: 'https://example.com/wallpaper.png',
+            alt: 'Rue wallpaper',
+            imgClassName: 'wallpaper-img',
+          }}
+          data-testid="phone-image"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

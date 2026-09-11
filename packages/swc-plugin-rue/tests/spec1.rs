@@ -33,7 +33,7 @@ import { ref, _$compiledWithHookId, _$template, _$compiledText, onCleanup, _$com
 import { type FC, h } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<div class="container"><h2>Vapor JSX Demo</h2><button>加一</button><span id="n"><!--rue:text-hole:0--></span></div>');
 const count = _$compiledWithHookId("ref:1:0", ()=>ref(0));
-const VaporJSXDemo: FC = ()=>_$compiledRoot(Object.assign((__rue_parent_context)=>{
+const VaporJSXDemo: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _fragment = _$getTemplate1().content.cloneNode(true);
         const _root = _fragment.firstChild;
         const _el1 = _root.childNodes[1];
@@ -55,8 +55,8 @@ export default VaporJSXDemo;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec1.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("_$compiledRoot(Object.assign("), "{out}");
-    assert!(normalized.contains("__rue_compiled_explicit_roots"), "{out}");
+    assert!(normalized.contains("_$compiledRoot("), "{out}");
+    assert!(normalized.contains("return [ _root, _root ]"), "{out}");
     assert!(normalized.contains("_$compiledText(_el5"), "{out}");
     assert!(normalized.contains("_$getTemplate1().content.cloneNode(true)"), "{out}");
 }

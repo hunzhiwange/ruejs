@@ -150,13 +150,14 @@ fn benchmark_row_codegen_stays_within_effect_budget() {
         "benchmark row must not retain the generic list helper: {output}"
     );
     assert!(
-        output.contains("_$mountCompiledKeyedSingleRow") && output.contains("__rue_compiled_host:"),
+        output.contains("_$mountCompiledKeyedSingleRow")
+            && output.contains("return [ _root, _root ]"),
         "benchmark mount must use the compact single-node keyed-row/root protocol: {output}"
     );
     assert!(
         !output.contains("_$mountCompiledKeyedRow(")
-            && !output.contains("_$mountCompiledSlotFactory("),
-        "benchmark row must not retain the generic range mount protocol: {output}"
+            && output.contains("_$mountCompiledSlotFactory("),
+        "benchmark row must use the closed BlockFactory single-row protocol: {output}"
     );
     assert_eq!(
         output.matches("_$compiledDelegateEvent(").count(),
@@ -198,13 +199,14 @@ fn signal_benchmark_row_uses_the_same_direct_root_budget() {
         "signal.get() bindings must use the compact single-root keyed core: {output}"
     );
     assert!(
-        output.contains("_$mountCompiledKeyedSingleRow") && output.contains("__rue_compiled_host:"),
+        output.contains("_$mountCompiledKeyedSingleRow")
+            && output.contains("return [ _root, _root ]"),
         "signal.get() mount must use the compact single-node keyed-row/root protocol: {output}"
     );
     assert!(
         !output.contains("_$mountCompiledKeyedRow(")
-            && !output.contains("_$mountCompiledSlotFactory("),
-        "signal.get() row must not retain the generic range mount protocol: {output}"
+            && output.contains("_$mountCompiledSlotFactory("),
+        "signal.get() row must use the closed BlockFactory single-row protocol: {output}"
     );
     assert!(
         output.contains("selected.get()"),

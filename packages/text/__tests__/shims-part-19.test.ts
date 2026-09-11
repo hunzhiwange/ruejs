@@ -11,15 +11,26 @@ import {
   createElement as createRueElement,
   renderToString as renderRueToString,
 } from './rue-ssr-test-utils.js'
-import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
+import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js?text-ssr'
 import { extractTextTextDataJson } from '../src/client/text-text-data.js'
 import { isValidModulePath } from '../src/client/validate-module-path.js'
 import text from '../src/index.js'
 import { safeJsonStringify } from '../src/server/html.js'
 import { buildPagesTextDataScript } from '../src/server/pages-page-response.js'
 import type { Plugin } from 'vite-plus'
-import type { TextRouter } from '../src/shims/router.js'
+import type { TextRouter } from '../src/shims/router.js?text-ssr'
 import type { CacheHandler, CacheHandlerValue, IncrementalCacheValue } from '../src/shims/cache.js'
+import Document from '../src/shims/document.js?text-ssr'
+
+describe('text/document default export', () => {
+  it('provides the class contract required by custom Documents', () => {
+    expect(typeof Document.prototype.render).toBe('function')
+
+    class MyDocument extends Document {}
+
+    expect(new MyDocument()).toBeInstanceOf(Document)
+  })
+})
 
 const FIXTURE_DIR = PAGES_FIXTURE_DIR
 describe('text/dist/* internal import shims', () => {
@@ -118,7 +129,7 @@ describe('text/dist/* internal import shims', () => {
       return createElement('span', null, 'ok')
     }
 
-    renderAppServerElementToHtml(
+    await renderAppServerElementToHtml(
       createElement(mod.RouterContext.Provider, { value: router }, createElement(Probe)),
     )
 
@@ -488,29 +499,11 @@ describe('text/link onNavigate / NavigateEvent', () => {
 
 describe('text/head SSR security', () => {
   async function collectHeadHTML(children: unknown[]) {
-    const { default: Head, resetSSRHead, getSSRHeadHTML } = await import('../src/shims/head.js')
-
+    const { resetSSRHead, getSSRHeadHTML } = await import('../src/shims/head.js')
+    const { _getSSRHeadChildren } = await import('../src/shims/head-records.js')
     resetSSRHead()
-    const globalRecord = globalThis as Record<string, unknown>
-    const previousServerRenderingCount =
-      typeof globalRecord.__rue_is_server_rendering__ === 'number'
-        ? (globalRecord.__rue_is_server_rendering__ as number)
-        : 0
-    globalRecord.__rue_is_server_rendering__ = previousServerRenderingCount + 1
-    try {
-      // Invoke Head in Rue SSR mode so it collects children without requiring
-      // a full render pass around synthetic head records.
-      ;(Head as (props: { children?: unknown }) => null)({
-        children: children.length === 1 ? children[0] : children,
-      })
-      return getSSRHeadHTML()
-    } finally {
-      if (previousServerRenderingCount > 0) {
-        globalRecord.__rue_is_server_rendering__ = previousServerRenderingCount
-      } else {
-        delete globalRecord.__rue_is_server_rendering__
-      }
-    }
+    _getSSRHeadChildren().push(...children)
+    return getSSRHeadHTML()
   }
 
   it('escapes HTML special characters in title children', async () => {

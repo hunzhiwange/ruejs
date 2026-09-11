@@ -1,6 +1,4 @@
-import { ref } from '@rue-js/rue'
-import { onCleanup, signal as compiledSignal } from '@rue-js/rue/internal'
-import { type FC } from '@rue-js/rue'
+import { onCleanup, ref, signal as compiledSignal, type FC } from '@rue-js/rue'
 import SidebarPlayground from '../../site/SidebarPlaygroundExample'
 
 type RegionName = 'entry' | 'middle' | 'final'

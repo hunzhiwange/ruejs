@@ -1,3 +1,5 @@
+import { Template } from '@rue-js/rue'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Popover from '../index'
@@ -18,17 +20,19 @@ describe('Popover', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Popover
-        title="Workspace health"
-        content="展示结构化说明和操作建议。"
-        placement="bottomRight"
-        open={true}
-        overlayClassName="popover-test-overlay"
-      >
-        <button className="btn">Open</button>
-      </Popover>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popover
+          title="Workspace health"
+          content="展示结构化说明和操作建议。"
+          placement="bottomRight"
+          open={true}
+          overlayClassName="popover-test-overlay"
+        >
+          <button className="btn">Open</button>
+        </Popover>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -49,17 +53,19 @@ describe('Popover', () => {
     resetActiveRuntime()
     const openStates: boolean[] = []
 
-    render(
-      <Popover
-        title="Quick actions"
-        content="Click again to close"
-        trigger="click"
-        onOpenChange={nextOpen => openStates.push(nextOpen)}
-        overlayClassName="popover-test-overlay"
-      >
-        <button data-testid="popover-trigger">Toggle</button>
-      </Popover>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popover
+          title="Quick actions"
+          content="Click again to close"
+          trigger="click"
+          onOpenChange={nextOpen => openStates.push(nextOpen)}
+          overlayClassName="popover-test-overlay"
+        >
+          <button data-testid="popover-trigger">Toggle</button>
+        </Popover>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -88,17 +94,19 @@ describe('Popover', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Popover
-        title="Hover card"
-        content="Moves with hover state"
-        mouseEnterDelay={0}
-        mouseLeaveDelay={0}
-        overlayClassName="popover-test-overlay"
-      >
-        <button className="btn">Hover</button>
-      </Popover>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popover
+          title="Hover card"
+          content="Moves with hover state"
+          mouseEnterDelay={0}
+          mouseLeaveDelay={0}
+          overlayClassName="popover-test-overlay"
+        >
+          <button className="btn">Hover</button>
+        </Popover>,
+        container,
+      ),
     )
 
     const root = container.firstElementChild as HTMLElement
@@ -153,7 +161,7 @@ describe('Popover', () => {
       )
     }
 
-    render(<ControlledCase />, container)
+    mountTestApp(container, () => render(<ControlledCase />, container))
 
     await waitForContent(() => {
       const overlay = container.querySelector('.popover-test-overlay') as HTMLElement
@@ -174,16 +182,18 @@ describe('Popover', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Popover
-        trigger="focus"
-        title="Field helper"
-        content="Focus should reveal this card."
-        overlayClassName="popover-test-overlay"
-      >
-        <input data-testid="focus-input" />
-      </Popover>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popover
+          trigger="focus"
+          title="Field helper"
+          content="Focus should reveal this card."
+          overlayClassName="popover-test-overlay"
+        >
+          <input data-testid="focus-input" />
+        </Popover>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -211,16 +221,16 @@ describe('Popover', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Popover
-        overlay={<div data-testid="custom-panel">Custom body</div>}
-        arrow={false}
-        open={true}
-        overlayClassName="popover-test-overlay"
-      >
-        <button>Open</button>
-      </Popover>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Popover arrow={false} open={true} overlayClassName="popover-test-overlay">
+          <Template slot="overlay">
+            <div data-testid="custom-panel">Custom body</div>
+          </Template>
+          <button>Open</button>
+        </Popover>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

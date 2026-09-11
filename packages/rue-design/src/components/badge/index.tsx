@@ -39,7 +39,7 @@ export interface BadgeProps {
   /** ghost 配置项。 */
   ghost?: boolean
   /** count 配置项。 */
-  count?: any
+  count?: number | string
   /** overflowCount 配置项。 */
   overflowCount?: number
   /** showZero 配置项。 */
@@ -51,7 +51,7 @@ export interface BadgeProps {
   /** 组件语义色。 */
   color?: string
   /** text 区域配置。 */
-  text?: any
+  text?: string | number
   /** offset 配置项。 */
   offset?: [number | string, number | string]
   /** 标题内容。 */
@@ -71,7 +71,7 @@ export interface BadgeProps {
 /** BadgeRibbonProps 组件属性。 */
 export interface BadgeRibbonProps {
   /** text 区域配置。 */
-  text?: any
+  text?: string | number
   /** 组件语义色。 */
   color?: string
   /** 弹出层或内容展示位置。 */
@@ -191,13 +191,8 @@ const isEmptyValue = (value: any) => {
 }
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (Array.isArray(value)) {
-    return value.some(item => hasRenderableContent(item))
-  }
-
-  return !isEmptyValue(value)
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** negate Offset 的内部工具函数。 */
 const negateOffset = (value: number | string) => {
@@ -266,7 +261,7 @@ const resolveHasCount = (count: any, showZero?: boolean) => {
 }
 
 /** 判断 Dot 是否应展示的内部工具函数。 */
-const resolveShowDot = (dot?: boolean, count?: any) => {
+const resolveShowDot = (dot?: boolean, count?: number | string) => {
   return !!dot && resolvePrimitiveNumber(count) !== 0
 }
 
@@ -435,7 +430,7 @@ const resolveBadgeTitle = (title: string | undefined, count: any, overflowCount:
   }
   const displayCount = resolveCountDisplay(count, overflowCount)
   return typeof displayCount === 'string' || typeof displayCount === 'number'
-    ? `${displayCount}`
+    ? `${String(displayCount ?? '')}`
     : undefined
 }
 
@@ -552,25 +547,12 @@ const BadgeCountNode: FC<BadgeCountNodeProps> = ({
       style={resolveCountIndicatorStyle({ color, offset, indicatorStyle })}
       title={countTitle}
     >
-      {displayCount}
+      {String(displayCount ?? '')}
     </span>
   )
 }
 
 /** Badge Indicator Container 的内部工具函数。 */
-const BadgeIndicatorContainer: FC<BadgeIndicatorContainerProps> = ({
-  className,
-  style,
-  indicatorNode,
-  children,
-}) => {
-  return (
-    <span className={mergeClassName('indicator inline-flex align-middle', className)} style={style}>
-      {indicatorNode}
-      <span className="inline-flex align-middle">{children}</span>
-    </span>
-  )
-}
 
 /** Badge Base 的内部工具函数。 */
 const BadgeBase: FC<BadgeProps> = ({
@@ -631,7 +613,7 @@ const BadgeBase: FC<BadgeProps> = ({
           indicatorClassName={indicatorClassName}
           indicatorStyle={indicatorStyle}
         />
-        {hasText ? <span>{text}</span> : null}
+        {hasText ? <span>{String(text ?? '')}</span> : null}
       </span>
     )
   }
@@ -668,7 +650,7 @@ const BadgeBase: FC<BadgeProps> = ({
               offset={offset}
               indicatorClassName={indicatorClassName}
               indicatorStyle={indicatorStyle}
-              displayCount={displayCount}
+              displayCount={String(displayCount ?? '')}
               countTitle={badgeTitle}
             />
           )}
@@ -678,7 +660,7 @@ const BadgeBase: FC<BadgeProps> = ({
               resolveStandaloneIndicatorContentClassName({ dot: showDot, displayCount }),
             )}
           >
-            {text}
+            {String(text ?? '')}
           </span>
         </span>
       )
@@ -709,7 +691,7 @@ const BadgeBase: FC<BadgeProps> = ({
             offset={offset}
             indicatorClassName={indicatorClassName}
             indicatorStyle={indicatorStyle}
-            displayCount={displayCount}
+            displayCount={String(displayCount ?? '')}
             countTitle={badgeTitle}
           />
         )}
@@ -719,14 +701,14 @@ const BadgeBase: FC<BadgeProps> = ({
 
   if (!hasChildren && usesIndicatorMode) {
     if (!hasText) {
-      return null
+      return <></>
     }
     return (
       <span
         className={mergeClassName('inline-flex items-center gap-2 align-middle', className)}
         style={style}
       >
-        <span>{text}</span>
+        <span>{String(text ?? '')}</span>
       </span>
     )
   }
@@ -735,86 +717,82 @@ const BadgeBase: FC<BadgeProps> = ({
     if (hasText) {
       return (
         <span className="inline-flex items-center gap-2 align-middle">
-          <BadgeIndicatorContainer
-            className={className}
+          <span
+            className={mergeClassName('indicator inline-flex align-middle', className)}
             style={style}
-            indicatorNode={
-              !hasIndicator ? null : showDot || hasStatus ? (
-                <BadgeStatusDot
-                  indicatorItem
-                  variant={indicatorVariant}
-                  size={size}
-                  status={status}
-                  color={color}
-                  offset={offset}
-                  title={title}
-                  indicatorClassName={indicatorClassName}
-                  indicatorStyle={indicatorStyle}
-                />
-              ) : (
-                <BadgeCountNode
-                  indicatorItem
-                  variant={indicatorVariant}
-                  size={size}
-                  outline={outline}
-                  dash={dash}
-                  soft={soft}
-                  ghost={ghost}
-                  color={color}
-                  offset={offset}
-                  indicatorClassName={indicatorClassName}
-                  indicatorStyle={indicatorStyle}
-                  displayCount={displayCount}
-                  countTitle={badgeTitle}
-                />
-              )
-            }
           >
-            {children}
-          </BadgeIndicatorContainer>
-          <span>{text}</span>
+            {!hasIndicator ? null : showDot || hasStatus ? (
+              <BadgeStatusDot
+                indicatorItem
+                variant={indicatorVariant}
+                size={size}
+                status={status}
+                color={color}
+                offset={offset}
+                title={title}
+                indicatorClassName={indicatorClassName}
+                indicatorStyle={indicatorStyle}
+              />
+            ) : (
+              <BadgeCountNode
+                indicatorItem
+                variant={indicatorVariant}
+                size={size}
+                outline={outline}
+                dash={dash}
+                soft={soft}
+                ghost={ghost}
+                color={color}
+                offset={offset}
+                indicatorClassName={indicatorClassName}
+                indicatorStyle={indicatorStyle}
+                displayCount={String(displayCount ?? '')}
+                countTitle={badgeTitle}
+              />
+            )}
+            <span className="inline-flex align-middle">{children}</span>
+          </span>
+          <span>{String(text ?? '')}</span>
         </span>
       )
     }
 
     return (
-      <BadgeIndicatorContainer
-        className={className}
+      <span
+        className={mergeClassName('indicator inline-flex align-middle', className)}
         style={style}
-        indicatorNode={
-          !hasIndicator ? null : showDot || hasStatus ? (
-            <BadgeStatusDot
-              indicatorItem
-              variant={indicatorVariant}
-              size={size}
-              status={status}
-              color={color}
-              offset={offset}
-              title={title}
-              indicatorClassName={indicatorClassName}
-              indicatorStyle={indicatorStyle}
-            />
-          ) : (
-            <BadgeCountNode
-              indicatorItem
-              variant={indicatorVariant}
-              size={size}
-              outline={outline}
-              dash={dash}
-              soft={soft}
-              ghost={ghost}
-              color={color}
-              offset={offset}
-              indicatorClassName={indicatorClassName}
-              indicatorStyle={indicatorStyle}
-              displayCount={displayCount}
-              countTitle={badgeTitle}
-            />
-          )
-        }
       >
-        {children}
-      </BadgeIndicatorContainer>
+        {!hasIndicator ? null : showDot || hasStatus ? (
+          <BadgeStatusDot
+            indicatorItem
+            variant={indicatorVariant}
+            size={size}
+            status={status}
+            color={color}
+            offset={offset}
+            title={title}
+            indicatorClassName={indicatorClassName}
+            indicatorStyle={indicatorStyle}
+          />
+        ) : (
+          <BadgeCountNode
+            indicatorItem
+            variant={indicatorVariant}
+            size={size}
+            outline={outline}
+            dash={dash}
+            soft={soft}
+            ghost={ghost}
+            color={color}
+            offset={offset}
+            indicatorClassName={indicatorClassName}
+            indicatorStyle={indicatorStyle}
+            displayCount={String(displayCount ?? '')}
+            countTitle={badgeTitle}
+          />
+        )}
+        <span className="inline-flex align-middle">{children}</span>
+      </span>
     )
   }
 
@@ -852,7 +830,7 @@ const BadgeRibbon: FC<BadgeRibbonProps> = ({
         className={createRibbonClassName({ color, placement, className })}
         style={resolveRibbonStyle({ color, style })}
       >
-        {text}
+        {String(text ?? '')}
       </span>
       {children}
     </div>

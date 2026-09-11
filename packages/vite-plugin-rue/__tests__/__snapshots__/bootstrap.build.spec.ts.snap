@@ -1,0 +1,6 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots the generated bootstrap entry 1`] = `
+"/* RUE_TRANSFORMED */
+import{_$mountApp}from"@rue-js/rue/internal/app";import{_$compiledAppendChild,_$compiledCreateElement,_$compiledCreateTextNode}from"@rue-js/rue/internal/dom";import{_$compiledStaticRoot}from"@rue-js/rue/internal/block";_$mountApp(()=>_$compiledStaticRoot(__rue_parent_context=>{const _root=_$compiledCreateElement("main",__rue_parent_context);_$compiledAppendChild(_root,_$compiledCreateTextNode("ready"));return[_root,_root]}),"#app");"
+`;

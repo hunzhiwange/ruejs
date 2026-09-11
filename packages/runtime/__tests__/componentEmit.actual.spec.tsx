@@ -1,35 +1,64 @@
-import { expect } from 'vitest'
+// @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { afterEach, expect, it } from 'vitest'
+import { evaluateComponent } from './compiled-component-test-utils'
+import { _$createComponent } from '../src/compiled-component-call'
+import { setReactiveScheduling } from '../src/runtime-core/compiled'
 
-import {
-  clickByText,
-  defineSplitHomeExampleActualSpec,
-  inputValueAt,
-} from './splitHomeExampleTestUtils'
+afterEach(() => {
+  document.body.innerHTML = ''
+  setReactiveScheduling('frame')
+})
 
-defineSplitHomeExampleActualSpec({
-  name: 'ComponentEmit',
-  route: '/examples/component-emit',
-  importPage: () => import('../../../app/pages/examples/ComponentEmit'),
-  expectedTexts: ['组件 emit', '组件 emit', '保存消息：', '输入的名称：'],
-  interaction: async container => {
-    await clickByText(container, '触发保存')
-    await inputValueAt(container, 0, 'Rue')
-
-    const modelInput = container.querySelectorAll('input')[1] as HTMLInputElement
-    modelInput.focus()
-    modelInput.setSelectionRange(0, 0)
-
+it('runs the actual ComponentEmit demo through closed capability imports', () => {
+  setReactiveScheduling('sync')
+  const { code, exports: app } = evaluateComponent(
+    readFileSync('app/pages/examples/home-demos/ComponentEmitDemo.tsx', 'utf8'),
+    'ComponentEmitDemo.tsx',
+  )
+  expect(code).not.toMatch(/renderAnchor|compiledValue|MarkComponentRenderReactive/)
+  const root = _$createComponent(app.default, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    document.querySelector('button')!.click()
+    expect(document.body.textContent).toContain('已保存的是数据是123456')
+    const inputs = document.querySelectorAll('input')
+    inputs[0].value = 'Rue'
+    inputs[0].dispatchEvent(new Event('input', { bubbles: true }))
+    expect(document.body.textContent).toContain('输入的名称：Rue')
+    inputs[1].focus()
     for (const value of ['R', 'Ru', 'Rue']) {
-      modelInput.value = value
-      modelInput.setSelectionRange(value.length, value.length)
-      modelInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
-      await Promise.resolve()
-
-      expect(container.querySelectorAll('input')[1]).toBe(modelInput)
-      expect(document.activeElement).toBe(modelInput)
-      expect(modelInput.selectionStart).toBe(value.length)
-      expect(modelInput.selectionEnd).toBe(value.length)
+      inputs[1].value = value
+      inputs[1].setSelectionRange(value.length, value.length)
+      inputs[1].dispatchEvent(new Event('input', { bubbles: true }))
+      expect(document.querySelectorAll('input')[1]).toBe(inputs[1])
+      expect(document.activeElement).toBe(inputs[1])
+      expect(inputs[1].selectionStart).toBe(value.length)
+      expect(document.body.textContent).toContain(`v-model 名称：${value}`)
     }
-  },
-  interactionExpectedTexts: ['已保存的是数据是123456', '输入的名称：Rue', 'v-model 名称：Rue'],
+  } finally {
+    root.dispose()
+  }
+})
+
+it('emit reads a replaced callback from current props', () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import {signal,useEmit as createEmitter} from '@rue-js/rue';
+    export const messages=[];
+    export const handler=signal(value=>messages.push('one:'+value));
+    const Child=props=>{const emit=createEmitter(props);return <button onClick={()=>emit('update:model-value', 'ok')}>emit</button>};
+    export const View=()=> <Child onUpdateModelValue={handler.get()}/>;
+  `)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    document.querySelector('button')!.click()
+    app.handler.set((value: string) => app.messages.push('two:' + value))
+    document.querySelector('button')!.click()
+    expect(app.messages).toEqual(['one:ok', 'two:ok'])
+  } finally {
+    root.dispose()
+    app.handler.dispose()
+  }
 })

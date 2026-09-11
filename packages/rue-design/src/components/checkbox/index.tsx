@@ -478,8 +478,10 @@ const Group: FC<CheckboxGroupProps> = ({
         handleChildrenChange(event)
       }}
     >
-      {normalizedOptions.length
-        ? readOptionItems().map(({ option, checked }) => (
+      {normalizedOptions.length ? (
+        <>
+          {' '}
+          {readOptionItems().map(({ option, checked }) => (
             <Checkbox
               key={serializeValue(option.value)}
               value={option.value}
@@ -502,8 +504,11 @@ const Group: FC<CheckboxGroupProps> = ({
             >
               {option.label}
             </Checkbox>
-          ))
-        : children}
+          ))}{' '}
+        </>
+      ) : (
+        children
+      )}
     </div>
   )
 }

@@ -59,7 +59,7 @@ const Second = () => <div class="a"><span>hello</span></div>;
 
     assert_eq!(compact.matches("_$compiledCreateElement(\"div\"").count(), 2, "{output}");
     assert_eq!(compact.matches("_$compiledCreateTextNode(\"hello\")").count(), 2, "{output}");
-    assert_eq!(compact.matches("_$compiledRoot(").count(), 2, "{output}");
+    assert_eq!(compact.matches("_$compiledStaticRoot(").count(), 2, "{output}");
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(compact.contains("_$compiledAppendChild"), "{output}");
     assert!(!compact.contains("document.createElement(\"template\")"), "{output}");
@@ -74,7 +74,8 @@ const Second = () => <div class="a"><span>hello</span></div>;
 fn hoists_pure_static_jsx_in_module_expression_context_and_preserves_reactive_key() {
     let output = transform_module(
         r#"
-const selection = { value: "after" };
+let keyReads = 0;
+const selection = { get value() { keyReads++; return "after"; } };
 const controlledAfterContent = (
   <div key={selection.value} className="controlled-after-content">
     <div className="controlled-after-content__body">After content</div>
@@ -86,8 +87,9 @@ const controlledAfterContent = (
 
     assert_eq!(compact.matches("_$compiledCreateElement(\"div\"").count(), 2, "{output}");
     assert!(compact.contains("controlled-after-content__body"), "{output}");
-    assert!(compact.contains("_$compiledWithKey("), "{output}");
+    assert!(!compact.contains("_$compiledWithKey("), "{output}");
     assert!(compact.contains("selection.value"), "{output}");
+    assert!(compact.contains("((__rue_key_value)=>__rue_key_value)("), "{output}");
     assert!(compact.contains("_$compiledCreateElement("), "{output}");
 }
 
@@ -95,6 +97,7 @@ const controlledAfterContent = (
 fn keeps_component_children_on_the_renderable_anchor_path_with_static_props() {
     let output = transform_module_with_static_props(
         r#"
+import { RouterView } from '@rue-js/router';
 const Layout = props => <main><div className="content">{props.children}</div></main>;
 const App = () => <Layout><RouterView /></Layout>;
 "#,
@@ -121,9 +124,14 @@ const RefView = () => <input ref={inputRef} />;
     let compact = compact(&output);
 
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
-    assert_eq!(compact.matches("_$createElement(").count(), 3, "{output}");
+    assert_eq!(compact.matches("_$createElement(").count(), 1, "{output}");
     assert!(compact.contains("_$compiledSpreadAttributes"), "{output}");
-    assert_eq!(compact.matches("_$compiledRoot(").count(), 5, "{output}");
+    assert_eq!(
+        compact.matches("_$compiledRoot(").count()
+            + compact.matches("_$compiledStaticRoot(").count(),
+        5,
+        "{output}"
+    );
     assert!(compact.contains(".addEventListener(\"click\""), "{output}");
     assert!(compact.contains(".removeEventListener(\"click\""), "{output}");
     assert!(compact.contains("onOwnerCleanup("), "{output}");
@@ -145,7 +153,7 @@ const View = props => <section id={props.id}><span className="label">hello</span
     );
     let compact = compact(&output);
 
-    assert!(output.contains("@rue-js/rue/internal/compiler"), "{output}");
+    assert!(output.contains("@rue-js/rue/internal/dom"), "{output}");
     assert!(!compact.contains("_$createElement(\"section\""), "{output}");
     assert!(
         compact.contains(
@@ -179,7 +187,7 @@ const App = () => <View label="初始" />;
     assert!(compact.contains(".childNodes[1].childNodes[0]"), "{output}");
     assert!(!compact.contains(".insertBefore("), "{output}");
     assert!(!compact.contains(".removeChild("), "{output}");
-    assert_eq!(compact.matches("_$compiledText(").count(), 1, "{output}");
+    assert_eq!(compact.matches("_$compiledScalarText(").count(), 1, "{output}");
     assert!(!compact.contains("renderAnchor"), "{output}");
     assert!(!compact.contains("Object.is("), "{output}");
     assert!(!compact.contains("_$compiledCreateElement("), "{output}");
@@ -195,7 +203,7 @@ const View = () => <section><div>{renderValue()}</div></section>;
     );
     let compact = compact(&output);
 
-    assert!(compact.contains("renderAnchor"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotAt("), "{output}");
     assert!(!compact.contains("_$compiledText("), "{output}");
 }
 
@@ -221,7 +229,7 @@ const App = () => <><Mixed value="mixed" /><SvgValue value="svg" /><TableValue v
     assert_eq!(compact.matches("rue:direct-text").count(), 1, "{output}");
     assert!(compact.contains("<div>prefix<!--rue:text-hole:0--></div>"), "{output}");
     assert!(compact.contains("<td>rue:direct-text</td>"), "{output}");
-    assert!(compact.contains("_$createElement(\"svg\""), "{output}");
+    assert!(compact.contains("<svg>"), "{output}");
     assert!(!compact.contains("<text>rue:direct-text</text>"), "{output}");
 }
 
@@ -329,8 +337,8 @@ const App = () => <><First label="一" value="二" /><Second title="三" detail=
     assert_eq!(compact.matches("const_$getTemplate1=_$template(").count(), 1, "{output}");
     assert_eq!(compact.matches("<!--rue:text-hole:").count(), 2, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 2, "{output}");
-    assert_eq!(compact.matches("_$compiledCreateTextNode(\"\")").count(), 4, "{output}");
-    assert_eq!(compact.matches("_$compiledText(").count(), 4, "{output}");
+    assert_eq!(compact.matches("_$compiledCreateTextNode(\"\")").count(), 6, "{output}");
+    assert_eq!(compact.matches("_$compiledScalarText(").count(), 4, "{output}");
     assert!(!compact.contains("Object.is("), "{output}");
 }
 
@@ -338,12 +346,13 @@ const App = () => <><First label="一" value="二" /><Second title="三" detail=
 fn template_shell_preserves_component_fallback_while_cloning_supported_holes() {
     let output = transform_module_with_static_props(
         r#"
+import { Child } from './compiled-components';
 function View(props) {
   return <>
     <div>{format(props.label)}</div>
     <div {...props.attrs}>{props.label}</div>
     <div><Child value={props.label} /></div>
-    <ul>{props.items.map(item => item)}</ul>
+    <ul>{props.items}</ul>
     <div title={props.label}>{props.label}</div>
   </>;
 }
@@ -358,7 +367,7 @@ const App = () => <View label="标签" attrs={{}} items={[]} />;
     assert_eq!(compact.matches("<!--rue:opaque-hole:").count(), 1, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 5, "{output}");
     assert_eq!(compact.matches("_$template(").count(), 4, "{output}");
-    assert!(compact.contains("_$createComponent(Child"), "{output}");
+    assert!(compact.contains("_$compiledComponent(Child"), "{output}");
     assert!(!compact.contains("_$createElement(\"div\""), "{output}");
 }
 
@@ -366,6 +375,7 @@ const App = () => <View label="标签" attrs={{}} items={[]} />;
 fn component_children_collect_static_native_templates_without_crossing_component_semantics() {
     let output = transform_module(
         r#"
+import { Layout, SidebarPlayground } from './compiled-components';
 const DefaultChild = () => <Layout preview={<article>Prop only</article>}><section><h1>Title</h1></section></Layout>;
 const MultipleChildren = () => <Layout><header>Header</header><main>Main</main></Layout>;
 const NamedSlot = () => <SidebarPlayground><Template slot="sidebar"><aside>Sidebar</aside></Template></SidebarPlayground>;
@@ -375,14 +385,14 @@ const NamedSlot = () => <SidebarPlayground><Template slot="sidebar"><aside>Sideb
 
     assert_eq!(compact.matches("_$template(").count(), 4, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 4, "{output}");
-    assert!(compact.contains("_$compiledRoot("), "{output}");
+    assert!(compact.contains("_$compiledStaticRoot("), "{output}");
     assert!(!compact.contains("_$createElement(\"section\""), "{output}");
     assert!(!compact.contains("_$createElement(\"header\""), "{output}");
     assert!(!compact.contains("_$createElement(\"main\""), "{output}");
     assert!(!compact.contains("_$createElement(\"aside\""), "{output}");
     assert!(compact.contains("_$compiledCreateElement(\"article\""), "{output}");
-    assert!(compact.contains("_$createComponent(Layout,()=>({"), "{output}");
-    assert!(compact.contains("_$createComponent(SidebarPlayground,()=>({"), "{output}");
+    assert!(compact.contains("_$compiledComponent(Layout,()=>({"), "{output}");
+    assert!(compact.contains("_$compiledComponent(SidebarPlayground,()=>({"), "{output}");
     assert!(compact.contains("\"sidebar\":"), "{output}");
     assert!(!compact.contains("_$template('<Layout"), "{output}");
     assert!(!compact.contains("_$template('<SidebarPlayground"), "{output}");
@@ -422,9 +432,10 @@ const Body = content => <body>{content}</body>;
     let first_view = compact.find("constView").expect("first component");
 
     assert!(directive < type_import && type_import < first_view, "{output}");
-    assert_eq!(compact.matches("_$createElement(").count(), 3, "{output}");
-    assert!(compact.contains("_$setValue(_root,\"hello\")"), "{output}");
-    assert!(compact.contains("_$setValue(_root,\"a\")"), "{output}");
+    assert_eq!(compact.matches("_$createElement(").count(), 1, "{output}");
+    assert!(compact.contains("_$compiledCreateElement(\"textarea\""), "{output}");
+    assert!(compact.contains("_root.value=\"hello\""), "{output}");
+    assert!(compact.contains("_$setValue(_el1,\"a\")"), "{output}");
     assert!(compact.contains("_$createElement(\"body\""), "{output}");
     assert!(!compact.contains("_$createElement(\"option\""), "{output}");
     assert!(compact.contains("<optionvalue=\"a\"><!--rue:text-hole:0--></option>"), "{output}");
@@ -450,7 +461,7 @@ const _$compiledRoot = setup => {{
   return {{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
-    mounted = result && result.__rue_compiled_host !== undefined ? result.__rue_compiled_host : result;
+    mounted = result[0];
     return mounted;
   }},
   dispose() {{
@@ -462,6 +473,8 @@ const _$compiledRoot = setup => {{
 const _$compiledCreateElement = tag => document.createElement(tag);
 const _$compiledCreateTextNode = value => document.createTextNode(value);
 const _$compiledAppendChild = (parent, child) => parent.appendChild(child);
+// Both root helpers share the declared range ABI in this codegen harness.
+const _$compiledStaticRoot = _$compiledRoot;
 {executable}
 if (typeof document !== "undefined") throw new Error("module evaluation touched document");
 const dom = new JSDOM("<!doctype html><body></body>");
@@ -578,7 +591,15 @@ const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, 
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
-    return result && result.__rue_compiled_host !== undefined ? result.__rue_compiled_host : result;
+    if (result[0] === result[1]) return result[0];
+  const range = document.createDocumentFragment();
+  for (let node = result[0]; node;) {{
+    const next = node.nextSibling;
+    range.appendChild(node);
+    if (node === result[1]) break;
+    node = next;
+  }}
+  return range;
   }},
   dispose() {{ while (cleanups.length) cleanups.pop()(); }}
 }});
@@ -662,7 +683,15 @@ const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, 
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
-    return result && result.__rue_compiled_host !== undefined ? result.__rue_compiled_host : result;
+    if (result[0] === result[1]) return result[0];
+  const range = document.createDocumentFragment();
+  for (let node = result[0]; node;) {{
+    const next = node.nextSibling;
+    range.appendChild(node);
+    if (node === result[1]) break;
+    node = next;
+  }}
+  return range;
   }},
   dispose() {{ while (cleanups.length) cleanups.pop()(); }}
 }});
@@ -846,7 +875,15 @@ const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, 
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
-    return result && result.__rue_compiled_host !== undefined ? result.__rue_compiled_host : result;
+    if (result[0] === result[1]) return result[0];
+  const range = document.createDocumentFragment();
+  for (let node = result[0]; node;) {{
+    const next = node.nextSibling;
+    range.appendChild(node);
+    if (node === result[1]) break;
+    node = next;
+  }}
+  return range;
   }},
   dispose() {{ while (cleanups.length) cleanups.pop()(); }}
 }});
@@ -862,30 +899,20 @@ const _$mountCompiledSlotFactory = (target, _owner, create) => {{
   const handle = create();
   const host = handle.__rue_compiled_mount(target.parent);
   const node = host.nodeType === 11 ? host.firstChild : host;
+  const last = host.nodeType === 11 ? host.lastChild : host;
   if (host.nodeType === 11) target.parent.insertBefore(host, target.before);
   else target.parent.insertBefore(node, target.before);
-  return {{ node, dispose: () => handle.dispose?.() }};
+  return {{ first: node, last, dispose: () => handle.dispose?.() }};
 }};
-const _$mountCompiledKeyedRow = (mount, patch) => {{
-  const parent = document.createDocumentFragment();
-  return {{ ...mount({{ parent, before: null }}, {{}}, null), patch }};
+const _$mountCompiledKeyedRow = (factory, patch, memo, target) => {{
+  const actual = target ?? {{parent: document.createDocumentFragment(), before: null}};
+  const block = factory(actual, {{}}, 0);
+  return {{node: block.first, last: block.last, patch, memo, dispose: block.dispose}};
 }};
-const _$mountCompiledKeyedRowOwnerless = (setup, patch, target) => {{
-  const parent = target?.parent || document.createDocumentFragment();
-  const result = setup(parent);
-  const roots = result && result.__rue_compiled_roots ? [...result.__rue_compiled_roots] : [result];
-  for (const root of roots) if (root.parentNode !== parent) parent.insertBefore(root, target?.before || null);
-  return {{ node: roots[0], last: roots.at(-1), patch, dispose() {{}} }};
-}};
-const _$mountCompiledKeyedSingleRowOwnerless = _$mountCompiledKeyedRowOwnerless;
-const _$mountCompiledKeyedRowSetup = (setup, patch, target) => {{
-  const start = cleanups.length;
-  const row = _$mountCompiledKeyedRowOwnerless(setup, patch, target);
-  const owned = cleanups.splice(start);
-  row.dispose = () => {{ for (const cleanup of owned.splice(0)) cleanup(); }};
-  return row;
-}};
+const _$mountCompiledKeyedSingleRow = _$mountCompiledKeyedRow;
+
 const _$disposeCompiledKeyedRows = rows => {{ for (const row of rows) row.dispose(); }};
+const _$disposeCompiledKeyedSingleRows = _$disposeCompiledKeyedRows;
 const _$template = html => {{
   let cached;
   return () => {{
@@ -975,6 +1002,10 @@ const _$compiledKeyedList = (options) => {{
   }});
   return next;
 }};
+// Both root helpers share the declared range ABI in this codegen harness.
+const _$compiledStaticRoot = _$compiledRoot;
+const _$compiledScalarRoot = _$compiledRoot;
+const _$compiledScalarText = _$compiledText;
 {executable}
 const props = {{
   className: "initial",
@@ -993,7 +1024,7 @@ const after = root.querySelector('[data-static="after"]');
 const holes = Array.from(root.childNodes).filter(node => node.nodeType === 8 && node.data.startsWith("rue:text-hole:"));
 const [rowA, rowB] = root.querySelectorAll("em");
 if (root.textContent !== "beforeoneshownlocalABxyafter") throw new Error(`initial DOM: ${{root.innerHTML}}`);
-if (holes.length !== 4) throw new Error(`initial holes: ${{root.innerHTML}}`);
+if (holes.length !== 3) throw new Error(`initial holes: ${{root.innerHTML}}`);
 
 props.className = "updated";
 props.value = null;
@@ -1038,6 +1069,7 @@ delete global.document;
 fn template_skeleton_mounts_components_and_preserves_lazy_slots_at_opaque_holes() {
     let output = transform_module_with_static_props(
         r#"
+import { Layout, Panel, Member } from './compiled-components';
 function CompiledPanel(props) {
   return <strong>{props.label}</strong>;
 }
@@ -1047,13 +1079,13 @@ const View = props => (
       <i>before</i>
       <Panel>{() => { props.panelSlotCalls += 1; return props.label; }}</Panel>
       <CompiledPanel label={props.label} />
-      <Widgets.Member />
+      <Member />
       <x-card><Template slot="detail">{() => { props.detailSlotCalls += 1; return props.detail; }}</Template></x-card>
       <svg><circle cx="1" cy="1" r="1" /></svg>
       <math><mi>x</mi></math>
       <i>after</i>
     </section>
-    <Template slot="aside"><aside>{() => { props.asideSlotCalls += 1; return props.aside; }}</aside></Template>
+    <Template slot="aside"><aside>{String(props.readAside())}</aside></Template>
   </Layout>
 );
 "#,
@@ -1063,17 +1095,17 @@ const View = props => (
 
     assert!(
         compact.contains(
-            "<sectiondata-shell=\"stable\"><i>before</i><!--rue:opaque-hole:0--><!--rue:opaque-hole:1--><!--rue:opaque-hole:2--><!--rue:opaque-hole:3--><!--rue:opaque-hole:4--><!--rue:opaque-hole:5--><i>after</i></section>"
+            "<sectiondata-shell=\"stable\"><i>before</i><!--rue:opaque-hole:0--><!--rue:opaque-hole:1--><!--rue:opaque-hole:2--><!--rue:opaque-hole:3--><svg><circlecx=\"1\"cy=\"1\"r=\"1\"></circle></svg><!--rue:opaque-hole:4--><i>after</i></section>"
         ),
         "{output}"
     );
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 3, "{output}");
     assert!(compact.contains("_$createComponent(Panel"), "{output}");
     assert!(compact.contains("_$compiledComponent(CompiledPanel"), "{output}");
-    assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
-    assert!(compact.contains("_$createComponent(Widgets.Member"), "{output}");
+    assert!(compact.contains("_$compiledScalarText("), "{output}");
+    assert!(compact.contains("_$compiledComponent(Member"), "{output}");
     assert!(compact.contains("_$createElement(\"x-card\""), "{output}");
-    assert!(compact.contains("_$createElement(\"svg\""), "{output}");
+    assert!(compact.contains("<svg>"), "{output}");
     assert!(compact.contains("_$createElement(\"math\""), "{output}");
     assert!(compact.contains("\"aside\":__child1"), "{output}");
     assert!(compact.contains("\"detail\":()=>"), "{output}");
@@ -1113,7 +1145,15 @@ const _$compiledPropsSnapshot = props => props;
 const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
 const _$compiledRoot = setup => ownedHandle(parent => {{
   const result = setup(parent);
-  return result && result.__rue_compiled_host !== undefined ? result.__rue_compiled_host : result;
+  if (result[0] === result[1]) return result[0];
+  const range = document.createDocumentFragment();
+  for (let node = result[0]; node;) {{
+    const next = node.nextSibling;
+    range.appendChild(node);
+    if (node === result[1]) break;
+    node = next;
+  }}
+  return range;
 }}, () => {{ counters.compiledCleanup += 1; }});
 const _$withCompiledPropsUpdater = (handle, update) => {{ handle.__update = update; return handle; }};
 const _$compiledSignal = value => ({{ get: () => value, set: next => {{ value = next; }} }});
@@ -1224,6 +1264,13 @@ const _$mountCompiledSlotFactory = (target, _owner, create) => {{
   for (const node of nodes) target.parent.insertBefore(node, target.before);
   return {{ node: nodes[0] ?? null, last: nodes.at(-1) ?? null, dispose: () => handle.dispose?.() }};
 }};
+const _$compiledValueFactory = value => typeof value === "function"
+  ? value
+  : (target) => {{
+      renderAnchor(value, target.parent, target.before);
+      const nodes = anchorState.get(target.before)?.nodes ?? [];
+      return {{ node: nodes[0] ?? target.before, last: nodes.at(-1) ?? target.before, dispose() {{}} }};
+    }};
 const _$mountCompiledSlotAt = (target, read) => {{
   let mounted;
   let previous;
@@ -1238,6 +1285,10 @@ const _$mountCompiledSlotAt = (target, read) => {{
   }});
   if (activeBucket) activeBucket.push(() => mounted?.dispose?.());
 }};
+// Both root helpers share the declared range ABI in this codegen harness.
+const _$compiledStaticRoot = _$compiledRoot;
+const _$compiledScalarRoot = _$compiledRoot;
+const _$compiledScalarText = _$compiledText;
 {executable}
 const appendHandle = (handle, parent) => {{
   const result = handle.__rue_compiled_mount(parent);
@@ -1251,14 +1302,12 @@ const Panel = props => ownedHandle(() => {{
   span.textContent = props.__rue_slots.default();
   return span;
 }}, () => {{ counters.panelCleanup += 1; }});
-const Widgets = {{
-  Member: () => ownedHandle(() => {{
+const Member = () => ownedHandle(() => {{
     counters.memberSetup += 1;
     const mark = document.createElement("mark");
     mark.textContent = "member";
     return mark;
-  }}, () => {{ counters.memberCleanup += 1; }})
-}};
+  }}, () => {{ counters.memberCleanup += 1; }});
 const Layout = props => ownedHandle(() => {{
   const fragment = document.createDocumentFragment();
   appendHandle(props.__rue_slots.default, fragment);
@@ -1267,6 +1316,7 @@ const Layout = props => ownedHandle(() => {{
 }});
 const props = {{
   label: "initial", detail: "detail", aside: "aside",
+  readAside() {{ this.asideSlotCalls += 1; return this.aside; }},
   panelSlotCalls: 0, detailSlotCalls: 0, asideSlotCalls: 0
 }};
 const handle = View(props);
@@ -1314,4 +1364,22 @@ fn ordinary_template_keeps_comment_text_holes() {
     let output = transform_module("const View = () => <div>{count.get()}</div>;");
     assert!(output.contains("rue:text-hole"), "{output}");
     assert!(!output.contains("rue:row-text"), "{output}");
+}
+
+#[test]
+fn erased_key_metadata_returns_the_block_and_evaluates_the_key_once() {
+    let output = transform_module(
+        r#"
+let keyReads = 0;
+const selection = { get value() { keyReads++; return "after"; } };
+const view = <div key={selection.value}>owned</div>;
+"#,
+    );
+    let script = format!(
+        "const block = {{}}; let rootCalls = 0; const _$compiledStaticRoot = () => {{ rootCalls++; return block; }};\n{}\nif (view !== block || keyReads !== 1 || rootCalls !== 1) throw new Error('key metadata must preserve the block and evaluate each argument once');",
+        without_imports(&output)
+    );
+    let result =
+        Command::new("node").args(["-e", &script]).output().expect("execute key metadata fixture");
+    assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
 }

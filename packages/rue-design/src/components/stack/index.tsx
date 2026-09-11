@@ -5,6 +5,24 @@ Stack 模块概述
 */
 import type { FC } from '@rue-js/rue'
 
+const StackItems: FC<{
+  items?: ReadonlyArray<{ key?: string | number; content: string | number }>
+  reverse?: boolean
+  children?: any
+}> = ({ items, reverse, children }) => (
+  <>
+    {items ? (
+      <>
+        {(reverse ? [...items].reverse() : items).map((item, index) => (
+          <div key={item.key ?? index}>{String(item.content)}</div>
+        ))}
+      </>
+    ) : (
+      <>{children}</>
+    )}
+  </>
+)
+
 /** StackVerticalAlign 对齐方式类型。 */
 export type StackVerticalAlign = 'center' | 'top' | 'bottom'
 /** StackHorizontalAlign 对齐方式类型。 */
@@ -23,6 +41,7 @@ export type StackPlacement =
 
 /** StackProps 组件属性。 */
 export interface StackProps {
+  items?: ReadonlyArray<{ key?: string | number; content: string | number }>
   /** 自定义渲染的宿主元素。 */
   as?: any
   /** vertical 配置项。 */
@@ -58,12 +77,6 @@ const buildStackClassName = (
 }
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  return children == null ? [] : [children]
-}
 
 /** 解析 Placement 的内部工具函数。 */
 const resolvePlacement = (placement?: StackPlacement) => {
@@ -101,21 +114,40 @@ const Stack: FC<StackProps> = ({
   reverse,
   className,
   children,
+  items,
   ...rest
 }) => {
   const Component = as as any
   const placementPreset = resolvePlacement(placement)
   const resolvedVertical = vertical ?? placementPreset.vertical
   const resolvedHorizontal = horizontal ?? placementPreset.horizontal
-  const renderedChildren = reverse ? [...toChildArray(children)].reverse() : children
 
-  return (
-    <Component
+  return Component === 'section' ? (
+    <section
       {...rest}
       className={buildStackClassName(resolvedVertical, resolvedHorizontal, className)}
     >
-      {renderedChildren}
-    </Component>
+      <StackItems items={items} reverse={reverse}>
+        {children}
+      </StackItems>
+    </section>
+  ) : Component === 'div' ? (
+    <div {...rest} className={buildStackClassName(resolvedVertical, resolvedHorizontal, className)}>
+      <StackItems items={items} reverse={reverse}>
+        {children}
+      </StackItems>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={buildStackClassName(resolvedVertical, resolvedHorizontal, className)}
+    >
+      <StackItems items={items} reverse={reverse}>
+        {children}
+      </StackItems>
+    </span>
+  ) : (
+    <></>
   )
 }
 

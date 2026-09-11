@@ -29,7 +29,7 @@
 
   ref 对象是可更改的——也就是说，你可以为 `.value` 赋予新的值。它也是响应式的，即所有对 `.value` 的读取操作都会被追踪，写入操作会触发相关副作用。
 
-  在 JSX child 的最终展示位置，Rue 会自动解包带有内部 Ref 标记（`__rue_ref__ === true`）的值，因此可以写 `<span>{count}</span>`。`computed()` 和 `customRef()` 返回的 Ref 也遵循这一规则；普通 JavaScript 表达式、事件处理和属性绑定仍需显式读取 `.value`。Signal 不属于 Ref，展示时继续使用 `count.get()`。
+  在 JSX child 的最终展示位置，Rue 会自动解包带有内部 Ref 标记（`__rue_ref__ === true`）的值，因此可以写 `<span>{count}</span>`。`computed()` 返回的 Ref 也遵循这一规则；普通 JavaScript 表达式、事件处理和属性绑定仍需显式读取 `.value`。Signal 不属于 Ref，展示时继续使用 `count.get()`。
 
   ```tsx
   const count = ref(0)
@@ -250,20 +250,6 @@ state.set(snapshot)
   })
   ```
 
-  副作用清理（版本）：
-
-  ```js
-  import { onWatcherCleanup } from '@rue-js/rue'
-
-  watchEffect(async () => {
-    const { response, cancel } = doAsyncWork(newId)
-    // 如果 `id` 更改，将调用 `cancel`，
-    // 取消先前的请求（如果尚未完成）
-    onWatcherCleanup(cancel)
-    data.value = await response
-  })
-  ```
-
   选项：
 
   ```js
@@ -282,49 +268,9 @@ state.set(snapshot)
   - [指南 - 侦听器](/guide/guide/essentials/watchers#watcheffect)
   - [指南 - 侦听器调试](/guide/guide/extras/reactivity-in-depth#watcher-debugging)
 
-## watchPostEffect() {#watchposteffect}
+## watchEffect 刷新选项 {#watchposteffect}
 
-带有 `flush: 'post'` 选项的 [`watchEffect()`](#watcheffect) 别名。
-
-## watchSyncEffect() {#watchsynceffect}
-
-带有 `flush: 'sync'` 选项的 [`watchEffect()`](#watcheffect) 别名。
-
-- **类型**
-
-  ```ts
-  function watchSyncEffect(
-    effect: () => void,
-    options?: {
-      scheduler?: (run: () => void) => void
-    },
-  ): WatchHandle
-  ```
-
-- **详情**
-
-  `watchSyncEffect()` 会立即运行一次传入的 effect，并在其追踪到的响应式依赖发生变化时同步重新运行。它等价于使用 `flush: 'sync'` 的 `watchEffect()`。
-
-  同步 effect 不会等待组件更新队列或下一轮响应式 flush，因此适合处理必须立刻失效的轻量状态，例如缓存标记或简单布尔值。对于可能在同一个调用栈中连续变化的数据，例如数组或批量对象更新，应谨慎使用同步侦听器，以避免重复运行带来的性能开销或中间状态观察。
-
-- **示例**
-
-  ```js
-  import { ref, watchSyncEffect } from '@rue-js/rue'
-
-  const count = ref(0)
-
-  watchSyncEffect(() => {
-    console.log(count.value)
-  })
-
-  count.value++
-  // effect 会在本次响应式写入后同步重新运行
-  ```
-
-- **另请参阅**
-  - [指南 - 同步侦听器](/guide/guide/essentials/watchers#sync-watchers)
-  - [`watchEffect()`](#watcheffect)
+`watchPostEffect` 和 `watchSyncEffect` 别名已从 compiler-only 公共能力面移除。请分别使用 `watchEffect(effect, { flush: 'post' })` 与 `watchEffect(effect, { flush: 'sync' })`。
 
 ## watch() {#watch}
 
@@ -485,41 +431,10 @@ state.set(snapshot)
   })
   ```
 
-  副作用清理：
-
-  ```js
-  import { onWatcherCleanup } from '@rue-js/rue'
-
-  watch(id, async newId => {
-    const { response, cancel } = doAsyncWork(newId)
-    onWatcherCleanup(cancel)
-    data.value = await response
-  })
-  ```
-
 - **另请参阅**
   - [指南 - 侦听器](/guide/guide/essentials/watchers)
   - [指南 - 侦听器调试](/guide/guide/extras/reactivity-in-depth#watcher-debugging)
 
-## onWatcherCleanup() {#onwatchercleanup}
+## onWatcherCleanup（已移除） {#onwatchercleanup}
 
-注册一个清理函数，在当前侦听器即将重新运行时执行。只能在 `watchEffect` effect 函数或 `watch` 回调函数的同步执行期间调用（即不能在异步函数中的 `await` 语句之后调用。）
-
-- **类型**
-
-  ```ts
-  function onWatcherCleanup(cleanupFn: () => void, failSilently?: boolean): void
-  ```
-
-- **示例**
-
-  ```ts
-  import { watch, onWatcherCleanup } from '@rue-js/rue'
-
-  watch(id, newId => {
-    const { response, cancel } = doAsyncWork(newId)
-    // 如果 `id` 更改，将调用 `cancel`，
-    // 取消先前的请求（如果尚未完成）
-    onWatcherCleanup(cancel)
-  })
-  ```
+请使用 `watch` 回调第三参数或 `watchEffect` 回调第一参数提供的 `onCleanup`。

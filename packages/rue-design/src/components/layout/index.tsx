@@ -5,7 +5,7 @@ Layout 组件概述
 - 默认视觉延续 Rue 的轻量面板体系：柔和边框、圆角、半透明底色与可叠加的 utility class，而不是照搬特定组件库的外观。
 */
 import type { FC } from '@rue-js/rue'
-import { onMounted, onUnmounted, ref, watch } from '@rue-js/rue'
+import { computed, onMounted, onUnmounted, ref, watch } from '@rue-js/rue'
 
 /** LayoutBreakpoint 类型。 */
 export type LayoutBreakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
@@ -111,7 +111,8 @@ export interface LayoutSiderProps {
   /** reverseArrow 配置项。 */
   reverseArrow?: boolean
   /** trigger 区域配置。 */
-  trigger?: any | ((meta: LayoutSiderTriggerRenderMeta) => any)
+  trigger?: string | null | false | ((meta: LayoutSiderTriggerRenderMeta) => any)
+  triggerFormatter?: (meta: LayoutSiderTriggerRenderMeta) => string
   /** zeroWidthTriggerStyle 内联样式。 */
   zeroWidthTriggerStyle?: LayoutStyle
   /** triggerPosition 配置项。 */
@@ -178,22 +179,10 @@ const mergeStyle = (...styles: Array<LayoutStyle | undefined>) => {
 }
 
 /** flatten Children 的内部工具函数。 */
-const flattenChildren = (children: any, out: any[] = []) => {
-  if (children == null || children === false) return out
-  if (Array.isArray(children)) {
-    children.forEach(child => flattenChildren(child, out))
-    return out
-  }
-  out.push(children)
-  return out
-}
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value == null || value === false) return false
-  if (Array.isArray(value)) return value.some((item: any) => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 判断 Numeric 的内部工具函数。 */
 const isNumeric = (value: any) => {
@@ -240,15 +229,8 @@ const resolveChevron = (collapsed: boolean, reverseArrow?: boolean) => {
 }
 
 /** 判断 Sider Element 的内部工具函数。 */
-const isSiderElement = (child: any) => {
-  return !!child && typeof child === 'object' && child.type === Sider
-}
 
 /** 解析 Has Sider 的内部工具函数。 */
-const resolveHasSider = (children: any, hasSider?: boolean) => {
-  if (typeof hasSider === 'boolean') return hasSider
-  return flattenChildren(children).some(child => isSiderElement(child))
-}
 
 /** Basic Section 的内部工具函数。 */
 const BasicSection = (
@@ -265,14 +247,72 @@ const BasicSection = (
     ...rest
   }) => {
     const Tag = as as any
-    return (
-      <Tag
+    return Tag === 'div' ? (
+      <div
         {...rest}
         className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
         style={mergeStyle(extraStyle, style)}
       >
         {children}
-      </Tag>
+      </div>
+    ) : Tag === 'span' ? (
+      <span
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </span>
+    ) : Tag === 'header' ? (
+      <header
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </header>
+    ) : Tag === 'main' ? (
+      <main
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </main>
+    ) : Tag === 'footer' ? (
+      <footer
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </footer>
+    ) : Tag === 'section' ? (
+      <section
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </section>
+    ) : Tag === 'aside' ? (
+      <aside
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </aside>
+    ) : Tag === 'button' ? (
+      <button
+        {...rest}
+        className={joinClassName(`rue-layout-${suffix}`, extraClassName, className)}
+        style={mergeStyle(extraStyle, style)}
+      >
+        {children}
+      </button>
+    ) : (
+      <></>
     )
   }
 
@@ -323,10 +363,10 @@ const LayoutRoot: FC<LayoutProps> = ({
   ...rest
 }) => {
   const Component = as as any
-  const mergedHasSider = resolveHasSider(children, hasSider)
+  const mergedHasSider = !!hasSider
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'rue-layout relative flex min-h-0 min-w-0 gap-4',
@@ -345,7 +385,156 @@ const LayoutRoot: FC<LayoutProps> = ({
       data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
     >
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </span>
+  ) : Component === 'header' ? (
+    <header
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </header>
+  ) : Component === 'main' ? (
+    <main
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </main>
+  ) : Component === 'footer' ? (
+    <footer
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </footer>
+  ) : Component === 'section' ? (
+    <section
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </section>
+  ) : Component === 'aside' ? (
+    <aside
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </aside>
+  ) : Component === 'button' ? (
+    <button
+      {...rest}
+      className={joinClassName(
+        'rue-layout relative flex min-h-0 min-w-0 gap-4',
+        mergedHasSider ? 'flex-row items-stretch' : 'flex-col',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          width: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        },
+        style,
+      )}
+      data-rue-layout="true"
+      data-rue-layout-has-sider={mergedHasSider ? 'true' : 'false'}
+    >
+      {children}
+    </button>
+  ) : (
+    <></>
   )
 }
 
@@ -370,6 +559,7 @@ const Sider: FC<LayoutSiderProps> = ({
   breakpoint,
   reverseArrow = false,
   trigger,
+  triggerFormatter,
   zeroWidthTriggerStyle,
   triggerPosition = 'end',
   onCollapse,
@@ -449,8 +639,9 @@ const Sider: FC<LayoutSiderProps> = ({
   const getZeroWidthCollapsed = () => isZeroWidthCollapsed(collapsedState.value)
   const getCurrentWidth = () => (collapsedState.value ? collapsedSize : expandedSize)
   const shouldHideFooter = () => collapsedState.value && !getZeroWidthCollapsed()
-  const hasDefaultTrigger = trigger === undefined
-  const hasCustomTrigger = trigger !== null && trigger !== false && trigger !== '' && trigger !== 0
+  const hasDefaultTrigger = trigger === undefined && !triggerFormatter
+  const hasCustomTrigger =
+    !!triggerFormatter || (trigger !== null && trigger !== false && trigger !== '')
   const shouldRenderTrigger = collapsible && (hasDefaultTrigger || hasCustomTrigger)
   const triggerMeta = (): LayoutSiderTriggerRenderMeta => ({
     collapsed: collapsedState.value,
@@ -459,23 +650,26 @@ const Sider: FC<LayoutSiderProps> = ({
     toggle,
   })
 
-  const renderSiderTrigger = () => {
-    if (trigger === null) return null
-    if (typeof trigger === 'function') return trigger(triggerMeta())
-    if (trigger != null) return trigger
+  const triggerText = computed(() =>
+    triggerFormatter ? triggerFormatter(triggerMeta()) : typeof trigger === 'string' ? trigger : '',
+  )
+  const RenderSiderTrigger = () => (
+    <span className="rue-layout-sider-trigger inline-flex items-center gap-2">
+      {triggerFormatter || typeof trigger === 'string' ? (
+        <span data-rue-layout-trigger-custom="true">{String(triggerText.get())}</span>
+      ) : (
+        <>
+          <span data-rue-layout-trigger-arrow="true">
+            {String(resolveChevron(collapsedState.value, reverseArrow))}
+          </span>
+          <span data-rue-layout-trigger-label="true">{collapsedState.value ? '展开' : '收起'}</span>
+        </>
+      )}
+    </span>
+  )
 
-    return (
-      <Trigger>
-        <span data-rue-layout-trigger-arrow="true">
-          {resolveChevron(collapsedState.value, reverseArrow)}
-        </span>
-        <span data-rue-layout-trigger-label="true">{collapsedState.value ? '展开' : '收起'}</span>
-      </Trigger>
-    )
-  }
-
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
@@ -542,10 +736,516 @@ const Sider: FC<LayoutSiderProps> = ({
           aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
           data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
         >
-          {renderSiderTrigger()}
+          <RenderSiderTrigger />
         </button>
       ) : null}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </span>
+  ) : Component === 'header' ? (
+    <header
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </header>
+  ) : Component === 'main' ? (
+    <main
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </main>
+  ) : Component === 'footer' ? (
+    <footer
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </footer>
+  ) : Component === 'section' ? (
+    <section
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </section>
+  ) : Component === 'aside' ? (
+    <aside
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </aside>
+  ) : Component === 'button' ? (
+    <button
+      {...rest}
+      className={joinClassName(
+        'rue-layout-sider relative flex min-h-0 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border shadow-[0_28px_70px_-42px_rgba(15,23,42,0.5)] transition-[width,flex-basis,max-width,min-width,transform,opacity] duration-300 ease-out',
+        resolveThemeClassName(theme),
+        getZeroWidthCollapsed() && 'pointer-events-none border-transparent shadow-none',
+        className,
+      )}
+      style={mergeStyle(
+        {
+          flex: `0 0 ${getCurrentWidth()}`,
+          width: getCurrentWidth(),
+          minWidth: getCurrentWidth(),
+          maxWidth: getCurrentWidth(),
+          opacity: getZeroWidthCollapsed() ? 0 : 1,
+        },
+        style,
+      )}
+      data-rue-layout-sider="true"
+      data-collapsed={collapsedState.value ? 'true' : 'false'}
+      data-below={belowState.value ? 'true' : 'false'}
+      data-zero-width={getZeroWidthCollapsed() ? 'true' : 'false'}
+      data-theme={theme}
+    >
+      <div
+        className={joinClassName(
+          'rue-layout-sider-body flex min-h-0 flex-1 flex-col gap-4 p-4 transition-[padding] duration-300 ease-out',
+          resolveSiderBodyClassName(theme),
+          collapsedState.value && !getZeroWidthCollapsed() && 'items-center px-2',
+          bodyClassName,
+        )}
+        style={mergeStyle(bodyStyle)}
+      >
+        {children}
+      </div>
+
+      {hasRenderableContent(footer) ? (
+        <div
+          className={joinClassName(
+            'rue-layout-sider-footer border-t border-current/10 px-4 py-3 text-xs opacity-80',
+            collapsedState.value && !getZeroWidthCollapsed() && 'px-2 text-center',
+            footerClassName,
+          )}
+          style={mergeStyle({ display: shouldHideFooter() ? 'none' : undefined }, footerStyle)}
+          aria-hidden={shouldHideFooter() ? 'true' : 'false'}
+        >
+          {footer}
+        </div>
+      ) : null}
+
+      {shouldRenderTrigger ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className={joinClassName(
+            'rue-layout-sider-trigger-button absolute z-10 inline-flex items-center',
+            triggerPosition === 'start'
+              ? 'left-3 bottom-3 justify-start'
+              : 'right-3 bottom-3 justify-end',
+            getZeroWidthCollapsed() &&
+              'pointer-events-auto right-0 top-6 bottom-auto translate-x-1/2 rounded-full',
+            triggerClassName,
+          )}
+          style={mergeStyle(getZeroWidthCollapsed() ? zeroWidthTriggerStyle : triggerStyle)}
+          aria-label={collapsedState.value ? '展开侧边栏' : '收起侧边栏'}
+          data-rue-layout-sider-trigger={getZeroWidthCollapsed() ? 'zero' : 'default'}
+        >
+          <RenderSiderTrigger />
+        </button>
+      ) : null}
+    </button>
+  ) : (
+    <></>
   )
 }
 

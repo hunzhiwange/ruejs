@@ -48,6 +48,7 @@ export interface MockupPhoneDisplayConfig {
   className?: string
   /** contentClassName 附加类名。 */
   contentClassName?: string
+  text?: string
   /** 组件子内容。 */
   children?: any
   /** src 配置项。 */
@@ -149,25 +150,25 @@ const Root: FC<MockupPhoneRootProps> = ({
   const showCamera = camera !== false
   const cameraProps = typeof camera === 'object' ? camera : undefined
   const displayAlt = display?.alt ?? 'mockup phone wallpaper'
-  const hasDisplayChildren = display?.children != null
+  const hasDisplayChildren = display?.text != null
 
   return (
     <div {...rest} className={cls}>
       {display ? (
         <>
           {showCamera ? <Camera {...cameraProps} /> : null}
-          <Display className={display.className}>
+          <div className={mergeClassName('mockup-phone-display', display.className)}>
             {display.src ? (
               <img alt={displayAlt} src={display.src} className={display.imgClassName} />
             ) : null}
             {hasDisplayChildren ? (
               display.contentClassName ? (
-                <div className={display.contentClassName}>{display.children}</div>
+                <div className={display.contentClassName}>{String(display.text ?? '')}</div>
               ) : (
-                display.children
+                <span>{String(display.text ?? '')}</span>
               )
             ) : null}
-          </Display>
+          </div>
         </>
       ) : (
         children

@@ -176,8 +176,17 @@ export async function fetchHtml(
   init?: RequestInit,
 ): Promise<{ res: Response; html: string }> {
   const res = await fetch(`${baseUrl}${urlPath}`, init)
-  const html = await res.text()
+  const html = stripRueSsrMarkers(await res.text())
   return { res, html }
+}
+
+/**
+ * Rue's compiled SSR output contains comment anchors used by hydration. Most
+ * integration assertions care about the browser-visible HTML rather than the
+ * internal anchor ABI, so remove only Rue-owned markers before comparing it.
+ */
+export function stripRueSsrMarkers(html: string): string {
+  return html.replace(/<!--\/?r:[\s\S]*?-->/g, '')
 }
 
 export function extractTextSnippet(

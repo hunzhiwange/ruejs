@@ -40,12 +40,6 @@
       "import": "./dist/server.js",
       "development": "./src/server.ts"
     },
-    "./internal": {
-      "types": "./src/internal.ts",
-      "module": "./dist/internal.js",
-      "import": "./dist/internal.js",
-      "development": "./src/internal.ts"
-    },
     "./internal/compiler": {
       "types": "./src/compiler-internal.ts",
       "module": "./dist/compiler-internal.js",
@@ -53,10 +47,10 @@
       "development": "./src/compiler-internal.ts"
     },
     "./internal/component": {
-      "types": "./src/component-internal.ts",
-      "module": "./dist/component-internal.js",
-      "import": "./dist/component-internal.js",
-      "development": "./src/component-internal.ts"
+      "types": "./src/compiler-runtime/entries/component.ts",
+      "development": "./src/compiler-runtime/entries/component.ts",
+      "module": "./dist/compiler-runtime/entries/component.js",
+      "import": "./dist/compiler-runtime/entries/component.js"
     },
     "./internal/builtins": {
       "types": "./src/builtins-internal.ts",
@@ -64,31 +58,90 @@
       "import": "./dist/builtins-internal.js",
       "development": "./src/builtins-internal.ts"
     },
-    "./island": {
-      "types": "./src/island.ts",
-      "module": "./dist/island.js",
-      "import": "./dist/island.js",
-      "development": "./src/island.ts"
+    "./internal/reactive": {
+      "types": "./src/compiler-runtime/entries/reactive.ts",
+      "development": "./src/compiler-runtime/entries/reactive.ts",
+      "module": "./dist/compiler-runtime/entries/reactive.js",
+      "import": "./dist/compiler-runtime/entries/reactive.js"
     },
-    "./server-island": {
-      "types": "./src/server-island.ts",
-      "module": "./dist/server-island.js",
-      "import": "./dist/server-island.js",
-      "development": "./src/server-island.ts"
+    "./internal/block": {
+      "types": "./src/compiler-runtime/entries/block.ts",
+      "development": "./src/compiler-runtime/entries/block.ts",
+      "module": "./dist/compiler-runtime/entries/block.js",
+      "import": "./dist/compiler-runtime/entries/block.js"
     },
-    "./dom": {
-      "types": "./src/dom.ts",
-      "module": "./dist/dom.js",
-      "import": "./dist/dom.js",
-      "development": "./src/dom.ts"
+    "./internal/events": {
+      "types": "./src/compiler-runtime/entries/events.ts",
+      "development": "./src/compiler-runtime/entries/events.ts",
+      "module": "./dist/compiler-runtime/entries/events.js",
+      "import": "./dist/compiler-runtime/entries/events.js"
     },
-    "./public/*": {
-      "types": "./src/public/*.ts",
-      "module": "./dist/public/*.js",
-      "import": "./dist/public/*.js",
-      "development": "./src/public/*.ts"
+    "./internal/list": {
+      "types": "./src/compiler-runtime/entries/list.ts",
+      "development": "./src/compiler-runtime/entries/list.ts",
+      "module": "./dist/compiler-runtime/entries/list.js",
+      "import": "./dist/compiler-runtime/entries/list.js"
     },
-    "./*": "./*"
+    "./internal/dom": {
+      "types": "./src/compiler-runtime/entries/dom.ts",
+      "development": "./src/compiler-runtime/entries/dom.ts",
+      "module": "./dist/compiler-runtime/entries/dom.js",
+      "import": "./dist/compiler-runtime/entries/dom.js"
+    },
+    "./internal/builtin": {
+      "types": "./src/compiler-runtime/entries/builtin.ts",
+      "development": "./src/compiler-runtime/entries/builtin.ts",
+      "module": "./dist/compiler-runtime/entries/builtin.js",
+      "import": "./dist/compiler-runtime/entries/builtin.js"
+    },
+    "./internal/ssr": {
+      "types": "./src/compiler-runtime/entries/ssr.ts",
+      "development": "./src/compiler-runtime/entries/ssr.ts",
+      "module": "./dist/compiler-runtime/entries/ssr.js",
+      "import": "./dist/compiler-runtime/entries/ssr.js"
+    },
+    "./internal/hydrate": {
+      "types": "./src/compiler-runtime/entries/hydrate.ts",
+      "development": "./src/compiler-runtime/entries/hydrate.ts",
+      "module": "./dist/compiler-runtime/entries/hydrate.js",
+      "import": "./dist/compiler-runtime/entries/hydrate.js"
+    },
+    "./internal/teleport": {
+      "types": "./src/compiler-runtime/entries/teleport.ts",
+      "development": "./src/compiler-runtime/entries/teleport.ts",
+      "module": "./dist/compiler-runtime/entries/teleport.js",
+      "import": "./dist/compiler-runtime/entries/teleport.js"
+    },
+    "./internal/transition": {
+      "types": "./src/compiler-runtime/entries/transition.ts",
+      "development": "./src/compiler-runtime/entries/transition.ts",
+      "module": "./dist/compiler-runtime/entries/transition.js",
+      "import": "./dist/compiler-runtime/entries/transition.js"
+    },
+    "./internal/transitiongroup": {
+      "types": "./src/compiler-runtime/entries/transitiongroup.ts",
+      "development": "./src/compiler-runtime/entries/transitiongroup.ts",
+      "module": "./dist/compiler-runtime/entries/transitiongroup.js",
+      "import": "./dist/compiler-runtime/entries/transitiongroup.js"
+    },
+    "./internal/keepalive": {
+      "types": "./src/compiler-runtime/entries/keepalive.ts",
+      "development": "./src/compiler-runtime/entries/keepalive.ts",
+      "module": "./dist/compiler-runtime/entries/keepalive.js",
+      "import": "./dist/compiler-runtime/entries/keepalive.js"
+    },
+    "./internal/suspense": {
+      "types": "./src/compiler-runtime/entries/suspense.ts",
+      "development": "./src/compiler-runtime/entries/suspense.ts",
+      "module": "./dist/compiler-runtime/entries/suspense.js",
+      "import": "./dist/compiler-runtime/entries/suspense.js"
+    },
+    "./internal/app": {
+      "types": "./src/compiler-runtime/entries/app.ts",
+      "development": "./src/compiler-runtime/entries/app.ts",
+      "module": "./dist/compiler-runtime/entries/app.js",
+      "import": "./dist/compiler-runtime/entries/app.js"
+    }
   },
   "dependencies": {
     "@rue-js/shared": "workspace:*",
@@ -117,22 +170,8 @@
         ]
       },
       {
-        "entry": "src/internal.ts",
-        "filename": "runtime.internal",
-        "formats": [
-          "esm-bundler"
-        ]
-      },
-      {
         "entry": "src/compiler-internal.ts",
         "filename": "runtime.internal-compiler",
-        "formats": [
-          "esm-bundler"
-        ]
-      },
-      {
-        "entry": "src/component-internal.ts",
-        "filename": "runtime.internal-component",
         "formats": [
           "esm-bundler"
         ]
@@ -145,22 +184,106 @@
         ]
       },
       {
-        "entry": "src/island.ts",
-        "filename": "runtime.island",
+        "entry": "src/compiler-runtime/entries/reactive.ts",
+        "filename": "runtime.internal-reactive",
         "formats": [
           "esm-bundler"
         ]
       },
       {
-        "entry": "src/server-island.ts",
-        "filename": "runtime.server-island",
+        "entry": "src/compiler-runtime/entries/block.ts",
+        "filename": "runtime.internal-block",
         "formats": [
           "esm-bundler"
         ]
       },
       {
-        "entry": "src/dom.ts",
-        "filename": "runtime.dom",
+        "entry": "src/compiler-runtime/entries/events.ts",
+        "filename": "runtime.internal-events",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/component.ts",
+        "filename": "runtime.internal-component",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/list.ts",
+        "filename": "runtime.internal-list",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/dom.ts",
+        "filename": "runtime.internal-dom",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/builtin.ts",
+        "filename": "runtime.internal-builtin",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/ssr.ts",
+        "filename": "runtime.internal-ssr",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/hydrate.ts",
+        "filename": "runtime.internal-hydrate",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/teleport.ts",
+        "filename": "runtime.internal-teleport",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/transition.ts",
+        "filename": "runtime.internal-transition",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/transitiongroup.ts",
+        "filename": "runtime.internal-transitiongroup",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/keepalive.ts",
+        "filename": "runtime.internal-keepalive",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/suspense.ts",
+        "filename": "runtime.internal-suspense",
+        "formats": [
+          "esm-bundler"
+        ]
+      },
+      {
+        "entry": "src/compiler-runtime/entries/app.ts",
+        "filename": "runtime.internal-app",
         "formats": [
           "esm-bundler"
         ]

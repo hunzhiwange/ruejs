@@ -22,6 +22,7 @@ import {
   createIsolatedFixture,
   requestNodeServerWithHost,
   startFixtureServer,
+  stripRueSsrMarkers,
 } from './helpers.js'
 import { withEnvVar } from './env-test-helpers.js'
 import { createValidFileMatcher } from '../src/routing/file-matcher.js'
@@ -285,7 +286,7 @@ export default function Help({ path }) {
   it('parameterized rewrite: /posts/:id -> /blog/:id', async () => {
     const res = await fetch(`${prBaseUrl}/posts/hello-world`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue SSR may insert comment nodes (<!-- -->) between text segments
     expect(html).toMatch(/Blog:.*hello-world/)
   })
@@ -421,7 +422,7 @@ describe('external URL rewrites', () => {
   it('does not proxy internal rewrites (non-external URLs still work)', async () => {
     const res = await fetch(`${extBaseUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Home')
   })
 })
@@ -511,7 +512,7 @@ export default function CSSModulesTest() {
   it('renders page with CSS module class names in SSR', async () => {
     const res = await fetch(`${cssBaseUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('CSS Modules Test')
     expect(html).toContain('Card Title')
     expect(html).toContain('Card body content')
@@ -519,7 +520,7 @@ export default function CSSModulesTest() {
 
   it('CSS module class names are scoped (hashed) in SSR output', async () => {
     const res = await fetch(`${cssBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Vite CSS modules produce hashed class names like "_card_xxxxx_1"
     // The debug div has data attributes with the class names
     const dataMatch = html.match(/data-card="([^"]+)"/)
@@ -533,7 +534,7 @@ export default function CSSModulesTest() {
 
   it('different CSS module classes have different hashed names', async () => {
     const res = await fetch(`${cssBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const cardMatch = html.match(/data-card="([^"]+)"/)
     const titleMatch = html.match(/data-title="([^"]+)"/)
     const bodyMatch = html.match(/data-body="([^"]+)"/)
@@ -548,7 +549,7 @@ export default function CSSModulesTest() {
 
   it('CSS module class names are applied as className attribute', async () => {
     const res = await fetch(`${cssBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Extract the card class name from data attribute
     const cardMatch = html.match(/data-card="([^"]+)"/)
     expect(cardMatch).not.toBeNull()
@@ -559,9 +560,9 @@ export default function CSSModulesTest() {
 
   it('CSS module class names are consistent across SSR requests', async () => {
     const res1 = await fetch(`${cssBaseUrl}/`)
-    const html1 = await res1.text()
+    const html1 = stripRueSsrMarkers(await res1.text())
     const res2 = await fetch(`${cssBaseUrl}/`)
-    const html2 = await res2.text()
+    const html2 = stripRueSsrMarkers(await res2.text())
     const card1 = html1.match(/data-card="([^"]+)"/)?.[1]
     const card2 = html2.match(/data-card="([^"]+)"/)?.[1]
     expect(card1).toBe(card2)
@@ -587,7 +588,7 @@ describe('ISR (Pages Router)', () => {
   it('renders ISR page on first request (cache MISS)', async () => {
     const res = await fetch(`${baseUrl}/isr-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('ISR Page')
     expect(html).toContain('Hello from ISR')
     // First request should be a cache miss
@@ -599,7 +600,7 @@ describe('ISR (Pages Router)', () => {
     // First request populates the cache
     const res1 = await fetch(`${baseUrl}/isr-test`)
     expect(res1.status).toBe(200)
-    const html1 = await res1.text()
+    const html1 = stripRueSsrMarkers(await res1.text())
     const timestamp1Match = html1.match(/data-testid="timestamp">(\d+)</)
     expect(timestamp1Match).toBeTruthy()
     const timestamp1 = timestamp1Match![1]
@@ -607,7 +608,7 @@ describe('ISR (Pages Router)', () => {
     // Second request should be a cache hit with same timestamp
     const res2 = await fetch(`${baseUrl}/isr-test`)
     expect(res2.status).toBe(200)
-    const html2 = await res2.text()
+    const html2 = stripRueSsrMarkers(await res2.text())
     expect(res2.headers.get('x-text-cache')).toBe('HIT')
     const timestamp2Match = html2.match(/data-testid="timestamp">(\d+)</)
     expect(timestamp2Match).toBeTruthy()
@@ -617,7 +618,7 @@ describe('ISR (Pages Router)', () => {
   it('serves stale content after TTL expires then regenerates', async () => {
     // First request populates cache
     const res1 = await fetch(`${baseUrl}/isr-test`)
-    const html1 = await res1.text()
+    const html1 = stripRueSsrMarkers(await res1.text())
     const timestamp1Match = html1.match(/data-testid="timestamp">(\d+)</)
     const timestamp1 = timestamp1Match![1]
 
@@ -629,7 +630,7 @@ describe('ISR (Pages Router)', () => {
     expect(res2.status).toBe(200)
     expect(res2.headers.get('x-text-cache')).toBe('STALE')
     // Stale content should have the same timestamp as original
-    const html2 = await res2.text()
+    const html2 = stripRueSsrMarkers(await res2.text())
     const timestamp2Match = html2.match(/data-testid="timestamp">(\d+)</)
     expect(timestamp2Match![1]).toBe(timestamp1)
 
@@ -653,7 +654,7 @@ describe('ISR (Pages Router)', () => {
     // Trigger background regeneration via STALE request and capture old HTML
     const staleRes = await fetch(`${baseUrl}/isr-test`)
     expect(staleRes.headers.get('x-text-cache')).toBe('STALE')
-    const staleHtml = await staleRes.text()
+    const staleHtml = stripRueSsrMarkers(await staleRes.text())
     const staleTimestamp = staleHtml.match(/data-testid="timestamp">(\d+)</)
     expect(staleTimestamp).toBeTruthy()
     const oldTimestamp = Number(staleTimestamp![1])
@@ -666,7 +667,7 @@ describe('ISR (Pages Router)', () => {
     // again with new pageData.
     const hitRes = await fetch(`${baseUrl}/isr-test`)
     expect(hitRes.headers.get('x-text-cache')).toBe('HIT')
-    const hitHtml = await hitRes.text()
+    const hitHtml = stripRueSsrMarkers(await hitRes.text())
     const hitTimestamp = hitHtml.match(/data-testid="timestamp">(\d+)</)
     expect(hitTimestamp).toBeTruthy()
     const newTimestamp = Number(hitTimestamp![1])
@@ -726,7 +727,7 @@ describe('ISR (App Router)', () => {
   it('dev: renders ISR page and emits Cache-Control header', async () => {
     const res = await fetch(`${baseUrl}/isr-test`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('App Router ISR Test')
     expect(html).toContain('Hello from ISR')
     expect(res.headers.get('cache-control')).toContain('s-maxage=1')
@@ -1145,35 +1146,35 @@ export default function About({ locale, locales, defaultLocale }) {
   it('renders the home page without locale prefix (default locale)', async () => {
     const res = await fetch(`${i18nBaseUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Home')
   })
 
   it('renders the about page without locale prefix', async () => {
     const res = await fetch(`${i18nBaseUrl}/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('renders the about page with default locale prefix (/en/about)', async () => {
     const res = await fetch(`${i18nBaseUrl}/en/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('renders the about page with non-default locale prefix (/fr/about)', async () => {
     const res = await fetch(`${i18nBaseUrl}/fr/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('About')
   })
 
   it('renders the home page with non-default locale prefix (/de/)', async () => {
     const res = await fetch(`${i18nBaseUrl}/de/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Home')
   })
 
@@ -1182,7 +1183,7 @@ export default function About({ locale, locales, defaultLocale }) {
   it('passes default locale to getServerSideProps when no prefix', async () => {
     const res = await fetch(`${i18nBaseUrl}/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // locale should be "en" (default)
     expect(html).toMatch(/<p id="locale">.*en.*<\/p>/)
     // locales array
@@ -1194,14 +1195,14 @@ export default function About({ locale, locales, defaultLocale }) {
   it('passes correct locale to getServerSideProps for /fr/about', async () => {
     const res = await fetch(`${i18nBaseUrl}/fr/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/<p id="locale">.*fr.*<\/p>/)
   })
 
   it('passes correct locale to getServerSideProps for /de/about', async () => {
     const res = await fetch(`${i18nBaseUrl}/de/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/<p id="locale">.*de.*<\/p>/)
   })
 
@@ -1209,7 +1210,7 @@ export default function About({ locale, locales, defaultLocale }) {
 
   it('includes locale info in __TEXT_DATA__ script', async () => {
     const res = await fetch(`${i18nBaseUrl}/fr/about`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Extract the JSON object from __TEXT_DATA__ (handles nested braces)
     const dataMatch = html.match(/__TEXT_DATA__\s*=\s*(\{[^<]+\})/)
     expect(dataMatch).not.toBeNull()
@@ -1221,7 +1222,7 @@ export default function About({ locale, locales, defaultLocale }) {
 
   it('includes locale info in __TEXT_DATA__ for default locale', async () => {
     const res = await fetch(`${i18nBaseUrl}/about`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const dataMatch = html.match(/__TEXT_DATA__\s*=\s*(\{[^<]+\})/)
     expect(dataMatch).not.toBeNull()
     const data = JSON.parse(dataMatch![1])
@@ -1390,8 +1391,9 @@ describe('i18n domain routing (Pages Router)', () => {
     const res = await requestNodeServerWithHost(domainPort, '/about', 'example.fr')
 
     expect(res.status).toBe(200)
-    expect(res.body).toContain('<p id="locale">fr</p>')
-    expect(res.body).toContain('<p id="defaultLocale">fr</p>')
+    const html = stripRueSsrMarkers(res.body)
+    expect(html).toContain('<p id="locale">fr</p>')
+    expect(html).toContain('<p id="defaultLocale">fr</p>')
     expect(res.body).toContain('href="/about" id="switch-locale"')
     expect(res.body).toContain('"defaultLocale":"fr"')
     expect(res.body).toContain(
@@ -1562,20 +1564,20 @@ export default function Home() {
 
   it("Link with locale='fr' renders href with /fr prefix", async () => {
     const res = await fetch(`${linkLocaleBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue may render attributes in any order — check both
     expect(html).toMatch(/href="\/fr\/about"[^>]*id="link-fr"|id="link-fr"[^>]*href="\/fr\/about"/)
   })
 
   it("Link with locale='de' renders href with /de prefix", async () => {
     const res = await fetch(`${linkLocaleBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toMatch(/href="\/de\/about"[^>]*id="link-de"|id="link-de"[^>]*href="\/de\/about"/)
   })
 
   it("Link with locale='en' (default) renders href without locale prefix", async () => {
     const res = await fetch(`${linkLocaleBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Default locale should NOT have a prefix in the URL
     // The <a> with id="link-en" should have href="/about" (not /en/about)
     const linkMatch = html.match(/href="([^"]*)"[^>]*id="link-en"|id="link-en"[^>]*href="([^"]*)"/)
@@ -1586,7 +1588,7 @@ export default function Home() {
 
   it('Link without locale prop renders href without locale prefix', async () => {
     const res = await fetch(`${linkLocaleBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const linkMatch = html.match(
       /href="([^"]*)"[^>]*id="link-default"|id="link-default"[^>]*href="([^"]*)"/,
     )
@@ -1597,7 +1599,7 @@ export default function Home() {
 
   it('Link with locale={false} renders href without locale prefix', async () => {
     const res = await fetch(`${linkLocaleBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const linkMatch = html.match(
       /href="([^"]*)"[^>]*id="link-no-locale"|id="link-no-locale"[^>]*href="([^"]*)"/,
     )
@@ -1685,7 +1687,7 @@ describe('i18n localeDetection: false', () => {
   it('still serves locale-prefixed URLs when localeDetection is false', async () => {
     const res = await fetch(`${noDetectBaseUrl}/fr/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Home')
   })
 })
@@ -1889,7 +1891,7 @@ export default function Home() {
   it('GET /app/ serves the index page', async () => {
     const res = await fetch(`${bpBaseUrl}/app/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('BasePath Home')
   })
 
@@ -1905,7 +1907,7 @@ export default function Home() {
   it('GET /app/about serves the about page', async () => {
     const res = await fetch(`${bpBaseUrl}/app/about`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('BasePath About')
   })
 
@@ -1954,7 +1956,7 @@ export default function Home() {
 
   it('Link component renders href with basePath prefix in SSR', async () => {
     const res = await fetch(`${bpBaseUrl}/app/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The Link component should render <a href="/app/about">
     expect(html).toContain('href="/app/about"')
   })
@@ -2034,14 +2036,14 @@ describe('basePath with nested path (/docs/v2)', () => {
   it('GET /docs/v2/ serves the index page', async () => {
     const res = await fetch(`${nestedBaseUrl}/docs/v2/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Nested BasePath Home')
   })
 
   it('GET /docs/v2/guide serves the guide page', async () => {
     const res = await fetch(`${nestedBaseUrl}/docs/v2/guide`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Nested BasePath Guide')
   })
 
@@ -2140,7 +2142,7 @@ describe('basePath + trailingSlash interaction', () => {
   it('GET /app/about/ serves the about page with trailingSlash:true', async () => {
     const res = await fetch(`${tsBaseUrl}/app/about/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('TrailingSlash About')
   })
 
@@ -2906,19 +2908,21 @@ describe('ViewportHead rendering', () => {
     mergeViewport = mod.mergeViewport
   })
 
-  function renderViewportToHtml(viewport: Parameters<typeof ViewportHead>[0]['viewport']): string {
+  async function renderViewportToHtml(
+    viewport: Parameters<typeof ViewportHead>[0]['viewport'],
+  ): Promise<string> {
     return renderAppServerElementToHtml(ViewportHead({ viewport }))
   }
 
-  it('renders default viewport with width=device-width and initial-scale=1', () => {
-    const html = renderViewportToHtml({ width: 'device-width', initialScale: 1 })
+  it('renders default viewport with width=device-width and initial-scale=1', async () => {
+    const html = await renderViewportToHtml({ width: 'device-width', initialScale: 1 })
     expect(html).toContain('name="viewport"')
     expect(html).toContain('width=device-width')
     expect(html).toContain('initial-scale=1')
   })
 
-  it('renders custom viewport with all options', () => {
-    const html = renderViewportToHtml({
+  it('renders custom viewport with all options', async () => {
+    const html = await renderViewportToHtml({
       width: 'device-width',
       initialScale: 1,
       maximumScale: 1,
@@ -2930,14 +2934,14 @@ describe('ViewportHead rendering', () => {
     expect(html).toContain('user-scalable=no')
   })
 
-  it('renders theme-color meta tag', () => {
-    const html = renderViewportToHtml({ themeColor: '#000000' })
+  it('renders theme-color meta tag', async () => {
+    const html = await renderViewportToHtml({ themeColor: '#000000' })
     expect(html).toContain('name="theme-color"')
     expect(html).toContain('content="#000000"')
   })
 
-  it('renders multiple theme-color entries with media queries', () => {
-    const html = renderViewportToHtml({
+  it('renders multiple theme-color entries with media queries', async () => {
+    const html = await renderViewportToHtml({
       themeColor: [
         { media: '(prefers-color-scheme: light)', color: '#fff' },
         { media: '(prefers-color-scheme: dark)', color: '#000' },
@@ -2949,8 +2953,8 @@ describe('ViewportHead rendering', () => {
     expect(html).toContain('prefers-color-scheme: dark')
   })
 
-  it('renders color-scheme meta tag', () => {
-    const html = renderViewportToHtml({ colorScheme: 'dark' })
+  it('renders color-scheme meta tag', async () => {
+    const html = await renderViewportToHtml({ colorScheme: 'dark' })
     expect(html).toContain('name="color-scheme"')
     expect(html).toContain('content="dark"')
   })
@@ -2982,9 +2986,9 @@ describe('ViewportHead rendering', () => {
     expect(result.themeColor).toBe('#fff')
   })
 
-  it('renders viewport meta even when only themeColor is provided (defaults injected)', () => {
+  it('renders viewport meta even when only themeColor is provided (defaults injected)', async () => {
     const merged = mergeViewport([{ themeColor: '#000' }])
-    const html = renderViewportToHtml(merged)
+    const html = await renderViewportToHtml(merged)
     expect(html).toContain('name="viewport"')
     expect(html).toContain('width=device-width')
     expect(html).toContain('initial-scale=1')
@@ -4292,7 +4296,7 @@ describe('Text.js edge cases', () => {
     // Visit a static page with query params — params should only contain the dynamic segments
     const res = await fetch(`${edgeBaseUrl}/articles/1?utm_source=test&ref=google`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // The page renders the article title based on params.id
     expect(html).toContain('First Article')
     // Rue SSR may insert comment nodes: "Article ID: <!-- -->1"
@@ -4311,7 +4315,7 @@ describe('Text.js edge cases', () => {
 
   it('__TEXT_DATA__ query contains dynamic params for static pages', async () => {
     const res = await fetch(`${edgeBaseUrl}/articles/2?extra=value`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     const dataMatch = html.match(/__TEXT_DATA__\s*=\s*(\{[^<]+\})/)
     expect(dataMatch).not.toBeNull()
     const data = JSON.parse(dataMatch![1])
@@ -4332,7 +4336,7 @@ describe('Text.js edge cases', () => {
 
   it('getServerSideProps notFound renders custom 404 page content', async () => {
     const res = await fetch(`${edgeBaseUrl}/posts/missing`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Should render the custom 404 page
     expect(html).toContain('404')
   })
@@ -4341,7 +4345,7 @@ describe('Text.js edge cases', () => {
 
   it('SSR response declares UTF-8 charset', async () => {
     const res = await fetch(`${edgeBaseUrl}/about`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue outputs charSet (camelCase) in JSX which becomes charset in HTML
     expect(html).toMatch(/char[Ss]et.*utf-8/i)
   })
@@ -4413,25 +4417,25 @@ describe('multi-byte character SSR', () => {
   it('renders Japanese characters correctly (28 repetitions)', async () => {
     const res = await fetch(`${mbBaseUrl}/`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('マルチバイト'.repeat(28))
   })
 
   it('renders Chinese characters correctly', async () => {
     const res = await fetch(`${mbBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('你好世界')
   })
 
   it('renders Korean characters correctly', async () => {
     const res = await fetch(`${mbBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('안녕하세요')
   })
 
   it('renders emoji correctly', async () => {
     const res = await fetch(`${mbBaseUrl}/`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('🎉🚀💻🌍')
   })
 
@@ -4549,7 +4553,7 @@ export default function Page({ locale }) {
   it('following the cross-locale redirect renders the correct page', async () => {
     const res = await fetch(`${localeRedirectBaseUrl}/fr/redirect-to-fr`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('French page')
   })
 
@@ -4561,7 +4565,7 @@ export default function Page({ locale }) {
   it('getServerSideProps renders for default locale', async () => {
     const res = await fetch(`${localeRedirectBaseUrl}/en-only`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('English only')
   })
 })
@@ -4990,20 +4994,20 @@ export function middleware(request) {
     // Middleware rewrites /original to /rewrite-source. There is no page file at
     // /rewrite-source, so the afterFiles rewrite can continue to /final.
     const res = await fetch(`${chainBaseUrl}/original`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('FINAL PAGE')
     expect(html).not.toContain('ORIGINAL PAGE')
   })
 
   it('applies afterFiles rewrites for paths with no page file', async () => {
     const res = await fetch(`${chainBaseUrl}/rewrite-source`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('FINAL PAGE')
   })
 
   it('does not let afterFiles rewrites override concrete page files', async () => {
     const res = await fetch(`${chainBaseUrl}/intermediate`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('INTERMEDIATE PAGE')
     expect(html).not.toContain('FINAL PAGE')
   })
@@ -5011,7 +5015,7 @@ export function middleware(request) {
   it('chained: /original → middleware → /rewrite-source → config → /final', async () => {
     const res = await fetch(`${chainBaseUrl}/original`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Must reach the final page through both rewrites
     expect(html).toContain('FINAL PAGE')
     expect(html).not.toContain('ORIGINAL PAGE')
@@ -5020,7 +5024,7 @@ export function middleware(request) {
 
   it('/final is directly accessible', async () => {
     const res = await fetch(`${chainBaseUrl}/final`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('FINAL PAGE')
   })
 })
@@ -5106,7 +5110,7 @@ export function middleware(request) {
   it('middleware rewrite with custom status returns that status code', async () => {
     const res = await fetch(`${statusBaseUrl}/blocked`)
     // Page content should be from /allowed (rewrite target)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('ALLOWED PAGE')
     // Status code should be 403 from the middleware rewrite
     expect(res.status).toBe(403)
@@ -5114,14 +5118,14 @@ export function middleware(request) {
 
   it('middleware text with custom status returns that status code', async () => {
     const res = await fetch(`${statusBaseUrl}/text-status`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('TEXT STATUS PAGE')
     expect(res.status).toBe(404)
   })
 
   it('normal requests without rewrite status return 200', async () => {
     const res = await fetch(`${statusBaseUrl}/allowed`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('ALLOWED PAGE')
     expect(res.status).toBe(200)
   })
@@ -5299,7 +5303,7 @@ export default function NestedProps({ user }) {
   it('getStaticProps with empty props renders page', async () => {
     const res = await fetch(`${edgeBaseUrl}/empty-props`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Empty Props Page')
   })
 
@@ -5308,14 +5312,14 @@ export default function NestedProps({ user }) {
   it('GSSP passes nested object props correctly', async () => {
     const res = await fetch(`${edgeBaseUrl}/nested-props`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Alice')
     expect(html).toContain('dark')
   })
 
   it('__TEXT_DATA__ contains nested GSSP props', async () => {
     const res = await fetch(`${edgeBaseUrl}/nested-props`)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // __TEXT_DATA__ is injected as: <script>window.__TEXT_DATA__ = {...}</script>
     const match = html.match(/window\.__TEXT_DATA__\s*=\s*(\{[\s\S]*?\})(?:;|<)/)
     expect(match).not.toBeNull()
@@ -5364,14 +5368,14 @@ export default function NestedProps({ user }) {
   it('custom 404 page renders for unknown routes', async () => {
     const res = await fetch(`${edgeBaseUrl}/nonexistent`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Custom 404 - Not Found')
   })
 
   it('custom 404 page renders for getStaticProps notFound', async () => {
     const res = await fetch(`${edgeBaseUrl}/gsp-notfound`)
     expect(res.status).toBe(404)
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     expect(html).toContain('Custom 404 - Not Found')
   })
 })
@@ -5504,7 +5508,7 @@ export default function Home({ publicVar, serverVar, authUrl }) {
       await new Promise(resolve => setTimeout(resolve, 100))
       res = await fetch(`${envBaseUrl}/`)
     }
-    const html = await res.text()
+    const html = stripRueSsrMarkers(await res.text())
     // Rue SSR inserts <!-- --> comments between adjacent text nodes,
     // so check __TEXT_DATA__ which has the raw props.
     expect(html).toContain('"publicVar":"text-test-app"')

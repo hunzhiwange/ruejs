@@ -14,12 +14,12 @@ import { createElement, renderToString } from './rue-ssr-test-utils.js'
 
 // We test the Link component and its internal helpers.
 // Link is a "use client" component but renderToString still works for SSR output.
-import Link, {
+import InitialLink, {
   canAutoPrefetchFullAppRoute,
   resolveAutoAppRoutePrefetch,
   resolveLinkPrefetchMode,
   useLinkStatus,
-} from '../src/shims/link.js'
+} from '../src/shims/link.js?text-ssr'
 import { navigatePagesRouterLink } from '../src/client/pages-router-link-navigation.js'
 
 // Internal helpers re-exported or accessible via the router shim
@@ -27,8 +27,16 @@ import { isExternalUrl, isHashOnlyChange } from '../src/shims/router.js'
 
 // Import server-only i18n state to register ALS-backed accessors before any
 // rendering occurs (same as dev-server.ts and pages-server-entry.ts do).
-import { runWithI18nState } from '../src/shims/i18n-state.js'
-import { setI18nContext } from '../src/shims/i18n-context.js'
+import { runWithI18nState as initialRunWithI18nState } from '../src/shims/i18n-state.js?text-ssr'
+import { setI18nContext as initialSetI18nContext } from '../src/shims/i18n-context.js?text-ssr'
+let Link = InitialLink,
+  runWithI18nState = initialRunWithI18nState,
+  setI18nContext = initialSetI18nContext
+beforeEach(async () => {
+  Link = (await import('../src/shims/link.js?text-ssr')).default
+  runWithI18nState = (await import('../src/shims/i18n-state.js?text-ssr')).runWithI18nState
+  setI18nContext = (await import('../src/shims/i18n-context.js?text-ssr')).setI18nContext
+})
 
 import {
   isAbsoluteOrProtocolRelativeUrl,
@@ -50,7 +58,7 @@ describe('Link rendering', () => {
     expect(html).toContain('href="/my-path"')
     expect(html).toContain('to another page')
     // Should be an <a> tag
-    expect(html).toMatch(/^<a\s/)
+    expect(html.replace(/<!--[\s\S]*?-->/g, '')).toMatch(/^<a\s/)
   })
 
   it('renders children as anchor content', async () => {
@@ -122,7 +130,7 @@ describe('Link rendering', () => {
     const html = await renderToString(
       createElement(Link, { href: '/nested' }, createElement('span', null, 'Nested child')),
     )
-    expect(html).toContain('<span>Nested child</span>')
+    expect(html.replace(/<!--[\s\S]*?-->/g, '')).toContain('<span>Nested child</span>')
     expect(html).toContain('href="/nested"')
   })
 })
@@ -648,7 +656,7 @@ describe('Link locale handling', () => {
     vi.resetModules()
 
     try {
-      const { default: LinkWithBasePath } = await import('../src/shims/link.js')
+      const { default: LinkWithBasePath } = await import('../src/shims/link.js?text-ssr')
       ;(globalThis as any).window = {
         __TEXT_DEFAULT_LOCALE__: 'en',
         __TEXT_DATA__: {
@@ -1055,7 +1063,7 @@ describe('Link with absolute URL', () => {
     vi.resetModules()
 
     try {
-      const { default: BasePathLink } = await import('../src/shims/link.js')
+      const { default: BasePathLink } = await import('../src/shims/link.js?text-ssr')
 
       const relativeHtml = await renderToString(
         createElement(BasePathLink, { href: '?page=2' }, 'Relative Query'),

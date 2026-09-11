@@ -82,6 +82,7 @@ interface DropdownProps {
   overlay?: any
   content?: any
   popupRender?: (originNode: any) => any
+
   menu?: DropdownMenuProps
   items?: ReadonlyArray<MenuDataEntry>
   overlayClassName?: string
@@ -135,9 +136,6 @@ interface PlacementLayout {
   direction?: DropdownDirection
 }
 
-/** RUE_COMPONENT_TYPE_KEY 内部常量。 */
-const RUE_COMPONENT_TYPE_KEY = '__rue_component_type'
-
 /** merge Class Names 的内部工具函数。 */
 const mergeClassNames = (...parts: Array<string | undefined | false>) => {
   return parts.filter(Boolean).join(' ')
@@ -175,35 +173,16 @@ const mergeStyleValue = (
   return [baseStyle, extraStyle].filter(Boolean).join('; ')
 }
 
-/** 静默更新内部 ref；对应 DOM 已由 syncDropdownDom 立即同步。 */
+/** 更新交互状态，由编译绑定同步视图。 */
 const setRefValueQuietly = <T,>(target: { value: T }, value: T) => {
-  try {
-    const rawTarget = Reflect.get(target as any, '__rue_raw__') as { value?: T } | undefined
-    if (rawTarget && typeof rawTarget === 'object' && 'value' in rawTarget) {
-      rawTarget.value = value
-      return
-    }
-  } catch {}
   target.value = value
 }
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  return children == null || typeof children === 'boolean' ? [] : [children]
-}
 
 /** 判断 Renderable Node 的内部工具函数。 */
-const isRenderableNode = (value: unknown): value is Record<string, any> => {
-  return !!value && typeof value === 'object'
-}
 
 /** 判断 Renderable Node 是否来自指定组件的内部工具函数。 */
-const isVNodeOfType = (value: Record<string, any>, type: unknown) => {
-  return value[RUE_COMPONENT_TYPE_KEY] === type || value.type === type || value.component === type
-}
 
 /** 归一化 Trigger 的内部工具函数。 */
 const normalizeTrigger = (trigger?: DropdownTriggerMode | DropdownTriggerMode[]) => {
@@ -324,41 +303,6 @@ const getContextOverlayStyle = (position: { x: number; y: number }) => ({
   animation: 'none',
 })
 
-/** patch Renderable Props 的内部工具函数。 */
-const renderPatchedContent = (node: any, patch: Record<string, any>) => {
-  if (!isRenderableNode(node) || !node.props || typeof node.props !== 'object') return node
-  const originalProps = node.props as Record<string, any>
-  const nextProps = {
-    ...originalProps,
-    ...patch,
-  }
-  nextProps.className = mergeClassNames(originalProps.className, patch.className)
-  nextProps.style = mergeStyleValue(originalProps.style, patch.style) || undefined
-  const nextChildren =
-    patch.children !== undefined ? patch.children : (originalProps.children ?? undefined)
-
-  return <Content {...nextProps}>{nextChildren}</Content>
-}
-
-/** split Dropdown Children 的内部工具函数。 */
-const splitDropdownChildren = (children: any) => {
-  let contentNode: any = null
-  const triggerNodes: any[] = []
-
-  toChildArray(children).forEach(child => {
-    if (isRenderableNode(child) && isVNodeOfType(child, Content)) {
-      contentNode = child
-      return
-    }
-    triggerNodes.push(child)
-  })
-
-  return {
-    contentNode,
-    triggerNodes,
-  }
-}
-
 /** should Use Enhanced Mode 的内部工具函数。 */
 const shouldUseEnhancedMode = ({
   placement,
@@ -368,7 +312,7 @@ const shouldUseEnhancedMode = ({
   triggerClassName,
   overlay,
   content,
-  popupRender,
+
   menu,
   items,
   overlayClassName,
@@ -384,7 +328,6 @@ const shouldUseEnhancedMode = ({
     triggerClassName !== undefined ||
     overlay !== undefined ||
     content !== undefined ||
-    popupRender !== undefined ||
     menu !== undefined ||
     items !== undefined ||
     overlayClassName !== undefined ||
@@ -396,15 +339,6 @@ const shouldUseEnhancedMode = ({
 }
 
 /** 渲染 As Component 的内部工具函数。 */
-const renderAsComponent = (Component: any, props: Record<string, any>, children: any[]) => {
-  if (Component === 'div') return <div {...props}>{children}</div>
-  if (Component === 'span') return <span {...props}>{children}</span>
-  if (Component === 'section') return <section {...props}>{children}</section>
-  if (Component === 'article') return <article {...props}>{children}</article>
-  if (Component === 'details') return <details {...props}>{children}</details>
-  if (Component === 'ul') return <ul {...props}>{children}</ul>
-  return <Component {...props}>{children}</Component>
-}
 
 /** Content 的内部工具函数。 */
 const Content: FC<DropdownContentProps> = ({
@@ -467,10 +401,40 @@ const Content: FC<DropdownContentProps> = ({
     )
   }
 
-  return (
-    <Component {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+  return Component === 'div' ? (
+    <div {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </span>
+  ) : Component === 'section' ? (
+    <section {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </section>
+  ) : Component === 'article' ? (
+    <article {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </article>
+  ) : Component === 'details' ? (
+    <details {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </details>
+  ) : Component === 'ul' ? (
+    <ul {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </ul>
+  ) : Component === 'button' ? (
+    <button {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </button>
+  ) : Component === 'li' ? (
+    <li {...rest} ref={forwardedRef} className={contentClassName} style={contentStyle}>
+      {children}
+    </li>
+  ) : (
+    <></>
   )
 }
 
@@ -504,39 +468,18 @@ const Trigger: FC<DropdownTriggerProps> = ({ as = 'div', className, style, child
     }
   }
 
-  return renderAsComponent(Component, triggerProps, toChildArray(children))
+  return Component === 'button' ? (
+    <button {...triggerProps}>{children}</button>
+  ) : Component === 'summary' ? (
+    <summary {...triggerProps}>{children}</summary>
+  ) : Component === 'a' ? (
+    <a {...triggerProps}>{children}</a>
+  ) : (
+    <div {...triggerProps}>{children}</div>
+  )
 }
 
 /** OverlaySlot 的内部工具函数。 */
-const OverlaySlot: FC<OverlaySlotProps> = ({
-  className,
-  style,
-  arrow,
-  arrowClassName,
-  onClick,
-  setRef,
-  children,
-}) => {
-  return (
-    <div
-      ref={setRef}
-      className={mergeClassNames('dropdown-content', className)}
-      style={style}
-      onClick={onClick}
-    >
-      {arrow ? (
-        <span
-          aria-hidden="true"
-          className={mergeClassNames(
-            'pointer-events-none absolute z-[-1] h-2.5 w-2.5 rotate-45 border border-base-300/60 bg-base-100',
-            arrowClassName,
-          )}
-        />
-      ) : null}
-      {children}
-    </div>
-  )
-}
 
 /** EnhancedTrigger 的内部工具函数。 */
 const EnhancedTrigger: FC<EnhancedTriggerProps> = ({
@@ -565,44 +508,9 @@ const EnhancedTrigger: FC<EnhancedTriggerProps> = ({
 }
 
 /** Dropdown 的内部工具函数。 */
-const Dropdown: FC<DropdownProps> = ({
-  as = 'div',
-  align,
-  direction,
-  placement,
-  trigger,
-  hover,
-  open,
-  defaultOpen,
-  disabled,
-  arrow,
-  closeOnClick,
-  forceOpen,
-  forceClose,
-  className,
-  style,
-  triggerClassName,
-  overlay,
-  content,
-  popupRender,
-  menu,
-  items,
-  overlayClassName,
-  overlayStyle,
-  classNames,
-  styles,
-  onOpenChange,
-  children,
-  ...rest
-}) => {
-  const Component = as as any
-  const mergedArrow = arrow ?? false
-  const mergedCloseOnClick = closeOnClick ?? true
-  const placementLayout = resolvePlacementLayout(placement)
-  const resolvedAlign = align ?? placementLayout.align
-  const resolvedDirection = direction ?? placementLayout.direction
-  const enhancedMode = shouldUseEnhancedMode({
-    as,
+const Dropdown: FC<DropdownProps> = (
+  {
+    as = 'div',
     align,
     direction,
     placement,
@@ -620,7 +528,7 @@ const Dropdown: FC<DropdownProps> = ({
     triggerClassName,
     overlay,
     content,
-    popupRender,
+
     menu,
     items,
     overlayClassName,
@@ -629,7 +537,47 @@ const Dropdown: FC<DropdownProps> = ({
     styles,
     onOpenChange,
     children,
-  })
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
+  const Component = as as any
+  const mergedArrow = arrow ?? false
+  const mergedCloseOnClick = closeOnClick ?? true
+  const placementLayout = resolvePlacementLayout(placement)
+  const resolvedAlign = align ?? placementLayout.align
+  const resolvedDirection = direction ?? placementLayout.direction
+  const enhancedMode =
+    as !== 'details' &&
+    shouldUseEnhancedMode({
+      as,
+      align,
+      direction,
+      placement,
+      trigger,
+      hover,
+      open,
+      defaultOpen,
+      disabled,
+      arrow,
+      closeOnClick,
+      forceOpen,
+      forceClose,
+      className,
+      style,
+      triggerClassName,
+      overlay,
+      content,
+
+      menu,
+      items,
+      overlayClassName,
+      overlayStyle,
+      classNames,
+      styles,
+      onOpenChange,
+      children,
+    })
 
   if (!enhancedMode) {
     let cls = 'dropdown'
@@ -640,37 +588,20 @@ const Dropdown: FC<DropdownProps> = ({
     if (forceClose) cls += ' dropdown-close'
     if (className) cls += ` ${className}`
 
-    return renderAsComponent(
-      Component,
-      {
-        ...rest,
-        className: cls,
-        open: open === true ? true : undefined,
-        style: style ? serializeStyle(style) : undefined,
-      },
-      toChildArray(children),
+    const plainProps = { ...rest, className: cls, open: open === true ? true : undefined, style }
+    return Component === 'details' ? (
+      <details {...plainProps}>{children}</details>
+    ) : Component === 'span' ? (
+      <span {...plainProps}>{children}</span>
+    ) : Component === 'section' ? (
+      <section {...plainProps}>{children}</section>
+    ) : (
+      <div {...plainProps}>{children}</div>
     )
   }
 
-  const childSlots = splitDropdownChildren(children)
-  const uncontrolledOpenState = useRef<boolean>(defaultOpen ?? false)
-  const currentOpenState = useRef<boolean>(open ?? defaultOpen ?? false)
-  const uncontrolledOpen = {
-    get value() {
-      return uncontrolledOpenState.current ?? false
-    },
-    set value(nextOpen: boolean) {
-      uncontrolledOpenState.current = nextOpen
-    },
-  }
-  const currentOpen = {
-    get value() {
-      return currentOpenState.current ?? false
-    },
-    set value(nextOpen: boolean) {
-      currentOpenState.current = nextOpen
-    },
-  }
+  const uncontrolledOpen = ref(defaultOpen ?? false)
+  const currentOpen = ref(open ?? defaultOpen ?? false)
   const currentTriggers = ref(normalizeTrigger(trigger))
   const contextPosition = ref<{ x: number; y: number } | null>(null)
   const menuConfig = computed<DropdownMenuProps | undefined>(() =>
@@ -726,12 +657,6 @@ const Dropdown: FC<DropdownProps> = ({
 
   const syncDropdownDom = (nextOpen: boolean) => {
     const nextVisible = !!forceOpen || nextOpen
-    if (rootElement?.classList) {
-      rootElement.classList.toggle('dropdown-open', nextVisible)
-    }
-    if (hasElementDom(triggerElement)) {
-      triggerElement.setAttribute('aria-expanded', nextOpen ? 'true' : 'false')
-    }
     syncOverlayDom(nextVisible)
   }
 
@@ -816,8 +741,7 @@ const Dropdown: FC<DropdownProps> = ({
   const allowClick = currentTriggers.value.includes('click')
   const allowContextMenu = currentTriggers.value.includes('contextMenu')
   const hasOverlay =
-    childSlots.contentNode ||
-    popupRender !== undefined ||
+    slots.overlay ||
     (menuConfig.get()?.items?.length ?? 0) > 0 ||
     (overlay !== undefined && overlay !== null && overlay !== false) ||
     (content !== undefined && content !== null && content !== false)
@@ -840,14 +764,12 @@ const Dropdown: FC<DropdownProps> = ({
     : undefined
   const overlayStyleValue =
     mergeStyleValue(
-      childSlots.contentNode
-        ? undefined
-        : mergeStyles(styles?.overlay, overlayStyle, contextOverlayStyle),
+      slots.overlay ? undefined : mergeStyles(styles?.overlay, overlayStyle, contextOverlayStyle),
       undefined,
     ) || undefined
 
   const overlayClass = mergeClassNames(
-    childSlots.contentNode
+    slots.overlay
       ? getOverlayOffsetClass(resolvedDirection)
       : mergeClassNames(
           'z-30 min-w-56 rounded-box border border-base-300/60 bg-base-100 shadow-lg',
@@ -876,7 +798,7 @@ const Dropdown: FC<DropdownProps> = ({
     }
   }
   const overlayPatchedStyle = mergeStyles(overlayStyle, styles?.overlay, contextOverlayStyle)
-  const renderOverlaySourceNode = () => {
+  const RenderOverlaySourceNode = () => {
     if ((menuConfig.get()?.items?.length ?? 0) > 0) {
       return (
         <Menu
@@ -891,117 +813,34 @@ const Dropdown: FC<DropdownProps> = ({
           )}
           style={mergeStyleValue(menuConfig.get()?.style, styles?.menu) || undefined}
           onClick={(info: MenuClickInfo) => {
-            const liveOverlay = (info.domEvent.target as HTMLElement | null)?.closest?.(
-              '.dropdown-content',
-            )
-            const liveRoot = liveOverlay?.closest?.('.dropdown')
-            const rootLocations: Array<{ ancestor: HTMLElement; index: number }> = []
-            let ancestor = liveRoot?.parentElement ?? null
-            while (liveRoot && ancestor) {
-              rootLocations.push({
-                ancestor,
-                index: Array.from(ancestor.querySelectorAll('.dropdown')).indexOf(liveRoot),
-              })
-              ancestor = ancestor.parentElement
-            }
             menuConfig.get()?.onClick?.(info)
             if (mergedCloseOnClick) closeFromMenu()
-            else {
-              const preserveOpenDom = () => {
-                const location = rootLocations.find(
-                  entry => entry.ancestor.isConnected && entry.index >= 0,
-                )
-                const nextRoot = location
-                  ? (location.ancestor.querySelectorAll('.dropdown')[location.index] as
-                      | HTMLElement
-                      | undefined)
-                  : liveOverlay?.closest?.('.dropdown')
-                const nextOverlay = nextRoot?.querySelector<HTMLElement>('.dropdown-content')
-                if (liveOverlay && nextOverlay && liveOverlay !== nextOverlay) {
-                  Array.from(liveOverlay.attributes).forEach(attribute =>
-                    liveOverlay.removeAttribute(attribute.name),
-                  )
-                  Array.from(nextOverlay.attributes).forEach(attribute =>
-                    liveOverlay.setAttribute(attribute.name, attribute.value),
-                  )
-                  liveOverlay.replaceChildren(...Array.from(nextOverlay.childNodes))
-                  nextOverlay.replaceWith(liveOverlay)
-                }
-                nextRoot?.classList.add('dropdown-open')
-                nextRoot
-                  ?.querySelector<HTMLElement>('[aria-haspopup="menu"]')
-                  ?.setAttribute('aria-expanded', 'true')
-                if (nextRoot && typeof window !== 'undefined') {
-                  const cleanupKey = '__rueDropdownPreservedOpenCleanup'
-                  const preservedRoot = nextRoot as HTMLElement & {
-                    [cleanupKey]?: () => void
-                  }
-                  preservedRoot[cleanupKey]?.()
-                  const cleanup = () => {
-                    window.removeEventListener('click', handleOutsideClick, true)
-                    window.removeEventListener('keydown', handleEscape)
-                    delete preservedRoot[cleanupKey]
-                  }
-                  const closePreservedRoot = () => {
-                    preservedRoot.classList.remove('dropdown-open')
-                    preservedRoot
-                      .querySelector<HTMLElement>('[aria-haspopup="menu"]')
-                      ?.setAttribute('aria-expanded', 'false')
-                    cleanup()
-                  }
-                  const handleOutsideClick = (event: MouseEvent) => {
-                    if (
-                      !preservedRoot.isConnected ||
-                      !preservedRoot.contains(event.target as Node)
-                    ) {
-                      closePreservedRoot()
-                    }
-                  }
-                  const handleEscape = (event: KeyboardEvent) => {
-                    if (event.key === 'Escape') closePreservedRoot()
-                  }
-                  preservedRoot[cleanupKey] = cleanup
-                  window.addEventListener('click', handleOutsideClick, true)
-                  window.addEventListener('keydown', handleEscape)
-                }
-              }
-              queueMicrotask(preserveOpenDom)
-              setTimeout(preserveOpenDom, 0)
-            }
           }}
         />
       )
     }
 
-    return overlay !== undefined ? overlay : content
+    return slots.overlay ? <>{slots.overlay}</> : <>{String(overlay ?? content ?? '')}</>
   }
-  const renderOverlayNode = () => {
-    const overlaySourceNode = renderOverlaySourceNode()
-    const renderedOverlayChildren = popupRender ? popupRender(overlaySourceNode) : overlaySourceNode
-
-    if (childSlots.contentNode) {
-      return renderPatchedContent(childSlots.contentNode, {
-        key: 'overlay',
-        className: overlayClass,
-        ref: setOverlayElement,
-        style: overlayPatchedStyle,
-      })
-    }
-
-    return (
-      <OverlaySlot
-        key="overlay"
-        setRef={setOverlayElement}
-        className={overlayClass}
-        style={overlayStyleValue}
-        arrow={mergedArrow}
-        arrowClassName={getArrowClassName(resolvedDirection, resolvedAlign)}
-        onClick={handleOverlayContentClick}
-      >
-        {renderedOverlayChildren}
-      </OverlaySlot>
-    )
-  }
+  const RenderOverlayNode = () => (
+    <div
+      ref={setOverlayElement}
+      className={mergeClassNames('dropdown-content', overlayClass)}
+      style={overlayStyleValue}
+      onClick={handleOverlayContentClick}
+    >
+      {mergedArrow ? (
+        <span
+          aria-hidden="true"
+          className={mergeClassNames(
+            'pointer-events-none absolute z-[-1] h-2.5 w-2.5 rotate-45 border border-base-300/60 bg-base-100',
+            getArrowClassName(resolvedDirection, resolvedAlign),
+          )}
+        />
+      ) : null}
+      <RenderOverlaySourceNode />
+    </div>
+  )
   const setRootElement = (element: HTMLElement | null) => {
     rootElement = element
     syncDropdownDom(currentOpen.value)
@@ -1020,12 +859,9 @@ const Dropdown: FC<DropdownProps> = ({
       requestOpenChange(false, 'escape')
     }
   }
-  const renderTriggerNode = () => {
-    const triggerChildren = childSlots.contentNode ? childSlots.triggerNodes : children
-
+  const RenderTriggerNode = () => {
     return (
       <EnhancedTrigger
-        key="trigger"
         setRef={(element: HTMLElement | null) => {
           triggerElement = element
           if (element) {
@@ -1050,7 +886,7 @@ const Dropdown: FC<DropdownProps> = ({
           requestOpenChange(true, 'contextMenu')
         }}
       >
-        {triggerChildren}
+        {children}
       </EnhancedTrigger>
     )
   }
@@ -1066,8 +902,8 @@ const Dropdown: FC<DropdownProps> = ({
         onMouseLeave={handleRootMouseLeave}
         onKeyDown={handleRootKeyDown}
       >
-        {renderTriggerNode()}
-        {hasOverlay ? renderOverlayNode() : null}
+        <RenderTriggerNode />
+        {hasOverlay ? <RenderOverlayNode /> : null}
       </span>
     )
   }
@@ -1083,8 +919,8 @@ const Dropdown: FC<DropdownProps> = ({
         onMouseLeave={handleRootMouseLeave}
         onKeyDown={handleRootKeyDown}
       >
-        {renderTriggerNode()}
-        {hasOverlay ? renderOverlayNode() : null}
+        <RenderTriggerNode />
+        {hasOverlay ? <RenderOverlayNode /> : null}
       </section>
     )
   }
@@ -1100,8 +936,8 @@ const Dropdown: FC<DropdownProps> = ({
         onMouseLeave={handleRootMouseLeave}
         onKeyDown={handleRootKeyDown}
       >
-        {renderTriggerNode()}
-        {hasOverlay ? renderOverlayNode() : null}
+        <RenderTriggerNode />
+        {hasOverlay ? <RenderOverlayNode /> : null}
       </article>
     )
   }
@@ -1117,8 +953,8 @@ const Dropdown: FC<DropdownProps> = ({
         onMouseLeave={handleRootMouseLeave}
         onKeyDown={handleRootKeyDown}
       >
-        {renderTriggerNode()}
-        {hasOverlay ? renderOverlayNode() : null}
+        <RenderTriggerNode />
+        {hasOverlay ? <RenderOverlayNode /> : null}
       </details>
     )
   }
@@ -1134,8 +970,8 @@ const Dropdown: FC<DropdownProps> = ({
         onMouseLeave={handleRootMouseLeave}
         onKeyDown={handleRootKeyDown}
       >
-        {renderTriggerNode()}
-        {hasOverlay ? renderOverlayNode() : null}
+        <RenderTriggerNode />
+        {hasOverlay ? <RenderOverlayNode /> : null}
       </ul>
     )
   }
@@ -1151,14 +987,14 @@ const Dropdown: FC<DropdownProps> = ({
         onMouseLeave={handleRootMouseLeave}
         onKeyDown={handleRootKeyDown}
       >
-        {renderTriggerNode()}
-        {hasOverlay ? renderOverlayNode() : null}
+        <RenderTriggerNode />
+        {hasOverlay ? <RenderOverlayNode /> : null}
       </div>
     )
   }
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...domProps}
       ref={setRootElement}
       className={getRootClassName()}
@@ -1167,9 +1003,102 @@ const Dropdown: FC<DropdownProps> = ({
       onMouseLeave={handleRootMouseLeave}
       onKeyDown={handleRootKeyDown}
     >
-      {renderTriggerNode()}
-      {hasOverlay ? renderOverlayNode() : null}
-    </Component>
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </span>
+  ) : Component === 'section' ? (
+    <section
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </section>
+  ) : Component === 'article' ? (
+    <article
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </article>
+  ) : Component === 'details' ? (
+    <details
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </details>
+  ) : Component === 'ul' ? (
+    <ul
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </ul>
+  ) : Component === 'button' ? (
+    <button
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </button>
+  ) : Component === 'li' ? (
+    <li
+      {...domProps}
+      ref={setRootElement}
+      className={getRootClassName()}
+      style={rootStyle}
+      onMouseEnter={handleRootMouseEnter}
+      onMouseLeave={handleRootMouseLeave}
+      onKeyDown={handleRootKeyDown}
+    >
+      <RenderTriggerNode />
+      {hasOverlay ? <RenderOverlayNode /> : null}
+    </li>
+  ) : (
+    <></>
   )
 }
 
@@ -1182,9 +1111,6 @@ const DropdownCompound: DropdownCompound = /*#__PURE__*/ Object.assign(Dropdown,
   Trigger,
   Content,
 })
-
-;(Trigger as any)[RUE_COMPONENT_TYPE_KEY] = Trigger
-;(Content as any)[RUE_COMPONENT_TYPE_KEY] = Content
 
 /** 默认导出下拉菜单组件。 */
 export default DropdownCompound

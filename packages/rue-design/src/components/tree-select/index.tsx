@@ -244,7 +244,7 @@ export interface TreeSelectProps {
   /** maxTagCount 配置项。 */
   maxTagCount?: number | 'responsive'
   /** maxTagPlaceholder 配置项。 */
-  maxTagPlaceholder?: any | ((omittedValues: TreeSelectNormalizedNode[]) => any)
+  maxTagPlaceholder?: string | ((omittedValues: TreeSelectNormalizedNode[]) => string)
   /** maxTagTextLength 配置项。 */
   maxTagTextLength?: number
   /** listHeight 配置项。 */
@@ -268,15 +268,15 @@ export interface TreeSelectProps {
   /** showArrow 配置项。 */
   showArrow?: boolean
   /** switcherIcon 图标内容。 */
-  switcherIcon?: any | ((context: TreeSelectSwitcherRenderContext) => any)
-  /** treeTitleRender 自定义渲染函数。 */
-  treeTitleRender?: (node: TreeSelectNormalizedNode) => any
+  switcherIcon?: string | ((context: TreeSelectSwitcherRenderContext) => string)
+  /** treeTitleFormatter 自定义渲染函数。 */
+  treeTitleFormatter?: (node: TreeSelectNormalizedNode) => string | number
   /** treeNodeLabelProp 配置项。 */
   treeNodeLabelProp?: string
   /** treeLine 配置项。 */
   treeLine?: boolean | { showLeafIcon?: boolean }
   /** tagRender 自定义渲染函数。 */
-  tagRender?: (props: TreeSelectTagRenderProps) => any
+
   /** 搜索文本变化时触发的回调。 */
   onSearch?: (value: string) => void
   /** 值或状态变化时触发的回调。 */
@@ -411,8 +411,6 @@ const sizeClassMap = {
 } as const
 
 let treeSelectSeed = 0
-const transientExpandedKeys = /*#__PURE__*/ new Map<string, TreeSelectValue[]>()
-const transientOpenKeys = /*#__PURE__*/ new Map<string, number>()
 
 const defaultFieldNames: Required<TreeSelectFieldNames> = {
   label: 'title',
@@ -887,11 +885,6 @@ const filterVisibleNodes = (
 
   const visibleNodes: VisibleTreeNode[] = []
 
-  const _visitAll = (node: TreeSelectNormalizedNode, matched: boolean) => {
-    visibleNodes.push({ node, matched })
-    node.children.forEach(child => _visitAll(child, false))
-  }
-
   const visitFiltered = (node: TreeSelectNormalizedNode): VisibleTreeNode[] => {
     const selfMatched = matchesNode(node)
     const matchedChildren = node.children.flatMap(child => visitFiltered(child))
@@ -1016,7 +1009,7 @@ interface TreeSelectTagProps {
   label: any
   rawLabel: any
   disabled: boolean
-  tagRender?: (props: TreeSelectTagRenderProps) => any
+
   tagClassName?: string
   tagStyle?: any
   onRemove: (node: TreeSelectNormalizedNode, event: MouseEvent) => void
@@ -1027,24 +1020,13 @@ const TreeSelectTag: FC<TreeSelectTagProps> = ({
   label,
   rawLabel,
   disabled,
-  tagRender,
+
   tagClassName,
   tagStyle,
   onRemove,
 }) => {
   const handleClose = (event: MouseEvent) => {
     onRemove(node, event)
-  }
-
-  if (tagRender) {
-    return tagRender({
-      label,
-      value: node.value,
-      disabled: node.disabled,
-      closable: !disabled,
-      node,
-      onClose: handleClose,
-    })
   }
 
   return (
@@ -1056,7 +1038,7 @@ const TreeSelectTag: FC<TreeSelectTagProps> = ({
       )}
       style={tagStyle}
     >
-      <span className="truncate">{label}</span>
+      <span className="truncate">{String(label)}</span>
       {!disabled ? (
         <button
           type="button"
@@ -1114,18 +1096,23 @@ const TreeSelectSwitcherIcon: FC<TreeSelectSwitcherIconProps> = ({
   if (loadingNode) {
     return <LoadingSwitcherIcon />
   }
-  if (typeof switcherIcon === 'function') {
-    return switcherIcon({
-      expanded,
-      loading: loadingNode,
-      selected,
-      checked: state.checked,
-      halfChecked,
-      node,
-    })
-  }
   if (switcherIcon !== undefined) {
-    return switcherIcon
+    return (
+      <span>
+        {String(
+          typeof switcherIcon === 'function'
+            ? switcherIcon({
+                expanded,
+                loading: loadingNode,
+                selected,
+                checked: state.checked,
+                halfChecked,
+                node,
+              })
+            : switcherIcon,
+        )}
+      </span>
+    )
   }
   return <DefaultSwitcherIcon expanded={expanded} hidden={!canExpand} />
 }
@@ -1213,7 +1200,7 @@ const TreeSelectNodeRow: FC<TreeSelectNodeRowProps> = ({
           onToggle(node, event)
         }}
       >
-        {label}
+        {String(label)}
       </button>
     </div>
   )
@@ -1265,7 +1252,7 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
   suffixIcon,
   showArrow = true,
   switcherIcon: _switcherIcon,
-  treeTitleRender,
+  treeTitleFormatter,
   treeNodeLabelProp = 'title',
   treeLine,
   onSearch,
@@ -1284,10 +1271,55 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
   dropdownStyle,
   classNames,
   styles,
-  tagRender: _tagRender,
+
   children,
   ...rest
 }) => {
+  const readNodeRowProps = (row: { node: TreeSelectNormalizedNode; matched: boolean }) => {
+    const node = row.node
+    const selection = readSelectionState()
+    const state = selection.derivedCheckState.stateMap[node.valueKey] ?? {
+      checked: false,
+      halfChecked: false,
+      participates: true,
+    }
+    return {
+      node,
+      matched: row.matched,
+      state,
+      selected: treeCheckable ? state.checked : selection.currentValueKeySet.has(node.valueKey),
+      halfChecked: treeCheckable ? state.halfChecked : false,
+      expanded: mergedSearchValueState.get() ? true : readExpandedKeySet().has(node.valueKey),
+      loadingNode: loadingNodeKeys.value.includes(node.valueKey),
+      canExpand: canExpandNode(node, readLoadedKeySet()),
+      checkboxDisabled: mergedDisabled || node.disabled || node.disableCheckbox || !node.checkable,
+      label: String(
+        treeTitleFormatter
+          ? treeTitleFormatter(node)
+          : resolveNodeLabelProp(node, treeNodeLabelProp),
+      ),
+      mergedDisabled,
+      treeCheckable,
+      treeLine,
+      switcherIcon: _switcherIcon,
+      onExpand: handleExpandToggle,
+      onToggle: handleNodeToggle,
+    }
+  }
+  const readTagProps = (node: TreeSelectNormalizedNode) => {
+    const rawLabel = resolveNodeLabelProp(node, treeNodeLabelProp)
+    return {
+      node,
+      rawLabel,
+      label: truncateTagLabel(rawLabel, maxTagTextLength),
+      disabled: mergedDisabled,
+
+      tagClassName: tagSemanticClassName,
+      tagStyle: tagSemanticStyle,
+      onRemove: removeNodeFromSelection,
+    }
+  }
+
   const rootRef = ref<HTMLDivElement | undefined>(undefined)
   const instanceId = ref(`rue-tree-select-${treeSelectSeed++}`)
   const renderVersion = ref(0)
@@ -1296,22 +1328,10 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
     buildSimpleModeTreeData(treeData, treeDataSimpleMode, fieldNames),
     fieldNames,
   )
-  const expansionCacheKey = `${initialTree.roots.map(node => node.valueKey).join('|')}::${String(
-    maxTagCount ?? '',
-  )}:${String(maxCount ?? '')}:${String(onChange ?? '')}`
-  const transientOpenCount = transientOpenKeys.get(expansionCacheKey) ?? 0
-  const resumeTransientOpen = transientOpenCount > 0
-  if (transientOpenCount > 1) transientOpenKeys.set(expansionCacheKey, transientOpenCount - 1)
-  else transientOpenKeys.delete(expansionCacheKey)
-  const internalOpen = ref(
-    !!defaultOpen ||
-      (value !== undefined && (!!treeCheckable || !!multiple) && resumeTransientOpen),
-  )
-  const cachedExpandedKeys =
-    value !== undefined ? transientExpandedKeys.get(expansionCacheKey) : undefined
+  const internalOpen = ref(!!defaultOpen)
   const initialExpandedKeys = treeDefaultExpandAll
     ? initialTree.flat.filter(node => node.children.length > 0).map(node => node.value)
-    : (treeDefaultExpandedKeys ?? cachedExpandedKeys ?? [])
+    : (treeDefaultExpandedKeys ?? [])
   const uncontrolledExpandedKeys = ref<TreeSelectValue[]>(initialExpandedKeys)
   const uncontrolledLoadedKeys = ref<TreeSelectValue[]>([])
   const internalSearch = ref('')
@@ -1483,10 +1503,6 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
     const openStateChanged = previousOpen !== nextOpen
 
     if (open === undefined) {
-      if (value !== undefined && mergedMultiple) {
-        if (nextOpen) transientOpenKeys.set(expansionCacheKey, 3)
-        else transientOpenKeys.delete(expansionCacheKey)
-      }
       if (internalOpen.value !== nextOpen) {
         internalOpen.value = nextOpen
         requestRender()
@@ -1520,18 +1536,11 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
     }
     if (shouldRequestRender) {
       requestRender()
-      cleanupStaleTreeNodes(getVisibleNodes().map(item => item.node.valueKey))
     }
   }
 
   const setExpandedKeys = (nextExpandedKeys: TreeSelectValue[]) => {
     if (treeExpandedKeys === undefined) {
-      if (value !== undefined && loadData) {
-        transientExpandedKeys.set(expansionCacheKey, nextExpandedKeys)
-        queueMicrotask(() => {
-          queueMicrotask(() => transientExpandedKeys.delete(expansionCacheKey))
-        })
-      }
       uncontrolledExpandedKeys.value = nextExpandedKeys
       requestRender()
     }
@@ -1611,9 +1620,6 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
     extra: TreeSelectChangeExtra,
     nextHalfCheckedKeys: Set<string>,
   ) => {
-    if (value !== undefined && mergedMultiple) {
-      transientOpenKeys.set(expansionCacheKey, 3)
-    }
     const activeTree = getNormalizedTree()
     const currentSelection = getSelectionSnapshot()
     const nextValue = buildEmittedValue(
@@ -1656,34 +1662,7 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
       })
     }
 
-    if (mergedLabelInValue && !mergedMultiple && nextNodes[0]) {
-      const label = String(resolveNodeLabelProp(nextNodes[0], treeNodeLabelProp) ?? '')
-      queueMicrotask(() => {
-        const currentRoot = document.querySelector(
-          '[data-rue-tree-select-root="true"]',
-        ) as HTMLElement | null
-        const labelNode = currentRoot?.querySelector(
-          '[data-rue-tree-select-selector="true"] .flex-1',
-        ) as HTMLElement | null
-        if (labelNode) labelNode.textContent = label
-      })
-    }
-
     requestRender()
-    cleanupStaleTags(nextNodes.map(node => node.valueKey))
-    if (value !== undefined && mergedMultiple) {
-      const restoreControlledPopup = () => {
-        const popup = document.querySelector(
-          '[data-rue-tree-select-popup="true"]',
-        ) as HTMLElement | null
-        if (popup) {
-          popup.hidden = false
-          popup.setAttribute('aria-hidden', 'false')
-        }
-      }
-      queueMicrotask(() => queueMicrotask(restoreControlledPopup))
-      setTimeout(restoreControlledPopup, 0)
-    }
   }
 
   const removeNodeFromSelection = (node: TreeSelectNormalizedNode, event: MouseEvent) => {
@@ -1732,21 +1711,6 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
 
   const clearSelection = (event: MouseEvent) => {
     const keepOpen = mergedMultiple
-    const currentRoot = (event.target as Element | null)?.closest(
-      '[data-rue-tree-select-root="true"]',
-    )
-    const currentPopup = (document.querySelector('[data-rue-tree-select-popup="true"]') ??
-      currentRoot?.querySelector('[data-rue-tree-select-popup="true"]')) as HTMLElement | null
-    const popupObserver =
-      keepOpen && currentPopup && typeof MutationObserver !== 'undefined'
-        ? new MutationObserver(() => {
-            if (currentPopup.hidden) currentPopup.hidden = false
-            if (currentPopup.getAttribute('aria-hidden') !== 'false') {
-              currentPopup.setAttribute('aria-hidden', 'false')
-            }
-          })
-        : null
-    popupObserver?.observe(currentPopup!, { attributes: true })
     rememberTreeBodyScroll(event)
     event.preventDefault()
     event.stopPropagation()
@@ -1764,24 +1728,7 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
       { clear: true, selected: false, checked: false, triggerNode: null, triggerValue: null },
       new Set<string>(),
     )
-    if (keepOpen) {
-      transientOpenKeys.set(expansionCacheKey, 3)
-      const restorePopup = () => {
-        const popup = currentPopup
-        if (popup) {
-          popup.hidden = false
-          popup.setAttribute('aria-hidden', 'false')
-          popup.querySelectorAll('[role="checkbox"]').forEach(checkbox => {
-            checkbox.setAttribute('aria-checked', 'false')
-          })
-        }
-      }
-      queueMicrotask(() => queueMicrotask(restorePopup))
-      setTimeout(() => {
-        restorePopup()
-        popupObserver?.disconnect()
-      }, 20)
-    }
+    if (keepOpen) setMergedOpen(true)
   }
 
   const handleNodeToggle = (node: TreeSelectNormalizedNode, event: MouseEvent) => {
@@ -1997,43 +1944,6 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
     }, 0)
   }
 
-  const cleanupStaleTags = (allowedValueKeys: string[]) => {
-    setTimeout(() => {
-      const allowedKeys = /*#__PURE__*/ new Set(allowedValueKeys)
-      const root = document.querySelector(
-        `[data-rue-tree-select-id="${instanceId.value}"]`,
-      ) as HTMLElement | null
-      root?.querySelectorAll('[data-rue-tree-select-tag-value]').forEach(element => {
-        const valueKey = element.getAttribute('data-rue-tree-select-tag-value')
-        if (valueKey && !allowedKeys.has(valueKey)) {
-          element.remove()
-        }
-      })
-    }, 0)
-  }
-
-  const cleanupStaleTreeNodes = (allowedValueKeys: string[]) => {
-    staleTreeNodeCleanupVersion.value += 1
-    const cleanupVersion = staleTreeNodeCleanupVersion.value
-    setTimeout(() => {
-      if (cleanupVersion !== staleTreeNodeCleanupVersion.value) return
-      let allowedIndex = 0
-      const root = document.querySelector(
-        `[data-rue-tree-select-id="${instanceId.value}"]`,
-      ) as HTMLElement | null
-      root?.querySelectorAll('[data-rue-tree-select-node]').forEach(element => {
-        const valueKey = element.getAttribute('data-rue-tree-select-node')
-        if (valueKey === allowedValueKeys[allowedIndex]) {
-          allowedIndex += 1
-          return
-        }
-        if (valueKey) {
-          element.remove()
-        }
-      })
-    }, 0)
-  }
-
   onMounted(() => {
     if (typeof document === 'undefined') {
       return
@@ -2172,29 +2082,17 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
         ) : null}
 
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 self-stretch py-1">
-          {visibleTagNodes.get().map(node => {
-            const rawLabel = resolveNodeLabelProp(node, treeNodeLabelProp)
-            const label = truncateTagLabel(rawLabel, maxTagTextLength)
-            return (
-              <TreeSelectTag
-                key={node.valueKey}
-                node={node}
-                rawLabel={rawLabel}
-                label={label}
-                disabled={mergedDisabled}
-                tagRender={_tagRender}
-                tagClassName={tagSemanticClassName}
-                tagStyle={tagSemanticStyle}
-                onRemove={removeNodeFromSelection}
-              />
-            )
-          })}
+          {visibleTagNodes.get().map((rowArg0: any, rowIndex: number) => (
+            <TreeSelectTag key={rowArg0.valueKey} {...readTagProps(rowArg0)} />
+          ))}
 
           {omittedTagNodes.get().length > 0 ? (
             <span className="badge badge-ghost inline-flex max-w-full items-center rounded-md px-2 py-1 text-xs leading-none">
-              {typeof maxTagPlaceholder === 'function'
-                ? maxTagPlaceholder(omittedTagNodes.get())
-                : (maxTagPlaceholder ?? `+${omittedTagNodes.get().length}`)}
+              {String(
+                typeof maxTagPlaceholder === 'function'
+                  ? maxTagPlaceholder(omittedTagNodes.get())
+                  : (maxTagPlaceholder ?? `+${omittedTagNodes.get().length}`),
+              )}
             </span>
           ) : null}
 
@@ -2242,9 +2140,11 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
                   : 'flex flex-1 items-center truncate text-sm leading-5 text-base-content/40'
               }
             >
-              {hasValue.get() && !mergedMultiple && !treeCheckable
-                ? resolveNodeLabelProp(displayNodes.get()[0], treeNodeLabelProp)
-                : (placeholder ?? '请选择')}
+              {String(
+                hasValue.get() && !mergedMultiple && !treeCheckable
+                  ? resolveNodeLabelProp(displayNodes.get()[0], treeNodeLabelProp)
+                  : (placeholder ?? '请选择'),
+              )}
             </span>
           )}
         </div>
@@ -2295,7 +2195,7 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
       <div
         data-rue-tree-select-popup="true"
         aria-hidden={mergedOpenState.get() ? 'false' : 'true'}
-        {...{ hidden: mergedOpenState.get() ? undefined : true }}
+        hidden={mergedOpenState.get() ? undefined : true}
         className={popupClass}
         style={{
           ...popupSizingStyle,
@@ -2316,53 +2216,15 @@ const TreeSelectRoot: FC<TreeSelectProps> = ({
           }}
         >
           {readVisibleNodes().length ? (
-            readVisibleNodes().map(({ node, matched }) => {
-              const selection = readSelectionState()
-              const state = selection.derivedCheckState.stateMap[node.valueKey] ?? {
-                checked: false,
-                halfChecked: false,
-                participates: true,
-              }
-              const selected = treeCheckable
-                ? state.checked
-                : selection.currentValueKeySet.has(node.valueKey)
-              const halfChecked = treeCheckable ? state.halfChecked : false
-              const expanded = mergedSearchValueState.get()
-                ? true
-                : readExpandedKeySet().has(node.valueKey)
-              const loadingNode = loadingNodeKeys.value.includes(node.valueKey)
-              const canExpand = canExpandNode(node, readLoadedKeySet())
-              const checkboxDisabled =
-                mergedDisabled || node.disabled || node.disableCheckbox || !node.checkable
-              const label = treeTitleRender
-                ? treeTitleRender(node)
-                : resolveNodeLabelProp(node, treeNodeLabelProp)
-
-              return (
-                <TreeSelectNodeRow
-                  key={node.valueKey}
-                  node={node}
-                  matched={matched}
-                  state={state}
-                  selected={selected}
-                  halfChecked={halfChecked}
-                  expanded={expanded}
-                  loadingNode={loadingNode}
-                  canExpand={canExpand}
-                  checkboxDisabled={checkboxDisabled}
-                  label={label}
-                  mergedDisabled={mergedDisabled}
-                  treeCheckable={treeCheckable}
-                  treeLine={treeLine}
-                  switcherIcon={_switcherIcon}
-                  onExpand={handleExpandToggle}
-                  onToggle={handleNodeToggle}
-                />
-              )
-            })
+            <>
+              {' '}
+              {readVisibleNodes().map((rowArg0: any, rowIndex: number) => (
+                <TreeSelectNodeRow key={rowArg0.node.valueKey} {...readNodeRowProps(rowArg0)} />
+              ))}{' '}
+            </>
           ) : (
             <div className="rounded-md px-3 py-8 text-center text-sm text-base-content/55">
-              {notFoundContent ?? '暂无匹配项'}
+              {String(notFoundContent ?? '暂无匹配项')}
             </div>
           )}
         </div>

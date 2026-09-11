@@ -49,7 +49,7 @@ export interface RadialProgressProps {
   /** showInfo 配置项。 */
   showInfo?: boolean
   /** format 配置项。 */
-  format?: (percent?: number, successPercent?: number) => any
+  format?: (percent?: number, successPercent?: number) => string | number
   /** 组件尺寸。 */
   size?: RadialProgressSize
   /** thickness 配置项。 */
@@ -271,15 +271,8 @@ const describeArcPath = (
 }
 
 /** 判断是否存在 Renderable Children 的内部工具函数。 */
-const hasRenderableChildren = (children: any) => {
-  if (children == null) {
-    return false
-  }
-  if (Array.isArray(children)) {
-    return children.length > 0
-  }
-  return true
-}
+const hasRenderableChildren = (children: any) =>
+  children != null && children !== false && children !== ''
 
 /** Default Status Icon 的内部工具函数。 */
 const DefaultStatusIcon: FC<{ status: RadialProgressStatus }> = ({ status }) => {
@@ -313,7 +306,7 @@ const DefaultStatusIcon: FC<{ status: RadialProgressStatus }> = ({ status }) => 
       </span>
     )
   }
-  return null
+  return <></>
 }
 
 /** 渲染 Indicator 的内部工具函数。 */
@@ -327,7 +320,7 @@ const renderIndicator = ({
 }: {
   children?: any
   showInfo?: boolean
-  format?: (percent?: number, successPercent?: number) => any
+  format?: (percent?: number, successPercent?: number) => string | number
   percent: number
   successPercent: number
   status: RadialProgressStatus
@@ -397,6 +390,60 @@ const RadialProgress: FC<RadialProgressProps> = ({
   role,
   ...rest
 }) => {
+  const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+    const index = rowArg0
+
+    const gap = clamp(stepsConfig!.gap, 0, sweepAngle / Math.max(stepsConfig!.count * 2, 1))
+    const segmentSweep = Math.max(
+      (sweepAngle - gap * (stepsConfig!.count - 1)) / stepsConfig!.count,
+      0.01,
+    )
+    const segmentStart = startAngle + index * (segmentSweep + gap)
+    const segmentEnd = segmentStart + segmentSweep
+    const completedCount = clamp(
+      Math.round((resolvedPercent / 100) * stepsConfig!.count),
+      0,
+      stepsConfig!.count,
+    )
+    const successCount = clamp(
+      Math.round((resolvedSuccessPercent / 100) * stepsConfig!.count),
+      0,
+      stepsConfig!.count,
+    )
+    const isSuccess = index < successCount
+    const isActive = index >= successCount && index < completedCount
+    const segmentStrokeColor = isSuccess
+      ? success?.strokeColor
+      : Array.isArray(strokeColor)
+        ? strokeColor[Math.min(index, strokeColor.length - 1)]
+        : progressStrokeColor
+
+    return (
+      <path
+        key={index}
+        d={describeArcPath(50, 50, 42, segmentStart, segmentEnd)}
+        fill="none"
+        stroke={segmentStrokeColor ?? 'currentColor'}
+        strokeLinecap={strokeLinecap}
+        vectorEffect="non-scaling-stroke"
+        style={{ strokeWidth: 'var(--thickness)' }}
+        className={
+          isSuccess
+            ? success?.strokeColor
+              ? undefined
+              : 'text-success'
+            : isActive
+              ? segmentStrokeColor
+                ? undefined
+                : progressToneClass
+              : resolvedRailColor
+                ? undefined
+                : 'text-base-300/70'
+        }
+      />
+    )
+  }
+
   const ariaValueNow = rest['aria-valuenow']
   const ariaValueMin = rest['aria-valuemin']
   const ariaValueMax = rest['aria-valuemax']
@@ -457,7 +504,7 @@ const RadialProgress: FC<RadialProgressProps> = ({
   const trackPath = describeArcPath(50, 50, 42, startAngle, endAngle)
   const indicatorFontSize = `clamp(0.75rem, calc(${resolvedSize} / 4.5), 1.75rem)`
   const stepIndexes = stepsConfig
-    ? Array.from({ length: stepsConfig.count }, (_, index) => index)
+    ? Array.from({ length: stepsConfig!.count }, (_, index) => index)
     : []
 
   return (
@@ -493,59 +540,14 @@ const RadialProgress: FC<RadialProgressProps> = ({
           style={{ strokeWidth: 'var(--thickness)' }}
           className={resolvedRailColor ? undefined : 'text-base-300/70'}
         />
-        {stepsConfig
-          ? stepIndexes.map(index => {
-              const gap = clamp(stepsConfig.gap, 0, sweepAngle / Math.max(stepsConfig.count * 2, 1))
-              const segmentSweep = Math.max(
-                (sweepAngle - gap * (stepsConfig.count - 1)) / stepsConfig.count,
-                0.01,
-              )
-              const segmentStart = startAngle + index * (segmentSweep + gap)
-              const segmentEnd = segmentStart + segmentSweep
-              const completedCount = clamp(
-                Math.round((resolvedPercent / 100) * stepsConfig.count),
-                0,
-                stepsConfig.count,
-              )
-              const successCount = clamp(
-                Math.round((resolvedSuccessPercent / 100) * stepsConfig.count),
-                0,
-                stepsConfig.count,
-              )
-              const isSuccess = index < successCount
-              const isActive = index >= successCount && index < completedCount
-              const segmentStrokeColor = isSuccess
-                ? success?.strokeColor
-                : Array.isArray(strokeColor)
-                  ? strokeColor[Math.min(index, strokeColor.length - 1)]
-                  : progressStrokeColor
-
-              return (
-                <path
-                  key={index}
-                  d={describeArcPath(50, 50, 42, segmentStart, segmentEnd)}
-                  fill="none"
-                  stroke={segmentStrokeColor ?? 'currentColor'}
-                  strokeLinecap={strokeLinecap}
-                  vectorEffect="non-scaling-stroke"
-                  style={{ strokeWidth: 'var(--thickness)' }}
-                  className={
-                    isSuccess
-                      ? success?.strokeColor
-                        ? undefined
-                        : 'text-success'
-                      : isActive
-                        ? segmentStrokeColor
-                          ? undefined
-                          : progressToneClass
-                        : resolvedRailColor
-                          ? undefined
-                          : 'text-base-300/70'
-                  }
-                />
-              )
-            })
-          : null}
+        {stepsConfig ? (
+          <>
+            {' '}
+            {stepIndexes.map((rowArg0: any, rowIndex: number) => (
+              <CompiledRow1 rowArg0={rowArg0} />
+            ))}{' '}
+          </>
+        ) : null}
         {!stepsConfig && resolvedSuccessPercent > 0 ? (
           <path
             d={describeArcPath(50, 50, 42, startAngle, successEndAngle)}

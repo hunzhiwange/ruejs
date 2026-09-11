@@ -1,7 +1,10 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { render } from '@rue-js/rue'
+import { render, setReactiveScheduling } from '@rue-js/rue'
 import Countdown from '../index'
+
+setReactiveScheduling('sync')
 
 const waitCountdownRender = async () => {
   await Promise.resolve()
@@ -21,7 +24,7 @@ afterEach(() => {
 describe('Countdown', () => {
   it('renders wrapper with base class', async () => {
     const c = document.createElement('div')
-    render(<Countdown>{'x'}</Countdown>, c)
+    mountTestApp(c, () => render(<Countdown>{'x'}</Countdown>, c))
     await waitCountdownRender()
     const el = c.querySelector('.countdown') as HTMLElement
     expect(el).toBeTruthy()
@@ -29,7 +32,7 @@ describe('Countdown', () => {
 
   it('applies custom className on wrapper', async () => {
     const c = document.createElement('div')
-    render(<Countdown className={'font-mono text-2xl'}>{'x'}</Countdown>, c)
+    mountTestApp(c, () => render(<Countdown className={'font-mono text-2xl'}>{'x'}</Countdown>, c))
     await waitCountdownRender()
     const el = c.querySelector('.countdown') as HTMLElement
     expect(el.classList.contains('font-mono')).toBe(true)
@@ -38,7 +41,14 @@ describe('Countdown', () => {
 
   it('renders Value with --value style and text', async () => {
     const c = document.createElement('div')
-    render(<Countdown>{[<Countdown.Value value={59} />]}</Countdown>, c)
+    mountTestApp(c, () =>
+      render(
+        <Countdown>
+          <Countdown.Value value={59} />
+        </Countdown>,
+        c,
+      ),
+    )
     await waitCountdownRender()
     const inner = c.querySelector('.countdown > span') as HTMLElement
     expect(inner).toBeTruthy()
@@ -50,7 +60,14 @@ describe('Countdown', () => {
 
   it('supports digits via --digits style', async () => {
     const c = document.createElement('div')
-    render(<Countdown>{[<Countdown.Value value={9} digits={2} />]}</Countdown>, c)
+    mountTestApp(c, () =>
+      render(
+        <Countdown>
+          <Countdown.Value value={9} digits={2} />
+        </Countdown>,
+        c,
+      ),
+    )
     await waitCountdownRender()
     const inner = c.querySelector('.countdown > span') as HTMLElement
     expect(inner.style.getPropertyValue('--value')).toBe('9')
@@ -68,7 +85,7 @@ describe('Countdown', () => {
       { value: 59, digits: 2 },
       { content: 's' },
     ]
-    render(<Countdown className={'font-mono text-2xl'} items={items} />, c)
+    mountTestApp(c, () => render(<Countdown className={'font-mono text-2xl'} items={items} />, c))
     await waitCountdownRender()
     const wrapper = c.querySelector('.countdown') as HTMLElement
     expect(wrapper.classList.contains('font-mono')).toBe(true)
@@ -85,7 +102,7 @@ describe('Countdown', () => {
 
     const c = document.createElement('div')
     const target = Date.now() + (10 * 60 * 60 + 24 * 60 + 59) * 1000
-    render(<Countdown value={target} format={'HH:mm:ss'} />, c)
+    mountTestApp(c, () => render(<Countdown value={target} format={'HH:mm:ss'} />, c))
     await waitCountdownRender()
 
     const wrapper = c.querySelector('.countdown') as HTMLElement
@@ -103,7 +120,9 @@ describe('Countdown', () => {
 
     const c = document.createElement('div')
     const firstTarget = Date.now() + 5_000
-    render(<Countdown key={firstTarget} value={firstTarget} format={'s'} interval={1000} />, c)
+    mountTestApp(c, () =>
+      render(<Countdown key={firstTarget} value={firstTarget} format={'s'} interval={1000} />, c),
+    )
     await waitCountdownRender()
 
     const readSeconds = () => {
@@ -114,7 +133,9 @@ describe('Countdown', () => {
     expect(readSeconds()).toBe('5')
 
     const nextTarget = Date.now() + 9_000
-    render(<Countdown key={nextTarget} value={nextTarget} format={'s'} interval={1000} />, c)
+    mountTestApp(c, () =>
+      render(<Countdown key={nextTarget} value={nextTarget} format={'s'} interval={1000} />, c),
+    )
     await waitCountdownRender()
 
     expect(readSeconds()).toBe('9')
@@ -126,9 +147,11 @@ describe('Countdown', () => {
 
     const c = document.createElement('div')
     const onChange = vi.fn()
-    render(
-      <Countdown value={Date.now() + 3_000} format={'s'} interval={1000} onChange={onChange} />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Countdown value={Date.now() + 3_000} format={'s'} interval={1000} onChange={onChange} />,
+        c,
+      ),
     )
     await waitCountdownRender()
 
@@ -150,7 +173,9 @@ describe('Countdown', () => {
 
     const c = document.createElement('div')
     const target = Date.now() + (2 * 24 * 60 * 60 + 3 * 60 * 60 + 4 * 60 + 5) * 1000
-    render(<Countdown value={target} format={'D [days] H [hours] m [minutes] s [seconds]'} />, c)
+    mountTestApp(c, () =>
+      render(<Countdown value={target} format={'D [days] H [hours] m [minutes] s [seconds]'} />, c),
+    )
     await waitCountdownRender()
 
     const wrapper = c.querySelector('.countdown') as HTMLElement
@@ -172,14 +197,16 @@ describe('Countdown', () => {
     const onChange = vi.fn()
     const onFinish = vi.fn()
     const c = document.createElement('div')
-    render(
-      <Countdown
-        value={Date.now() + 1200}
-        format={'s.SSS'}
-        onChange={onChange}
-        onFinish={onFinish}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Countdown
+          value={Date.now() + 1200}
+          format={'s.SSS'}
+          onChange={onChange}
+          onFinish={onFinish}
+        />,
+        c,
+      ),
     )
     await waitCountdownRender()
 

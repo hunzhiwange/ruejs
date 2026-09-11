@@ -18,10 +18,11 @@ const normalizeTemplateForStaticHtml = template => template.replace('<!--app-htm
 
 const createConfig = ({ ssr = false } = {}) => ({
   root,
+  cacheDir: path.resolve(root, ssr ? 'node_modules/.vite-rue-server' : 'node_modules/.vite-rue-client'),
   configFile: false,
   publicDir: false,
   appType: ssr ? 'custom' : 'spa',
-  plugins: createRueExamplePlugins(),
+  plugins: createRueExamplePlugins({ target: ssr ? 'server' : 'client' }),
   resolve: {
     conditions: ssr ? ['development', 'node'] : ['development', 'browser'],
     alias: createRueExampleAliases({ ssr }),

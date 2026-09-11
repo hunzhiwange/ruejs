@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, it, expect } from 'vite-plus/test'
 import { createElement, renderToString } from './rue-ssr-test-utils.js'
-import Script, { type ScriptProps } from '../src/shims/script.js'
+import Script, { type ScriptProps } from '../src/shims/script.js?text-ssr'
 
 const originalDocument = globalThis.document
 const originalWindow = globalThis.window
@@ -71,28 +71,20 @@ describe('Script SSR rendering', () => {
 
   it('renders nothing for lazyOnload strategy on SSR', async () => {
     const html = await renderToString(() =>
-      createElement(
-        'div',
-        null,
-        createElement(Script, {
-          src: '/lazy.js',
-          strategy: 'lazyOnload',
-        } as ScriptProps),
-      ),
+      createElement(Script, {
+        src: '/lazy.js',
+        strategy: 'lazyOnload',
+      } as ScriptProps),
     )
     expect(html).not.toContain('<script')
   })
 
   it('renders nothing for worker strategy on SSR', async () => {
     const html = await renderToString(() =>
-      createElement(
-        'div',
-        null,
-        createElement(Script, {
-          src: '/worker.js',
-          strategy: 'worker',
-        } as ScriptProps),
-      ),
+      createElement(Script, {
+        src: '/worker.js',
+        strategy: 'worker',
+      } as ScriptProps),
     )
     expect(html).not.toContain('<script')
   })

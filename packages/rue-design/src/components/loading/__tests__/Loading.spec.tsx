@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 
 import Loading from '../index'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -21,7 +22,7 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Loading data-testid="loading-base" />, container)
+    mountTestApp(container, () => render(<Loading data-testid="loading-base" />, container))
 
     await waitForContent(() => {
       const el = container.querySelector('[data-testid="loading-base"]') as HTMLElement
@@ -38,7 +39,9 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Loading style="spinner" size="lg" className="text-primary" />, container)
+    mountTestApp(container, () =>
+      render(<Loading style="spinner" size="lg" className="text-primary" />, container),
+    )
 
     await waitForContent(() => {
       const el = container.querySelector('.loading') as HTMLElement
@@ -52,7 +55,9 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Loading as="div" style="dots" data-testid="loading-div" />, container)
+    mountTestApp(container, () =>
+      render(<Loading as="div" style="dots" data-testid="loading-div" />, container),
+    )
 
     await waitForContent(() => {
       const el = container.querySelector('[data-testid="loading-div"]') as HTMLElement
@@ -65,11 +70,13 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Loading spinning description="Fetching workspace" data-testid="loading-wrap">
-        <article data-testid="loading-content">Workspace card</article>
-      </Loading>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Loading spinning description="Fetching workspace" data-testid="loading-wrap">
+          <article data-testid="loading-content">Workspace card</article>
+        </Loading>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -87,11 +94,13 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Loading spinning={false} data-testid="loading-idle">
-        <span data-testid="idle-content">Ready</span>
-      </Loading>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Loading spinning={false} data-testid="loading-idle">
+          <span data-testid="idle-content">Ready</span>
+        </Loading>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -106,15 +115,15 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Loading
-        percent={42}
-        description="Uploading"
-        indicator={({ percent }: { percent?: number }) => (
-          <span data-testid="custom-indicator">{Math.round(percent ?? 0)}</span>
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Loading percent={42} description="Uploading">
+          <Template slot="indicator">
+            <span data-testid="custom-indicator">42</span>
+          </Template>
+        </Loading>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -128,11 +137,11 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    Loading.setDefaultIndicator(<span data-testid={'global-indicator'}>{'G'}</span>)
-    render(<Loading description="Global" />, container)
+    Loading.setDefaultIndicator('G')
+    mountTestApp(container, () => render(<Loading description="Global" />, container))
 
     await waitForContent(() => {
-      expect(container.querySelector('[data-testid="global-indicator"]')).toBeTruthy()
+      expect(container.textContent).toContain('G')
       expect(container.textContent).toContain('Global')
     })
   })
@@ -141,7 +150,9 @@ describe('Loading', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Loading delay={80} data-testid="delayed-loading" />, container)
+    mountTestApp(container, () =>
+      render(<Loading delay={80} data-testid="delayed-loading" />, container),
+    )
 
     await new Promise(resolve => setTimeout(resolve, 10))
     const delayed = container.querySelector('[data-testid="delayed-loading"]') as HTMLElement

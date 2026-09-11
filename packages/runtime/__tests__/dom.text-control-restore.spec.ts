@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
-  addEventListener,
   hasActiveTextControlWithin,
-  removeEventListener,
+  hasActiveUncontrolledTextControlWithin,
   restoreTrackedTextControlWithin,
-} from '../src/dom'
+} from '../src/compiler-runtime/form-controls'
+import { setDOMValue } from '../src/dom/props'
 
 afterEach(() => {
   const resetInput = document.createElement('input')
@@ -18,42 +18,6 @@ afterEach(() => {
 })
 
 describe('DOM text control focus restore', () => {
-  it('runs DOM event handlers with the runtime active at bind time', () => {
-    const globalRecord = globalThis as typeof globalThis & {
-      __rue_active?: unknown
-    }
-    const hadActiveRuntime = Object.prototype.hasOwnProperty.call(globalRecord, '__rue_active')
-    const previousRuntime = globalRecord.__rue_active
-    const runtime = { name: 'event-runtime' }
-    const button = document.createElement('button')
-    const seen: unknown[] = []
-    const handler = () => {
-      seen.push(globalRecord.__rue_active)
-    }
-
-    try {
-      globalRecord.__rue_active = runtime
-      addEventListener(button as any, 'click', handler as any)
-      delete globalRecord.__rue_active
-
-      button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-
-      expect(seen).toEqual([runtime])
-      expect(Object.prototype.hasOwnProperty.call(globalRecord, '__rue_active')).toBe(false)
-
-      removeEventListener(button as any, 'click', handler as any)
-      button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      expect(seen).toHaveLength(1)
-    } finally {
-      removeEventListener(button as any, 'click', handler as any)
-      if (hadActiveRuntime) {
-        globalRecord.__rue_active = previousRuntime
-      } else {
-        delete globalRecord.__rue_active
-      }
-    }
-  })
-
   it('restores a tracked text input after replacement when no pointer moved focus away', () => {
     const parent = document.createElement('div')
     const input = document.createElement('input')
@@ -100,5 +64,35 @@ describe('DOM text control focus restore', () => {
     expect(document.activeElement).not.toBe(input)
 
     input.focus()
+  })
+
+  it('does not overwrite an active IME composition with a controlled value update', () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    document.body.appendChild(input)
+
+    hasActiveTextControlWithin(document.body as any)
+    input.focus()
+    input.value = '正在输入'
+    input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
+
+    setDOMValue(input, '模型值')
+    expect(input.value).toBe('正在输入')
+
+    input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }))
+    setDOMValue(input, '模型值')
+    expect(input.value).toBe('模型值')
+  })
+
+  it('distinguishes uncontrolled text from a value-controlled text input', () => {
+    const input = document.createElement('input')
+    input.type = 'text'
+    document.body.appendChild(input)
+    input.focus()
+
+    expect(hasActiveUncontrolledTextControlWithin(document.body as any)).toBe(true)
+
+    setDOMValue(input, 'controlled')
+    expect(hasActiveUncontrolledTextControlWithin(document.body as any)).toBe(false)
   })
 })

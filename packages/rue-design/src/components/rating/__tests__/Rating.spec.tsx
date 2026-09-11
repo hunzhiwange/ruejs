@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Rating from '..'
@@ -35,11 +36,17 @@ describe('Rating', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Rating size="lg" half={true} className="gap-1">
-        <Rating.Item name="score" className="mask mask-star-2 mask-half-1" aria-label="0.5 star" />
-      </Rating>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Rating size="lg" half={true} className="gap-1">
+          <Rating.Item
+            name="score"
+            className="mask mask-star-2 mask-half-1"
+            aria-label="0.5 star"
+          />
+        </Rating>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -63,7 +70,7 @@ describe('Rating', () => {
       </Rating>
     )
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const items = Array.from(
@@ -86,9 +93,11 @@ describe('Rating', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Rating count={4} defaultValue={3} name="score" itemClassName="text-primary" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Rating count={4} defaultValue={3} name="score" itemClassName="text-primary" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -127,7 +136,7 @@ describe('Rating', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Rating defaultValue={3} allowClear={false} />, container)
+    mountTestApp(container, () => render(<Rating defaultValue={3} allowClear={false} />, container))
 
     await waitForContent(() => {
       expect(container.querySelectorAll('button[data-rating-index]').length).toBe(5)
@@ -155,16 +164,18 @@ describe('Rating', () => {
     const handleChange = vi.fn()
     const handleHoverChange = vi.fn()
 
-    render(
-      <Rating
-        value={2.5}
-        allowHalf={true}
-        tooltips={['terrible', 'bad', 'okay', 'good', 'wonderful']}
-        character={() => <span className="rating-custom-mark">A</span>}
-        onChange={handleChange}
-        onHoverChange={handleHoverChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Rating
+          value={2.5}
+          allowHalf={true}
+          tooltips={['terrible', 'bad', 'okay', 'good', 'wonderful']}
+          character="A"
+          onChange={handleChange}
+          onHoverChange={handleHoverChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -179,7 +190,7 @@ describe('Rating', () => {
       expect(root.getAttribute('data-rating-value')).toBe('2.5')
       expect(third.title).toBe('okay')
       expect(firstShell.children).toHaveLength(2)
-      expect(container.querySelectorAll('.rating-custom-mark')).toHaveLength(10)
+      expect(container.querySelectorAll('[data-rating-character="custom"]')).toHaveLength(10)
       expect(activeLayer.classList.contains('text-orange-400')).toBe(true)
     })
 
@@ -219,7 +230,7 @@ describe('Rating', () => {
       />
     )
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       expect(container.querySelectorAll('button[data-rating-index]').length).toBe(5)
@@ -248,17 +259,19 @@ describe('Rating', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Rating>
-        <Rating.Item data-testid="clear-item" hidden={true} name="score" aria-label="clear" />
-        <Rating.Item
-          as="div"
-          data-testid="display-item"
-          className="mask mask-heart bg-red-400"
-          aria-label="1 star"
-        />
-      </Rating>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Rating>
+          <Rating.Item data-testid="clear-item" hidden={true} name="score" aria-label="clear" />
+          <Rating.Item
+            as="div"
+            data-testid="display-item"
+            className="mask mask-heart bg-red-400"
+            aria-label="1 star"
+          />
+        </Rating>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

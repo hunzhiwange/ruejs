@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -19,7 +20,7 @@ describe('Diff', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Diff>{'x'}</Diff>, container)
+    mountTestApp(container, () => render(<Diff>{'x'}</Diff>, container))
 
     await waitForContent(() => {
       const element = container.querySelector('.diff') as HTMLElement
@@ -33,16 +34,18 @@ describe('Diff', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Diff className={'rounded-field aspect-16/9'} tabIndex={0}>
-        {'y'}
-      </Diff>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Diff className={'rounded-field aspect-16/9'} tabIndex={0}>
+          {'y'}
+        </Diff>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
       const element = container.querySelector('figure.diff') as HTMLElement
-      const styleAttr = element.getAttribute('style') ?? ''
+      const styleAttr = (element.getAttribute('style') ?? '').replace(/:\s+/g, ':')
       expect(element.classList.contains('rounded-field')).toBe(true)
       expect(element.classList.contains('aspect-16/9')).toBe(true)
       expect(element.tabIndex).toBe(0)
@@ -56,17 +59,19 @@ describe('Diff', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Diff>
-        <Diff.Item1 role={'img'} tabIndex={0}>
-          <div id={'a'}>{'A'}</div>
-        </Diff.Item1>
-        <Diff.Item2 role={'img'}>
-          <div id={'b'}>{'B'}</div>
-        </Diff.Item2>
-        <Diff.Resizer />
-      </Diff>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Diff>
+          <Diff.Item1 role={'img'} tabIndex={0}>
+            <div id={'a'}>{'A'}</div>
+          </Diff.Item1>
+          <Diff.Item2 role={'img'}>
+            <div id={'b'}>{'B'}</div>
+          </Diff.Item2>
+          <Diff.Resizer />
+        </Diff>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -88,18 +93,20 @@ describe('Diff', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Diff
-        className="aspect-16/9"
-        value={30}
-        item1={<div id="before">Before</div>}
-        item2={<div id="after">After</div>}
-        item1Label="Before"
-        item2Label="After"
-        resizerContent="vs"
-        aria-label="Demo diff"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Diff
+          className="aspect-16/9"
+          value={30}
+          item1={<div id="before">Before</div>}
+          item2={<div id="after">After</div>}
+          item1Label="Before"
+          item2Label="After"
+          resizerContent="vs"
+          aria-label="Demo diff"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -108,10 +115,10 @@ describe('Diff', () => {
       const item1 = container.querySelector('.diff-item-1') as HTMLElement
       const item2 = container.querySelector('.diff-item-2') as HTMLElement
       const resizer = container.querySelector('.diff-resizer') as HTMLElement
-      const rootStyle = root.getAttribute('style') ?? ''
-      const item1Style = item1.getAttribute('style') ?? ''
-      const item2Style = item2.getAttribute('style') ?? ''
-      const resizerStyle = resizer.getAttribute('style') ?? ''
+      const rootStyle = (root.getAttribute('style') ?? '').replace(/:\s+/g, ':')
+      const item1Style = (item1.getAttribute('style') ?? '').replace(/:\s+/g, ':')
+      const item2Style = (item2.getAttribute('style') ?? '').replace(/:\s+/g, ':')
+      const resizerStyle = (resizer.getAttribute('style') ?? '').replace(/:\s+/g, ':')
       expect(input).toBeTruthy()
       expect(input.value).toBe('30')
       expect(input.getAttribute('aria-label')).toBe('Demo diff')
@@ -138,14 +145,16 @@ describe('Diff', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Diff
-        defaultValue={25}
-        item1={<div>Alpha</div>}
-        item2={<div>Beta</div>}
-        onChange={handleChange}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Diff
+          defaultValue={25}
+          item1={<div>Alpha</div>}
+          item2={<div>Beta</div>}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -159,7 +168,7 @@ describe('Diff', () => {
 
     await waitForContent(() => {
       const root = container.querySelector('figure.diff') as HTMLElement
-      const rootStyle = root.getAttribute('style') ?? ''
+      const rootStyle = (root.getAttribute('style') ?? '').replace(/:\s+/g, ':')
       expect(handleChange).toHaveBeenCalledTimes(1)
       expect(handleChange).toHaveBeenCalledWith(80, expect.any(Event))
       expect(rootStyle.replace(/\s/g, '')).toContain('--rue-diff-position:80%')
@@ -171,9 +180,16 @@ describe('Diff', () => {
     resetActiveRuntime()
     const handleChange = vi.fn()
 
-    render(
-      <Diff value={25} item1={<div>Alpha</div>} item2={<div>Beta</div>} onChange={handleChange} />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Diff
+          value={25}
+          item1={<div>Alpha</div>}
+          item2={<div>Beta</div>}
+          onChange={handleChange}
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -187,7 +203,7 @@ describe('Diff', () => {
 
     await waitForContent(() => {
       const root = container.querySelector('figure.diff') as HTMLElement
-      const rootStyle = root.getAttribute('style') ?? ''
+      const rootStyle = (root.getAttribute('style') ?? '').replace(/:\s+/g, ':')
       expect(rootStyle.replace(/\s/g, '')).toContain('--rue-diff-position:80%')
       expect(handleChange).not.toHaveBeenCalled()
     })

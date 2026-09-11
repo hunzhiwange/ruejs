@@ -102,7 +102,7 @@ const ResourceJSXDemo: FC = () => {
       <div className="card-body gap-4">
         <h2 className="text-2xl font-semibold">Fetching data with createResource in JSX</h2>
         <p className="text-sm text-base-content/70">
-          这个版本故意不使用 vapor 或 renderAnchor，直接在 JSX 组件树里消费 createResource。
+          这个版本只使用编译后的 JSX 组件树消费 createResource，不依赖命令式锚点或兼容渲染层。
         </p>
         <p className="text-sm text-base-content/70">
           数据源复用获取数据示例里的 GitHub commits API，写法仍然保持 SolidJS createResource

@@ -1,3 +1,7 @@
+import {
+  createAppServerElement as createServerElement,
+  AppServerFragment,
+} from './app-server-tree.js'
 import './server-globals.js'
 import type { NavigationContext } from '../shims/navigation.js'
 import {
@@ -14,8 +18,7 @@ import { runWithNavigationContext } from '../shims/navigation-state.js'
 import { runWithRootParamsScope, type RootParams } from '../shims/root-params.js'
 import { isOpenRedirectShaped } from './request-pipeline.js'
 import { notFoundResponse } from './http-error-responses.js'
-import { ScriptNonceProvider, runWithScriptNonce } from '../shims/script-nonce-context.js'
-import { beginCurrentSsrLinkRendering, clearCurrentSsrLinkRendering } from '../shims/link.js'
+import { ScriptNonceContext } from '../shims/script-nonce-context.js'
 import {
   BeforeInteractiveContext,
   type BeforeInteractiveInlineScript,
@@ -59,10 +62,6 @@ import {
   loadAppBootstrapScriptContent,
   loadAppRscRequestHandler,
 } from './app-rsc-ssr-runtime.js'
-import {
-  ServerProtocolFragment as Fragment,
-  createServerProtocolElement as createServerElement,
-} from './element-protocol.js'
 
 export type FontPreload = {
   href: string
@@ -89,13 +88,13 @@ function getErrorMessage(error: unknown): string {
   return Object.prototype.toString.call(error)
 }
 
-function renderInsertedHtml(insertedElements: readonly unknown[]): string {
+async function renderInsertedHtml(insertedElements: readonly unknown[]): Promise<string> {
   let insertedHTML = ''
 
   for (const element of insertedElements) {
     try {
-      insertedHTML += renderAppSsrToStaticMarkup(
-        createServerElement(Fragment, null, element as TextCompatNode),
+      insertedHTML += await renderAppSsrToStaticMarkup(
+        createServerElement(AppServerFragment, null, element as TextCompatNode),
       )
     } catch {
       // Ignore individual callback failures so the rest of the page can render.
@@ -126,6 +125,7 @@ const VALID_ATTR_NAME = /^[a-zA-Z][\w.-]*$/
 
 function renderBeforeInteractiveInlineScripts(
   scripts: readonly BeforeInteractiveInlineScript[],
+  fallbackNonce?: string,
 ): string {
   if (scripts.length === 0) return ''
   let html = ''
@@ -134,7 +134,7 @@ function renderBeforeInteractiveInlineScripts(
     if (script.id) {
       attrs += ` id="${escapeHtmlAttr(script.id)}"`
     }
-    attrs += createNonceAttribute(script.nonce)
+    attrs += createNonceAttribute(script.nonce ?? fallbackNonce)
     if (script.attributes) {
       for (const [key, value] of Object.entries(script.attributes)) {
         // Attribute *values* go through escapeHtmlAttr below. The *name*
@@ -231,6 +231,9 @@ function buildHeadInjectionHtml(
     rscMetadataScript +
     formStateScript +
     buildModulePreloadHtml(bootstrapModuleUrl, scriptNonce) +
+    (bootstrapModuleUrl
+      ? `<script type="module"${createNonceAttribute(scriptNonce)} src="${escapeHtmlAttr(bootstrapModuleUrl)}"></script>`
+      : '') +
     insertedHTML +
     fontHTML
   )
@@ -278,13 +281,11 @@ export async function handleSsr(
 
     clearServerInsertedHTML()
     beginCurrentSsrAppElements()
-    beginCurrentSsrLinkRendering()
     beginCurrentSsrLayoutSegmentMap()
 
     const cleanup = (): void => {
       setNavigationContext(null)
       clearCurrentSsrAppElements()
-      clearCurrentSsrLinkRendering()
       clearCurrentSsrLayoutSegmentMap()
       clearServerInsertedHTML()
     }
@@ -345,10 +346,23 @@ export async function handleSsr(
                 metadata.routeId,
             )
           }
+          const routePlan =
+            typeof routeElement === 'function'
+              ? routeElement
+              : routeElement &&
+                  typeof routeElement === 'object' &&
+                  'version' in routeElement &&
+                  routeElement.version === 1 &&
+                  'html' in routeElement &&
+                  typeof routeElement.html === 'string'
+                ? (writer: any) => {
+                    writer.chunks.push(routeElement.html)
+                  }
+                : null
           return createServerElement(
             ElementsContext.Provider,
             { value: elements },
-            createServerElement(Fragment, null, (routeElement ?? null) as TextCompatNode),
+            createServerElement(AppServerFragment, null, routePlan as any),
           )
         }
 
@@ -389,8 +403,8 @@ export async function handleSsr(
         )
         const ssrRoot = options?.scriptNonce
           ? createServerElement(
-              ScriptNonceProvider,
-              { nonce: options.scriptNonce },
+              ScriptNonceContext.Provider,
+              { value: options.scriptNonce },
               treeWithBeforeInteractive,
             )
           : treeWithBeforeInteractive
@@ -417,44 +431,42 @@ export async function handleSsr(
           basePath: options?.basePath,
         })
 
-        const htmlStream = await runWithScriptNonce(options?.scriptNonce, () =>
-          renderAppSsrToReadableStream(ssrRoot, {
-            // `bootstrapScriptContent` was previously how text injected the
-            // dynamic-import call. `bootstrapModules` performs the same work
-            // natively (and exposes the URL in the DOM), so passing both would
-            // load the bootstrap module twice.
-            //
-            // CSP implications of using `bootstrapModules` instead of inline
-            // `bootstrapScriptContent`:
-            //  - Apps no longer need `script-src 'unsafe-inline'` to load the
-            //    bootstrap (improvement — inline imports required `'unsafe-inline'`).
-            //  - Apps that restrict script sources need `'self'` for the
-            //    common case, or the CDN origin when `assetPrefix` is an
-            //    absolute URL like `https://cdn.example.com`.
-            //  - The SSR renderer still applies `nonce` to the emitted
-            //    `<script type="module" src=…>` tag, so nonce-based CSP
-            //    (`script-src 'nonce-…' 'strict-dynamic'`) keeps working.
-            bootstrapModules: bootstrapModuleUrl ? [bootstrapModuleUrl] : undefined,
-            formState: options?.formState ?? null,
-            nonce: options?.scriptNonce,
-            onError(error) {
-              errorMetaRenderer.capture(error)
-              options?.onSsrError?.(error)
+        const htmlStream = await renderAppSsrToReadableStream(ssrRoot, {
+          // `bootstrapScriptContent` was previously how text injected the
+          // dynamic-import call. `bootstrapModules` performs the same work
+          // natively (and exposes the URL in the DOM), so passing both would
+          // load the bootstrap module twice.
+          //
+          // CSP implications of using `bootstrapModules` instead of inline
+          // `bootstrapScriptContent`:
+          //  - Apps no longer need `script-src 'unsafe-inline'` to load the
+          //    bootstrap (improvement — inline imports required `'unsafe-inline'`).
+          //  - Apps that restrict script sources need `'self'` for the
+          //    common case, or the CDN origin when `assetPrefix` is an
+          //    absolute URL like `https://cdn.example.com`.
+          //  - The SSR renderer still applies `nonce` to the emitted
+          //    `<script type="module" src=…>` tag, so nonce-based CSP
+          //    (`script-src 'nonce-…' 'strict-dynamic'`) keeps working.
+          bootstrapModules: bootstrapModuleUrl ? [bootstrapModuleUrl] : undefined,
+          formState: options?.formState ?? null,
+          nonce: options?.scriptNonce,
+          onError(error) {
+            errorMetaRenderer.capture(error)
+            options?.onSsrError?.(error)
 
-              if (error && typeof error === 'object' && 'digest' in error) {
-                return String(error.digest)
-              }
+            if (error && typeof error === 'object' && 'digest' in error) {
+              return String(error.digest)
+            }
 
-              if (process.env.NODE_ENV === 'production' && error) {
-                const message = getErrorMessage(error)
-                const stack = error instanceof Error ? (error.stack ?? '') : ''
-                return ssrErrorDigest(message + stack)
-              }
+            if (process.env.NODE_ENV === 'production' && error) {
+              const message = getErrorMessage(error)
+              const stack = error instanceof Error ? (error.stack ?? '') : ''
+              return ssrErrorDigest(message + stack)
+            }
 
-              return undefined
-            },
-          }),
-        )
+            return undefined
+          },
+        })
 
         // When producing static output (prerender / ISR cache writes), wait for
         // the full server-rendered tree to resolve before emitting bytes. This prevents
@@ -471,8 +483,8 @@ export async function handleSsr(
 
         const fontHTML = renderFontHtml(fontData, options?.scriptNonce)
         let didInjectHeadHTML = false
-        const getInsertedHTML = (): string => {
-          const insertedHTML = renderInsertedHtml(renderServerInsertedHTML())
+        const getInsertedHTML = async (): Promise<string> => {
+          const insertedHTML = await renderInsertedHtml(renderServerInsertedHTML())
           const errorMetaHTML = errorMetaRenderer.flush()
           if (didInjectHeadHTML) return insertedHTML + errorMetaHTML
 
@@ -497,7 +509,7 @@ export async function handleSsr(
         // guarantee that ordering applies to scripts rendered in the initial
         // shell.
         const getBeforeInteractiveHeadHTML = (): string =>
-          renderBeforeInteractiveInlineScripts(beforeInteractiveInlineScripts)
+          renderBeforeInteractiveInlineScripts(beforeInteractiveInlineScripts, options?.scriptNonce)
 
         return deferUntilStreamConsumed(
           htmlStream.pipeThrough(
@@ -536,3 +548,5 @@ export default {
     return new Response(String(result), { status: 200 })
   },
 }
+
+export const prepareCompiledReferences = installAppClientReferenceResolver

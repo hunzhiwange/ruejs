@@ -16,7 +16,7 @@ function renderHtml(element: TestServerNode): Promise<string> {
 }
 
 describe('app render dependency helpers', () => {
-  it('documents that a sync sibling can render before an async sibling completes', async () => {
+  it('executes compiled siblings in writer order', async () => {
     let activeLocale = 'en'
 
     async function LocaleLayout() {
@@ -33,7 +33,7 @@ describe('app render dependency helpers', () => {
       createElement(Fragment, null, createElement(LocaleLayout), createElement(LocalePage)),
     )
 
-    expect(body).toContain('page:en')
+    expect(body).toContain('page:de')
   })
 
   it('waits to serialize dependent entries until the barrier entry has rendered', async () => {
@@ -43,7 +43,11 @@ describe('app render dependency helpers', () => {
     async function LocaleLayout() {
       await Promise.resolve()
       activeLocale = 'de'
-      return createElement('div', null, renderWithAppDependencyBarrier('layout', layoutDependency))
+      return createElement(
+        'div',
+        null,
+        renderWithAppDependencyBarrier(createElement('span', null, 'layout'), layoutDependency),
+      )
     }
 
     function LocalePage() {

@@ -149,7 +149,8 @@ export interface ListProps<T = any> {
   /** pagination 配置项。 */
   pagination?: boolean | ListPaginationConfig | false
   /** renderItem 配置项。 */
-  renderItem?: (item: T, index: number) => any
+  itemFormatter?: (item: T, index: number) => string | number
+  itemClassName?: string
   /** rowKey 标识键。 */
   rowKey?: keyof T | ((item: T, index: number) => ListKey)
   /** 组件尺寸。 */
@@ -398,7 +399,7 @@ const resolvePagination = (
 }
 
 /** 渲染 Legacy Item 的内部工具函数。 */
-const renderLegacyItem = (item: ListDataItem, index: number) => {
+const RenderLegacyItem = ({ arg0: item, arg1: index }: { arg0: ListDataItem; arg1: number }) => {
   const key = item.key ?? index
   const type =
     item.type ??
@@ -411,18 +412,14 @@ const renderLegacyItem = (item: ListDataItem, index: number) => {
       ? 'row'
       : 'item')
   if (type === 'item') {
-    return (
-      <Item className={item.className} key={key}>
-        {item.content}
-      </Item>
-    )
+    return <Item className={item.className}>{String(item.content ?? '')}</Item>
   }
 
   if (item.title || item.description || item.avatar || item.actions || item.extra) {
     return (
-      <Item actions={item.actions} className={item.className} extra={item.extra} key={key}>
+      <Item actions={item.actions} className={item.className} extra={item.extra}>
         <Meta avatar={item.avatar} title={item.title} description={item.description}>
-          {item.content}
+          {String(item.content ?? '')}
         </Meta>
         <ListDataCols cols={item.cols} />
       </Item>
@@ -430,16 +427,16 @@ const renderLegacyItem = (item: ListDataItem, index: number) => {
   }
 
   return (
-    <Row normal={item.normal} className={item.className} key={key}>
-      {item.content}
+    <Row normal={item.normal} className={item.className}>
+      {String(item.content ?? '')}
       <ListDataCols cols={item.cols} />
     </Row>
   )
 }
 
 /** 渲染 Loading 的内部工具函数。 */
-const renderLoading = (loading: NormalizedLoadingConfig) => {
-  if (!loading.spinning) return null
+const RenderLoading = ({ arg0: loading }: { arg0: NormalizedLoadingConfig }) => {
+  if (!loading.spinning) return <></>
   return (
     <li className="flex min-h-24 items-center justify-center gap-3 p-6 text-sm opacity-70">
       {loading.indicator ?? <span className="loading loading-spinner loading-sm" />}
@@ -449,14 +446,14 @@ const renderLoading = (loading: NormalizedLoadingConfig) => {
 }
 
 /** 渲染 Empty 的内部工具函数。 */
-const renderEmpty = (emptyText: any) => {
+const RenderEmpty = ({ arg0: emptyText }: { arg0: any }) => {
   return <li className="p-8 text-center text-sm opacity-60">{emptyText ?? 'No data'}</li>
 }
 
 /** 渲染 Section 的内部工具函数。 */
-const renderSection = (content: any, className: string) => {
-  if (isEmptyNode(content)) return null
-  return <li className={className}>{content}</li>
+const RenderSection = ({ arg0: content, arg1: className }: { arg0: any; arg1: string }) => {
+  if (isEmptyNode(content)) return <></>
+  return <li className={className}>{String(content)}</li>
 }
 
 const ListDivHost: FC<any> = ({ children, ...rest }) => <div {...rest}>{children}</div>
@@ -468,14 +465,18 @@ const LIST_PAGER_HOSTS = { div: ListDivHost, li: ListItemHost }
 const Component = ListDivHost as any
 
 /** 渲染 Pager 的内部工具函数。 */
-const renderPager = (
-  config: NormalizedPaginationConfig | null,
-  onChange: (page: number) => void,
-  as: 'li' | 'div' = 'li',
-) => {
-  if (!config) return null
+const Pager = ({
+  config,
+  onChange,
+  as = 'li',
+}: {
+  config: NormalizedPaginationConfig | null
+  onChange: (page: number) => void
+  as?: 'li' | 'div'
+}) => {
+  if (!config) return <></>
   const pageCount = Math.max(1, Math.ceil(config.total / config.pageSize))
-  if (config.hideOnSinglePage && pageCount <= 1) return null
+  if (config.hideOnSinglePage && pageCount <= 1) return <></>
   const pages = Array.from({ length: pageCount }, (_, index) => index + 1)
   const start = config.total === 0 ? 0 : (config.current - 1) * config.pageSize + 1
   const end = Math.min(config.current * config.pageSize, config.total)
@@ -486,12 +487,8 @@ const renderPager = (
         ? 'justify-center'
         : 'justify-end'
 
-  return (
-    <Component
-      is={as}
-      registry={LIST_PAGER_HOSTS}
-      className={mergeClassNames('flex flex-wrap items-center gap-3 p-3', alignClass)}
-    >
+  return as === 'div' ? (
+    <div className={mergeClassNames('flex flex-wrap items-center gap-3 p-3', alignClass)}>
       {config.showTotal ? (
         <span className="mr-auto text-xs opacity-60">
           {config.showTotal(config.total, [start, end])}
@@ -531,7 +528,51 @@ const renderPager = (
           Next
         </button>
       </div>
-    </Component>
+    </div>
+  ) : as === 'li' ? (
+    <li className={mergeClassNames('flex flex-wrap items-center gap-3 p-3', alignClass)}>
+      {config.showTotal ? (
+        <span className="mr-auto text-xs opacity-60">
+          {config.showTotal(config.total, [start, end])}
+        </span>
+      ) : null}
+      <div className="join">
+        <button
+          className={mergeClassNames('join-item btn btn-sm', config.current <= 1 && 'btn-disabled')}
+          disabled={config.current <= 1}
+          onClick={() => onChange(config.current - 1)}
+          type="button"
+        >
+          Prev
+        </button>
+        {pages.map(page => (
+          <button
+            className={mergeClassNames(
+              'join-item btn btn-sm',
+              page === config.current && 'btn-active',
+            )}
+            key={page}
+            onClick={() => onChange(page)}
+            type="button"
+          >
+            {page}
+          </button>
+        ))}
+        <button
+          className={mergeClassNames(
+            'join-item btn btn-sm',
+            config.current >= pageCount && 'btn-disabled',
+          )}
+          disabled={config.current >= pageCount}
+          onClick={() => onChange(config.current + 1)}
+          type="button"
+        >
+          Next
+        </button>
+      </div>
+    </li>
+  ) : (
+    <></>
   )
 }
 
@@ -551,7 +592,8 @@ const List: FC<ListProps> = ({
   loadMore,
   locale,
   pagination,
-  renderItem,
+  itemFormatter,
+  itemClassName,
   rowKey,
   size,
   split = true,
@@ -576,24 +618,43 @@ const List: FC<ListProps> = ({
   if (itemLayout === 'vertical') cls += ' list-vertical'
   cls = mergeClassNames(cls, resolveSizeClass(size), className) ?? 'list'
 
-  const renderPageItems = (
-    pageData: ReadonlyArray<any> | undefined,
-    pager: NormalizedPaginationConfig | null,
-  ) =>
-    pageData?.map((item: any, index: number) => {
-      const absoluteIndex = pager ? (pager.current - 1) * pager.pageSize + index : index
-      const key = getRecordKey(item, absoluteIndex, rowKey as any)
-      if (hasDataSource && renderItem) {
-        return renderItem(item, absoluteIndex)
-      }
-      if (isLegacyListDataItem(item)) return renderLegacyItem(item, absoluteIndex)
-      const fallbackContent = resolveRenderableItemContent(item)
-      return (
-        <Item key={key} itemLayout={itemLayout}>
-          {fallbackContent}
-        </Item>
-      )
-    })
+  const readItemClass = () => itemClassName
+  const formatItem = (item: any, index: number) =>
+    itemFormatter ? itemFormatter(item, index) : (resolveRenderableItemContent(item) ?? '')
+  const PageItem = ({
+    item,
+    index,
+    pager,
+  }: {
+    item: any
+    index: number
+    pager: NormalizedPaginationConfig | null
+  }) => {
+    const absoluteIndex = pager ? (pager.current - 1) * pager.pageSize + index : index
+    return isLegacyListDataItem(item) ? (
+      <RenderLegacyItem arg0={item} arg1={absoluteIndex} />
+    ) : (
+      <li className={readItemClass()}>{String(formatItem(item, absoluteIndex))}</li>
+    )
+  }
+  const RenderPageItems = ({
+    arg0: pageData,
+    arg1: pager,
+  }: {
+    arg0: ReadonlyArray<any> | undefined
+    arg1: NormalizedPaginationConfig | null
+  }) => (
+    <>
+      {(pageData ?? []).map((item, index) => (
+        <PageItem
+          key={getRecordKey(item, index, rowKey as any)}
+          item={item}
+          index={index}
+          pager={pager}
+        />
+      ))}
+    </>
+  )
 
   const getPagerSnapshot = () =>
     resolvePagination(pagination, dataItems?.length ?? 0, currentRef.value, pageSizeRef.value)
@@ -605,13 +666,14 @@ const List: FC<ListProps> = ({
   }
   const pager = computed(() => getPagerSnapshot())
   const pagedItems = computed(() => getPageDataSnapshot(pager.get()))
-  const paginatedListContent = computed(() =>
-    loadingConfig.spinning
-      ? renderLoading(loadingConfig)
-      : dataItems && dataItems.length === 0
-        ? renderEmpty(locale?.emptyText ?? emptyText)
-        : renderPageItems(pagedItems.get(), pager.get()),
-  )
+  const PaginatedListContent = () =>
+    loadingConfig.spinning ? (
+      <RenderLoading arg0={loadingConfig} />
+    ) : dataItems && dataItems.length === 0 ? (
+      <RenderEmpty arg0={locale?.emptyText ?? emptyText} />
+    ) : (
+      <RenderPageItems arg0={pagedItems.get()} arg1={pager.get()} />
+    )
 
   const handlePageChange = (nextPage: number) => {
     const pager = getPagerSnapshot()
@@ -641,38 +703,37 @@ const List: FC<ListProps> = ({
 
     return (
       <div {...rest} className={wrapperCls} style={!grid ? style : undefined}>
-        {pager.get() && (pager.get()?.position === 'top' || pager.get()?.position === 'both')
-          ? renderPager(pager.get(), handlePageChange, 'div')
-          : null}
+        {pager.get() && (pager.get()?.position === 'top' || pager.get()?.position === 'both') ? (
+          <Pager config={pager.get()} onChange={handlePageChange} as="div" />
+        ) : null}
         {isEmptyNode(header) ? null : (
           <div className="p-4 pb-2 text-sm font-medium opacity-70">{header}</div>
         )}
         <ul className={listCls} style={getGridStyle(grid, grid ? style : undefined)}>
-          {paginatedListContent.get()}
+          <PaginatedListContent />
         </ul>
         {isEmptyNode(footer) ? null : <div className="p-4 pt-2 text-sm opacity-70">{footer}</div>}
         {isEmptyNode(loadMore) ? null : <div className="p-3 text-center">{loadMore}</div>}
-        {pager.get() && (pager.get()?.position === 'bottom' || pager.get()?.position === 'both')
-          ? renderPager(pager.get(), handlePageChange, 'div')
-          : null}
+        {pager.get() && (pager.get()?.position === 'bottom' || pager.get()?.position === 'both') ? (
+          <Pager config={pager.get()} onChange={handlePageChange} as="div" />
+        ) : null}
       </div>
     )
   }
 
   return (
     <ul {...rest} className={cls} style={getGridStyle(grid, style)}>
-      {renderSection(header, 'p-4 pb-2 text-sm font-medium opacity-70')}
-      {loadingConfig.spinning ? renderLoading(loadingConfig) : null}
-      {!loadingConfig.spinning && dataItems && dataItems.length === 0
-        ? renderEmpty(locale?.emptyText ?? emptyText)
-        : null}
-      {!loadingConfig.spinning &&
-        dataItems &&
-        dataItems.length > 0 &&
-        renderPageItems(dataItems, null)}
-      {!hasDataSource && !items ? children : null}
-      {renderSection(footer, 'p-4 pt-2 text-sm opacity-70')}
-      {renderSection(loadMore, 'p-3 text-center')}
+      <RenderSection arg0={header} arg1={'p-4 pb-2 text-sm font-medium opacity-70'} />
+      {loadingConfig.spinning ? <RenderLoading arg0={loadingConfig} /> : null}
+      {!loadingConfig.spinning && dataItems && dataItems.length === 0 ? (
+        <RenderEmpty arg0={locale?.emptyText ?? emptyText} />
+      ) : null}
+      {!loadingConfig.spinning && dataItems && dataItems.length > 0 && (
+        <RenderPageItems arg0={dataItems} arg1={null} />
+      )}
+      {!hasDataSource && !items ? <>{children}</> : null}
+      <RenderSection arg0={footer} arg1={'p-4 pt-2 text-sm opacity-70'} />
+      <RenderSection arg0={loadMore} arg1={'p-3 text-center'} />
     </ul>
   )
 }
@@ -695,29 +756,63 @@ const Row: FC<ListRowProps> = ({ normal, className, children, ...rest }) => {
 
 /** 列：可伸展区域。 */
 const ColGrow: FC<ListColProps> = ({ as = 'div', className, children, ...rest }) => {
-  return (
-    <Component
-      is={as}
-      registry={LIST_BLOCK_HOSTS}
-      {...rest}
-      className={mergeClassNames('list-col-grow', className)}
-    >
+  return as === 'div' ? (
+    <div {...rest} className={mergeClassNames('list-col-grow', className)}>
       {children}
-    </Component>
+    </div>
+  ) : as === 'span' ? (
+    <span {...rest} className={mergeClassNames('list-col-grow', className)}>
+      {children}
+    </span>
+  ) : as === 'p' ? (
+    <p {...rest} className={mergeClassNames('list-col-grow', className)}>
+      {children}
+    </p>
+  ) : as === 'label' ? (
+    <label {...rest} className={mergeClassNames('list-col-grow', className)}>
+      {children}
+    </label>
+  ) : as === 'li' ? (
+    <li {...rest} className={mergeClassNames('list-col-grow', className)}>
+      {children}
+    </li>
+  ) : as === 'button' ? (
+    <button {...rest} className={mergeClassNames('list-col-grow', className)}>
+      {children}
+    </button>
+  ) : (
+    <></>
   )
 }
 
 /** 列：包裹区域。 */
 const ColWrap: FC<ListColProps> = ({ as = 'div', className, children, ...rest }) => {
-  return (
-    <Component
-      is={as}
-      registry={LIST_BLOCK_HOSTS}
-      {...rest}
-      className={mergeClassNames('list-col-wrap', className)}
-    >
+  return as === 'div' ? (
+    <div {...rest} className={mergeClassNames('list-col-wrap', className)}>
       {children}
-    </Component>
+    </div>
+  ) : as === 'span' ? (
+    <span {...rest} className={mergeClassNames('list-col-wrap', className)}>
+      {children}
+    </span>
+  ) : as === 'p' ? (
+    <p {...rest} className={mergeClassNames('list-col-wrap', className)}>
+      {children}
+    </p>
+  ) : as === 'label' ? (
+    <label {...rest} className={mergeClassNames('list-col-wrap', className)}>
+      {children}
+    </label>
+  ) : as === 'li' ? (
+    <li {...rest} className={mergeClassNames('list-col-wrap', className)}>
+      {children}
+    </li>
+  ) : as === 'button' ? (
+    <button {...rest} className={mergeClassNames('list-col-wrap', className)}>
+      {children}
+    </button>
+  ) : (
+    <></>
   )
 }
 
@@ -726,20 +821,20 @@ const ListDataCol: FC<{ col: ListColDataItem }> = ({ col }) => {
   if (col.type === 'grow') {
     return (
       <ColGrow as={col.as} className={col.className}>
-        {col.content}
+        {String(col.content ?? '')}
       </ColGrow>
     )
   }
   return (
     <ColWrap as={col.as} className={col.className}>
-      {col.content}
+      {String(col.content ?? '')}
     </ColWrap>
   )
 }
 
 /** 数据列集合渲染组件。 */
 const ListDataCols: FC<{ cols?: ReadonlyArray<ListColDataItem> }> = ({ cols }) => {
-  if (!cols) return null
+  if (!cols) return <></>
   return (
     <>
       {cols.map((col, index) => (
@@ -760,10 +855,10 @@ const Meta: FC<ListItemMetaProps> = ({
 }) => {
   return (
     <div {...rest} className={mergeClassNames('flex min-w-0 flex-1 items-start gap-3', className)}>
-      {avatar ? <div className="shrink-0">{avatar}</div> : null}
+      {avatar ? <div className="shrink-0">{String(avatar)}</div> : null}
       <div className="min-w-0 flex-1">
-        {title ? <div className="font-medium">{title}</div> : null}
-        {description ? <div className="text-sm opacity-70">{description}</div> : null}
+        {title ? <div className="font-medium">{String(title)}</div> : null}
+        {description ? <div className="text-sm opacity-70">{String(description)}</div> : null}
         {children}
       </div>
     </div>
@@ -772,7 +867,13 @@ const Meta: FC<ListItemMetaProps> = ({
 
 /** Action 渲染组件。 */
 const ListActionItem: FC<{ action: any }> = ({ action }) => {
-  return <li>{action}</li>
+  return (
+    <li>
+      <button type="button" onClick={action.onClick}>
+        {String(action.label)}
+      </button>
+    </li>
+  )
 }
 
 /** 项组件：默认保持普通 li；传入 actions/extra 时自动组织为信息行。 */
@@ -781,6 +882,7 @@ const Item: FC<ListItemProps> = ({
   className,
   classNames,
   extra,
+  extraClassName,
   itemLayout = 'horizontal',
   styles,
   children,
@@ -824,8 +926,11 @@ const Item: FC<ListItemProps> = ({
         ) : null}
       </div>
       {hasExtra ? (
-        <div className={mergeClassNames('list-col-wrap', classNames?.extra)} style={styles?.extra}>
-          {extra}
+        <div
+          className={mergeClassNames('list-col-wrap', classNames?.extra, extraClassName)}
+          style={styles?.extra}
+        >
+          {String(extra)}
         </div>
       ) : null}
     </li>

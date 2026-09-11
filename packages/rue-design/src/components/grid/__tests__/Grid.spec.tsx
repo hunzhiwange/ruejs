@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
@@ -25,12 +26,14 @@ afterEach(() => {
 describe('Grid', () => {
   it('renders row and col with base classes', async () => {
     const container = document.createElement('div')
-    render(
-      <Grid>
-        <Grid.Col span={12}>{'Alpha'}</Grid.Col>
-        <Grid.Col span={12}>{'Beta'}</Grid.Col>
-      </Grid>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Grid>
+          <Grid.Col span={12}>{'Alpha'}</Grid.Col>
+          <Grid.Col span={12}>{'Beta'}</Grid.Col>
+        </Grid>,
+        container,
+      ),
     )
     await waitGridRender()
 
@@ -46,38 +49,44 @@ describe('Grid', () => {
 
   it('applies gutter, justify, and align styles on row', async () => {
     const container = document.createElement('div')
-    render(
-      <Grid gutter={[16, 24]} justify={'space-between'} align={'middle'}>
-        <Grid.Col span={12}>{'Metrics'}</Grid.Col>
-      </Grid>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Grid gutter={[16, 24]} justify={'space-between'} align={'middle'}>
+          <Grid.Col span={12}>{'Metrics'}</Grid.Col>
+        </Grid>,
+        container,
+      ),
     )
     await waitGridRender()
 
     const row = container.querySelector('[data-rue-grid-row]') as HTMLElement
     const col = container.querySelector('[data-rue-grid-col]') as HTMLElement
-    const rowStyle = row.getAttribute('style') ?? ''
-    const colStyle = col.getAttribute('style') ?? ''
+    const rowStyle = (row.getAttribute('style') ?? '').replace(/:\s+/g, ':')
+    const colStyle = (col.getAttribute('style') ?? '').replace(/:\s+/g, ':')
 
     expect(rowStyle).toContain('justify-content:space-between')
     expect(rowStyle).toContain('align-items:center')
-    expect(rowStyle).toContain('margin-left:-8px')
-    expect(rowStyle).toContain('margin-top:-12px')
+    expect(row.style.marginLeft).toBe('-8px')
+    expect(row.style.marginTop).toBe('-12px')
     expect(rowStyle).toContain('--rue-grid-gutter-x:16px')
     expect(rowStyle).toContain('--rue-grid-gutter-y:24px')
-    expect(colStyle).toContain('padding-left:calc(var(--rue-grid-gutter-x, 0px) / 2)')
+    expect(col.style.padding).toBe(
+      'calc(var(--rue-grid-gutter-y, 0px) / 2) calc(var(--rue-grid-gutter-x, 0px) / 2)',
+    )
   })
 
   it('applies span, offset, order, and flex values on col', async () => {
     const container = document.createElement('div')
-    render(
-      <Grid>
-        <Grid.Col span={12} offset={6} order={2}>
-          {'Content'}
-        </Grid.Col>
-        <Grid.Col flex={'280px'}>{'Aside'}</Grid.Col>
-      </Grid>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Grid>
+          <Grid.Col span={12} offset={6} order={2}>
+            {'Content'}
+          </Grid.Col>
+          <Grid.Col flex={'280px'}>{'Aside'}</Grid.Col>
+        </Grid>,
+        container,
+      ),
     )
     await waitGridRender()
 
@@ -96,11 +105,13 @@ describe('Grid', () => {
     setViewportWidth(480)
 
     const container = document.createElement('div')
-    render(
-      <Grid.Col span={8} xs={24} md={12}>
-        {'Responsive'}
-      </Grid.Col>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Grid.Col span={8} xs={24} md={12}>
+          {'Responsive'}
+        </Grid.Col>,
+        container,
+      ),
     )
     await waitGridRender()
 
@@ -118,30 +129,32 @@ describe('Grid', () => {
     setViewportWidth(520)
 
     const container = document.createElement('div')
-    render(
-      <Grid
-        gutter={[
-          { xs: 8, md: 24 },
-          { xs: 12, md: 32 },
-        ]}
-      >
-        <Grid.Col span={12}>{'A'}</Grid.Col>
-      </Grid>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Grid
+          gutter={[
+            { xs: 8, md: 24 },
+            { xs: 12, md: 32 },
+          ]}
+        >
+          <Grid.Col span={12}>{'A'}</Grid.Col>
+        </Grid>,
+        container,
+      ),
     )
     await waitGridRender()
 
     const row = container.querySelector('[data-rue-grid-row]') as HTMLElement
-    let rowStyle = row.getAttribute('style') ?? ''
-    expect(rowStyle).toContain('margin-left:-4px')
-    expect(rowStyle).toContain('margin-top:-6px')
+    let rowStyle = (row.getAttribute('style') ?? '').replace(/:\s+/g, ':')
+    expect(row.style.marginLeft).toBe('-4px')
+    expect(row.style.marginTop).toBe('-6px')
 
     setViewportWidth(960)
     await waitGridRender()
     await waitGridRender()
 
-    rowStyle = row.getAttribute('style') ?? ''
-    expect(rowStyle).toContain('margin-left:-12px')
-    expect(rowStyle).toContain('margin-top:-16px')
+    rowStyle = (row.getAttribute('style') ?? '').replace(/:\s+/g, ':')
+    expect(row.style.marginLeft).toBe('-12px')
+    expect(row.style.marginTop).toBe('-16px')
   })
 })

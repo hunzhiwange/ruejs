@@ -183,28 +183,7 @@ watch(id, newId => {
 
 但是如果 `id` 在请求完成之前发生变化呢？当前一个请求完成时，它仍然会用已经过时的 ID 值触发回调。理想情况下，我们希望在 `id` 变化为新值时能够取消过时的请求。
 
-我们可以使用 [`onWatcherCleanup()`](/api/api/reactivity-core#onwatchercleanup) API 注册一个清理函数，该函数将在侦听器失效并即将重新运行时调用：
-
-```js
-import { watch, onWatcherCleanup } from '@rue-js/rue'
-
-watch(id, newId => {
-  const controller = new AbortController()
-
-  fetch(`/api/${newId}`, { signal: controller.signal }).then(() => {
-    // 回调逻辑
-  })
-
-  onWatcherCleanup(() => {
-    // 中止过时的请求
-    controller.abort()
-  })
-})
-```
-
-请注意，`onWatcherCleanup` 只在 Rue 3.5+ 中受支持，并且必须在 `watchEffect` 效果函数或 `watch` 回调函数的同步执行期间调用：你不能在异步函数的 `await` 语句之后调用它。
-
-或者，一个 `onCleanup` 函数也会作为第三个参数传递给侦听器回调，作为 `watchEffect` 效果函数的第一个参数：
+一个 `onCleanup` 函数也会作为第三个参数传递给侦听器回调，作为 `watchEffect` 效果函数的第一个参数：
 
 ```js
 watch(id, (newId, oldId, onCleanup) => {
@@ -222,7 +201,7 @@ watchEffect(onCleanup => {
 })
 ```
 
-这适用于 3.5 之前的版本。此外，通过函数参数传递的 `onCleanup` 绑定到侦听器实例，因此不受 `onWatcherCleanup` 的同步限制。
+通过函数参数传递的 `onCleanup` 绑定到侦听器实例，也是 compiler-only 公共能力面唯一支持的 watcher 清理入口。
 
 ## 回调刷新时机 {#callback-flush-timing}
 
@@ -246,15 +225,7 @@ watchEffect(callback, {
 })
 ```
 
-Post-flush `watchEffect()` 还有一个便捷的别名 `watchPostEffect()`：
-
-```js
-import { watchPostEffect } from '@rue-js/rue'
-
-watchPostEffect(() => {
-  /* 在 Rue 更新后执行 */
-})
-```
+compiler-only 公共能力面不提供 `watchPostEffect` 别名，请继续使用上面的 `flush: 'post'` 选项。
 
 ### 同步侦听器 {#sync-watchers}
 
@@ -270,15 +241,7 @@ watchEffect(callback, {
 })
 ```
 
-Sync `watchEffect()` 还有一个便捷的别名 `watchSyncEffect()`：
-
-```js
-import { watchSyncEffect } from '@rue-js/rue'
-
-watchSyncEffect(() => {
-  /* 在响应式数据变化时同步执行 */
-})
-```
+compiler-only 公共能力面不提供 `watchSyncEffect` 别名，请继续使用上面的 `flush: 'sync'` 选项。
 
 :::warning 谨慎使用
 同步侦听器没有批处理，每次检测到响应式变更时都会触发。用它们观察简单的布尔值是可以的，但避免在可能同步变更多次的数据源上使用它们，例如数组。

@@ -448,9 +448,7 @@ const resolveSearchDebounce = (value?: number) => {
   return Math.round(value)
 }
 
-const mentionsStateCache = /*#__PURE__*/ new Map<string, any>()
 const createCell = <T,>(current?: T): { current: T | undefined } => ({ current })
-const createCachedSignal = <T,>(value: T) => ref(value)
 
 /** find First Enabled Index 的内部工具函数。 */
 const findFirstEnabledIndex = (options: MentionsOption[]) => {
@@ -525,7 +523,7 @@ const LoadingOption: FC = () => {
 const EmptyOption: FC<{ content: any; className?: string }> = ({ content, className }) => {
   return (
     <div className={appendClassName('px-3 py-2 text-sm text-base-content/55', className)}>
-      {content}
+      {String(content)}
     </div>
   )
 }
@@ -572,40 +570,81 @@ const MentionsRoot: FC<MentionsProps> = ({
   style,
   ...rest
 }) => {
-  const cacheKey = String(rest['data-testid'] ?? 'default')
-  let cachedState = mentionsStateCache.get(cacheKey)
-  if (!cachedState) {
-    cachedState = {
-      textareaRef: createCell<HTMLTextAreaElement>(),
-      rootRef: createCell<HTMLDivElement>(),
-      resizeObserverRef: createCell<ResizeObserver>(),
-      triggerSyncTimerRef: createCell<ReturnType<typeof setTimeout>>(),
-      lastResizeRef: createCell<{ width: number; height: number }>(),
-      currentValue: createCachedSignal(
-        resolveTextValue(value !== undefined ? value : defaultValue),
-      ),
-      focused: createCachedSignal(false),
-      composing: createCachedSignal(false),
-      selectionStart: createCachedSignal(0),
-      selectionEnd: createCachedSignal(0),
-      highlightedIndex: createCachedSignal(-1),
-      dismissedTriggerKey: createCachedSignal(''),
-      activeTrigger: createCachedSignal<MentionTriggerState | null>(null),
-      lastSearchKey: createCachedSignal(''),
-      optionSource: createCachedSignal(createOptionView(options)),
-      visibleOptions: createCachedSignal<MentionsOption[]>([]),
-      lastCompositionCommittedValue: createCell<string | null>(null),
-      lastNativeInputValue: createCell(''),
-      lastNativeTrigger: createCell<MentionTriggerState | null>(null),
-      lastNativeOptions: createCell<MentionsOption[]>([]),
-      suppressNextNativeInput: createCell(false),
-      instanceId: createCachedSignal(''),
-      didInitOptionsWatch: createCell(false),
-      lastOptionsSourceRef: createCell<MentionsOption[] | undefined>(undefined),
-      didInitConfigWatch: createCell(false),
-      lastConfigSignatureRef: createCell(''),
-    }
-    mentionsStateCache.set(cacheKey, cachedState)
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const option = rowArg0
+    const index = rowArg1
+
+    const popupId = resolvePopupId()
+    const selected = index === highlightedIndex.value
+
+    return (
+      <button
+        key={option.key ?? `${option.value}-${index}`}
+        id={popupId ? `${popupId}-option-${index}` : undefined}
+        type="button"
+        role="option"
+        aria-selected={selected ? 'true' : 'false'}
+        disabled={option.disabled}
+        className={appendClassName(
+          appendClassName(
+            appendClassName(
+              'mx-2 flex w-[calc(100%-1rem)] items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition',
+              selected
+                ? 'bg-primary/10 text-primary ring-1 ring-primary/10'
+                : 'text-base-content hover:bg-base-200/75',
+            ),
+            option.disabled ? 'cursor-not-allowed opacity-45 hover:bg-transparent' : undefined,
+          ),
+          appendClassName(classNames?.option ?? '', option.className),
+        )}
+        style={option.style}
+        onMouseDown={(event: MouseEvent) => {
+          if (typeof (event as any).preventDefault === 'function') {
+            ;(event as any).preventDefault()
+          }
+        }}
+        onMouseEnter={() => {
+          highlightedIndex.value = option.disabled ? highlightedIndex.value : index
+        }}
+        onClick={() => {
+          selectMentionOption(option)
+        }}
+      >
+        <span className="min-w-0 flex-1 truncate">{String(option.label ?? option.value)}</span>
+        <span className={selected ? 'text-primary/55' : 'text-base-content/35'}>
+          {String(activeTrigger.value?.prefix ?? '')}
+        </span>
+      </button>
+    )
+  }
+
+  const componentState = {
+    textareaRef: createCell<HTMLTextAreaElement>(),
+    rootRef: createCell<HTMLDivElement>(),
+    resizeObserverRef: createCell<ResizeObserver>(),
+    triggerSyncTimerRef: createCell<ReturnType<typeof setTimeout>>(),
+    lastResizeRef: createCell<{ width: number; height: number }>(),
+    currentValue: ref(resolveTextValue(value !== undefined ? value : defaultValue)),
+    focused: ref(false),
+    composing: ref(false),
+    selectionStart: ref(0),
+    selectionEnd: ref(0),
+    highlightedIndex: ref(-1),
+    dismissedTriggerKey: ref(''),
+    activeTrigger: ref<MentionTriggerState | null>(null),
+    lastSearchKey: ref(''),
+    optionSource: ref(createOptionView(options)),
+    visibleOptions: ref<MentionsOption[]>([]),
+    lastCompositionCommittedValue: createCell<string | null>(null),
+    lastNativeInputValue: createCell(''),
+    lastNativeTrigger: createCell<MentionTriggerState | null>(null),
+    lastNativeOptions: createCell<MentionsOption[]>([]),
+    suppressNextNativeInput: createCell(false),
+    instanceId: ref(''),
+    didInitOptionsWatch: createCell(false),
+    lastOptionsSourceRef: createCell<MentionsOption[] | undefined>(undefined),
+    didInitConfigWatch: createCell(false),
+    lastConfigSignatureRef: createCell(''),
   }
   const {
     textareaRef,
@@ -634,7 +673,7 @@ const MentionsRoot: FC<MentionsProps> = ({
     lastOptionsSourceRef,
     didInitConfigWatch,
     lastConfigSignatureRef,
-  } = cachedState
+  } = componentState
   const forwardedRef = rest.ref
   const isControlled = value !== undefined
   const clearConfig = allowClear && typeof allowClear === 'object' ? allowClear : undefined
@@ -988,73 +1027,6 @@ const MentionsRoot: FC<MentionsProps> = ({
     if (onSelect) {
       onSelect(option, triggerPrefix)
     }
-    queueMicrotask(() => {
-      if (typeof document === 'undefined') return
-      const activeElement = document.querySelector(
-        `[data-testid="${cacheKey}"]`,
-      ) as HTMLTextAreaElement | null
-      if (activeElement) {
-        activeElement.value = nextValue
-        activeElement.setSelectionRange?.(nextCaretPosition, nextCaretPosition)
-      }
-      document.querySelector('[data-rue-mentions-native-popup]')?.remove()
-    })
-    setTimeout(() => {
-      if (typeof document === 'undefined') return
-      const activeElement = document.querySelector(
-        `[data-testid="${cacheKey}"]`,
-      ) as HTMLTextAreaElement | null
-      if (activeElement) activeElement.value = nextValue
-    }, 0)
-    const selectionRestoreTimer = setInterval(() => {
-      if (typeof document === 'undefined') return
-      const activeElement = document.querySelector(
-        `[data-testid="${cacheKey}"]`,
-      ) as HTMLTextAreaElement | null
-      if (activeElement) activeElement.value = nextValue
-    }, 1)
-    setTimeout(() => clearInterval(selectionRestoreTimer), 60)
-  }
-
-  const renderNativePopup = (trigger: MentionTriggerState, resolvedOptions: MentionsOption[]) => {
-    queueMicrotask(() => {
-      if (typeof document === 'undefined') return
-      const input = document.querySelector(`[data-testid="${cacheKey}"]`)
-      const root = input?.closest('.rue-mentions')
-      const host = root?.parentElement
-      root?.querySelectorAll('[role="listbox"]').forEach(node => node.remove())
-      host
-        ?.querySelectorAll(`[data-rue-mentions-native-popup="${cacheKey}"]`)
-        .forEach(node => node.remove())
-      if (!host || !resolvedOptions.length) return
-      const popup = document.createElement('div')
-      popup.setAttribute('role', 'listbox')
-      popup.setAttribute('data-rue-mentions-native-popup', cacheKey)
-      for (const [index, option] of resolvedOptions.entries()) {
-        const button = document.createElement('button')
-        button.type = 'button'
-        button.setAttribute('role', 'option')
-        button.setAttribute('aria-selected', index === 0 ? 'true' : 'false')
-        button.textContent = String(option.label ?? option.value)
-        button.disabled = !!option.disabled
-        button.addEventListener('mousedown', event => event.preventDefault())
-        button.addEventListener('click', () =>
-          selectMentionOption(option, input as HTMLTextAreaElement),
-        )
-        popup.appendChild(button)
-      }
-      host.appendChild(popup)
-    })
-  }
-  if (activeTrigger.value) {
-    const trigger = activeTrigger.value
-    const resolvedOptions = filterMentionOptions(
-      createOptionView(options),
-      trigger.search,
-      filterOption,
-    )
-    renderNativePopup(trigger, resolvedOptions)
-    setTimeout(() => renderNativePopup(trigger, resolvedOptions), 0)
   }
 
   const handleInput = (event: Event) => {
@@ -1087,16 +1059,6 @@ const MentionsRoot: FC<MentionsProps> = ({
         activeTrigger.value = trigger
         visibleOptions.value = resolvedOptions
         highlightedIndex.value = findFirstEnabledIndex(resolvedOptions)
-        renderNativePopup(trigger, resolvedOptions)
-        const popupRefreshTimer = setInterval(() => {
-          const latestOptions = filterMentionOptions(
-            optionSource.value,
-            trigger.search,
-            filterOption,
-          )
-          renderNativePopup(trigger, latestOptions)
-        }, 5)
-        setTimeout(() => clearInterval(popupRefreshTimer), 250)
       }
     }
 
@@ -1109,16 +1071,6 @@ const MentionsRoot: FC<MentionsProps> = ({
         element.value = nextValue
         element.setSelectionRange?.(nextSelectionStart, nextSelectionEnd)
       }
-      queueMicrotask(() => {
-        if (typeof document === 'undefined') return
-        const activeElement = document.querySelector(
-          `[data-testid="${cacheKey}"]`,
-        ) as HTMLTextAreaElement | null
-        if (activeElement) {
-          activeElement.value = nextValue
-          activeElement.setSelectionRange?.(nextSelectionStart, nextSelectionEnd)
-        }
-      })
     }
     restoreInputValue()
 
@@ -1205,34 +1157,6 @@ const MentionsRoot: FC<MentionsProps> = ({
     }
 
     const resolvedOptions = getResolvedOptions()
-    const nativeTrigger = lastNativeTrigger.current ?? activeTrigger.value
-    const nativeOptions = lastNativeOptions.current.length
-      ? lastNativeOptions.current
-      : resolvedOptions
-    if (event.key === 'Enter' && nativeTrigger && nativeOptions.length > 0) {
-      const option = nativeOptions.find((item: MentionsOption) => !item.disabled)
-      if (option) {
-        event.preventDefault()
-        const trigger = nativeTrigger
-        const sourceValue = lastNativeInputValue.current || currentValue.value
-        const nextValue = `${sourceValue.slice(0, trigger.start)}${trigger.prefix}${option.value}${split}${sourceValue.slice(trigger.end)}`
-        lastNativeInputValue.current = nextValue
-        currentValue.value = nextValue
-        onChange?.(nextValue)
-        onSelect?.(option, trigger.prefix)
-        const restore = () => {
-          if (typeof document === 'undefined') return
-          const activeElement = document.querySelector(
-            `[data-testid="${cacheKey}"]`,
-          ) as HTMLTextAreaElement | null
-          if (activeElement) activeElement.value = nextValue
-        }
-        restore()
-        const timer = setInterval(restore, 1)
-        setTimeout(() => clearInterval(timer), 80)
-        return
-      }
-    }
     const popupVisible =
       focused.value &&
       !!activeTrigger.value &&
@@ -1255,38 +1179,7 @@ const MentionsRoot: FC<MentionsProps> = ({
             : undefined
         if (option && !option.disabled) {
           event.preventDefault()
-          const trigger = activeTrigger.value!
-          const sourceValue = lastNativeInputValue.current || currentValue.value
-          const before = sourceValue.slice(0, trigger.start)
-          const after = sourceValue.slice(trigger.end)
-          const nextValue = `${before}${trigger.prefix}${option.value}${split}${after}`
-          lastNativeInputValue.current = nextValue
-          currentValue.value = nextValue
-          onChange?.(nextValue)
-          onSelect?.(option, trigger.prefix)
-          const restore = () => {
-            if (typeof document === 'undefined') return
-            const activeElement = document.querySelector(
-              `[data-testid="${cacheKey}"]`,
-            ) as HTMLTextAreaElement | null
-            if (activeElement) {
-              const prototype = Object.getPrototypeOf(activeElement) as HTMLTextAreaElement
-              const nativeDescriptor = Object.getOwnPropertyDescriptor(prototype, 'value')
-              if (nativeDescriptor?.set) nativeDescriptor.set.call(activeElement, nextValue)
-              Object.defineProperty(activeElement, 'value', {
-                configurable: true,
-                get: () => nextValue,
-                set: candidate => {
-                  if (candidate === nextValue && nativeDescriptor?.set) {
-                    nativeDescriptor.set.call(activeElement, candidate)
-                  }
-                },
-              })
-            }
-          }
-          restore()
-          const timer = setInterval(restore, 1)
-          setTimeout(() => clearInterval(timer), 80)
+          selectMentionOption(option)
         }
       } else if (event.key === 'Escape') {
         dismissedTriggerKey.value = activeTrigger.value?.key ?? ''
@@ -1346,23 +1239,12 @@ const MentionsRoot: FC<MentionsProps> = ({
       activeTrigger.value = trigger
       visibleOptions.value = resolvedOptions
       highlightedIndex.value = findFirstEnabledIndex(resolvedOptions)
-      renderNativePopup(trigger, resolvedOptions)
-      const popupRefreshTimer = setInterval(() => renderNativePopup(trigger, resolvedOptions), 5)
-      setTimeout(() => clearInterval(popupRefreshTimer), 100)
     }
     lastCompositionCommittedValue.current = nextValue
     suppressNextNativeInput.current = true
 
     if (onChange) {
       onChange(nextValue)
-    }
-    if (trigger) {
-      const resolvedOptions = filterMentionOptions(
-        createOptionView(options),
-        trigger.search,
-        filterOption,
-      )
-      setTimeout(() => renderNativePopup(trigger, resolvedOptions), 0)
     }
 
     if (onCompositionEnd) {
@@ -1611,7 +1493,13 @@ const MentionsRoot: FC<MentionsProps> = ({
             }}
             onClick={handleClear}
           >
-            <>{clearConfig?.clearIcon ?? <DefaultClearIcon />}</>
+            <>
+              {clearConfig?.clearIcon ? (
+                <span>{String(clearConfig.clearIcon)}</span>
+              ) : (
+                <DefaultClearIcon />
+              )}
+            </>
           </button>
         ) : null}
       </div>
@@ -1643,52 +1531,16 @@ const MentionsRoot: FC<MentionsProps> = ({
             {loading ? (
               <LoadingOption />
             ) : visibleOptions.value.length ? (
-              visibleOptions.value.map((option: MentionsOption, index: number) => {
-                const popupId = resolvePopupId()
-                const selected = index === highlightedIndex.value
-
-                return (
-                  <button
-                    key={option.key ?? `${option.value}-${index}`}
-                    id={popupId ? `${popupId}-option-${index}` : undefined}
-                    type="button"
-                    role="option"
-                    aria-selected={selected ? 'true' : 'false'}
-                    disabled={option.disabled}
-                    className={appendClassName(
-                      appendClassName(
-                        appendClassName(
-                          'mx-2 flex w-[calc(100%-1rem)] items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition',
-                          selected
-                            ? 'bg-primary/10 text-primary ring-1 ring-primary/10'
-                            : 'text-base-content hover:bg-base-200/75',
-                        ),
-                        option.disabled
-                          ? 'cursor-not-allowed opacity-45 hover:bg-transparent'
-                          : undefined,
-                      ),
-                      appendClassName(classNames?.option ?? '', option.className),
-                    )}
-                    style={option.style}
-                    onMouseDown={(event: MouseEvent) => {
-                      if (typeof (event as any).preventDefault === 'function') {
-                        ;(event as any).preventDefault()
-                      }
-                    }}
-                    onMouseEnter={() => {
-                      highlightedIndex.value = option.disabled ? highlightedIndex.value : index
-                    }}
-                    onClick={() => {
-                      selectMentionOption(option)
-                    }}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{option.label ?? option.value}</span>
-                    <span className={selected ? 'text-primary/55' : 'text-base-content/35'}>
-                      {activeTrigger.value?.prefix}
-                    </span>
-                  </button>
-                )
-              })
+              <>
+                {' '}
+                {visibleOptions.value.map((rowArg0: any, rowArg1: number) => (
+                  <CompiledRow1
+                    key={rowArg0.key ?? rowArg0.value}
+                    rowArg0={rowArg0}
+                    rowArg1={rowArg1}
+                  />
+                ))}{' '}
+              </>
             ) : (
               <EmptyOption className={classNames?.empty} content={notFoundContent} />
             )}

@@ -9,6 +9,7 @@ mod utils;
 fn transforms_props_children_fragment1() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
+import { RouterLink } from '@rue-js/router';
 
 const Box: FC<{ title: string }> = (props) => (
   <div className="border p-2 rounded-md space-y-1">
@@ -40,10 +41,14 @@ export default Children;
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(output.contains("_$compiledRoot"), "{output}");
     assert!(output.contains("_$compiledText("), "{output}");
-    assert!(!output.contains("_$compiledCreateTextNode("), "{output}");
-    assert!(output.contains("_$createComponent(Box"), "{output}");
-    assert!(output.contains("RouterLink.__rueHref"), "{output}");
+    assert!(output.contains("const __rue_first = _$compiledCreateTextNode(\"\")"), "{output}");
+    assert!(output.contains("_$compiledComponent(Box"), "{output}");
+    assert!(output.contains("_$compiledComponent(RouterLink"), "{output}");
     assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
     assert!(output.contains("()=>_$compiledPropsGet(props, \"title\")"), "{output}");
-    assert!(output.contains("()=>_$compiledPropsGet(props, \"children\")"), "{output}");
+    assert!(
+        output.contains("()=>_$compiledValueFactory(_$compiledPropsGet(props, \"children\"))"),
+        "{output}"
+    );
+    assert!(!output.contains("renderAnchor"), "{output}");
 }

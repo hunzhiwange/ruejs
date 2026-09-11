@@ -67,7 +67,7 @@ export interface RatingProps {
   /** 表单 name 属性或分组名称。 */
   name?: string
   /** character 配置项。 */
-  character?: any | ((context: RatingCharacterRenderContext) => any)
+  character?: string | ((context: RatingCharacterRenderContext) => string)
   /** tooltips 配置项。 */
   tooltips?: Array<string | number | RatingTooltipItem>
   /** 根节点附加类名。 */
@@ -125,10 +125,8 @@ const appendClassName = (base?: string, className?: string) => {
 }
 
 /** 判断是否存在 Renderable Children 的内部工具函数。 */
-const hasRenderableChildren = (children: any) => {
-  if (Array.isArray(children)) return children.length > 0
-  return children != null
-}
+const hasRenderableChildren = (children: any) =>
+  children != null && children !== false && children !== ''
 
 /** clamp 的内部工具函数。 */
 const clamp = (value: number, min: number, max: number) => {
@@ -296,16 +294,6 @@ const DefaultStarIcon: FC = () => {
 }
 
 /** 解析 Character Node 的内部工具函数。 */
-const resolveCharacterNode = (
-  character: RatingProps['character'],
-  context: RatingCharacterRenderContext,
-) => {
-  if (typeof character === 'function') {
-    return character(context)
-  }
-  return character ?? DefaultStarIcon({})
-}
-
 /** Item 的内部工具函数。 */
 const Item: FC<RatingItemProps> = ({
   as = 'input',
@@ -366,10 +354,28 @@ const Item: FC<RatingItemProps> = ({
     )
   }
 
-  return (
-    <Component {...rest} className={resolvedClassName()}>
+  return Component === 'div' ? (
+    <div {...rest} className={resolvedClassName()}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={resolvedClassName()}>
+      {children}
+    </span>
+  ) : Component === 'button' ? (
+    <button {...rest} className={resolvedClassName()}>
+      {children}
+    </button>
+  ) : Component === 'label' ? (
+    <label {...rest} className={resolvedClassName()}>
+      {children}
+    </label>
+  ) : Component === 'a' ? (
+    <a {...rest} className={resolvedClassName()}>
+      {children}
+    </a>
+  ) : (
+    <></>
   )
 }
 
@@ -402,6 +408,138 @@ const RatingRoot: FC<RatingProps> = ({
   onKeyDown,
   ...rest
 }) => {
+  const CompiledRow1 = ({ rowArg0 }: { rowArg0: any }) => {
+    const index = rowArg0
+
+    const itemValue = index + 1
+    const fill = clamp(displayValue.get() - index, 0, 1)
+    const checked = mergedValue.get() >= itemValue
+    const hovered = hoveredValue.value !== null && displayValue.get() >= itemValue
+    const tooltipTitle = resolveTooltipTitle(tooltips, index)
+    const characterContext = {
+      index,
+      value: itemValue,
+      fill,
+      checked,
+      hovered,
+      half: mergedAllowHalf.get(),
+    }
+    const wrapperClassName = buildCharacterWrapperClassName(size, characterClassName)
+    const resolvedInactiveCharacterClassName = inactiveCharacterClassName ?? 'text-base-content/35'
+    const resolvedActiveCharacterClassName = activeCharacterClassName ?? 'text-orange-400'
+    const tabIndex = disabled
+      ? -1
+      : mergedValue.get() > 0
+        ? Math.ceil(mergedValue.get()) - 1 === index
+          ? 0
+          : -1
+        : index === 0
+          ? 0
+          : -1
+
+    return (
+      <button
+        key={`${renderedName.get()}-${index}`}
+        type="button"
+        role="button"
+        title={tooltipTitle}
+        aria-label={tooltipTitle ?? `${itemValue} star`}
+        aria-disabled={disabled ? 'true' : undefined}
+        aria-pressed={fill > 0 ? 'true' : 'false'}
+        tabIndex={tabIndex}
+        disabled={disabled}
+        className={buildAutoButtonClassName(
+          interactive.get(),
+          useLegacyMaskDefault.get(),
+          itemClassName,
+        )}
+        data-rating-index={String(index)}
+        data-rating-fill={String(fill)}
+        data-rating-current={mergedValue.get() === itemValue ? 'true' : undefined}
+        onFocus={(event: FocusEvent) => {
+          if (onFocus) onFocus(event as any)
+        }}
+        onBlur={(event: FocusEvent) => {
+          if (onBlur) onBlur(event as any)
+        }}
+        onMouseMove={(event: MouseEvent) => {
+          if (!interactive.get()) return
+          const nextValue = resolvePointerValue(event as any, index, mergedAllowHalf.get())
+          if (hoverIntent !== nextValue) {
+            hoverIntent = nextValue
+            ;(event.currentTarget as HTMLElement | null)
+              ?.closest('[data-rating-mode="auto"]')
+              ?.setAttribute('data-rating-hover', String(nextValue))
+            emitHoverChange(nextValue)
+          }
+        }}
+        onClick={(event: MouseEvent) => {
+          event.preventDefault?.()
+          commitValue(resolvePointerValue(event as any, index, mergedAllowHalf.get()))
+        }}
+        onKeyDown={(event: KeyboardEvent) => handleKeyCommit(event as any, index)}
+      >
+        {useLegacyMaskDefault.get() ? (
+          <span
+            className={buildLegacyMaskClassName(fill, !!disabled, characterClassName)}
+            style={{ opacity: resolveLegacyMaskOpacity(fill, !!disabled) }}
+            aria-hidden="true"
+            data-rating-legacy-mask="true"
+          />
+        ) : (
+          <span className="relative inline-flex">
+            <span
+              className={appendClassName(
+                wrapperClassName,
+                disabled ? 'text-base-content/20' : resolvedInactiveCharacterClassName,
+              )}
+              aria-hidden="true"
+            >
+              {character != null ? (
+                <span data-rating-character="custom">
+                  {String(
+                    typeof character === 'function' ? character(characterContext) : character,
+                  )}
+                </span>
+              ) : (
+                <DefaultStarIcon />
+              )}
+            </span>
+            <span
+              className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden"
+              style={{ width: `${fill * 100}%` }}
+              aria-hidden="true"
+              data-rating-active-layer="true"
+            >
+              <span
+                className={appendClassName(
+                  wrapperClassName,
+                  disabled ? 'text-base-content/45' : resolvedActiveCharacterClassName,
+                )}
+              >
+                {character != null ? (
+                  <span data-rating-character="custom">
+                    {String(
+                      typeof character === 'function' ? character(characterContext) : character,
+                    )}
+                  </span>
+                ) : (
+                  <DefaultStarIcon />
+                )}
+              </span>
+            </span>
+          </span>
+        )}
+        {allowClear &&
+        interactive.get() &&
+        mergedValue.get() > 0 &&
+        mergedValue.get() === itemValue ? (
+          <span className="sr-only">{clearLabel}</span>
+        ) : null}
+      </button>
+    )
+  }
+
   const generatedName = `rue-rating-${ratingSeed++}`
   const mergedAllowHalf = computed(() => allowHalf ?? half ?? false)
   const mergedCount = computed(() => normalizeCount(count))
@@ -550,120 +688,9 @@ const RatingRoot: FC<RatingProps> = ({
           data-rating-hidden="true"
         />
       ) : null}
-      {buttonIndexes.get().map(index => {
-        const itemValue = index + 1
-        const fill = clamp(displayValue.get() - index, 0, 1)
-        const checked = mergedValue.get() >= itemValue
-        const hovered = hoveredValue.value !== null && displayValue.get() >= itemValue
-        const tooltipTitle = resolveTooltipTitle(tooltips, index)
-        const characterContext = {
-          index,
-          value: itemValue,
-          fill,
-          checked,
-          hovered,
-          half: mergedAllowHalf.get(),
-        }
-        const wrapperClassName = buildCharacterWrapperClassName(size, characterClassName)
-        const resolvedInactiveCharacterClassName =
-          inactiveCharacterClassName ?? 'text-base-content/35'
-        const resolvedActiveCharacterClassName = activeCharacterClassName ?? 'text-orange-400'
-        const tabIndex = disabled
-          ? -1
-          : mergedValue.get() > 0
-            ? Math.ceil(mergedValue.get()) - 1 === index
-              ? 0
-              : -1
-            : index === 0
-              ? 0
-              : -1
-
-        return (
-          <button
-            key={`${renderedName.get()}-${index}`}
-            type="button"
-            role="button"
-            title={tooltipTitle}
-            aria-label={tooltipTitle ?? `${itemValue} star`}
-            aria-disabled={disabled ? 'true' : undefined}
-            aria-pressed={fill > 0 ? 'true' : 'false'}
-            tabIndex={tabIndex}
-            disabled={disabled}
-            className={buildAutoButtonClassName(
-              interactive.get(),
-              useLegacyMaskDefault.get(),
-              itemClassName,
-            )}
-            data-rating-index={String(index)}
-            data-rating-fill={String(fill)}
-            data-rating-current={mergedValue.get() === itemValue ? 'true' : undefined}
-            onFocus={(event: FocusEvent) => {
-              if (onFocus) onFocus(event as any)
-            }}
-            onBlur={(event: FocusEvent) => {
-              if (onBlur) onBlur(event as any)
-            }}
-            onMouseMove={(event: MouseEvent) => {
-              if (!interactive.get()) return
-              const nextValue = resolvePointerValue(event as any, index, mergedAllowHalf.get())
-              if (hoverIntent !== nextValue) {
-                hoverIntent = nextValue
-                ;(event.currentTarget as HTMLElement | null)
-                  ?.closest('[data-rating-mode="auto"]')
-                  ?.setAttribute('data-rating-hover', String(nextValue))
-                emitHoverChange(nextValue)
-              }
-            }}
-            onClick={(event: MouseEvent) => {
-              event.preventDefault?.()
-              commitValue(resolvePointerValue(event as any, index, mergedAllowHalf.get()))
-            }}
-            onKeyDown={(event: KeyboardEvent) => handleKeyCommit(event as any, index)}
-          >
-            {useLegacyMaskDefault.get() ? (
-              <span
-                className={buildLegacyMaskClassName(fill, !!disabled, characterClassName)}
-                style={{ opacity: resolveLegacyMaskOpacity(fill, !!disabled) }}
-                aria-hidden="true"
-                data-rating-legacy-mask="true"
-              />
-            ) : (
-              <span className="relative inline-flex">
-                <span
-                  className={appendClassName(
-                    wrapperClassName,
-                    disabled ? 'text-base-content/20' : resolvedInactiveCharacterClassName,
-                  )}
-                  aria-hidden="true"
-                >
-                  {resolveCharacterNode(character, characterContext)}
-                </span>
-                <span
-                  className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden"
-                  style={{ width: `${fill * 100}%` }}
-                  aria-hidden="true"
-                  data-rating-active-layer="true"
-                >
-                  <span
-                    className={appendClassName(
-                      wrapperClassName,
-                      disabled ? 'text-base-content/45' : resolvedActiveCharacterClassName,
-                    )}
-                  >
-                    {resolveCharacterNode(character, characterContext)}
-                  </span>
-                </span>
-              </span>
-            )}
-            {allowClear &&
-            interactive.get() &&
-            mergedValue.get() > 0 &&
-            mergedValue.get() === itemValue ? (
-              <span className="sr-only">{clearLabel}</span>
-            ) : null}
-          </button>
-        )
-      })}
+      {buttonIndexes.get().map((rowArg0: any, rowIndex: number) => (
+        <CompiledRow1 rowArg0={rowArg0} />
+      ))}
     </div>
   )
 }

@@ -10,8 +10,11 @@ const registry = globalThis as typeof globalThis & { [key]?: ReactiveEffectRunti
 export const getSharedReactiveStorage = () =>
   (registry[key] ??= createReactiveEffectRuntimeStorage({
     onErrorCaptured: (error, owner, info) =>
-      globalThis.__rue_compiled_runtime_bridge?.dispatchErrorCaptured?.(error, owner, info) ===
-      true,
+      (globalThis as any).__rue_compiled_runtime_bridge?.dispatchErrorCaptured?.(
+        error,
+        owner,
+        info,
+      ) === true,
   }))
 
 export const peekSharedReactiveStorage = () => registry[key]

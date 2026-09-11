@@ -15,7 +15,7 @@
 
 import { classifyLayoutSegmentConfig } from './report.js'
 import { AppElementsWire } from '../server/app-elements.js'
-import { createAppPageTreePath } from '../server/app-page-route-wiring.js'
+import { createAppPageTreePath } from '../server/app-page-segment-state.js'
 import type {
   ClassificationReason,
   LayoutBuildClassification,

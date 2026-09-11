@@ -7,8 +7,9 @@ mod visitor;
 #[cfg(test)]
 pub(crate) use block::expr_container::is_compiled_scalar_expr;
 pub(crate) use block::expr_container::{
-    emit_compiled_text_binding, emit_compiled_text_effect, is_compiled_reactive_scalar_expr,
-    is_compiled_scalar_expr_with_shadows, is_compiled_text_container,
+    display_scalar_expr, emit_compiled_text_binding, emit_compiled_text_effect,
+    is_compiled_reactive_scalar_expr, is_compiled_scalar_expr_with_shadows,
+    is_compiled_text_container,
 };
 
 use std::collections::HashSet;
@@ -19,7 +20,7 @@ use swc_core::ecma::ast::*;
 /*
 Vapor 深编译转换器说明：
 - 职责：遍历箭头函数与返回 JSX 的位置，替换为 `vapor(() => { ... })`，并在块体中生成原生 DOM 构造语句。
-- 片段渲染：通过在父节点插入单个注释（`_listX`）作为锚点，结合 `renderAnchor` 在锚点前插入片段。
+- 片段渲染：通过在父节点插入单个注释（`_listX`）作为锚点，结合 compiled slot ABI 在锚点前插入片段。
 - 命名策略：使用递增计数生成稳定的局部标识符，避免与用户代码冲突，并提升可读性与调试体验。
 - Import 注入：当 `did_transform` 为 true 时，模块级访问会按需注入 `@rue-js/rue` 的运行时 import。
 - 选择注释锚点的原因：原生 DOM 没有“片段占位”概念，注释节点可作为轻量且不影响布局的边界标记，配合 `parentNode` 枚举进行精准插入与复用。

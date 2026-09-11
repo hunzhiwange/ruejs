@@ -173,7 +173,28 @@ const RUE_FRAMEWORK_DEDUPE = Object.freeze([
   '@rue-js/runtime',
   '@rue-js/server-renderer',
 ])
-const RUE_NODE_RUNTIME_EXTERNALS = Object.freeze([
+const RUE_COMPILER_ENTRIES = [
+  'component',
+  'reactive',
+  'block',
+  'events',
+  'list',
+  'dom',
+  'builtin',
+  'ssr',
+  'hydrate',
+  'teleport',
+  'transition',
+  'transitiongroup',
+  'keepalive',
+  'suspense',
+  'app',
+] as const
+const RUE_NODE_RUNTIME_ALIASES = Object.freeze([
+  ...RUE_COMPILER_ENTRIES.flatMap(entry => [
+    `@rue-js/rue/internal/${entry}`,
+    `@rue-js/runtime/internal/${entry}`,
+  ]),
   '@rue-js/rue',
   '@rue-js/rue/internal',
   '@rue-js/rue/server-renderer',
@@ -182,6 +203,9 @@ const RUE_NODE_RUNTIME_EXTERNALS = Object.freeze([
   '@rue-js/runtime/server',
   '@rue-js/server-renderer',
 ])
+const RUE_NODE_RUNTIME_EXTERNALS = Object.freeze(
+  RUE_NODE_RUNTIME_ALIASES.filter(entry => entry.startsWith('@rue-js/runtime')),
+)
 type VitePluginRueModule = typeof import('@rue-js/vite-plugin-rue')
 const REMOVED_JSX_RUNTIME_PACKAGE = ['re', 'act'].join('')
 const REMOVED_DOM_RUNTIME_PACKAGE = ['re', 'act-dom'].join('')
@@ -242,6 +266,14 @@ function createLazyRuePlugin(
       await delegate.configResolved?.call(this, config)
     },
     async transform(code, id, options) {
+      // Runtime implementation and published compiler entries are already
+      // JavaScript. Recompiling their re-exports can remove compiler imports.
+      if (
+        /(?:packages|@rue-js)\/(?:rue|runtime|server-renderer)\/(?:src|dist)\//.test(
+          normalizePath(id),
+        )
+      )
+        return null
       const delegate = await loadDelegate()
       const hook = delegate.transform
       const handler = typeof hook === 'function' ? hook : hook?.handler
@@ -277,7 +309,7 @@ function createCompiledShimJsxLoader(shimsDir: string, resolvedRuePath: string |
       const code = fs.readFileSync(cleanId, 'utf8')
       return rueModule.compileRueStatic(code, {
         id: `${cleanId}.jsx`,
-        target: this.environment?.name === 'client' ? 'client' : 'server',
+        target: this.environment?.name === 'client' ? 'hydrate' : 'server',
         production: this.environment?.mode === 'build',
       })
     },
@@ -674,29 +706,6 @@ function hasUseClientDirective(code: string): boolean {
   return readLeadingRscDirective(code) === 'use client'
 }
 
-function isUseClientSourceFile(id: string | undefined): boolean {
-  if (!id) return false
-  let cleanId = id.startsWith('\0') ? id.slice(1) : id
-  const rscCacheIndex = cleanId.indexOf('$$cache=')
-  if (rscCacheIndex !== -1) cleanId = cleanId.slice(0, rscCacheIndex)
-  const queryIndex = cleanId.indexOf('?')
-  if (queryIndex !== -1) cleanId = cleanId.slice(0, queryIndex)
-  if (cleanId.startsWith('/@fs/')) cleanId = cleanId.slice('/@fs'.length)
-  if (cleanId.startsWith('file://')) {
-    try {
-      cleanId = fileURLToPath(cleanId)
-    } catch {
-      return false
-    }
-  }
-  if (!path.isAbsolute(cleanId) || !fs.existsSync(cleanId)) return false
-  try {
-    return hasUseClientDirective(fs.readFileSync(cleanId, 'utf-8'))
-  } catch {
-    return false
-  }
-}
-
 function generateRootParamsModule(rootParamNames: Iterable<string>): string {
   const names = Array.from(new Set(rootParamNames)).filter(isValidExportIdentifier).sort()
   if (names.length === 0) return 'export {};\n'
@@ -934,14 +943,6 @@ function transformRueClientHookImportsForRsc(
   return transformRueClientHookImports(code, guardModuleSpecifier)
 }
 
-function transformRueClientHookImportsForClient(
-  code: string,
-  hookModuleSpecifier: string,
-): { code: string; map: unknown } | null {
-  if (!hasUseClientDirective(code)) return null
-  return transformRueClientHookImports(code, hookModuleSpecifier)
-}
-
 const clientManualChunks = createClientManualChunks(_shimsDir)
 const clientOutputConfig = createClientOutputConfig(clientManualChunks)
 const clientCodeSplittingConfig = createClientCodeSplittingConfig(clientManualChunks)
@@ -1119,10 +1120,18 @@ export default function text(options: TextOptions = {}): PluginOption[] {
       const entry = manifest.exports?.[exportKey]
       const target =
         typeof entry === 'string' ? entry : (entry?.module ?? entry?.import ?? entry?.default)
-      return target ? path.resolve(packageDir, target) : null
+      return target ? canonicalize(path.resolve(packageDir, target)) : null
     } catch {
       return null
     }
+  }
+  const rueRuntimeImplementation = (specifier: string) => {
+    if (specifier === '@rue-js/rue') return '@rue-js/runtime'
+    if (specifier === '@rue-js/server-renderer' || specifier === '@rue-js/rue/server-renderer')
+      return '@rue-js/runtime/server'
+    return specifier.startsWith('@rue-js/rue/internal')
+      ? specifier.replace('@rue-js/rue/', '@rue-js/runtime/')
+      : specifier
   }
   const rueServerRuntimeAliases = new Map<string, string>()
   const pagesServerRuntimeAliases = new Map<string, string>()
@@ -1191,11 +1200,12 @@ export default function text(options: TextOptions = {}): PluginOption[] {
     rueClientRuntimeAliases.set(canonicalize(resolved), resolved)
     rueClientRuntimeAliases.set(pathToFileURL(resolved).href, resolved)
   }
-  for (const specifier of RUE_NODE_RUNTIME_EXTERNALS) {
+  for (const specifier of RUE_NODE_RUNTIME_ALIASES) {
     try {
+      const implementation = rueRuntimeImplementation(specifier)
       registerRueServerRuntimeAlias(
         specifier,
-        resolveRueEsmRuntime(specifier) ?? nodeRuntimeRequire.resolve(specifier),
+        resolveRueEsmRuntime(implementation) ?? nodeRuntimeRequire.resolve(implementation),
       )
     } catch {}
   }
@@ -1241,9 +1251,19 @@ export default function text(options: TextOptions = {}): PluginOption[] {
       const packageDir = path.dirname(nodeRuntimeRequire.resolve(`${packageName}/package.json`))
       registerRueServerRuntimeAlias(
         canonicalize(path.join(packageDir, sourceRelativePath)),
-        nodeRuntimeRequire.resolve(runtimeSpecifier),
+        resolveRueEsmRuntime(rueRuntimeImplementation(runtimeSpecifier)) ??
+          nodeRuntimeRequire.resolve(runtimeSpecifier),
       )
     } catch {}
+  }
+  for (const entry of RUE_COMPILER_ENTRIES) {
+    for (const packageName of ['@rue-js/rue', '@rue-js/runtime']) {
+      addRueServerSourceAlias(
+        packageName,
+        `src/compiler-runtime/entries/${entry}.ts`,
+        `@rue-js/runtime/internal/${entry}`,
+      )
+    }
   }
   addRueServerSourceAlias('@rue-js/rue', 'src/index.ts', '@rue-js/rue')
   addRueServerSourceAlias('@rue-js/rue', 'src/internal.ts', '@rue-js/rue/internal')
@@ -1358,6 +1378,7 @@ export default function text(options: TextOptions = {}): PluginOption[] {
     ]
     return {
       ...rueOptions,
+      target: 'hydrate',
       exclude: [...new Set([...(rueOptions?.exclude ?? []), ...textRouteRueExcludes])],
     }
   }
@@ -1469,20 +1490,6 @@ export default function text(options: TextOptions = {}): PluginOption[] {
         return transformRueClientHookImportsForRsc(
           code,
           resolveShimModulePath(shimsDir, 'client-hook-error'),
-        )
-      },
-    } satisfies Plugin,
-    {
-      name: 'text:rsc-rue-client-hook-adapter',
-      enforce: 'pre' as const,
-      transform(code: string, id: string) {
-        if (this.environment?.name !== 'client') return null
-        const cleanId = id.split('?')[0]
-        if (cleanId.startsWith('\0') || !/\.[cm]?[jt]sx?$/.test(cleanId)) return null
-        if (!cleanId.startsWith(root + path.sep)) return null
-        return transformRueClientHookImportsForClient(
-          code,
-          resolveShimModulePath(shimsDir, 'hooks-adapter'),
         )
       },
     } satisfies Plugin,
@@ -2704,7 +2711,7 @@ export default function text(options: TextOptions = {}): PluginOption[] {
         // direct @vercel/og imports in metadata routes, and \0-prefixed
         // re-imports from @vitejs/plugin-rsc.
         filter: {
-          id: /(?:text\/|virtual:text-|^r(?:eact|ue)$|^text-intl(?:\/server)?$|^@vercel\/og(?:\.js)?$|^@rue-js\/(?:(?:rue|runtime)(?:\/(?:internal|server-renderer|server))?|server-renderer)$|(?:^|[/\\])runtime[/\\]index\.js$|packages\/(?:rue|runtime|server-renderer)\/src\/(?:index|internal|server-renderer|server)\.ts$)/,
+          id: /(?:text\/|virtual:text-|^r(?:eact|ue)$|^text-intl(?:\/server)?$|^@vercel\/og(?:\.js)?$|^@rue-js\/(?:(?:rue|runtime)(?:\/(?:internal(?:\/[a-z-]+)?|server-renderer|server))?|server-renderer)$|(?:^|[/\\])runtime[/\\]index\.js$|packages\/(?:rue|runtime|server-renderer)\/(?:src|dist)\/(?:index|internal|server-renderer|server|compiler-runtime\/entries\/[a-z-]+)\.[jt]s$)/,
         },
         handler(id, importer) {
           // Strip \0 prefix if present — @vitejs/plugin-rsc's generated
@@ -2744,14 +2751,6 @@ export default function text(options: TextOptions = {}): PluginOption[] {
 
           if (
             this.environment?.name !== 'client' &&
-            cleanId === '@rue-js/rue' &&
-            isUseClientSourceFile(importer)
-          ) {
-            return resolveShimModulePath(_shimsDir, 'rue-ssr-compat')
-          }
-
-          if (
-            this.environment?.name !== 'client' &&
             cleanId === REMOVED_JSX_RUNTIME_PACKAGE &&
             isTextIntlSharedUseImporter(importer)
           ) {
@@ -2760,7 +2759,7 @@ export default function text(options: TextOptions = {}): PluginOption[] {
 
           if (this.environment?.name !== 'client' && !hasCloudflarePlugin && !hasNitroPlugin) {
             const runtimeAlias =
-              rueServerRuntimeAliases.get(cleanId) ??
+              rueServerRuntimeAliases.get(normalizeRueServerRuntimeId(cleanId)) ??
               (!hasAppDir || isPagesServerRuntimeImporter(importer)
                 ? pagesServerRuntimeAliases.get(cleanId)
                 : undefined)
@@ -3073,6 +3072,17 @@ export default function text(options: TextOptions = {}): PluginOption[] {
       },
 
       configureServer(server: ViteDevServer) {
+        // ModuleRunner treats resolved filesystem URLs as inline modules, even
+        // when resolveId marked the original import external. Preserve one Node
+        // runtime instance for compiled factories and the writer that owns them.
+        if (!hasCloudflarePlugin && !hasNitroPlugin) {
+          for (const environment of Object.values(server.environments)) {
+            if (environment.name === 'client') continue
+            const fetchModule = environment.fetchModule.bind(environment)
+            environment.fetchModule = async (id, importer, options) =>
+              externalizeRueServerRuntime(id, importer) ?? fetchModule(id, importer, options)
+          }
+        }
         // Watch route files for additions/removals to invalidate route cache.
         const pageExtensions = fileMatcher.extensionRegex
         appRouteTypeGenerationClosing = false

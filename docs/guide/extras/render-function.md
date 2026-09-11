@@ -54,7 +54,7 @@ const Counter: FC<Props> = props => {
 
 ### Ref 的最终展示自动解包 {#ref-display-unwrapping}
 
-JSX child 表达式计算完成后，如果最终展示值是 Rue 标记的 Ref，运行时会自动读取一层 `.value`。这包括 `ref()`、`computed()` 和 `customRef()` 返回的 Ref，也包括条件表达式选出的 Ref 和数组中的 Ref 叶子：
+JSX child 表达式计算完成后，如果最终展示值是 Rue 标记的 Ref，运行时会自动读取一层 `.value`。这包括 `ref()` 和 `computed()` 返回的 Ref，也包括条件表达式选出的 Ref 和数组中的 Ref 叶子：
 
 ```tsx
 import { computed, ref } from '@rue-js/rue'
@@ -165,19 +165,20 @@ const Profile = () => (
 )
 ```
 
-如果标签或组件身份直到运行时才确定，使用公开的 `<Component is={...}>` 边界：
+如果组件身份来自有限运行时选择，使用带字面量 `registry` 的 `<Component>` 边界：
 
 ```tsx
 import { Component, type FC } from '@rue-js/rue'
 
-const DynamicPanel: FC<{ as: string | FC }> = props => (
-  <Component is={props.as} className="panel">
-    动态内容
-  </Component>
+const Card: FC = () => <article>Card</article>
+const Panel: FC = () => <section>Panel</section>
+
+const DynamicPanel: FC<{ kind: 'card' | 'panel' }> = props => (
+  <Component is={props.kind} registry={{ card: Card, panel: Panel }} />
 )
 ```
 
-`is` 支持原生标签名、组件函数和已注册组件名。不要为了静态节点使用动态边界；直接 TSX 能提供更精确的编译结果。
+`registry` 必须是字面量有限映射，值必须是编译器可识别的静态组件工厂。不支持任意组件函数、全局字符串注册、MDX 组件模块或运行时 JSX factory。静态节点直接使用 TSX。
 
 ## Children、具名内容与 render prop {#rendering-slots}
 

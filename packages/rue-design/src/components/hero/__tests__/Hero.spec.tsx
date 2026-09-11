@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -18,17 +19,19 @@ describe('Hero', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Hero
-        tone="base-200"
-        size="lg"
-        backgroundImage="https://example.com/hero.jpg"
-        className="rounded-box"
-        data-testid="hero-root"
-      >
-        content
-      </Hero>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Hero
+          tone="base-200"
+          size="lg"
+          backgroundImage="https://example.com/hero.jpg"
+          className="rounded-box"
+          data-testid="hero-root"
+        >
+          content
+        </Hero>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -46,15 +49,23 @@ describe('Hero', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Hero
-        overlay={{ tone: 'base-content', opacity: 'soft', blur: true, className: 'rounded-box' }}
-      >
-        <Hero.Content data-testid="content" layout="split" align="end" textAlign="center" gap="xl">
-          Body
-        </Hero.Content>
-      </Hero>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Hero
+          overlay={{ tone: 'base-content', opacity: 'soft', blur: true, className: 'rounded-box' }}
+        >
+          <Hero.Content
+            data-testid="content"
+            layout="split"
+            align="end"
+            textAlign="center"
+            gap="xl"
+          >
+            Body
+          </Hero.Content>
+        </Hero>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -80,22 +91,24 @@ describe('Hero', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Hero>
-        <Hero.Content>
-          <Hero.Title size="sm" data-testid="title">
-            Fast launch
-          </Hero.Title>
-          <Hero.Description size="lg" data-testid="description">
-            Build a readable hero section with semantic blocks.
-          </Hero.Description>
-          <Hero.Actions stackOnMobile align="center" data-testid="actions">
-            <button>Start</button>
-            <button>Docs</button>
-          </Hero.Actions>
-        </Hero.Content>
-      </Hero>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Hero>
+          <Hero.Content>
+            <Hero.Title size="sm" data-testid="title">
+              Fast launch
+            </Hero.Title>
+            <Hero.Description size="lg" data-testid="description">
+              Build a readable hero section with semantic blocks.
+            </Hero.Description>
+            <Hero.Actions stackOnMobile align="center" data-testid="actions">
+              <button>Start</button>
+              <button>Docs</button>
+            </Hero.Actions>
+          </Hero.Content>
+        </Hero>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

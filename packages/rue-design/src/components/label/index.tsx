@@ -119,6 +119,7 @@ export interface LabelTextProps {
 
 /** LabelCaptionProps 组件属性。 */
 export interface LabelCaptionProps {
+  text?: string
   /** required 配置项。 */
   required?: boolean
   /** optional 配置项。 */
@@ -403,17 +404,18 @@ const Caption: FC<LabelCaptionProps> = ({
   textClassName,
   extraClassName,
   children,
+  text,
   ...rest
 }) => {
   return (
     <div {...rest} className={mergeClassName('label px-0 pb-1', className)}>
       <span className={mergeClassName('inline-flex items-center gap-1 font-medium', textClassName)}>
-        {children}
+        {text !== undefined ? <span>{String(text)}</span> : children}
         {required ? <RequiredMark /> : null}
       </span>
       {hasNode(extra) || hasNode(optional) ? (
         <span className={mergeClassName('text-xs opacity-60', extraClassName)}>
-          {hasNode(extra) ? extra : optional}
+          {String(hasNode(extra) ? extra : (optional ?? ''))}
         </span>
       ) : null}
     </div>
@@ -430,7 +432,7 @@ const Help: FC<LabelHelpProps> = ({ status, className, children, ...rest }) => {
 }
 
 /** 渲染 Caption 的内部工具函数。 */
-const renderCaption = ({
+const RenderCaption = ({
   label,
   required,
   optional,
@@ -441,7 +443,7 @@ const renderCaption = ({
   LabelRootProps,
   'label' | 'required' | 'optional' | 'extra' | 'labelClassName' | 'extraClassName'
 >) => {
-  if (!hasNode(label) && !required && !hasNode(optional) && !hasNode(extra)) return null
+  if (!hasNode(label) && !required && !hasNode(optional) && !hasNode(extra)) return <></>
   return (
     <Caption
       required={required}
@@ -449,41 +451,56 @@ const renderCaption = ({
       extra={extra}
       textClassName={labelClassName}
       extraClassName={extraClassName}
-    >
-      {label}
-    </Caption>
+      text={String(label ?? '')}
+    />
   )
 }
 
 /** 渲染 Description 的内部工具函数。 */
-const renderDescription = (description: any, className?: string) => {
-  if (!hasNode(description)) return null
+const RenderDescription = ({
+  arg0: description,
+  arg1: className,
+}: {
+  arg0: any
+  arg1?: string
+}) => {
+  if (!hasNode(description)) return <></>
   return (
     <div className={mergeClassName('text-xs leading-relaxed opacity-70', className)}>
-      {description}
+      {String(description ?? '')}
     </div>
   )
 }
 
 /** 渲染 Help 的内部工具函数。 */
-const renderHelp = (help: any, error: any, status?: LabelStatus, className?: string) => {
+const RenderHelp = ({
+  arg0: help,
+  arg1: error,
+  arg2: status,
+  arg3: className,
+}: {
+  arg0: any
+  arg1: any
+  arg2?: LabelStatus
+  arg3?: string
+}) => {
   const content = hasNode(error) ? error : help
-  if (!hasNode(content)) return null
+  if (!hasNode(content)) return <></>
   return (
-    <Help status={hasNode(error) ? 'error' : status} className={className}>
-      {content}
-    </Help>
+    <div className={buildHelpClassName(hasNode(error) ? 'error' : status, className)}>
+      {String(content ?? '')}
+    </div>
   )
 }
 
 /** 渲染 Control Affix 的内部工具函数。 */
-const renderControlAffix = (content: any, className?: string) => {
-  if (!hasNode(content)) return null
-  return <span className={mergeClassName('label', className)}>{content}</span>
+const RenderControlAffix = ({ arg0: content, arg1: className }: { arg0: any; arg1?: string }) => {
+  if (!hasNode(content)) return <></>
+  return <span className={mergeClassName('label', className)}>{String(content ?? '')}</span>
 }
 
 /** 渲染 Control Node 的内部工具函数。 */
-const renderControlNode = ({
+const RenderControlNode = ({
   as,
   rest,
   controlClassName,
@@ -515,18 +532,18 @@ const renderControlNode = ({
   if (as === 'div') {
     return (
       <div {...rest} className={controlClassName} {...controlAriaProps}>
-        {renderControlAffix(prefix, affixClassName)}
+        <RenderControlAffix arg0={prefix} arg1={affixClassName} />
         {children}
-        {renderControlAffix(suffix, affixClassName)}
+        <RenderControlAffix arg0={suffix} arg1={affixClassName} />
       </div>
     )
   }
 
   return (
     <label {...rest} className={controlClassName} {...controlAriaProps}>
-      {renderControlAffix(prefix, affixClassName)}
+      <RenderControlAffix arg0={prefix} arg1={affixClassName} />
       {children}
-      {renderControlAffix(suffix, affixClassName)}
+      <RenderControlAffix arg0={suffix} arg1={affixClassName} />
     </label>
   )
 }
@@ -589,18 +606,21 @@ const LabelRoot: FC<LabelRootProps> = ({
   const fieldStyle = resolveInlineWidthStyle(layout, labelWidth)
 
   if (!hasFieldLayout) {
-    return renderControlNode({
-      as,
-      rest,
-      controlClassName,
-      required,
-      resolvedStatus,
-      disabled,
-      prefix,
-      suffix,
-      affixClassName,
-      children,
-    })
+    return (
+      <RenderControlNode
+        as={as}
+        rest={rest}
+        controlClassName={controlClassName}
+        required={required}
+        resolvedStatus={resolvedStatus}
+        disabled={disabled}
+        prefix={prefix}
+        suffix={suffix}
+        affixClassName={affixClassName}
+      >
+        {children}
+      </RenderControlNode>
+    )
   }
 
   if (layout === 'inline') {
@@ -610,30 +630,31 @@ const LabelRoot: FC<LabelRootProps> = ({
         style={fieldStyle}
       >
         <div>
-          {renderCaption({
-            label,
-            required,
-            optional,
-            extra,
-            labelClassName,
-            extraClassName,
-          })}
-          {renderDescription(description, descriptionClassName)}
+          <RenderCaption
+            label={label}
+            required={required}
+            optional={optional}
+            extra={extra}
+            labelClassName={labelClassName}
+            extraClassName={extraClassName}
+          />
+          <RenderDescription arg0={String(description ?? '')} arg1={descriptionClassName} />
         </div>
         <div className="grid gap-1">
-          {renderControlNode({
-            as,
-            rest,
-            controlClassName,
-            required,
-            resolvedStatus,
-            disabled,
-            prefix,
-            suffix,
-            affixClassName,
-            children,
-          })}
-          {renderHelp(help, error, resolvedStatus, helpClassName)}
+          <RenderControlNode
+            as={as}
+            rest={rest}
+            controlClassName={controlClassName}
+            required={required}
+            resolvedStatus={resolvedStatus}
+            disabled={disabled}
+            prefix={prefix}
+            suffix={suffix}
+            affixClassName={affixClassName}
+          >
+            {children}
+          </RenderControlNode>
+          <RenderHelp arg0={help} arg1={error} arg2={resolvedStatus} arg3={helpClassName} />
         </div>
       </div>
     )
@@ -641,28 +662,29 @@ const LabelRoot: FC<LabelRootProps> = ({
 
   return (
     <div className={fieldClassName}>
-      {renderCaption({
-        label,
-        required,
-        optional,
-        extra,
-        labelClassName,
-        extraClassName,
-      })}
-      {renderDescription(description, descriptionClassName)}
-      {renderControlNode({
-        as,
-        rest,
-        controlClassName,
-        required,
-        resolvedStatus,
-        disabled,
-        prefix,
-        suffix,
-        affixClassName,
-        children,
-      })}
-      {renderHelp(help, error, resolvedStatus, helpClassName)}
+      <RenderCaption
+        label={label}
+        required={required}
+        optional={optional}
+        extra={extra}
+        labelClassName={labelClassName}
+        extraClassName={extraClassName}
+      />
+      <RenderDescription arg0={String(description ?? '')} arg1={descriptionClassName} />
+      <RenderControlNode
+        as={as}
+        rest={rest}
+        controlClassName={controlClassName}
+        required={required}
+        resolvedStatus={resolvedStatus}
+        disabled={disabled}
+        prefix={prefix}
+        suffix={suffix}
+        affixClassName={affixClassName}
+      >
+        {children}
+      </RenderControlNode>
+      <RenderHelp arg0={help} arg1={error} arg2={resolvedStatus} arg3={helpClassName} />
     </div>
   )
 }
@@ -693,7 +715,7 @@ const FloatingText: FC<LabelTextProps> = ({
 }
 
 /** 渲染 Floating Node 的内部工具函数。 */
-const renderFloatingNode = ({
+const RenderFloatingNode = ({
   rest,
   required,
   resolvedStatus,
@@ -734,7 +756,7 @@ const renderFloatingNode = ({
       {children}
       {hasNode(text) ? (
         <FloatingText required={required} className={textClassName}>
-          {text}
+          {String(text ?? '')}
         </FloatingText>
       ) : null}
     </label>
@@ -781,17 +803,20 @@ const Floating: FC<FloatingLabelProps> = ({
   const fieldStyle = resolveInlineWidthStyle(layout, labelWidth)
 
   if (!hasFieldLayout) {
-    return renderFloatingNode({
-      rest,
-      required,
-      resolvedStatus,
-      disabled,
-      block,
-      className,
-      children,
-      text,
-      textClassName,
-    })
+    return (
+      <RenderFloatingNode
+        rest={rest}
+        required={required}
+        resolvedStatus={resolvedStatus}
+        disabled={disabled}
+        block={block}
+        className={className}
+        text={text}
+        textClassName={textClassName}
+      >
+        {children}
+      </RenderFloatingNode>
+    )
   }
 
   if (layout === 'inline') {
@@ -801,29 +826,30 @@ const Floating: FC<FloatingLabelProps> = ({
         style={fieldStyle}
       >
         <div>
-          {renderCaption({
-            label: caption,
-            required,
-            optional,
-            extra,
-            labelClassName: captionClassName,
-            extraClassName,
-          })}
-          {renderDescription(description, descriptionClassName)}
+          <RenderCaption
+            label={caption}
+            required={required}
+            optional={optional}
+            extra={extra}
+            labelClassName={captionClassName}
+            extraClassName={extraClassName}
+          />
+          <RenderDescription arg0={String(description ?? '')} arg1={descriptionClassName} />
         </div>
         <div className="grid gap-1">
-          {renderFloatingNode({
-            rest,
-            required,
-            resolvedStatus,
-            disabled,
-            block,
-            className,
-            children,
-            text,
-            textClassName,
-          })}
-          {renderHelp(help, error, resolvedStatus, helpClassName)}
+          <RenderFloatingNode
+            rest={rest}
+            required={required}
+            resolvedStatus={resolvedStatus}
+            disabled={disabled}
+            block={block}
+            className={className}
+            text={text}
+            textClassName={textClassName}
+          >
+            {children}
+          </RenderFloatingNode>
+          <RenderHelp arg0={help} arg1={error} arg2={resolvedStatus} arg3={helpClassName} />
         </div>
       </div>
     )
@@ -831,27 +857,28 @@ const Floating: FC<FloatingLabelProps> = ({
 
   return (
     <div className={fieldClassName}>
-      {renderCaption({
-        label: caption,
-        required,
-        optional,
-        extra,
-        labelClassName: captionClassName,
-        extraClassName,
-      })}
-      {renderDescription(description, descriptionClassName)}
-      {renderFloatingNode({
-        rest,
-        required,
-        resolvedStatus,
-        disabled,
-        block,
-        className,
-        children,
-        text,
-        textClassName,
-      })}
-      {renderHelp(help, error, resolvedStatus, helpClassName)}
+      <RenderCaption
+        label={caption}
+        required={required}
+        optional={optional}
+        extra={extra}
+        labelClassName={captionClassName}
+        extraClassName={extraClassName}
+      />
+      <RenderDescription arg0={String(description ?? '')} arg1={descriptionClassName} />
+      <RenderFloatingNode
+        rest={rest}
+        required={required}
+        resolvedStatus={resolvedStatus}
+        disabled={disabled}
+        block={block}
+        className={className}
+        text={text}
+        textClassName={textClassName}
+      >
+        {children}
+      </RenderFloatingNode>
+      <RenderHelp arg0={help} arg1={error} arg2={resolvedStatus} arg3={helpClassName} />
     </div>
   )
 }

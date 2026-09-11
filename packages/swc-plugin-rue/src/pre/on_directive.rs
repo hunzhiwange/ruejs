@@ -346,21 +346,36 @@ pub fn transform_opening(opening: &mut JSXOpeningElement) {
             continue;
         };
 
-        // `.native` 只参与编译期分流，不交给运行时修饰器；其余修饰符都保留给运行时包装。
+        // `.native` 参与编译期分流；原生 capture/once/passive 进入监听选项，
+        // 其余行为修饰符由专用事件包装器处理。
         let runtime_modifiers: Vec<String> = spec
             .modifiers
             .iter()
-            .filter(|modifier| modifier.as_str() != "native")
+            .filter(|modifier| {
+                modifier.as_str() != "native"
+                    && (is_component_opening
+                        || !matches!(modifier.as_str(), "capture" | "once" | "passive"))
+            })
             .cloned()
             .collect();
         let handler_expr = wrap_with_modifiers(handler_expr, &runtime_modifiers);
 
         // 组件 native 事件先改成内部属性名，避免和组件 props 的 `onClick` 语义混在一起。
-        let next_name = if is_component_opening && spec.has_native {
+        let mut next_name = if is_component_opening && spec.has_native {
             native_prop_name(&spec.standard_name)
         } else {
             spec.standard_name.clone()
         };
+
+        if !is_component_opening {
+            for (modifier, suffix) in
+                [("capture", "Capture"), ("once", "Once"), ("passive", "Passive")]
+            {
+                if spec.modifiers.iter().any(|value| value == modifier) {
+                    next_name.push_str(suffix);
+                }
+            }
+        }
 
         attr.value = Some(handler_to_attr_value(handler_expr));
         attr.name = JSXAttrName::Ident(emit::ident(next_name.as_str()).into());

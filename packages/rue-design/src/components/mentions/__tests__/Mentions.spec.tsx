@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render } from '@rue-js/rue'
 import Mentions from '../index'
@@ -48,7 +49,7 @@ describe('Mentions', () => {
       )
     }
 
-    render(<ControlledMentionsCase />, container)
+    mountTestApp(container, () => render(<ControlledMentionsCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="mentions-input"]')).toBeTruthy()
@@ -106,7 +107,7 @@ describe('Mentions', () => {
       )
     }
 
-    render(<ControlledMentionsCase />, container)
+    mountTestApp(container, () => render(<ControlledMentionsCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="mentions-ime-input"]')).toBeTruthy()
@@ -157,7 +158,7 @@ describe('Mentions', () => {
       )
     }
 
-    render(<ControlledMentionsCase />, container)
+    mountTestApp(container, () => render(<ControlledMentionsCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="mentions-composition-input"]')).toBeTruthy()
@@ -209,10 +210,6 @@ describe('Mentions', () => {
         { value: 'alice', label: 'Alice' },
         { value: 'bob', label: 'Bob' },
       ])
-      const optionList = Array.from(
-        { length: options.value.length },
-        (_, index) => options.value[index],
-      )
 
       swapOptions = () => {
         options.value = [
@@ -226,7 +223,7 @@ describe('Mentions', () => {
           <Mentions
             data-testid="mentions-popup-refresh"
             value={value.value}
-            options={optionList}
+            options={options.value}
             onChange={text => {
               value.value = text
             }}
@@ -235,7 +232,7 @@ describe('Mentions', () => {
       )
     }
 
-    render(<SwapOptionsCase />, container)
+    mountTestApp(container, () => render(<SwapOptionsCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="mentions-popup-refresh"]')).toBeTruthy()
@@ -289,7 +286,7 @@ describe('Mentions', () => {
       )
     }
 
-    render(<ControlledMentionsCase />, container)
+    mountTestApp(container, () => render(<ControlledMentionsCase />, container))
 
     await waitForContent(() => {
       expect(container.querySelector('[data-testid="mentions-debounce-input"]')).toBeTruthy()

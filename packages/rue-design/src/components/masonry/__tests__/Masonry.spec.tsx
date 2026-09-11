@@ -1,3 +1,5 @@
+import { MasonryItem } from '../index'
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 import Masonry from '..'
@@ -58,22 +60,24 @@ afterEach(() => {
 })
 
 describe('Masonry', () => {
-  it('renders the base masonry container and wraps children with item shells', async () => {
+  it('renders the base masonry container and renders explicit item shells', async () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Masonry
-        columns={3}
-        columnGap={20}
-        rowGap={12}
-        className="rounded-box"
-        data-testid="masonry-root"
-      >
-        <div>A</div>
-        <div>B</div>
-      </Masonry>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Masonry
+          columns={3}
+          columnGap={20}
+          rowGap={12}
+          className="rounded-box"
+          data-testid="masonry-root"
+        >
+          <MasonryItem>A</MasonryItem>
+          <MasonryItem>B</MasonryItem>
+        </Masonry>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -93,25 +97,23 @@ describe('Masonry', () => {
     })
   })
 
-  it('supports items and renderItem data mode', async () => {
+  it('supports explicit title and description data', async () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Masonry
-        items={[
-          { id: 'a', title: 'North star', description: 'Fast path' },
-          { id: 'b', title: 'Queue depth', description: 'Background sync' },
-        ]}
-        itemKey="id"
-        renderItem={item => (
-          <article className="card border border-base-300 bg-base-100 p-4">
-            <h3>{item.title}</h3>
-            <p>{item.description}</p>
-          </article>
-        )}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Masonry
+          items={[
+            { id: 'a', title: 'North star', description: 'Fast path' },
+            { id: 'b', title: 'Queue depth', description: 'Background sync' },
+          ]}
+          itemKey="id"
+          itemAs="article"
+          itemClassName="card border border-base-300 bg-base-100 p-4"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -128,13 +130,15 @@ describe('Masonry', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Masonry minColumnWidth={220} maxColumns={4} gap={20} data-testid="masonry-auto">
-        <div>Alpha</div>
-        <div>Beta</div>
-        <div>Gamma</div>
-      </Masonry>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Masonry minColumnWidth={220} maxColumns={4} gap={20} data-testid="masonry-auto">
+          <MasonryItem>Alpha</MasonryItem>
+          <MasonryItem>Beta</MasonryItem>
+          <MasonryItem>Gamma</MasonryItem>
+        </Masonry>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -170,12 +174,14 @@ describe('Masonry', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Masonry columns={{ xs: 1, md: 3 }} data-testid="masonry-responsive">
-        <div>One</div>
-        <div>Two</div>
-      </Masonry>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Masonry columns={{ xs: 1, md: 3 }} data-testid="masonry-responsive">
+          <MasonryItem>One</MasonryItem>
+          <MasonryItem>Two</MasonryItem>
+        </Masonry>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

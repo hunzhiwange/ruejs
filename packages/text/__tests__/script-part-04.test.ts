@@ -8,8 +8,8 @@
  */
 import { afterEach, beforeEach, describe, it, expect } from 'vite-plus/test'
 import { createElement, renderToString } from './rue-ssr-test-utils.js'
-import Script, { handleClientScriptLoad, type ScriptProps } from '../src/shims/script.js'
-import { ScriptNonceProvider } from '../src/shims/script-nonce-context.js'
+import Script, { handleClientScriptLoad, type ScriptProps } from '../src/shims/script.js?text-ssr'
+import { ScriptNonceProvider } from '../src/shims/script-nonce-context.js?text-ssr'
 
 const originalDocument = globalThis.document
 const originalWindow = globalThis.window

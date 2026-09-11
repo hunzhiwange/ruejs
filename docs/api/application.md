@@ -9,24 +9,15 @@ Rue 当前公开的应用创建入口是 `useApp()`。
 - **类型**
 
   ```ts
-  function useApp(
-    AppOrOptions:
-      | ComponentInstance
-      | {
-          setup?: () => any
-          render?: (ctx: any) => RenderableOutput
-        },
-    runtime?: Rue,
-  ): App
+  function useApp(App: ComponentInstance, runtime?: Rue): App
   ```
 
 - **详情**
 
-  第一个参数可以是根组件，也可以是一个包含 `setup` 与 `render` 的轻量配置对象。第二个参数可选，用于传入自定义 Rue 运行时实例。
+  第一个参数必须是经过 Rue 编译器处理的静态根组件。第二个参数可选，用于传入自定义 Rue 运行时实例。
 
   `useApp()` 返回的应用实例目前提供以下方法：
   - `app.use()`：安装插件
-  - `app.component()`：注册运行时全局组件
   - `app.mount()`：挂载应用
   - `app.unmount()`：卸载应用
 
@@ -53,20 +44,7 @@ Rue 当前公开的应用创建入口是 `useApp()`。
   const app = useApp(App)
   ```
 
-  使用 `setup + render` 选项对象：
-
-  ```tsx
-  import { useApp } from '@rue-js/rue'
-
-  const app = useApp({
-    setup() {
-      return { message: 'Hello Rue' }
-    },
-    render(ctx) {
-      return <div>{ctx.message}</div>
-    },
-  })
-  ```
+  不支持 `setup + render` 配置对象、任意根值或运行时全局组件注册；这些路径无法满足 closed ABI 的静态工厂要求。
 
 - **参阅** [指南 - 创建一个 Rue 应用](/guide/guide/essentials/application)
 
@@ -173,30 +151,6 @@ Rue 当前公开的应用创建入口是 `useApp()`。
   useApp(App).use(router).mount('#app')
   ```
 
-## app.component() {#app-component}
+## app.component（已移除） {#app-component}
 
-注册运行时全局组件。
-
-- **类型**
-
-  ```ts
-  interface App {
-    component(name: string, component: ComponentInstance): this
-  }
-  ```
-
-- **详情**
-
-  `app.component()` 当前用于注册运行时组件名，使组件能够通过名称在运行时解析，例如用于 `<Component is="Foo" />` 一类的动态组件场景。
-
-  Rue 当前只支持注册，不提供同名查询重载。
-
-- **示例**
-
-  ```tsx
-  import { useApp } from '@rue-js/rue'
-  import App from './App'
-  import CardView from './CardView'
-
-  useApp(App).component('CardView', CardView).mount('#app')
-  ```
+运行时全局组件注册已从 compiler-only 公共能力面移除。请直接导入静态组件；有限动态选择使用调用点的 `<Component registry={{ ... }}>`。

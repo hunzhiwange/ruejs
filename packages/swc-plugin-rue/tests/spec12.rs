@@ -32,7 +32,9 @@ export default Hello
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"
-import { _$createElement, _$template, _$settextContent, _$createDocumentFragment, _$appendChild, effect, _$compiledRoot } from "@rue-js/rue/internal/component";
+import { _$createElement, _$template, _$settextContent, _$createDocumentFragment, _$appendChild, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";
+import { effect } from "@rue-js/rue/internal/reactive";
+import { _$compiledRoot } from "@rue-js/rue/internal/block";
 import { type FC } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<div class="rue-parent"><h3 class="text-xl font-semibold mb-3">hello</h3><span>world</span></div>');
 const Hello: FC = ()=>{
@@ -46,11 +48,17 @@ const Hello: FC = ()=>{
 `);
         });
         _root.appendChild(_$getTemplate1().content.cloneNode(true));
-        return _root;
+        const __rue_first = _$compiledCreateTextNode("");
+        const __rue_last = _$compiledCreateTextNode("");
+        _root.insertBefore(__rue_first, _root.firstChild);
+        _root.appendChild(__rue_last);
+        return [
+            _root.firstChild,
+            _root.lastChild
+        ];
     });
 };
-export default Hello;
-"##;
+export default Hello;"##;
 
     use utils::{normalize, strip_marker};
     std::fs::create_dir_all("target/vapor_outputs").ok();

@@ -1,3 +1,4 @@
+import { compileNodePlan } from '../../runtime/__tests__/node-plan-test-utils'
 import { createElement } from './rue-test-utils.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createOnUncaughtError } from '../src/server/app-browser-error.js'
@@ -11,12 +12,8 @@ import {
 } from '../src/server/app-browser-action-result.js'
 import {
   RSC_FORM_STATE_GLOBAL,
-  configureAppBrowserRueRuntime,
   consumeInitialFormState,
   createTextRueRootOptions,
-  mountRueRoot,
-  mountRueRootInTransition,
-  useRueState,
 } from '../src/server/app-browser-hydration.js'
 import { createAppBrowserNavigationController } from '../src/server/app-browser-navigation-controller.js'
 import { createPopstateRestoreHandler } from '../src/server/app-browser-popstate.js'
@@ -537,25 +534,6 @@ function createDeferred(): { resolve: () => void; promise: Promise<void> } {
   })
   return { promise, resolve }
 }
-
-beforeEach(() => {
-  configureAppBrowserRueRuntime({
-    batch(action) {
-      action()
-    },
-    mount() {},
-    render() {},
-    useEffect() {},
-    useState(initial) {
-      let state = typeof initial === 'function' ? (initial as () => unknown)() : initial
-      const setState = (value: unknown) => {
-        state =
-          typeof value === 'function' ? (value as (previous: unknown) => unknown)(state) : value
-      }
-      return [state, setState]
-    },
-  })
-})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -2298,7 +2276,7 @@ describe('app browser navigation controller', () => {
     }
   })
 
-  it('renderNavigationPayload stays pending until NavigationCommitSignal settles the commit', async () => {
+  it('renderNavigationPayload stays pending until compiled root commit settles the commit', async () => {
     const { controller, detach, stateRef } = createControllerHarness()
     const commitEffect = vi.fn()
     const textElements = Promise.resolve(
@@ -2331,10 +2309,10 @@ describe('app browser navigation controller', () => {
       await Promise.resolve()
 
       // Pre-paint effect is queued but not yet run (drainPrePaintEffects
-      // only fires inside NavigationCommitSignal's commit effect).
+      // only fires inside compiled root commit's commit effect).
       expect(commitEffect).not.toHaveBeenCalled()
 
-      // The promise must not resolve — NavigationCommitSignal has not
+      // The promise must not resolve — compiled root commit has not
       // mounted, so resolveCommittedNavigations has no way to fire.
       const settled = await Promise.race([
         renderPromise.then(() => true),
@@ -2838,7 +2816,7 @@ describe('app browser navigation lifecycle settlement', () => {
 
       // Yield so C's async payload resolves and state is committed.
       // renderNavigationPayload returns a promise that settles only when
-      // NavigationCommitSignal fires (a Rue component not mounted in
+      // compiled root commit fires (a Rue component not mounted in
       // unit tests). The state mutation through dispatchApprovedVisibleCommit is
       // applied during Rue's transition action, so we verify via stateRef.
       await Promise.resolve()
@@ -4289,122 +4267,44 @@ describe('createOnUncaughtError (Rue root uncaught handler)', () => {
 })
 
 describe('app browser form-state hydration', () => {
-  it('forwards standard state values and updater functions through hydration', () => {
-    const initializer = vi.fn(() => 4)
-    let currentState = 4
-    let updaterPrevious: number | undefined
-    const runtimeSetter = vi.fn((update: number | ((previous: number) => number)) => {
-      currentState = typeof update === 'function' ? update(currentState) : update
-    })
-    const runtimeUseState = vi.fn((initial: number | (() => number)) => [
-      typeof initial === 'function' ? initial() : initial,
-      runtimeSetter,
-    ])
-
-    configureAppBrowserRueRuntime({
-      batch(action) {
-        action()
-      },
-      mount() {},
-      render() {},
-      useEffect() {},
-      useState: runtimeUseState,
-    })
-
-    const [state, setState] = useRueState(initializer)
-    const updater = (previous: number) => {
-      updaterPrevious = previous
-      return previous + 2
-    }
-
-    expect(runtimeUseState).toHaveBeenCalledWith(initializer)
-    expect(initializer).toHaveBeenCalledTimes(1)
-    expect(state).toBe(4)
-    expect(setState).toBe(runtimeSetter)
-
-    setState(updater)
-    expect(updaterPrevious).toBe(4)
-    expect(currentState).toBe(6)
-  })
-
-  it('mounts, updates, and unmounts the App Router root through the Rue browser runtime', () => {
-    const target = { nodeType: 1 } as Element
-    const detachErrorHandler = vi.fn()
-    const mount = vi.fn()
-    const render = vi.fn()
-    const onError = vi.fn(() => detachErrorHandler)
-
-    configureAppBrowserRueRuntime({
-      batch(action) {
-        action()
-      },
-      mount,
-      onError,
-      render,
-      useEffect() {},
-      useState(initial) {
-        let state = typeof initial === 'function' ? (initial as () => unknown)() : initial
-        const setState = (value: unknown) => {
-          state =
-            typeof value === 'function' ? (value as (previous: unknown) => unknown)(state) : value
-        }
-        return [state, setState]
-      },
-    })
-
-    const onUncaughtError = vi.fn()
-    const root = mountRueRoot(target, 'initial', {
-      formState: null,
-      onUncaughtError,
-    })
-
-    expect(onError).toHaveBeenCalledTimes(1)
-    expect(mount).toHaveBeenCalledTimes(1)
-    expect(mount).toHaveBeenCalledWith(expect.any(Function), target)
-    expect(mount.mock.calls[0]![0]()).toBe('initial')
-
-    root.render('text')
-    expect(render).toHaveBeenLastCalledWith('text', target)
-    expect(mount.mock.calls[0]![0]()).toBe('text')
-
+  it('initializes compiled state once and applies updater functions after hydration', async () => {
+    const source = `import {useState} from '@rue-js/rue';export let initializations=0;export const View=()=>{const [count,setCount]=useState(()=>{initializations++;return 4});return <button onClick={()=>setCount(previous=>previous+2)}>{count}</button>}`
+    const server = compileNodePlan(source, 'server')
+    const browser = compileNodePlan(source, 'hydrate')
+    const container = document.createElement('div')
+    container.innerHTML = await server.renderToString(server.View)
+    const button = container.querySelector('button')!
+    const root = browser.hydrateRoot(container, browser.View)
+    await root.ready
+    button.click()
+    await expect.poll(() => button.textContent).toBe('6')
+    expect(browser.initializations).toBe(1)
     root.unmount()
-    expect(detachErrorHandler).toHaveBeenCalledTimes(1)
-    expect(render).toHaveBeenLastCalledWith(null, target)
   })
 
-  it('schedules App Router Rue root mount inside a transition', () => {
-    const container = { nodeType: 1 } as Element
-    const root = { render: vi.fn(), unmount: vi.fn() }
-    const callOrder: string[] = []
-    const mountRoot = vi.fn(() => {
-      callOrder.push('mountRoot')
-      return root
-    })
-    const scheduleTransition = vi.fn((action: () => void) => {
-      callOrder.push('transition:start')
-      action()
-      callOrder.push('transition:end')
-    })
+  it('claims, updates, and unmounts a compiled root without replacing its button', async () => {
+    const source = `export const View=props=><button>{props.label}</button>`
+    const server = compileNodePlan(source, 'server')
+    const browser = compileNodePlan(source, 'hydrate')
+    const container = document.createElement('div')
+    container.innerHTML = await server.renderToString(server.View, { props: { label: 'initial' } })
+    const button = container.querySelector('button')!
+    const root = browser.hydrateRoot(container, browser.View, { props: { label: 'initial' } })
+    await root.ready
+    root.updateProps({ label: 'updated' })
+    await expect.poll(() => button.textContent).toBe('updated')
+    expect(container.querySelector('button')).toBe(button)
+    root.unmount()
+    expect(container.childNodes.length).toBe(0)
+  })
 
-    const result = mountRueRootInTransition({
-      children: 'root',
-      container,
-      mountRoot,
-      options: {
-        formState: null,
-        onUncaughtError: vi.fn(),
-      },
-      scheduleTransition,
-    })
-
-    expect(result).toBe(root)
-    expect(scheduleTransition).toHaveBeenCalledTimes(1)
-    expect(mountRoot).toHaveBeenCalledWith(
-      container,
-      'root',
-      expect.objectContaining({ formState: null }),
-    )
-    expect(callOrder).toEqual(['transition:start', 'mountRoot', 'transition:end'])
+  it('rejects mismatched server markup without mounting a replacement tree', () => {
+    const browser = compileNodePlan(`export const View=()=> <button>compiled</button>`, 'hydrate')
+    const container = document.createElement('div')
+    container.innerHTML = '<p>original</p>'
+    const original = container.firstChild
+    expect(() => browser.hydrateRoot(container, browser.View)).toThrow('hydration mismatch')
+    expect(container.firstChild).toBe(original)
   })
 
   it('passes the one-shot form-state bootstrap payload to Rue root options', () => {

@@ -142,15 +142,18 @@ type AppPageDispatchRoute = {
   __buildTimeReasons?: LayoutClassificationOptions['buildTimeReasons']
   error?: AppPageModule | null
   errors?: readonly (AppPageModule | null | undefined)[]
+  forbidden?: AppPageModule | null
   forbiddens?: readonly (AppPageModule | null | undefined)[]
   isDynamic: boolean
   layouts: readonly AppPageModule[]
   layoutTreePositions?: readonly number[]
   loading?: AppPageModule | null
+  notFound?: AppPageModule | null
   notFounds?: readonly (AppPageModule | null | undefined)[]
   params: readonly string[]
   pattern: string
   routeSegments: readonly string[]
+  unauthorized?: AppPageModule | null
   unauthorizeds?: readonly (AppPageModule | null | undefined)[]
 }
 
@@ -832,9 +835,32 @@ async function renderPageSpecialError<TRoute extends AppPageDispatchRoute>(
     isRscRequest: options.isRscRequest,
     middlewareContext: options.middlewareContext,
     renderFallbackPage(statusCode) {
+      const routeBoundaryModule =
+        statusCode === 403
+          ? options.route.forbidden
+          : statusCode === 401
+            ? options.route.unauthorized
+            : options.route.notFound
+      const boundary =
+        routeBoundaryModule?.default ??
+        resolveAppPageParentHttpAccessBoundaryModule({
+          layoutIndex: Math.max(
+            options.route.layouts.length,
+            options.route.forbiddens?.length ?? 0,
+            options.route.notFounds?.length ?? 0,
+            options.route.unauthorizeds?.length ?? 0,
+          ),
+          rootForbiddenModule: options.rootForbiddenModule,
+          rootNotFoundModule: options.rootNotFoundModule,
+          rootUnauthorizedModule: options.rootUnauthorizedModule,
+          routeForbiddenModules: options.route.forbiddens,
+          routeNotFoundModules: options.route.notFounds,
+          routeUnauthorizedModules: options.route.unauthorizeds,
+          statusCode,
+        })?.default
       return options.renderHttpAccessFallbackPage(
         statusCode,
-        { matchedParams: options.params },
+        { boundaryComponent: boundary, matchedParams: options.params },
         null,
       )
     },

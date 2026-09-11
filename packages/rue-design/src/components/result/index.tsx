@@ -24,13 +24,11 @@ export interface ResultProps {
   /** 组件状态。 */
   status?: ResultStatus
   /** 图标内容。 */
-  icon?: any
+  icon?: false | null
   /** 标题内容。 */
-  title?: any
+  title?: string | number
   /** subTitle 配置项。 */
-  subTitle?: any
-  /** 额外操作或补充内容。 */
-  extra?: any
+  subTitle?: string | number
   /** 组件子内容。 */
   children?: any
   /** 组件视觉变体。 */
@@ -110,11 +108,8 @@ const appendClassName = (base: string, className?: string) => {
 }
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value === undefined || value === null || value === false || value === '') return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 归一化 Status 的内部工具函数。 */
 const normalizeStatus = (status?: ResultStatus) => {
@@ -369,7 +364,7 @@ const ExceptionIllustration: FC<
             <span
               className={`rounded-full border px-3 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.22em] ${resolveTonePanelClass(tone)}`}
             >
-              {meta.label}
+              {String(meta.label)}
             </span>
             <span className="text-[0.68rem] uppercase tracking-[0.28em] opacity-50">
               Rue Result
@@ -380,9 +375,11 @@ const ExceptionIllustration: FC<
               <div
                 className={`text-[4rem] font-black leading-none tracking-[-0.1em] ${resolveToneTextClass(tone)}`}
               >
-                {status}
+                {String(status)}
               </div>
-              <div className="mt-2 max-w-[13rem] text-xs leading-5 opacity-60">{meta.scene}</div>
+              <div className="mt-2 max-w-[13rem] text-xs leading-5 opacity-60">
+                {String(meta.scene)}
+              </div>
             </div>
             <div
               className={`grid size-16 shrink-0 place-items-center rounded-[1.35rem] border ${resolveTonePanelClass(tone)}`}
@@ -397,7 +394,11 @@ const ExceptionIllustration: FC<
 }
 
 /** 构建 Default Icon 的内部工具函数。 */
-const buildDefaultIcon = (status: string, tone: ResultTone, size: ResultSize) => {
+const DefaultIcon: FC<{ status: string; tone: ResultTone; size: ResultSize }> = ({
+  status,
+  tone,
+  size,
+}) => {
   if (isExceptionStatus(status)) {
     return <ExceptionIllustration status={status} tone={tone} size={size} />
   }
@@ -428,35 +429,37 @@ const PresentedImage500: FC<ResultPresentedImageProps> = props => {
 }
 
 /** Result Base 的内部工具函数。 */
-const ResultBase: FC<ResultProps> = ({
-  status = 'info',
-  icon,
-  title,
-  subTitle,
-  extra,
-  children,
-  variant = 'surface',
-  size = 'md',
-  align = 'center',
-  showIcon = true,
-  bordered = true,
-  role = 'status',
-  className,
-  style,
-  iconClassName,
-  iconStyle,
-  contentClassName,
-  contentStyle,
-  titleClassName,
-  titleStyle,
-  subTitleClassName,
-  subTitleStyle,
-  extraClassName,
-  extraStyle,
-  bodyClassName,
-  bodyStyle,
-  ...rest
-}: ResultProps) => {
+const ResultBase: FC<ResultProps> = (
+  {
+    status = 'info',
+    icon,
+    title,
+    subTitle,
+    children,
+    variant = 'surface',
+    size = 'md',
+    align = 'center',
+    showIcon = true,
+    bordered = true,
+    role = 'status',
+    className,
+    style,
+    iconClassName,
+    iconStyle,
+    contentClassName,
+    contentStyle,
+    titleClassName,
+    titleStyle,
+    subTitleClassName,
+    subTitleStyle,
+    extraClassName,
+    extraStyle,
+    bodyClassName,
+    bodyStyle,
+    ...rest
+  }: ResultProps,
+  slots: Record<string, any> = {},
+) => {
   const normalizedStatus = normalizeStatus(status)
   const tone = resolveTone(normalizedStatus)
   const exceptionMeta = isExceptionStatus(normalizedStatus)
@@ -497,9 +500,11 @@ const ResultBase: FC<ResultProps> = ({
       >
         {isIconHidden ? null : (
           <div className={iconClassName} style={iconStyle} data-rue-result-icon-slot="true">
-            {icon !== undefined && icon !== null && icon !== false
-              ? icon
-              : buildDefaultIcon(normalizedStatus, tone, size)}
+            {slots.icon ? (
+              slots.icon
+            ) : (
+              <DefaultIcon status={normalizedStatus} tone={tone} size={size} />
+            )}
           </div>
         )}
 
@@ -513,7 +518,7 @@ const ResultBase: FC<ResultProps> = ({
                 )}
                 style={titleStyle}
               >
-                {resolvedTitle}
+                {String(resolvedTitle)}
               </div>
             ) : null}
             {resolvedSubTitle != null ? (
@@ -524,13 +529,13 @@ const ResultBase: FC<ResultProps> = ({
                 )}
                 style={subTitleStyle}
               >
-                {resolvedSubTitle}
+                {String(resolvedSubTitle)}
               </div>
             ) : null}
           </div>
         ) : null}
 
-        {extra != null ? (
+        {slots.extra != null ? (
           <div
             className={appendClassName(
               `flex w-full flex-wrap gap-3 ${extraAlignmentClass}`,
@@ -539,7 +544,7 @@ const ResultBase: FC<ResultProps> = ({
             style={extraStyle}
             data-rue-result-extra="true"
           >
-            {extra}
+            {slots.extra}
           </div>
         ) : null}
 

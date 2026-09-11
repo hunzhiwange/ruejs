@@ -17,6 +17,7 @@ export type TypographyRootTag = 'div' | 'section' | 'article'
 
 /** TypographyInlineProps 组件属性。 */
 export interface TypographyInlineProps {
+  text?: string | number
   /** 组件类型或语义类型。 */
   type?: TypographyTone
   /** 是否禁用交互。 */
@@ -85,6 +86,7 @@ export interface TypographyTitleProps extends TypographyInlineProps {
 export interface TypographyParagraphProps extends TypographyInlineProps {}
 
 interface DecoratedContentProps {
+  text?: string | number
   mark?: boolean
   code?: boolean
   keyboard?: boolean
@@ -148,12 +150,14 @@ const buildInlineClassName = ({
 }
 
 /** DecoratedContent 的内部工具函数。 */
-const DecoratedContent: FC<DecoratedContentProps> = ({ mark, code, keyboard, children }) => {
+const DecoratedContent: FC<DecoratedContentProps> = ({ mark, code, keyboard, children, text }) => {
   if (mark && code && keyboard) {
     return (
       <mark className="rounded bg-warning/20 px-1 py-0.5 text-inherit">
         <code className="rounded bg-base-200 px-1.5 py-0.5 text-[0.9em]">
-          <kbd className="kbd kbd-sm align-middle">{children}</kbd>
+          <kbd className="kbd kbd-sm align-middle">
+            {text !== undefined ? <span>{String(text)}</span> : children}
+          </kbd>
         </code>
       </mark>
     )
@@ -162,7 +166,9 @@ const DecoratedContent: FC<DecoratedContentProps> = ({ mark, code, keyboard, chi
   if (mark && code) {
     return (
       <mark className="rounded bg-warning/20 px-1 py-0.5 text-inherit">
-        <code className="rounded bg-base-200 px-1.5 py-0.5 text-[0.9em]">{children}</code>
+        <code className="rounded bg-base-200 px-1.5 py-0.5 text-[0.9em]">
+          {text !== undefined ? <span>{String(text)}</span> : children}
+        </code>
       </mark>
     )
   }
@@ -170,7 +176,9 @@ const DecoratedContent: FC<DecoratedContentProps> = ({ mark, code, keyboard, chi
   if (mark && keyboard) {
     return (
       <mark className="rounded bg-warning/20 px-1 py-0.5 text-inherit">
-        <kbd className="kbd kbd-sm align-middle">{children}</kbd>
+        <kbd className="kbd kbd-sm align-middle">
+          {text !== undefined ? <span>{String(text)}</span> : children}
+        </kbd>
       </mark>
     )
   }
@@ -178,24 +186,38 @@ const DecoratedContent: FC<DecoratedContentProps> = ({ mark, code, keyboard, chi
   if (code && keyboard) {
     return (
       <code className="rounded bg-base-200 px-1.5 py-0.5 text-[0.9em]">
-        <kbd className="kbd kbd-sm align-middle">{children}</kbd>
+        <kbd className="kbd kbd-sm align-middle">
+          {text !== undefined ? <span>{String(text)}</span> : children}
+        </kbd>
       </code>
     )
   }
 
   if (mark) {
-    return <mark className="rounded bg-warning/20 px-1 py-0.5 text-inherit">{children}</mark>
+    return (
+      <mark className="rounded bg-warning/20 px-1 py-0.5 text-inherit">
+        {text !== undefined ? <span>{String(text)}</span> : children}
+      </mark>
+    )
   }
 
   if (code) {
-    return <code className="rounded bg-base-200 px-1.5 py-0.5 text-[0.9em]">{children}</code>
+    return (
+      <code className="rounded bg-base-200 px-1.5 py-0.5 text-[0.9em]">
+        {text !== undefined ? <span>{String(text)}</span> : children}
+      </code>
+    )
   }
 
   if (keyboard) {
-    return <kbd className="kbd kbd-sm align-middle">{children}</kbd>
+    return (
+      <kbd className="kbd kbd-sm align-middle">
+        {text !== undefined ? <span>{String(text)}</span> : children}
+      </kbd>
+    )
   }
 
-  return <>{children}</>
+  return <>{text !== undefined ? <span>{String(text)}</span> : children}</>
 }
 
 /** Typography Root 的内部工具函数。 */
@@ -236,6 +258,7 @@ const Text: FC<TypographyTextProps> = ({
   className,
   style,
   children,
+  text,
   ...rest
 }) => {
   const props = {
@@ -257,7 +280,7 @@ const Text: FC<TypographyTextProps> = ({
   if (as === 'div') {
     return (
       <div {...props}>
-        <DecoratedContent mark={mark} code={code} keyboard={keyboard}>
+        <DecoratedContent text={text} mark={mark} code={code} keyboard={keyboard}>
           {children}
         </DecoratedContent>
       </div>
@@ -266,7 +289,7 @@ const Text: FC<TypographyTextProps> = ({
   if (as === 'p') {
     return (
       <p {...props}>
-        <DecoratedContent mark={mark} code={code} keyboard={keyboard}>
+        <DecoratedContent text={text} mark={mark} code={code} keyboard={keyboard}>
           {children}
         </DecoratedContent>
       </p>
@@ -274,7 +297,7 @@ const Text: FC<TypographyTextProps> = ({
   }
   return (
     <span {...props}>
-      <DecoratedContent mark={mark} code={code} keyboard={keyboard}>
+      <DecoratedContent text={text} mark={mark} code={code} keyboard={keyboard}>
         {children}
       </DecoratedContent>
     </span>
@@ -298,6 +321,7 @@ const Link: FC<TypographyLinkProps> = ({
   className,
   style,
   children,
+  text,
   tabIndex,
   ...rest
 }) => {
@@ -322,7 +346,7 @@ const Link: FC<TypographyLinkProps> = ({
       aria-disabled={disabled ? 'true' : undefined}
       tabindex={disabled ? '-1' : tabIndex === undefined ? undefined : String(tabIndex)}
     >
-      <DecoratedContent mark={mark} code={code} keyboard={keyboard}>
+      <DecoratedContent text={text} mark={mark} code={code} keyboard={keyboard}>
         {children}
       </DecoratedContent>
     </a>

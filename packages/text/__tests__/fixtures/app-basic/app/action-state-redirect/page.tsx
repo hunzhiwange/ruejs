@@ -1,23 +1,12 @@
 'use client'
 
-import { useState } from '@rue-js/rue'
+import { useActionState } from 'text/form'
 import { redirectWithActionState } from '../actions/actions'
 
 const initialState = { success: false, error: undefined as string | undefined }
 
-function useTextActionState<S>(
-  action: (state: S, formData: FormData) => S | Promise<S>,
-  initialState: S,
-): [S, (formData: FormData) => Promise<void>] {
-  const [state, setState] = useState(initialState)
-  const formAction = async (formData: FormData) => {
-    setState(await action(state, formData))
-  }
-  return [state, formAction]
-}
-
 export default function ActionStateRedirectTest() {
-  const [state, formAction] = useTextActionState(redirectWithActionState, initialState)
+  const [state, formAction] = useActionState(redirectWithActionState, initialState)
 
   return (
     <div>

@@ -4,7 +4,7 @@ Progress 模块概述
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
 import type { FC } from '@rue-js/rue'
-import { computed, toValue } from '@rue-js/rue'
+import { computed } from '@rue-js/rue'
 
 /** ProgressColor 语义色类型。 */
 export type ProgressColor =
@@ -78,7 +78,7 @@ export interface ProgressProps {
   /** showInfo 配置项。 */
   showInfo?: boolean
   /** format 配置项。 */
-  format?: (percent?: number, successPercent?: number) => any
+  format?: (percent?: number, successPercent?: number) => string
   /** 组件尺寸。 */
   size?: ProgressSize
   /** strokeWidth 配置项。 */
@@ -172,8 +172,12 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 /** 解析 MaybeRef 的内部工具函数。 */
 const resolveMaybeRef = <T,>(value: ProgressMaybeRef<T> | undefined): T | undefined => {
-  if (value === undefined) return undefined
-  return toValue(value as T | (() => T) | { value?: T; get?: () => T })
+  if (typeof value === 'function') return (value as () => T)()
+  if (value && typeof value === 'object') {
+    if ('get' in value && typeof value.get === 'function') return value.get()
+    if ('value' in value) return value.value as T
+  }
+  return value as T | undefined
 }
 
 /** 格式化 aria-valuenow 的内部工具函数。 */
@@ -395,13 +399,6 @@ const resolveGapCenter = (placement: ProgressGapPlacement) => {
   }
 }
 
-/** 判断是否存在 Renderable Children 的内部工具函数。 */
-const hasRenderableChildren = (children: any) => {
-  if (children == null) return false
-  if (Array.isArray(children)) return children.length > 0
-  return true
-}
-
 /** Default Status Icon 的内部工具函数。 */
 const DefaultStatusIcon: FC<{ status: ProgressStatus }> = ({ status }) => {
   if (status === 'success') {
@@ -434,7 +431,7 @@ const DefaultStatusIcon: FC<{ status: ProgressStatus }> = ({ status }) => {
       </span>
     )
   }
-  return null
+  return <></>
 }
 
 /** 渲染 Indicator 的内部工具函数。 */
@@ -450,18 +447,18 @@ const renderIndicator = ({
 }: {
   children?: any
   showInfo?: boolean
-  format?: (percent?: number, successPercent?: number) => any
+  format?: (percent?: number, successPercent?: number) => string
   percent?: number
   successPercent: number
   status: ProgressStatus
   type: ProgressType
   inner: boolean
 }) => {
-  if (hasRenderableChildren(children)) return children
+  if (children) return ''
   if (showInfo === false) return null
   if (format) return format(percent, successPercent)
   if (!inner && (status === 'success' || status === 'exception')) {
-    return <DefaultStatusIcon status={status} />
+    return ''
   }
   if (percent == null) return type === 'line' ? '加载中' : '--'
   return `${Math.round(percent)}%`
@@ -479,7 +476,7 @@ const LineProgressStepItems: FC<LineProgressStepItemsProps> = ({
   toneClass,
   resolvedRailColor,
 }) => {
-  if (index >= stepsConfig.count) return null
+  if (index >= stepsConfig.count) return <></>
 
   const isSuccess = index < successCount
   const isActive = index >= successCount && index < completedCount
@@ -540,7 +537,7 @@ const CircleProgressStepItems: FC<CircleProgressStepItemsProps> = ({
   success,
   resolvedRailColor,
 }) => {
-  if (index >= stepsConfig.count) return null
+  if (index >= stepsConfig.count) return <></>
 
   const gap = clamp(stepsConfig.gap, 0, sweepAngle / Math.max(stepsConfig.count * 2, 1))
   const segmentSweep = Math.max(
@@ -718,7 +715,7 @@ const LineProgressBar: FC<LineProgressBarProps> = ({
         <span
           className={`absolute inset-0 flex items-center px-3 text-xs font-medium ${indicatorAlign === 'center' ? 'justify-center text-white' : indicatorAlign === 'start' ? 'justify-start text-white' : 'justify-end text-white'}`}
         >
-          {currentIndicator.get()}
+          {String(currentIndicator.get() ?? '')}
         </span>
       ) : null}
     </div>
@@ -752,7 +749,7 @@ const Progress: FC<ProgressProps> = ({
   children,
   ...rest
 }) => {
-  const hasCustomChildren = hasRenderableChildren(children)
+  const hasCustomChildren = children !== undefined
   const hasEnhancedProps =
     percent !== undefined ||
     type !== 'line' ||
@@ -814,6 +811,20 @@ const Progress: FC<ProgressProps> = ({
     }),
   )
 
+  const IndicatorView = () => (
+    <span>
+      {children ? (
+        children
+      ) : !format &&
+        !(type === 'line' && indicatorPosition === 'inner' && !steps) &&
+        (resolvedStatus.get() === 'success' || resolvedStatus.get() === 'exception') ? (
+        <DefaultStatusIcon status={resolvedStatus.get()} />
+      ) : (
+        <span>{String(indicator.get() ?? '')}</span>
+      )}
+    </span>
+  )
+
   if (type === 'line') {
     const lineSize = resolveLineSize(size, strokeWidth)
     const linecapClass = resolveLinecapClass(strokeLinecap)
@@ -853,7 +864,9 @@ const Progress: FC<ProgressProps> = ({
                 indicator={indicator}
               />
             </div>
-            <div className="shrink-0 text-sm">{indicator.get()}</div>
+            <div className="shrink-0 text-sm">
+              <IndicatorView />
+            </div>
           </div>
         ) : (
           <div className={mergeClassName('space-y-2', toneClass.get())}>
@@ -878,7 +891,7 @@ const Progress: FC<ProgressProps> = ({
               <div
                 className={`text-sm ${indicatorAlign === 'center' ? 'text-center' : indicatorAlign === 'start' ? 'text-left' : 'text-right'}`}
               >
-                {indicator.get()}
+                <IndicatorView />
               </div>
             ) : null}
           </div>
@@ -967,7 +980,7 @@ const Progress: FC<ProgressProps> = ({
         </svg>
         {indicator.get() != null ? (
           <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm font-medium text-base-content">
-            {indicator.get()}
+            <IndicatorView />
           </div>
         ) : null}
       </div>

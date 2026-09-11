@@ -23,7 +23,7 @@ export interface CarouselDataItem {
   /** 数据项唯一标识。 */
   key?: string | number
   /** 主体内容。 */
-  content: any
+  content: string | number
   /** 根节点附加类名。 */
   className?: string
 }
@@ -68,6 +68,8 @@ export interface CarouselRef {
 
 /** CarouselProps 组件属性。 */
 export interface CarouselProps {
+  /** 使用默认 slot 提供幻灯片时，显式声明数量。 */
+  slideCount?: number
   /** 交叉轴或内容对齐方式。 */
   align?: CarouselAlign
   /** 布局方向。 */
@@ -103,9 +105,9 @@ export interface CarouselProps {
   /** arrows 配置项。 */
   arrows?: boolean
   /** prevArrow 配置项。 */
-  prevArrow?: any | ((props: CarouselArrowRenderProps) => any)
+  prevArrow?: string
   /** nextArrow 配置项。 */
-  nextArrow?: any | ((props: CarouselArrowRenderProps) => any)
+  nextArrow?: string
   /** dotPlacement 配置项。 */
   dotPlacement?: CarouselDotPlacement
   /** dotPosition 配置项。 */
@@ -174,13 +176,6 @@ const mergeClassName = (base: string, className?: string) =>
   className ? `${base} ${className}` : base
 
 /** flatten Children 的内部工具函数。 */
-const flattenChildren = (value: any): any[] => {
-  if (value == null || value === false) return []
-  if (Array.isArray(value)) {
-    return value.flatMap(item => flattenChildren(item))
-  }
-  return [value]
-}
 
 /** clamp 的内部工具函数。 */
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -232,15 +227,6 @@ const clearForwardedRef = (forwardedRef: any, value: CarouselRef) => {
 }
 
 /** 解析 Arrow Node 的内部工具函数。 */
-const resolveArrowNode = (
-  arrow: any | ((props: CarouselArrowRenderProps) => any) | undefined,
-  props: CarouselArrowRenderProps,
-  fallback: string,
-) => {
-  if (typeof arrow === 'function') return arrow(props)
-  if (arrow != null) return arrow
-  return fallback
-}
 
 /** 读取 Offset By Align 的内部工具函数。 */
 const getOffsetByAlign = (
@@ -286,44 +272,87 @@ const resetScrollSlideStyle = (slide: HTMLElement) => {
  * - fade 模式补齐常见的叠层切换体验
  * - 支持 ref 暴露 goTo/next/prev/autoPlay 方法
  */
-const Carousel: FC<CarouselProps> = ({
-  align = 'start',
-  direction = 'horizontal',
-  effect = 'scrollx',
-  fade = false,
-  auto = false,
-  autoplay = false,
-  interval = 3000,
-  autoplaySpeed,
-  loop = true,
-  infinite,
-  autoDirection = 'forward',
-  activeIndex,
-  defaultActiveIndex,
-  initialSlide,
-  slickGoTo,
-  dots = false,
-  arrows = false,
-  prevArrow,
-  nextArrow,
-  dotPlacement,
-  dotPosition,
-  draggable = false,
-  waitForAnimate = false,
-  speed = 500,
-  easing = 'ease',
-  pauseOnHover,
-  adaptiveHeight = false,
-  onIndexChange,
-  beforeChange,
-  afterChange,
-  apiRef,
-  className,
-  style,
-  children,
-  items,
-  ...rest
-}) => {
+const Carousel: FC<CarouselProps> = (
+  {
+    align = 'start',
+    direction = 'horizontal',
+    effect = 'scrollx',
+    fade = false,
+    auto = false,
+    autoplay = false,
+    interval = 3000,
+    autoplaySpeed,
+    loop = true,
+    infinite,
+    autoDirection = 'forward',
+    activeIndex,
+    defaultActiveIndex,
+    initialSlide,
+    slickGoTo,
+    dots = false,
+    arrows = false,
+    prevArrow,
+    nextArrow,
+    dotPlacement,
+    dotPosition,
+    draggable = false,
+    waitForAnimate = false,
+    speed = 500,
+    easing = 'ease',
+    pauseOnHover,
+    adaptiveHeight = false,
+    onIndexChange,
+    beforeChange,
+    afterChange,
+    apiRef,
+    className,
+    style,
+    children,
+    items,
+    slideCount: declaredSlideCount,
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const _ = rowArg0
+    const index = rowArg1
+
+    const active = index === normalizeIndex(currentIndexState.value, visualCount || 1, mergedLoop)
+    return (
+      <button
+        key={index}
+        type="button"
+        data-rue-carousel-dot={String(index)}
+        className={mergeClassName(
+          'relative h-2.5 overflow-hidden rounded-full bg-base-100/60 transition-all duration-300',
+          active ? 'w-9 bg-primary/30' : 'w-2.5 hover:bg-base-100/80',
+        )}
+        aria-label={`Go to slide ${index + 1}`}
+        aria-current={active ? 'true' : undefined}
+        onClick={() => {
+          commitIndex(index, { source: 'user' })
+        }}
+      >
+        <span
+          data-rue-carousel-dot-fill="true"
+          className={mergeClassName(
+            'absolute inset-0 rounded-full bg-primary transition-transform duration-300',
+            active ? 'scale-100' : 'scale-0',
+          )}
+        />
+        {mergedShowDotDuration && active ? (
+          <span
+            key={`${index}-${progressToken.value}`}
+            data-rue-carousel-dot-progress="active"
+            className="absolute inset-0 origin-left rounded-full bg-primary/35"
+            style={{ transform: 'scaleX(0)' }}
+          />
+        ) : null}
+      </button>
+    )
+  }
+
   const forwardedRef = rest.ref
   const userOnMouseEnter = rest.onMouseEnter
   const userOnMouseLeave = rest.onMouseLeave
@@ -348,10 +377,9 @@ const Carousel: FC<CarouselProps> = ({
   const mergedShowDotDuration =
     mergedAutoplay && typeof autoplay === 'object' && !!autoplay.dotDuration
   const serializedStyle = serializeStyle(style)
-  const normalizedChildList = flattenChildren(children)
   const normalizedItems = items ?? []
   const slideCountHint =
-    normalizedItems.length > 0 ? normalizedItems.length : normalizedChildList.length
+    normalizedItems.length > 0 ? normalizedItems.length : (declaredSlideCount ?? 0)
   const mergedControlledIndex = slickGoTo ?? activeIndex
   const initialIndex = normalizeIndex(
     typeof mergedControlledIndex === 'number'
@@ -474,44 +502,6 @@ const Carousel: FC<CarouselProps> = ({
     assignForwardedRef(apiRef, rootElement ? api : null)
   }
 
-  const syncControls = () => {
-    const root = rootElement
-    if (!root) return
-
-    const resolvedIndex = normalizeIndex(
-      currentIndexState.value,
-      Math.max(visualCount, 1),
-      mergedLoop,
-    )
-    root.setAttribute('data-rue-carousel-current', String(resolvedIndex))
-
-    const prevButton = root.querySelector<HTMLButtonElement>('[data-rue-carousel-prev="true"]')
-    const nextButton = root.querySelector<HTMLButtonElement>('[data-rue-carousel-next="true"]')
-    if (prevButton) {
-      prevButton.disabled = !mergedLoop && resolvedIndex <= 0
-    }
-    if (nextButton) {
-      nextButton.disabled = !mergedLoop && resolvedIndex >= Math.max(0, visualCount - 1)
-    }
-
-    const dotButtons = Array.from(
-      root.querySelectorAll<HTMLButtonElement>('[data-rue-carousel-dot]'),
-    )
-    dotButtons.forEach((button, index) => {
-      const active = index === resolvedIndex
-      if (active) button.setAttribute('aria-current', 'true')
-      else button.removeAttribute('aria-current')
-      button.classList.toggle('w-9', active)
-      button.classList.toggle('bg-primary/30', active)
-      button.classList.toggle('w-2.5', !active)
-      const fill = button.querySelector<HTMLElement>('[data-rue-carousel-dot-fill]')
-      if (fill) {
-        fill.classList.toggle('scale-100', active)
-        fill.classList.toggle('scale-0', !active)
-      }
-    })
-  }
-
   const syncScrollLayout = (dontAnimate: boolean) => {
     const root = rootElement
     const track = trackElement
@@ -620,7 +610,7 @@ const Carousel: FC<CarouselProps> = ({
     } else {
       syncScrollLayout(dontAnimate)
     }
-    syncControls()
+
     requestAnimationFrame(() => {
       restartDotProgress()
     })
@@ -725,7 +715,7 @@ const Carousel: FC<CarouselProps> = ({
   }
 
   const visualCount =
-    normalizedItems.length > 0 ? normalizedItems.length : normalizedChildList.length
+    normalizedItems.length > 0 ? normalizedItems.length : (declaredSlideCount ?? 0)
   const canShowControls = visualCount > 1
 
   let rootClassName = 'carousel relative overflow-hidden'
@@ -864,29 +854,39 @@ const Carousel: FC<CarouselProps> = ({
         )}
         data-rue-carousel-track="true"
       >
-        {mergedEffect === 'fade'
-          ? normalizedItems.length > 0
-            ? normalizedItems.map((item, index) => (
+        {mergedEffect === 'fade' ? (
+          normalizedItems.length > 0 ? (
+            <>
+              {' '}
+              {normalizedItems.map((item, index) => (
                 <div
                   key={item.key ?? index}
                   className={`carousel-item${item.className ? ` ${item.className}` : ''}`}
                   data-rue-carousel-slide={String(index)}
                 >
-                  {item.content}
+                  {String(item.content)}
                 </div>
-              ))
-            : children
-          : normalizedItems.length > 0
-            ? normalizedItems.map((item, index) => (
-                <div
-                  key={item.key ?? index}
-                  className={`carousel-item${item.className ? ` ${item.className}` : ''}`}
-                  data-rue-carousel-slide={String(index)}
-                >
-                  {item.content}
-                </div>
-              ))
-            : children}
+              ))}{' '}
+            </>
+          ) : (
+            children
+          )
+        ) : normalizedItems.length > 0 ? (
+          <>
+            {' '}
+            {normalizedItems.map((item, index) => (
+              <div
+                key={item.key ?? index}
+                className={`carousel-item${item.className ? ` ${item.className}` : ''}`}
+                data-rue-carousel-slide={String(index)}
+              >
+                {String(item.content)}
+              </div>
+            ))}{' '}
+          </>
+        ) : (
+          children
+        )}
       </div>
 
       {arrows && canShowControls ? (
@@ -901,15 +901,7 @@ const Carousel: FC<CarouselProps> = ({
               commitIndex(currentIndexState.value - 1, { source: 'user' })
             }}
           >
-            {resolveArrowNode(
-              prevArrow,
-              {
-                disabled: !mergedLoop && currentIndexState.value <= 0,
-                onClick: () => commitIndex(currentIndexState.value - 1, { source: 'user' }),
-                direction: 'prev',
-              },
-              '‹',
-            )}
+            {slots.prevArrow ? <>{slots.prevArrow}</> : String(prevArrow ?? '‹')}
           </button>
           <button
             type="button"
@@ -921,15 +913,7 @@ const Carousel: FC<CarouselProps> = ({
               commitIndex(currentIndexState.value + 1, { source: 'user' })
             }}
           >
-            {resolveArrowNode(
-              nextArrow,
-              {
-                disabled: !mergedLoop && currentIndexState.value >= Math.max(0, visualCount - 1),
-                onClick: () => commitIndex(currentIndexState.value + 1, { source: 'user' }),
-                direction: 'next',
-              },
-              '›',
-            )}
+            {slots.nextArrow ? <>{slots.nextArrow}</> : String(nextArrow ?? '›')}
           </button>
         </>
       ) : null}
@@ -941,42 +925,9 @@ const Carousel: FC<CarouselProps> = ({
             typeof dots === 'boolean' ? undefined : dots.className,
           )}
         >
-          {Array.from({ length: visualCount }).map((_, index) => {
-            const active =
-              index === normalizeIndex(currentIndexState.value, visualCount || 1, mergedLoop)
-            return (
-              <button
-                key={index}
-                type="button"
-                data-rue-carousel-dot={String(index)}
-                className={mergeClassName(
-                  'relative h-2.5 overflow-hidden rounded-full bg-base-100/60 transition-all duration-300',
-                  active ? 'w-9 bg-primary/30' : 'w-2.5 hover:bg-base-100/80',
-                )}
-                aria-label={`Go to slide ${index + 1}`}
-                aria-current={active ? 'true' : undefined}
-                onClick={() => {
-                  commitIndex(index, { source: 'user' })
-                }}
-              >
-                <span
-                  data-rue-carousel-dot-fill="true"
-                  className={mergeClassName(
-                    'absolute inset-0 rounded-full bg-primary transition-transform duration-300',
-                    active ? 'scale-100' : 'scale-0',
-                  )}
-                />
-                {mergedShowDotDuration && active ? (
-                  <span
-                    key={`${index}-${progressToken.value}`}
-                    data-rue-carousel-dot-progress="active"
-                    className="absolute inset-0 origin-left rounded-full bg-primary/35"
-                    style={{ transform: 'scaleX(0)' }}
-                  />
-                ) : null}
-              </button>
-            )
-          })}
+          {Array.from({ length: visualCount }).map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
         </div>
       ) : null}
     </div>

@@ -1,3 +1,4 @@
+import { createCompiledClientReference } from '@rue-js/runtime/server'
 import { memoize, tinyassert } from '@hiogawa/utils'
 import type { BundlerConfig, ImportManifestEntry, ModuleMap } from '../types'
 import { RUE_CLIENT_REFERENCE_SYMBOL } from './payload'
@@ -27,11 +28,7 @@ export function createClientReference<T>(
   name: string,
 ): T & RueClientReferenceRecord {
   const target =
-    (typeof proxy === 'object' && proxy !== null) || typeof proxy === 'function'
-      ? proxy
-      : () => {
-          throw new Error(`Unexpectedly client reference export '${name}' is called on server`)
-        }
+    typeof proxy === 'object' && proxy !== null ? proxy : createCompiledClientReference(id, name)
 
   return Object.defineProperties(target, {
     $$typeof: { value: RueClientReferenceSymbol },

@@ -643,7 +643,6 @@ const timelineItemApiRows: ApiRow[] = [
 ]
 
 const externalArrayCode = `import { Timeline } from '@rue-js/design'
-
 const phases = [
   { year: '1984', title: 'Macintosh 发布' },
   { year: '1998', title: 'iMac 回归' },
@@ -669,7 +668,6 @@ const phases = [
 </Timeline>`
 
 const internalArrayCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   {
     start: { className: 'text-xs font-semibold uppercase tracking-[0.26em] opacity-60', content: '1984' },
@@ -693,7 +691,6 @@ const items = [
 </div>`
 
 const dataApiCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   {
     title: 'Brief',
@@ -711,9 +708,7 @@ const items = [
 
 <Timeline mode="alternate" reverse pending="质量复核中" items={items} />`
 
-const bothSidesCode = `import { Timeline } from '@rue-js/design'
-
-<Timeline>
+const bothSidesCode = `import { Timeline } from '@rue-js/design'<Timeline>
   <li>
     <Timeline.Start className="text-xs font-semibold uppercase tracking-[0.26em] opacity-60">
       1984
@@ -726,9 +721,7 @@ const bothSidesCode = `import { Timeline } from '@rue-js/design'
   </li>
 </Timeline>`
 
-const bottomOnlyCode = `import { Timeline } from '@rue-js/design'
-
-<Timeline>
+const bottomOnlyCode = `import { Timeline } from '@rue-js/design'<Timeline>
   <li>
     <Timeline.Middle>
       <span className="inline-flex size-5 items-center justify-center rounded-full border border-secondary text-secondary bg-secondary/10">2</span>
@@ -739,7 +732,6 @@ const bottomOnlyCode = `import { Timeline } from '@rue-js/design'
 </Timeline>`
 
 const alternateCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   { title: 'Discovery', content: '梳理场景', contentBox: true },
   { title: 'Design', content: '交互定稿', contentBox: true },
@@ -749,7 +741,6 @@ const items = [
 <Timeline mode="alternate" items={items} />`
 
 const colorfulCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   { title: 'Launch', content: 'Macintosh 发布', color: 'primary', contentBox: true },
   { title: 'Touch', content: 'iPhone 亮相', color: 'info', contentBox: true },
@@ -760,9 +751,7 @@ const items = [
   <Timeline items={items} className="min-w-[860px]" />
 </div>`
 
-const noIconsCode = `import { Timeline } from '@rue-js/design'
-
-<Timeline>
+const noIconsCode = `import { Timeline } from '@rue-js/design'<Timeline>
   <li>
     <Timeline.Start className="text-xs font-semibold uppercase tracking-[0.26em] opacity-60">
       1984
@@ -772,9 +761,7 @@ const noIconsCode = `import { Timeline } from '@rue-js/design'
   </li>
 </Timeline>`
 
-const verticalBothSidesCode = `import { Timeline } from '@rue-js/design'
-
-<Timeline orientation="vertical">
+const verticalBothSidesCode = `import { Timeline } from '@rue-js/design'<Timeline orientation="vertical">
   <li>
     <Timeline.Start className="text-xs font-semibold uppercase tracking-[0.26em] opacity-60">
       1984
@@ -787,9 +774,7 @@ const verticalBothSidesCode = `import { Timeline } from '@rue-js/design'
   </li>
 </Timeline>`
 
-const verticalRightOnlyCode = `import { Timeline } from '@rue-js/design'
-
-<Timeline orientation="vertical">
+const verticalRightOnlyCode = `import { Timeline } from '@rue-js/design'<Timeline orientation="vertical">
   <li>
     <Timeline.Middle>
       <span className="inline-flex size-5 items-center justify-center rounded-full border border-secondary text-secondary bg-secondary/10">2</span>
@@ -800,7 +785,6 @@ const verticalRightOnlyCode = `import { Timeline } from '@rue-js/design'
 </Timeline>`
 
 const verticalAlternateCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   { title: 'Discovery', content: '梳理场景', contentBox: true },
   { title: 'Design', content: '交互定稿', contentBox: true },
@@ -810,7 +794,6 @@ const items = [
 <Timeline orientation="vertical" mode="alternate" items={items} />`
 
 const verticalColorfulCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   { title: 'Launch', content: 'Macintosh 发布', color: 'primary', contentBox: true },
   { title: 'Touch', content: 'iPhone 亮相', color: 'info', contentBox: true },
@@ -820,7 +803,6 @@ const items = [
 <Timeline orientation="vertical" items={items} />`
 
 const snapStartCode = `import { Timeline } from '@rue-js/design'
-
 const items = [
   {
     title: 'Plan',

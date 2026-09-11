@@ -4,7 +4,7 @@ Anchor 模块概述
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
 import type { FC } from '@rue-js/rue'
-import { Slot, getCurrentInstance, onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
+import { computed, onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
 
 /** AnchorKey 标识键类型。 */
 export type AnchorKey = string | number
@@ -26,7 +26,7 @@ export interface AnchorItem {
   /** replace 配置项。 */
   replace?: boolean
   /** 描述内容。 */
-  description?: any
+  description?: string | number
   /** 根节点附加类名。 */
   className?: string
   /** 是否禁用交互。 */
@@ -132,10 +132,6 @@ const appendClassName = (base?: string, className?: string) => {
 }
 
 /** 归一化 Children 的内部工具函数。 */
-const normalizeChildren = (children?: any) => {
-  if (Array.isArray(children)) return children
-  return children != null ? [children] : []
-}
 
 /** 创建 Key Text 的内部工具函数。 */
 const createKeyText = (key: AnchorKey | undefined, href: string, level: number, index: number) => {
@@ -144,15 +140,8 @@ const createKeyText = (key: AnchorKey | undefined, href: string, level: number, 
 }
 
 /** 判断 Renderable Node 的内部工具函数。 */
-const isRenderableNode = (value: unknown): value is Record<string, any> => {
-  return !!value && typeof value === 'object'
-}
 
 /** 判断 Anchor Link Node 的内部工具函数。 */
-const isAnchorLinkNode = (value: unknown) => {
-  if (!isRenderableNode(value)) return false
-  return (value as any).type === AnchorLink
-}
 
 /** extract Href Target Id 的内部工具函数。 */
 const extractHrefTargetId = (href?: string) => {
@@ -174,31 +163,6 @@ const resolveItemTitle = (item: Pick<AnchorItem, 'title' | 'href'>) => {
 }
 
 /** parse Link Children 的内部工具函数。 */
-const parseLinkChildren = (children?: any, level = 0): AnchorItem[] => {
-  return normalizeChildren(children).flatMap((child, _index) => {
-    if (!isAnchorLinkNode(child)) return []
-
-    const props = (child as any).props ?? {}
-    const nestedChildren = parseLinkChildren(props.children, level + 1)
-    const hasOnlyNestedLinks =
-      nestedChildren.length > 0 &&
-      normalizeChildren(props.children).every(entry => isAnchorLinkNode(entry))
-
-    return [
-      {
-        key: props.key,
-        href: props.href,
-        title: props.title ?? (!hasOnlyNestedLinks ? props.children : undefined),
-        target: props.target,
-        replace: props.replace,
-        description: props.description,
-        className: props.className,
-        disabled: !!props.disabled,
-        children: nestedChildren,
-      } satisfies AnchorItem,
-    ]
-  })
-}
 
 /** 归一化 Items 的内部工具函数。 */
 const normalizeItems = (
@@ -206,7 +170,7 @@ const normalizeItems = (
   children: any,
   level = 0,
 ): NormalizedAnchorItem[] => {
-  const sourceItems = items ?? parseLinkChildren(children)
+  const sourceItems = items
 
   return (sourceItems ?? []).flatMap((item, index) => {
     if (!item || !item.href) return []
@@ -393,10 +357,6 @@ const AnchorLink: FC<AnchorLinkProps> = ({
   children,
   ...rest
 }) => {
-  const slotSource = ((getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO ?? {
-    children,
-  }) as Record<string, unknown>
   const hasNestedSlot = title != null && children != null
 
   return (
@@ -410,13 +370,11 @@ const AnchorLink: FC<AnchorLinkProps> = ({
         data-rue-anchor-link-replace={replace ? 'true' : undefined}
         className={appendClassName('link inline-flex flex-col items-start gap-0.5', className)}
       >
-        <span>{title ?? children ?? href}</span>
-        {description ? <span className="text-xs opacity-70">{description}</span> : null}
+        <span>{title != null ? String(title) : children ? <>{children}</> : String(href)}</span>
+        {description ? <span className="text-xs opacity-70">{String(description)}</span> : null}
       </a>
       {hasNestedSlot ? (
-        <span className="ml-4 flex flex-col items-start gap-1 text-sm opacity-85">
-          <Slot source={slotSource} />
-        </span>
+        <span className="ml-4 flex flex-col items-start gap-1 text-sm opacity-85">{children}</span>
       ) : null}
     </span>
   )
@@ -445,10 +403,6 @@ const AnchorBase: FC<AnchorProps> = ({
   ...rest
 }) => {
   const rootRef = useRef<HTMLElement>()
-  const slotSource = ((getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO ?? {
-    children,
-  }) as Record<string, unknown>
   const normalizedItems = normalizeItems(items, children)
   const visibleItems = direction === 'horizontal' ? normalizedItems : normalizedItems
   const flatItems = flattenItems(normalizedItems, direction !== 'horizontal')
@@ -473,58 +427,18 @@ const AnchorBase: FC<AnchorProps> = ({
   }
 
   const setActiveHref = (href: string, emitChange = true) => {
-    const syncActiveLinkDom = () => {
-      if (!rootRef.current) return
-
-      const linkNodes =
-        rootRef.current.querySelectorAll<HTMLAnchorElement>('[data-rue-anchor-href]')
-      linkNodes.forEach(linkNode => {
-        const isActive =
-          (linkNode.getAttribute('data-rue-anchor-href') ?? '') === activeHrefRef.value
-
-        linkNode.setAttribute('data-active', isActive ? 'true' : 'false')
-        if (isActive) {
-          linkNode.setAttribute('aria-current', 'location')
-        } else {
-          linkNode.removeAttribute('aria-current')
-        }
-
-        linkNode.classList.toggle('border-primary/35', isActive)
-        linkNode.classList.toggle('bg-primary/8', isActive)
-        linkNode.classList.toggle('text-primary', isActive)
-        linkNode.classList.toggle('shadow-[0_12px_30px_-24px_rgba(59,130,246,0.85)]', isActive)
-        linkNode.classList.toggle('border-transparent', !isActive)
-        linkNode.classList.toggle('bg-base-100/65', !isActive)
-        linkNode.classList.toggle('text-base-content/78', !isActive)
-        linkNode.classList.toggle('hover:border-base-300', !isActive)
-        linkNode.classList.toggle('hover:bg-base-100', !isActive)
-
-        const indicatorNode = linkNode.querySelector<HTMLElement>(
-          '[data-rue-anchor-indicator="true"]',
-        )
-        indicatorNode?.classList.toggle('border-primary', isActive)
-        indicatorNode?.classList.toggle('bg-primary', isActive)
-        indicatorNode?.classList.toggle('border-base-300', !isActive)
-        indicatorNode?.classList.toggle('bg-base-100', !isActive)
-
-        const titleNode = linkNode.querySelector<HTMLElement>('[data-rue-anchor-title="true"]')
-        titleNode?.classList.toggle('text-primary', isActive)
-        titleNode?.classList.toggle('text-base-content', !isActive)
-      })
-    }
-
     if (rawActiveHrefRef.current === href) {
       const resolved = typeof getCurrentAnchor === 'function' ? getCurrentAnchor(href) : href
       if (activeHrefRef.value !== resolved) {
         activeHrefRef.value = resolved
       }
-      syncActiveLinkDom()
+
       return
     }
 
     rawActiveHrefRef.current = href
     activeHrefRef.value = typeof getCurrentAnchor === 'function' ? getCurrentAnchor(href) : href
-    syncActiveLinkDom()
+
     if (!hasInitializedActiveRef.current) {
       hasInitializedActiveRef.current = true
       return
@@ -637,10 +551,8 @@ const AnchorBase: FC<AnchorProps> = ({
     { immediate: true },
   )
 
-  const activeHref = activeHrefRef.value
-
   const RenderItem: FC<{ item: NormalizedAnchorItem }> = ({ item }) => {
-    const active = activeHref === item.href
+    const active = computed(() => activeHrefRef.value === item.href)
     const nestedVisible = direction !== 'horizontal' && !!item.children?.length
     const effectiveReplace = item.replace ?? replace
     const effectiveHref = item.disabled ? undefined : item.href
@@ -663,9 +575,9 @@ const AnchorBase: FC<AnchorProps> = ({
           target={item.target}
           rel={item.target === '_blank' ? 'noreferrer' : undefined}
           aria-disabled={item.disabled ? 'true' : undefined}
-          aria-current={active ? 'location' : undefined}
+          aria-current={active.get() ? 'location' : undefined}
           data-rue-anchor-href={item.href}
-          data-active={active ? 'true' : 'false'}
+          data-active={active.get() ? 'true' : 'false'}
           className={appendClassName(
             appendClassName(
               appendClassName(
@@ -714,7 +626,7 @@ const AnchorBase: FC<AnchorProps> = ({
                   direction === 'horizontal'
                     ? 'h-2 w-2 rounded-full border transition-colors'
                     : 'mt-1 h-2.5 w-2.5 shrink-0 rounded-full border transition-colors',
-                  active ? 'border-primary bg-primary' : 'border-base-300 bg-base-100',
+                  active.get() ? 'border-primary bg-primary' : 'border-base-300 bg-base-100',
                 ),
                 classNames?.indicator,
               )}
@@ -727,13 +639,13 @@ const AnchorBase: FC<AnchorProps> = ({
               className={appendClassName(
                 appendClassName(
                   'block truncate text-sm font-medium leading-6',
-                  active ? 'text-primary' : 'text-base-content',
+                  active.get() ? 'text-primary' : 'text-base-content',
                 ),
                 classNames?.title,
               )}
               style={styles?.title}
             >
-              {resolveItemTitle(item)}
+              {String(resolveItemTitle(item))}
             </span>
             {item.description && direction !== 'horizontal' ? (
               <span
@@ -743,7 +655,7 @@ const AnchorBase: FC<AnchorProps> = ({
                 )}
                 style={styles?.description}
               >
-                {item.description}
+                {String(item.description)}
               </span>
             ) : null}
           </span>
@@ -796,7 +708,7 @@ const AnchorBase: FC<AnchorProps> = ({
           style={styles?.list}
           data-rue-anchor-children="true"
         >
-          <Slot source={slotSource} />
+          {children}
         </div>
       ) : (
         <ul
@@ -828,3 +740,5 @@ export type { AnchorComponent }
 
 /** 默认导出锚点组件。 */
 export default Anchor
+
+export { AnchorLink }

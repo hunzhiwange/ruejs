@@ -5,9 +5,7 @@ Descriptions 组件概述
 - 视觉保持 Rue 当前偏柔和的卡片式信息呈现，不直接复刻特定组件库的表格外观。
 */
 import type { FC } from '@rue-js/rue'
-import { Slot, getCurrentInstance, onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
-
-const Fragment = 'fragment'
+import { computed, onMounted, onUnmounted, ref, useRef, watch } from '@rue-js/rue'
 
 /** DescriptionsSize 尺寸类型。 */
 export type DescriptionsSize = 'small' | 'default' | 'middle' | 'large' | 'sm' | 'md' | 'lg'
@@ -86,6 +84,7 @@ export interface DescriptionsItemStyles {
 
 /** DescriptionsItemProps 组件属性。 */
 export interface DescriptionsItemProps {
+  tokens?: ReadonlyArray<{ key?: string; text: string; className?: string }>
   /** 数据项唯一标识。 */
   key?: string | number
   /** 展示标签。 */
@@ -176,8 +175,6 @@ interface DescriptionsSizeConfig {
   inlineLayoutClassName: string
 }
 
-/** RUE_COMPONENT_TYPE_KEY 内部常量。 */
-const RUE_COMPONENT_TYPE_KEY = '__rue_component_type'
 /** RUE_SLOT_KEY 内部常量。 */
 const RUE_SLOT_KEY = '__rue_slots'
 /** RUE_PROXY_ATTR 内部常量。 */
@@ -216,42 +213,11 @@ const DescriptionsItem: FC<DescriptionsItemProps> = ({
   classNames,
   styles,
 }) => {
-  const slotSource = ((getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO ?? {
-    children,
-  }) as Record<string, unknown>
-  const resolvedContent =
-    content !== undefined ? content : resolveDefaultSlotChildren(slotSource, children)
-
-  const applyProxyRef = (element: HTMLElement | null) => {
-    if (!element) return
-
-    descriptionsProxyMetaMap.set(element, {
-      key,
-      label,
-      content: resolvedContent,
-      span,
-      className,
-      style,
-      labelClassName,
-      labelStyle,
-      contentClassName,
-      contentStyle,
-      classNames,
-      styles,
-    })
-  }
-
   return (
-    <div
-      ref={applyProxyRef}
-      className="hidden"
-      aria-hidden="true"
-      data-rue-descriptions-proxy="true"
-    >
-      <div data-rue-descriptions-proxy-label="true">{label}</div>
-      <div data-rue-descriptions-proxy-content="true">
-        {content !== undefined ? content : <Slot source={slotSource} />}
+    <div className={joinClassName('flex gap-3', className)} style={style}>
+      {label != null ? <div style={labelStyle}>{String(label)}</div> : null}
+      <div style={contentStyle}>
+        {content !== undefined ? <>{String(content)}</> : <>{children}</>}
       </div>
     </div>
   )
@@ -272,28 +238,8 @@ const mergeStyles = (...parts: Array<Record<string, any> | undefined>) => {
 }
 
 /** 判断 Renderable Node 的内部工具函数。 */
-const isRenderableNode = (value: unknown): value is Record<string, any> => {
-  return !!value && typeof value === 'object'
-}
 
 /** 归一化 Children 的内部工具函数。 */
-const normalizeChildren = (children: any, result: any[] = []) => {
-  if (children == null || typeof children === 'boolean') return result
-  if (typeof children === 'function' && (children as { kind?: unknown }).kind === 'block-factory') {
-    normalizeChildren(children(), result)
-    return result
-  }
-  if (Array.isArray(children)) {
-    children.forEach(child => normalizeChildren(child, result))
-    return result
-  }
-  if (isRenderableNode(children) && children.type === 'fragment') {
-    normalizeChildren(children.props?.children, result)
-    return result
-  }
-  result.push(children)
-  return result
-}
 
 /** 判断 Responsive Map 的内部工具函数。 */
 const isResponsiveMap = <T,>(value: unknown): value is DescriptionsResponsiveValue<T> => {
@@ -393,38 +339,8 @@ const resolveItemSpan = (span: DescriptionsSpan | undefined, width: number) => {
 }
 
 /** 解析 Default Slot Children 的内部工具函数。 */
-const resolveDefaultSlotChildren = (source: Record<string, unknown>, fallback: any) => {
-  const slots = source[RUE_SLOT_KEY]
-  if (slots && typeof slots === 'object' && 'default' in (slots as Record<string, unknown>)) {
-    return (slots as Record<string, unknown>).default
-  }
-  if ('children' in source) {
-    return source.children
-  }
-  return fallback
-}
 
 /** collect Child Items 的内部工具函数。 */
-const collectChildItems = (children?: any) => {
-  return normalizeChildren(children).flatMap<DescriptionsItemProps>((child, index) => {
-    if (!isRenderableNode(child)) return []
-    const type = (child as any).type
-    if (
-      (child as any)[RUE_COMPONENT_TYPE_KEY] !== DescriptionsItem &&
-      type !== DescriptionsItem &&
-      (type as any)?.[RUE_COMPONENT_TYPE_KEY] !== DescriptionsItem
-    ) {
-      return []
-    }
-    const props = ((child as any).props ?? {}) as DescriptionsItemProps
-    return [
-      {
-        ...props,
-        key: (child as any).key ?? props.key ?? index,
-      },
-    ]
-  })
-}
 
 /** 归一化 Items 的内部工具函数。 */
 const normalizeItems = (
@@ -432,13 +348,13 @@ const normalizeItems = (
   children: any,
   width: number,
 ) => {
-  const source = items ?? collectChildItems(children)
+  const source = items ?? []
   return source.map<NormalizedDescriptionsItem>((item, index) => {
     const span = resolveItemSpan(item.span, width)
     return {
       ...item,
       keyText: createKeyText(item.key, index),
-      content: item.content !== undefined ? item.content : item.children,
+      content: item.content,
       span: span.span,
       filled: span.filled,
     }
@@ -543,16 +459,26 @@ const resolveSizeConfig = (size?: DescriptionsSize): DescriptionsSizeConfig => {
 }
 
 /** 渲染 Label Content 的内部工具函数。 */
-const renderLabelContent = (
-  item: NormalizedDescriptionsItem,
-  showColon: boolean,
-  sizeConfig: DescriptionsSizeConfig,
-  rootClassNames?: DescriptionsClassNames,
-  rootStyles?: DescriptionsStyles,
-  labelStyle?: Record<string, any>,
-  contentStyle?: Record<string, any>,
-) => {
-  const labelNode =
+const DescriptionCell = ({
+  part,
+  item,
+  showColon,
+  sizeConfig,
+  rootClassNames,
+  rootStyles,
+  labelStyle,
+  contentStyle,
+}: {
+  part: 'label' | 'content'
+  item: NormalizedDescriptionsItem
+  showColon: boolean
+  sizeConfig: DescriptionsSizeConfig
+  rootClassNames?: DescriptionsClassNames
+  rootStyles?: DescriptionsStyles
+  labelStyle?: Record<string, any>
+  contentStyle?: Record<string, any>
+}) =>
+  part === 'label' ? (
     item.label != null ? (
       <div
         data-rue-descriptions-node="label"
@@ -565,12 +491,13 @@ const renderLabelContent = (
         )}
         style={mergeStyles(rootStyles?.label, labelStyle, item.styles?.label, item.labelStyle)}
       >
-        {item.label}
+        {String(item.label)}
         {showColon ? <span className="ml-1.5 opacity-45">:</span> : null}
       </div>
-    ) : null
-
-  const contentNode = (
+    ) : (
+      <></>
+    )
+  ) : (
     <div
       data-rue-descriptions-node="content"
       className={joinClassName(
@@ -587,367 +514,297 @@ const renderLabelContent = (
         item.contentStyle,
       )}
     >
-      {item.content}
+      {item.tokens ? (
+        <>
+          {item.tokens.map((token: any, index: number) => (
+            <span key={token.key ?? index} className={token.className}>
+              {String(token.text)}
+            </span>
+          ))}
+        </>
+      ) : (
+        <>{String(item.content ?? '')}</>
+      )}
     </div>
   )
 
-  return {
-    labelNode,
-    contentNode,
-  }
-}
-
 /** clone Element Children 的内部工具函数。 */
-const cloneElementChildren = (element?: Element | null) => {
-  if (!element) return undefined
 
-  const nodes = Array.from(element.childNodes)
-    .map(node => node.cloneNode(true))
-    .filter(node => {
-      if (node.nodeType !== 8) return true
-      return (node as Comment).data !== 'rue:slot:anchor'
-    })
-
-  if (nodes.length === 0) return undefined
-  if (nodes.length === 1) return nodes[0]
-  return nodes
+type DescriptionTableOptions = Pick<
+  DescriptionsProps,
+  'bordered' | 'layout' | 'size' | 'colon' | 'classNames' | 'styles' | 'labelStyle' | 'contentStyle'
+>
+type DescriptionCellProps = {
+  item: NormalizedDescriptionsItem
+  index: number
+  count: number
+  lastRow: boolean
+  options: DescriptionTableOptions
 }
+const DescriptionCellContent: FC<{
+  item: NormalizedDescriptionsItem
+  part: 'label' | 'content'
+  options: DescriptionTableOptions
+}> = ({ item, part, options }) => (
+  <DescriptionCell
+    part={part}
+    item={item}
+    showColon={options.layout !== 'vertical' && options.colon !== false}
+    sizeConfig={resolveSizeConfig(options.size)}
+    rootClassNames={options.classNames}
+    rootStyles={options.styles}
+    labelStyle={options.labelStyle}
+    contentStyle={options.contentStyle}
+  />
+)
+
+const HorizontalDescriptionCell: FC<DescriptionCellProps> = ({
+  item,
+  index,
+  count,
+  lastRow,
+  options,
+}) => (
+  <>
+    {options.bordered ? (
+      <>
+        <th
+          data-rue-descriptions-item={item.keyText}
+          data-rue-descriptions-part="label"
+          className={joinClassName(
+            'text-left align-top bg-base-200/52',
+            resolveSizeConfig(options.size).cellPaddingClassName,
+            !lastRow && 'border-b border-base-300/55',
+            'border-r border-base-300/65',
+            options.classNames?.item,
+            item.classNames?.item,
+            item.className,
+          )}
+          style={mergeStyles(options.styles?.item, item.styles?.item, item.style)}
+        >
+          <DescriptionCellContent part="label" item={item} options={options} />
+        </th>
+        <td
+          colSpan={Math.max(1, item.span * 2 - 1)}
+          data-rue-descriptions-item={item.keyText}
+          data-rue-descriptions-part="content"
+          className={joinClassName(
+            'align-top',
+            resolveSizeConfig(options.size).cellPaddingClassName,
+            !lastRow && 'border-b border-base-300/55',
+            index < count - 1 && 'border-r border-base-300/65',
+            options.classNames?.item,
+            item.classNames?.item,
+            item.className,
+          )}
+          style={mergeStyles(options.styles?.item, item.styles?.item, item.style)}
+        >
+          <DescriptionCellContent part="content" item={item} options={options} />
+        </td>
+      </>
+    ) : (
+      <td
+        colSpan={item.span}
+        data-rue-descriptions-item={item.keyText}
+        data-rue-descriptions-part="item"
+        className={joinClassName(
+          'align-top',
+          resolveSizeConfig(options.size).cellPaddingClassName,
+          !lastRow && 'border-b border-base-300/42',
+          options.classNames?.item,
+          item.classNames?.item,
+          item.className,
+        )}
+        style={mergeStyles(options.styles?.item, item.styles?.item, item.style)}
+      >
+        <div
+          className={joinClassName(
+            'flex min-w-0 flex-col sm:flex-row sm:items-start',
+            resolveSizeConfig(options.size).inlineLayoutClassName,
+          )}
+        >
+          <DescriptionCellContent part="label" item={item} options={options} />
+          <DescriptionCellContent part="content" item={item} options={options} />
+        </div>
+      </td>
+    )}
+  </>
+)
+
+const VerticalDescriptionCell: FC<DescriptionCellProps & { part: 'label' | 'content' }> = ({
+  item,
+  index,
+  count,
+  lastRow,
+  options,
+  part,
+}) => (
+  <>
+    {part === 'label' ? (
+      <th
+        colSpan={item.span}
+        data-rue-descriptions-item={item.keyText}
+        data-rue-descriptions-part="label"
+        className={joinClassName(
+          'text-left align-top',
+          options.bordered ? 'bg-base-200/52' : 'bg-transparent',
+          resolveSizeConfig(options.size).verticalLabelPaddingClassName,
+          options.bordered && index < count - 1 && 'border-r border-base-300/65',
+          options.bordered && 'border-b border-base-300/55',
+          options.classNames?.item,
+          item.classNames?.item,
+          item.className,
+        )}
+        style={mergeStyles(options.styles?.item, item.styles?.item, item.style)}
+      >
+        <DescriptionCellContent part="label" item={item} options={options} />
+      </th>
+    ) : (
+      <td
+        colSpan={item.span}
+        data-rue-descriptions-item={item.keyText}
+        data-rue-descriptions-part="content"
+        className={joinClassName(
+          'align-middle',
+          resolveSizeConfig(options.size).verticalContentPaddingClassName,
+          !lastRow && 'border-b border-base-300/45',
+          !options.bordered && count > 0 && 'border-b border-base-300/42',
+          options.bordered && index < count - 1 && 'border-r border-base-300/65',
+          options.classNames?.item,
+          item.classNames?.item,
+          item.className,
+        )}
+        style={mergeStyles(options.styles?.item, item.styles?.item, item.style)}
+      >
+        <DescriptionCellContent part="content" item={item} options={options} />
+      </td>
+    )}
+  </>
+)
+
+const DescriptionTableRow: FC<{
+  row: NormalizedDescriptionsItem[]
+  index: number
+  count: number
+  options: DescriptionTableOptions
+}> = ({ row, index, count, options }) => (
+  <>
+    {options.layout === 'vertical' ? (
+      <>
+        <tr
+          data-rue-descriptions-row={String(index)}
+          data-rue-descriptions-row-type="vertical-label"
+          className={joinClassName('align-top', options.classNames?.row)}
+          style={options.styles?.row}
+        >
+          {row.map((item, itemIndex) => (
+            <VerticalDescriptionCell
+              key={item.keyText}
+              part="label"
+              item={item}
+              index={itemIndex}
+              count={row.length}
+              lastRow={index === count - 1}
+              options={options}
+            />
+          ))}
+        </tr>
+        <tr
+          data-rue-descriptions-row={String(index)}
+          data-rue-descriptions-row-type="vertical-content"
+          className={joinClassName('align-top', options.classNames?.row)}
+          style={options.styles?.row}
+        >
+          {row.map((item, itemIndex) => (
+            <VerticalDescriptionCell
+              key={item.keyText}
+              part="content"
+              item={item}
+              index={itemIndex}
+              count={row.length}
+              lastRow={index === count - 1}
+              options={options}
+            />
+          ))}
+        </tr>
+      </>
+    ) : (
+      <tr
+        data-rue-descriptions-row={String(index)}
+        data-rue-descriptions-row-type="horizontal"
+        className={joinClassName('align-top', options.classNames?.row)}
+        style={options.styles?.row}
+      >
+        {row.map((item, itemIndex) => (
+          <HorizontalDescriptionCell
+            key={item.keyText}
+            item={item}
+            index={itemIndex}
+            count={row.length}
+            lastRow={index === count - 1}
+            options={options}
+          />
+        ))}
+      </tr>
+    )}
+  </>
+)
 
 /** Descriptions 的内部工具函数。 */
-const Descriptions: FC<DescriptionsProps> = ({
-  title,
-  extra,
-  column,
-  colon = true,
-  bordered = false,
-  layout = 'horizontal',
-  className,
-  style,
-  size,
-  labelStyle,
-  contentStyle,
-  classNames,
-  styles,
-  items,
-  children,
-  ...rest
-}) => {
-  const slotSource = ((getCurrentInstance() as { propsRO?: Record<string, unknown> } | null)
-    ?.propsRO ?? {
+const Descriptions: FC<DescriptionsProps> = (
+  {
+    title,
+    extra,
+    column,
+    colon = true,
+    bordered = false,
+    layout = 'horizontal',
+    className,
+    style,
+    size,
+    labelStyle,
+    contentStyle,
+    classNames,
+    styles,
+    items,
     children,
-  }) as Record<string, unknown>
+    ...rest
+  },
+  slots: Record<string, any> = {},
+) => {
   const viewportWidth = ref(getViewportWidth())
   const unsubscribeRef = ref<(() => void) | null>(null)
-  const collectedItemsRef = ref<DescriptionsItemProps[]>([])
-  const collectorRef = useRef<HTMLElement | null>(null)
-  const collectorObserverRef = useRef<MutationObserver | undefined>(undefined)
   const tableBodyRef = useRef<HTMLTableSectionElement | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
-  const rawChildren = resolveDefaultSlotChildren(slotSource, children)
   const headerSizeConfig = resolveSizeConfig(size)
   const headerTitleClassName =
     headerSizeConfig?.titleClassName ?? resolveSizeConfig().titleClassName
 
-  const scheduleCollectedItemsSync = () => {
-    Promise.resolve().then(() => {
-      syncCollectedItems()
-    })
-  }
-
-  const syncCollectedItems = () => {
-    const host = collectorRef.current
-    if (!host) {
-      collectedItemsRef.value = []
-      return
-    }
-
-    const nextItems = Array.from(host.querySelectorAll(`[${RUE_PROXY_ATTR}="true"]`)).map(
-      (element, index) => {
-        const proxy = element as HTMLElement
-        const meta = descriptionsProxyMetaMap.get(proxy) ?? {}
-        const labelElement = proxy.querySelector(`[${RUE_PROXY_LABEL_ATTR}="true"]`)
-        const contentElement = proxy.querySelector(`[${RUE_PROXY_CONTENT_ATTR}="true"]`)
-
-        return {
-          ...meta,
-          key: meta.key ?? index,
-          label: meta.label ?? cloneElementChildren(labelElement),
-          content: meta.content ?? cloneElementChildren(contentElement),
-        } satisfies DescriptionsItemProps
-      },
-    )
-
-    collectedItemsRef.value = nextItems
-  }
-
-  const renderTableView = (_collectedItems: DescriptionsItemProps[]) => {
-    const mergedColumn = resolveColumnCount(column, viewportWidth.value)
-    const mergedItems = normalizeItems(
-      items ?? collectedItemsRef.value,
-      rawChildren,
-      viewportWidth.value,
-    )
-    const rows = groupRows(mergedItems, mergedColumn)
-    const vertical = layout === 'vertical'
-    const sizeConfig = resolveSizeConfig(size)
-    return (
-      <table className="w-full table-fixed border-separate border-spacing-0">
-        <tbody
-          ref={(element: HTMLTableSectionElement | null) => {
-            tableBodyRef.current = element
-          }}
-        >
-          {rows.map((row, rowIndex) => {
-            const isLastRow = rowIndex === rows.length - 1
-            const rowClassName = joinClassName('align-top', classNames?.row)
-
-            if (vertical) {
-              return (
-                <Fragment key={`group-${rowIndex}`}>
-                  <tr
-                    data-rue-descriptions-row={String(rowIndex)}
-                    data-rue-descriptions-row-type="vertical-label"
-                    className={rowClassName}
-                    style={styles?.row}
-                  >
-                    {row.map((item, itemIndex) => {
-                      const isLastItem = itemIndex === row.length - 1
-                      const rendered = renderLabelContent(
-                        item,
-                        false,
-                        sizeConfig,
-                        classNames,
-                        styles,
-                        labelStyle,
-                        contentStyle,
-                      )
-
-                      return (
-                        <th
-                          key={`label-${item.keyText}`}
-                          colSpan={item.span}
-                          data-rue-descriptions-item={item.keyText}
-                          data-rue-descriptions-part="label"
-                          className={joinClassName(
-                            'text-left align-top',
-                            bordered ? 'bg-base-200/52' : 'bg-transparent',
-                            sizeConfig.verticalLabelPaddingClassName,
-                            bordered && !isLastItem && 'border-r border-base-300/65',
-                            bordered && 'border-b border-base-300/55',
-                            classNames?.item,
-                            item.classNames?.item,
-                            item.className,
-                          )}
-                          style={mergeStyles(styles?.item, item.styles?.item, item.style)}
-                        >
-                          {rendered.labelNode}
-                        </th>
-                      )
-                    })}
-                  </tr>
-                  <tr
-                    data-rue-descriptions-row={String(rowIndex)}
-                    data-rue-descriptions-row-type="vertical-content"
-                    className={rowClassName}
-                    style={styles?.row}
-                  >
-                    {row.map((item, itemIndex) => {
-                      const isLastItem = itemIndex === row.length - 1
-                      const rendered = renderLabelContent(
-                        item,
-                        false,
-                        sizeConfig,
-                        classNames,
-                        styles,
-                        labelStyle,
-                        contentStyle,
-                      )
-
-                      return (
-                        <td
-                          key={`content-${item.keyText}`}
-                          colSpan={item.span}
-                          data-rue-descriptions-item={item.keyText}
-                          data-rue-descriptions-part="content"
-                          className={joinClassName(
-                            'align-middle',
-                            sizeConfig.verticalContentPaddingClassName,
-                            !isLastRow && 'border-b border-base-300/45',
-                            !bordered && row.length > 0 && 'border-b border-base-300/42',
-                            bordered && !isLastItem && 'border-r border-base-300/65',
-                            classNames?.item,
-                            item.classNames?.item,
-                            item.className,
-                          )}
-                          style={mergeStyles(styles?.item, item.styles?.item, item.style)}
-                        >
-                          {rendered.contentNode}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                </Fragment>
-              )
-            }
-
-            return (
-              <tr
-                key={`group-${rowIndex}`}
-                data-rue-descriptions-row={String(rowIndex)}
-                data-rue-descriptions-row-type="horizontal"
-                className={rowClassName}
-                style={styles?.row}
-              >
-                {row.map((item, itemIndex) => {
-                  const isLastItem = itemIndex === row.length - 1
-                  const rendered = renderLabelContent(
-                    item,
-                    colon,
-                    sizeConfig,
-                    classNames,
-                    styles,
-                    labelStyle,
-                    contentStyle,
-                  )
-
-                  if (!bordered) {
-                    return (
-                      <Fragment key={`item-${item.keyText}`}>
-                        <td
-                          colSpan={item.span}
-                          data-rue-descriptions-item={item.keyText}
-                          data-rue-descriptions-part="item"
-                          className={joinClassName(
-                            'align-top',
-                            sizeConfig.cellPaddingClassName,
-                            !isLastRow && 'border-b border-base-300/42',
-                            classNames?.item,
-                            item.classNames?.item,
-                            item.className,
-                          )}
-                          style={mergeStyles(styles?.item, item.styles?.item, item.style)}
-                        >
-                          <div
-                            className={joinClassName(
-                              'flex min-w-0 flex-col sm:flex-row sm:items-start',
-                              sizeConfig.inlineLayoutClassName,
-                            )}
-                          >
-                            {rendered.labelNode}
-                            {rendered.contentNode}
-                          </div>
-                        </td>
-                      </Fragment>
-                    )
-                  }
-
-                  return (
-                    <Fragment key={`item-${item.keyText}`}>
-                      <th
-                        colSpan={1}
-                        data-rue-descriptions-item={item.keyText}
-                        data-rue-descriptions-part="label"
-                        className={joinClassName(
-                          'bg-base-200/52 text-left align-top',
-                          sizeConfig.cellPaddingClassName,
-                          'border-r border-base-300/65',
-                          !isLastRow && 'border-b border-base-300/55',
-                          classNames?.item,
-                          item.classNames?.item,
-                          item.className,
-                        )}
-                        style={mergeStyles(styles?.item, item.styles?.item, item.style)}
-                      >
-                        {rendered.labelNode}
-                      </th>
-                      <td
-                        colSpan={Math.max(1, item.span * 2 - 1)}
-                        data-rue-descriptions-item={item.keyText}
-                        data-rue-descriptions-part="content"
-                        className={joinClassName(
-                          'align-top',
-                          sizeConfig.cellPaddingClassName,
-                          !isLastRow && 'border-b border-base-300/55',
-                          !isLastItem && 'border-r border-base-300/65',
-                          classNames?.item,
-                          item.classNames?.item,
-                          item.className,
-                        )}
-                        style={mergeStyles(styles?.item, item.styles?.item, item.style)}
-                      >
-                        {rendered.contentNode}
-                      </td>
-                    </Fragment>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    )
-  }
+  const rows = computed(() =>
+    groupRows(
+      normalizeItems(items, undefined, viewportWidth.value),
+      resolveColumnCount(column, viewportWidth.value),
+    ),
+  )
+  const tableOptions = computed(() => ({
+    bordered,
+    layout,
+    size,
+    colon,
+    classNames,
+    styles,
+    labelStyle,
+    contentStyle,
+  }))
 
   onMounted(() => {
     unsubscribeRef.value = subscribeViewport(() => {
-      const nextWidth = getViewportWidth()
-      viewportWidth.value = nextWidth
-      queueMicrotask(() => {
-        const root = rootRef.current
-        if (root) {
-          const tables = Array.from(root.getElementsByTagName('table'))
-          tables.slice(0, -1).forEach(table => table.remove())
-        }
-        const body = tableBodyRef.current
-        if (!body) return
-        const expectedRows =
-          groupRows(
-            normalizeItems(items ?? collectedItemsRef.value, rawChildren, nextWidth),
-            resolveColumnCount(column, nextWidth),
-          ).length * (layout === 'vertical' ? 2 : 1)
-        const renderedRows = Array.from(body.children).filter(element =>
-          element.hasAttribute('data-rue-descriptions-row-type'),
-        )
-        renderedRows.slice(0, Math.max(0, renderedRows.length - expectedRows)).forEach(row => {
-          row.remove()
-        })
-      })
+      viewportWidth.value = getViewportWidth()
     })
-
-    if (items === undefined && typeof MutationObserver === 'function' && collectorRef.current) {
-      collectorObserverRef.current = new MutationObserver(() => {
-        scheduleCollectedItemsSync()
-      })
-      collectorObserverRef.current.observe(collectorRef.current, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      })
-    }
-
-    if (items === undefined) {
-      scheduleCollectedItemsSync()
-    }
   })
-
   onUnmounted(() => {
     unsubscribeRef.value?.()
-    unsubscribeRef.value = null
-    collectorObserverRef.current?.disconnect()
-    collectorObserverRef.current = undefined
   })
-
-  watch(
-    () => items === undefined,
-    enabled => {
-      if (!enabled) {
-        collectedItemsRef.value = []
-      } else {
-        scheduleCollectedItemsSync()
-      }
-    },
-    { immediate: true },
-  )
 
   return (
     <div
@@ -959,7 +816,7 @@ const Descriptions: FC<DescriptionsProps> = ({
       className={joinClassName('rue-descriptions text-base-content', classNames?.root, className)}
       style={mergeStyles(styles?.root, style)}
     >
-      {title != null || extra != null ? (
+      {title != null || slots.title != null || extra != null || slots.extra != null ? (
         <div
           className={joinClassName(
             'mb-4 flex flex-wrap items-start justify-between gap-3',
@@ -967,7 +824,7 @@ const Descriptions: FC<DescriptionsProps> = ({
           )}
           style={styles?.header}
         >
-          {title != null ? (
+          {title != null || slots.title != null ? (
             <div
               className={joinClassName(
                 'font-semibold tracking-[0.01em] text-base-content',
@@ -976,17 +833,17 @@ const Descriptions: FC<DescriptionsProps> = ({
               )}
               style={styles?.title}
             >
-              {title}
+              {slots.title ? <>{slots.title}</> : <>{String(title ?? '')}</>}
             </div>
           ) : (
             <div />
           )}
-          {extra != null ? (
+          {extra != null || slots.extra != null ? (
             <div
               className={joinClassName('shrink-0 text-sm text-base-content/70', classNames?.extra)}
               style={styles?.extra}
             >
-              {extra}
+              {slots.extra ? <>{slots.extra}</> : <>{String(extra ?? '')}</>}
             </div>
           ) : null}
         </div>
@@ -1002,19 +859,27 @@ const Descriptions: FC<DescriptionsProps> = ({
         )}
         style={styles?.body}
       >
-        {renderTableView(collectedItemsRef.value)}
+        {items ? (
+          <table className="w-full table-fixed border-separate border-spacing-0">
+            <tbody>
+              {rows.get().map((row, index) => (
+                <DescriptionTableRow
+                  key={row.map(item => item.keyText).join('|')}
+                  row={row}
+                  index={index}
+                  count={rows.get().length}
+                  options={tableOptions.get()}
+                />
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <>{children}</>
+        )}
       </div>
-
-      {items === undefined ? (
-        <div ref={collectorRef} className="hidden" aria-hidden="true">
-          <Slot source={slotSource} />
-        </div>
-      ) : null}
     </div>
   )
 }
-
-;(DescriptionsItem as any)[RUE_COMPONENT_TYPE_KEY] = DescriptionsItem
 
 const DescriptionsCompound: DescriptionsCompound = /*#__PURE__*/ Object.assign(Descriptions, {
   Item: DescriptionsItem,

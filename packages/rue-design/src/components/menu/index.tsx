@@ -1,3 +1,5 @@
+import { createContext, useContext } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 /*
 Menu 组件概述
 - 保留 Rue 当前 menu 视觉结构，并补齐更接近成熟组件库的导航能力。
@@ -5,7 +7,7 @@ Menu 组件概述
 */
 import type { FC } from '@rue-js/rue'
 import { ref } from '@rue-js/rue'
-import { RouterLink } from '@rue-js/router'
+import { useRouter } from '@rue-js/router'
 
 /** MenuKey 标识键类型。 */
 export type MenuKey = string | number
@@ -242,6 +244,7 @@ export interface MenuProps {
 
 /** MenuItemProps 组件属性。 */
 export interface MenuItemProps {
+  label?: string | number
   /** eventKey 标识键。 */
   eventKey?: MenuKey
   /** 自定义渲染的宿主元素。 */
@@ -328,6 +331,8 @@ export interface SubmenuProps {
 
 /** MenuSubMenuProps 组件属性。 */
 export interface MenuSubMenuProps {
+  items?: readonly MenuDataEntry[]
+  parentKeyPath?: MenuKey[]
   /** eventKey 标识键。 */
   eventKey?: MenuKey
   /** 标题内容。 */
@@ -395,10 +400,8 @@ interface MenuContextValue {
   ) => void
 }
 
-/** RUE_COMPONENT_TYPE_KEY 内部常量。 */
-const RUE_COMPONENT_TYPE_KEY = '__rue_component_type'
 /** MENU_CONTEXT_PROP 内部常量。 */
-const MENU_CONTEXT_PROP = '__menuContext'
+const MenuContext = createContext<MenuContextValue | null>(null)
 
 /** append Class Name 的内部工具函数。 */
 const appendClassName = (base: string, className?: string) =>
@@ -431,44 +434,10 @@ const hasKey = (keys: ReadonlyArray<MenuKey>, target?: MenuKey) => {
 }
 
 /** 判断 Renderable Node 的内部工具函数。 */
-const isRenderableNode = (value: unknown): value is Record<string, any> =>
-  !!value && typeof value === 'object'
 
 /** 判断组件类型是否匹配的内部工具函数。 */
-const isVNodeOfType = (value: Record<string, any>, type: unknown) => {
-  return value[RUE_COMPONENT_TYPE_KEY] === type || value.type === type || value.component === type
-}
 
 /** inject Menu Context 的内部工具函数。 */
-const injectMenuContext = (value: unknown, menuContext: MenuContextValue): unknown => {
-  if (Array.isArray(value)) {
-    return value.map(child => injectMenuContext(child, menuContext))
-  }
-  if (!isRenderableNode(value)) {
-    return value
-  }
-
-  const props = value.props
-  if (!props || typeof props !== 'object') {
-    return value
-  }
-
-  const nextProps = {
-    ...(props as Record<string, unknown>),
-  }
-  if ('children' in nextProps) {
-    nextProps.children = injectMenuContext(nextProps.children, menuContext)
-  }
-
-  if (isVNodeOfType(value, Item) || isVNodeOfType(value, SubMenu)) {
-    nextProps[MENU_CONTEXT_PROP] = menuContext
-  }
-
-  return {
-    ...value,
-    props: nextProps,
-  }
-}
 
 /** toggle Key 的内部工具函数。 */
 const toggleKey = (keys: ReadonlyArray<MenuKey>, target: MenuKey) => {
@@ -489,8 +458,8 @@ const getAnchorRel = (target?: string, rel?: string) => {
 }
 
 /** 解析 Router Href 的内部工具函数。 */
-const resolveRouterHref = (to: string) => {
-  const resolvedHref = RouterLink.__rueHref(to)
+const resolveRouterHref = (to: string, router: ReturnType<typeof useRouter> | undefined) => {
+  const resolvedHref = router?.history.createHref?.(to) ?? `#${to || '/'}`
   if (!resolvedHref) {
     return '#/'
   }
@@ -524,14 +493,16 @@ const getItemClassName = ({
 }
 
 /** 渲染 Item Content 的内部工具函数。 */
-const renderItemContent = ({
+const RenderItemContent = ({
   icon,
-  content,
+  children,
+  text,
   extra,
   suffix,
 }: {
   icon?: any
-  content?: any
+  children?: any
+  text?: string | number
   extra?: any
   suffix?: any
 }) => {
@@ -540,36 +511,47 @@ const renderItemContent = ({
   return (
     <>
       {hasIcon ? (
-        <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
+        <span className="inline-flex shrink-0 items-center justify-center">
+          {String(icon ?? '')}
+        </span>
       ) : null}
-      {content != null ? (
+      {children != null || text != null ? (
         <span
           className={appendClassName(hasExtra ? 'min-w-0 flex-1' : '', hasIcon ? '' : undefined)}
         >
-          {content}
+          {text !== undefined ? <span>{String(text)}</span> : children}
         </span>
       ) : null}
       {extra != null ? (
-        <span className="ml-auto shrink-0 pl-3 text-xs opacity-70">{extra}</span>
+        <span className="ml-auto shrink-0 pl-3 text-xs opacity-70">{String(extra ?? '')}</span>
       ) : null}
-      {suffix != null ? <span className="ml-2 shrink-0 opacity-60">{suffix}</span> : null}
+      {suffix != null ? (
+        <span className="ml-2 shrink-0 opacity-60">{String(suffix ?? '')}</span>
+      ) : null}
     </>
   )
 }
 
 /** 渲染 Menu Action 的内部工具函数。 */
-const renderMenuAction = (
-  props: MenuItemProps,
-  menuContext: MenuContextValue | null,
-  itemMeta?: Partial<MenuDataEntry>,
-  keyPath?: MenuKey[],
-) => {
+const RenderMenuAction = ({
+  arg0: props,
+  children,
+  arg1: menuContext,
+  arg2: itemMeta,
+  arg3: keyPath,
+}: {
+  children?: any
+  arg0: MenuItemProps
+  arg1: MenuContextValue | null
+  arg2?: Partial<MenuDataEntry>
+  arg3?: MenuKey[]
+}) => {
   const {
     eventKey,
     as = 'a',
     href,
     to,
-    target,
+    target: linkTarget,
     rel,
     title,
     icon,
@@ -581,10 +563,18 @@ const renderMenuAction = (
     focus,
     danger,
     className,
-    children,
+
     ...rest
   } = props
 
+  let linkRouter: ReturnType<typeof useRouter> | undefined
+  if (to) {
+    try {
+      linkRouter = useRouter()
+    } catch {
+      /* Plain hash links also work without an installed router. */
+    }
+  }
   const isMergedSelected = () =>
     menuContext?.isSelected(eventKey, selected ?? active) ?? !!(selected ?? active)
   const getInnerClassName = () =>
@@ -629,12 +619,6 @@ const renderMenuAction = (
     }
   }
 
-  const contentNode = renderItemContent({
-    icon,
-    content: children,
-    extra,
-  })
-
   if (as === 'button') {
     return (
       <button
@@ -646,7 +630,9 @@ const renderMenuAction = (
         aria-current={isMergedSelected() ? 'page' : undefined}
         onClick={handleClick}
       >
-        {contentNode}
+        <RenderItemContent icon={icon} extra={extra} text={props.text}>
+          {children}
+        </RenderItemContent>
       </button>
     )
   }
@@ -663,7 +649,9 @@ const renderMenuAction = (
         aria-disabled={disabled ? 'true' : undefined}
         onClick={handleClick}
       >
-        {contentNode}
+        <RenderItemContent icon={icon} extra={extra} text={props.text}>
+          {children}
+        </RenderItemContent>
       </span>
     )
   }
@@ -681,7 +669,9 @@ const renderMenuAction = (
           aria-disabled="true"
           onClick={handleClick}
         >
-          {contentNode}
+          <RenderItemContent icon={icon} extra={extra} text={props.text}>
+            {children}
+          </RenderItemContent>
         </span>
       )
     }
@@ -691,20 +681,32 @@ const renderMenuAction = (
       if ((event as any).defaultPrevented) {
         return
       }
-      RouterLink.__rueOnClick(event, to, false)
+      if (
+        linkRouter &&
+        event.button === 0 &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.shiftKey &&
+        !event.altKey
+      ) {
+        event.preventDefault()
+        void linkRouter.push(to)
+      }
     }
 
     return (
       <a
         {...rest}
         className={getInnerClassName()}
-        href={resolveRouterHref(to)}
+        href={resolveRouterHref(to, linkRouter)}
         title={title}
         aria-current={isMergedSelected() ? 'page' : undefined}
         aria-disabled={disabled ? 'true' : undefined}
         onClick={handleRouterClick}
       >
-        {contentNode}
+        <RenderItemContent icon={icon} extra={extra} text={props.text}>
+          {children}
+        </RenderItemContent>
       </a>
     )
   }
@@ -715,14 +717,16 @@ const renderMenuAction = (
         {...rest}
         className={getInnerClassName()}
         href={disabled ? undefined : href}
-        target={target}
-        rel={getAnchorRel(target, rel)}
+        target={linkTarget}
+        rel={getAnchorRel(linkTarget, rel)}
         title={title}
         aria-current={isMergedSelected() ? 'page' : undefined}
         aria-disabled={disabled ? 'true' : undefined}
         onClick={handleClick}
       >
-        {contentNode}
+        <RenderItemContent icon={icon} extra={extra} text={props.text}>
+          {children}
+        </RenderItemContent>
       </a>
     )
   }
@@ -736,7 +740,9 @@ const renderMenuAction = (
       aria-disabled={disabled ? 'true' : undefined}
       onClick={handleClick}
     >
-      {contentNode}
+      <RenderItemContent icon={icon} extra={extra} text={props.text}>
+        {children}
+      </RenderItemContent>
     </a>
   )
 }
@@ -803,91 +809,21 @@ interface LegacyDropdownItemProps {
   keyPath: MenuKey[]
 }
 
-const LegacyDropdownItem: FC<LegacyDropdownItemProps> = ({
-  entryKey,
-  itemEntry,
-  content,
-  menuContext,
-  keyPath,
-}) => {
-  const dropdownToggle = itemEntry.dropdownToggle
-  const dropdown = itemEntry.dropdown
-  const initialOpen =
-    dropdownToggle?.visible ?? dropdownToggle?.show ?? dropdown?.visible ?? dropdown?.show
-  const dropdownOpen = ref(!!initialOpen)
-  const toggleDropdown = (event: MouseEvent) => {
-    if (itemEntry.disabled) return
-    const toggle = event.currentTarget as HTMLElement | null
-    const itemRoot = toggle?.closest('li')
-    const dropdownElement = itemRoot?.querySelector(':scope > .menu-dropdown') as HTMLElement | null
-    const nextOpen = !toggle?.classList.contains('menu-dropdown-show')
-    toggle?.classList.toggle('menu-dropdown-show', nextOpen)
-    toggle?.setAttribute('aria-expanded', nextOpen ? 'true' : 'false')
-    dropdownElement?.classList.toggle('menu-dropdown-show', nextOpen)
-    if (dropdownToggle?.onClick) dropdownToggle.onClick(event)
-  }
-
-  return (
-    <li className={itemEntry.liClassName} key={entryKey}>
-      {renderMenuAction(
-        {
-          eventKey: itemEntry.key,
-          as: itemEntry.as,
-          href: itemEntry.href,
-          to: itemEntry.to,
-          target: itemEntry.target,
-          rel: itemEntry.rel,
-          title: itemEntry.title,
-          icon: itemEntry.icon,
-          extra: itemEntry.extra,
-          danger: itemEntry.danger,
-          onClick: itemEntry.onClick,
-          disabled: itemEntry.disabled,
-          active: itemEntry.active,
-          selected: itemEntry.selected,
-          focus: itemEntry.focus,
-          className: itemEntry.className,
-          children: content,
-        },
-        menuContext,
-        itemEntry,
-        keyPath,
-      )}
-      {dropdownToggle ? (
-        <DropdownToggle
-          visible={dropdownOpen.value}
-          className={dropdownToggle.className}
-          onClick={toggleDropdown}
-        >
-          {dropdownToggle.children}
-        </DropdownToggle>
-      ) : null}
-      {dropdown ? (
-        <Dropdown visible={dropdownOpen.value} className={dropdown.className}>
-          {dropdown.items?.map((child, childIndex) =>
-            renderDataEntry(child, childIndex, menuContext, keyPath),
-          )}
-        </Dropdown>
-      ) : null}
-      {itemEntry.submenu ? (
-        <Submenu className={itemEntry.submenu.className}>
-          {itemEntry.submenu.items?.map((child, childIndex) =>
-            renderDataEntry(child, childIndex, menuContext, keyPath),
-          )}
-        </Submenu>
-      ) : null}
-    </li>
-  )
-}
-
 /** Item 的内部工具函数。 */
 const Item: FC<MenuItemProps & { __menuContext?: MenuContextValue | null }> = ({
   liClassName,
+  children,
   __menuContext = null,
   ...rest
 }) => {
-  const menuContext = __menuContext
-  return <li className={liClassName}>{renderMenuAction(rest, menuContext)}</li>
+  const menuContext = __menuContext ?? useContext(MenuContext)
+  return (
+    <li className={liClassName}>
+      <RenderMenuAction arg0={rest} arg1={menuContext}>
+        {children}
+      </RenderMenuAction>
+    </li>
+  )
 }
 
 /** Divider 的内部工具函数。 */
@@ -910,7 +846,7 @@ const Divider: FC<MenuDividerProps> = ({ className, dashed }) => {
 const ItemGroup: FC<MenuItemGroupProps> = ({ title, className, children }) => {
   return (
     <li className={className}>
-      <div className="menu-title">{title}</div>
+      <div className="menu-title">{String(title ?? '')}</div>
       <ul>{children}</ul>
     </li>
   )
@@ -931,9 +867,11 @@ const SubMenu: FC<MenuSubMenuProps> = ({
   onTitleClick,
   onOpenChange,
   children,
+  items,
+  parentKeyPath,
   __menuContext = null,
 }) => {
-  const menuContext = __menuContext
+  const menuContext = __menuContext ?? useContext(MenuContext)
   const uncontrolledOpen = ref(!!defaultOpen)
   const isMergedOpen = () =>
     eventKey !== undefined && menuContext
@@ -985,12 +923,12 @@ const SubMenu: FC<MenuSubMenuProps> = ({
           commitOpen(!isMergedOpen(), event as any)
         }}
       >
-        {renderItemContent({
-          icon,
-          content: title,
-          extra,
-          suffix: isMergedOpen() ? '▾' : '▸',
-        })}
+        <RenderItemContent
+          icon={icon}
+          extra={extra}
+          suffix={isMergedOpen() ? '▾' : '▸'}
+          text={String(title ?? '')}
+        />
       </button>
       <ul
         className={appendClassName(isMergedOpen() ? '' : 'hidden', popupClassName)}
@@ -1000,142 +938,90 @@ const SubMenu: FC<MenuSubMenuProps> = ({
             : undefined
         }
       >
-        {children}
+        {items
+          ? items.map((entry, index) => (
+              <RenderDataEntry
+                key={('key' in entry ? entry.key : undefined) ?? index}
+                arg0={entry}
+                arg1={index}
+                arg2={menuContext!}
+                arg3={parentKeyPath}
+              />
+            ))
+          : children}
       </ul>
     </li>
   )
 }
 
 /** 渲染 Data Entry 的内部工具函数。 */
-const renderDataEntry = (
-  entry: MenuDataEntry,
-  index: number,
-  menuContext: MenuContextValue,
-  parentKeyPath: MenuKey[] = [],
-): any => {
-  const entryKey = (entry as any).key ?? `${parentKeyPath.join('-') || 'root'}-${index}`
-
-  if ((entry as MenuTitleData).kind === 'title') {
-    const titleEntry = entry as MenuTitleData
-    return (
-      <Title key={entryKey} as={titleEntry.as} className={titleEntry.className}>
-        {titleEntry.children}
-      </Title>
-    )
+const RenderDataEntry: FC<{
+  arg0: MenuDataEntry
+  arg1: number
+  arg2: MenuContextValue
+  arg3?: MenuKey[]
+}> = ({ arg0: entry, arg1: index, arg2: menuContext, arg3: parentKeyPath = [] }) => {
+  const item = entry as Omit<MenuItemData, 'kind' | 'type' | 'as'> & {
+    kind?: 'item' | 'title'
+    type?: 'divider' | 'group' | 'submenu'
+    as?: MenuItemData['as'] | MenuTitleData['as']
   }
-
-  if ((entry as MenuDividerData).type === 'divider') {
-    const dividerEntry = entry as MenuDividerData
-    return (
-      <Divider key={entryKey} className={dividerEntry.className} dashed={dividerEntry.dashed} />
-    )
-  }
-
-  if ((entry as MenuGroupData).type === 'group') {
-    const groupEntry = entry as MenuGroupData
-    return (
-      <ItemGroup key={entryKey} title={groupEntry.label} className={groupEntry.className}>
-        {groupEntry.children?.map((child, childIndex) =>
-          renderDataEntry(
-            child,
-            childIndex,
-            menuContext,
-            groupEntry.key !== undefined ? [...parentKeyPath, groupEntry.key] : parentKeyPath,
-          ),
-        )}
-      </ItemGroup>
-    )
-  }
-
-  if ((entry as MenuSubMenuData).type === 'submenu') {
-    const subMenuEntry = entry as MenuSubMenuData
-    const keyPath =
-      subMenuEntry.key !== undefined ? [...parentKeyPath, subMenuEntry.key] : parentKeyPath
-    return (
-      <SubMenu
-        key={entryKey}
-        eventKey={subMenuEntry.key}
-        title={subMenuEntry.label}
-        icon={subMenuEntry.icon}
-        extra={subMenuEntry.extra}
-        disabled={subMenuEntry.disabled}
-        className={subMenuEntry.className}
-        popupClassName={subMenuEntry.popupClassName}
-        onTitleClick={subMenuEntry.onTitleClick}
-        __menuContext={menuContext}
-      >
-        {subMenuEntry.children?.map((child, childIndex) =>
-          renderDataEntry(child, childIndex, menuContext, keyPath),
-        )}
-      </SubMenu>
-    )
-  }
-
-  const itemEntry = entry as MenuItemData
-  const content = itemEntry.label ?? itemEntry.children
-  const keyPath = itemEntry.key !== undefined ? [...parentKeyPath, itemEntry.key] : parentKeyPath
-
-  if (itemEntry.submenu && !itemEntry.dropdown && !itemEntry.dropdownToggle) {
-    const subMenuKey = itemEntry.key ?? entryKey
-    const subMenuKeyPath = [...parentKeyPath, subMenuKey]
-    const legacySubMenuContext = { ...menuContext, triggerSubMenuAction: 'click' as const }
-    return (
-      <SubMenu
-        key={entryKey}
-        eventKey={subMenuKey}
-        title={content}
-        icon={itemEntry.icon}
-        extra={itemEntry.extra}
-        disabled={itemEntry.disabled}
-        className={itemEntry.liClassName}
-        titleClassName={itemEntry.className}
-        popupClassName={itemEntry.submenu.className}
-        onTitleClick={itemEntry.onClick ? info => itemEntry.onClick?.(info.domEvent) : undefined}
-        __menuContext={legacySubMenuContext}
-      >
-        {itemEntry.submenu.items?.map((child, childIndex) =>
-          renderDataEntry(child, childIndex, legacySubMenuContext, subMenuKeyPath),
-        )}
-      </SubMenu>
-    )
-  }
-
-  if (itemEntry.dropdown || itemEntry.submenu || itemEntry.dropdownToggle) {
-    return (
-      <LegacyDropdownItem
-        key={entryKey}
-        entryKey={entryKey}
-        itemEntry={itemEntry}
-        content={content}
-        menuContext={menuContext}
-        keyPath={keyPath}
-      />
-    )
-  }
-
-  return (
+  const entryKey = item.key ?? `${parentKeyPath.join('-') || 'root'}-${index}`
+  const keyPath = [...parentKeyPath, entryKey]
+  const content = item.label ?? item.children
+  const legacyContext = { ...menuContext, triggerSubMenuAction: 'click' as const }
+  return item.kind === 'title' ? (
+    <li className={appendClassName('menu-title', item.className)}>{String(item.label ?? '')}</li>
+  ) : item.type === 'divider' ? (
+    <Divider className={item.className} dashed={(entry as MenuDividerData).dashed} />
+  ) : item.type === 'group' ? (
+    <ItemGroup title={item.label} className={item.className}>
+      {(entry as MenuGroupData).children?.map((child, childIndex) => (
+        <RenderDataEntry
+          key={('key' in child ? child.key : undefined) ?? childIndex}
+          arg0={child}
+          arg1={childIndex}
+          arg2={menuContext}
+          arg3={keyPath}
+        />
+      ))}
+    </ItemGroup>
+  ) : item.type === 'submenu' ? (
+    <SubMenu
+      eventKey={entryKey}
+      title={item.label}
+      icon={item.icon}
+      extra={item.extra}
+      disabled={item.disabled}
+      className={item.className}
+      popupClassName={(entry as MenuSubMenuData).popupClassName}
+      onTitleClick={(entry as MenuSubMenuData).onTitleClick}
+      __menuContext={menuContext}
+      items={(entry as MenuSubMenuData).children}
+      parentKeyPath={keyPath}
+    />
+  ) : (
     <Item
-      key={entryKey}
-      eventKey={itemEntry.key}
-      as={itemEntry.as}
-      href={itemEntry.href}
-      to={itemEntry.to}
-      target={itemEntry.target}
-      rel={itemEntry.rel}
-      title={itemEntry.title}
-      icon={itemEntry.icon}
-      extra={itemEntry.extra}
-      danger={itemEntry.danger}
-      onClick={itemEntry.onClick}
-      disabled={itemEntry.disabled}
-      active={itemEntry.active}
-      selected={itemEntry.selected}
-      focus={itemEntry.focus}
-      liClassName={itemEntry.liClassName}
-      className={itemEntry.className}
+      eventKey={item.key}
+      as={(entry as MenuItemData).as}
+      href={item.href}
+      to={item.to}
+      target={item.target}
+      rel={item.rel}
+      title={item.title}
+      icon={item.icon}
+      extra={item.extra}
+      danger={item.danger}
+      onClick={item.onClick}
+      disabled={item.disabled}
+      active={item.active}
+      selected={item.selected}
+      focus={item.focus}
+      liClassName={item.liClassName}
+      className={item.className}
       __menuContext={menuContext}
     >
-      {content}
+      {String(content ?? '')}
     </Item>
   )
 }
@@ -1239,10 +1125,7 @@ const Menu: FC<MenuProps> = ({
   if (resolvedSize) cls += ` menu-${resolvedSize}`
   if (className) cls += ` ${className}`
 
-  const content =
-    items && items.length
-      ? items.map((entry, index) => renderDataEntry(entry, index, menuContextValue))
-      : injectMenuContext(children, menuContextValue)
+  provideContext(MenuContext, () => menuContextValue)
 
   return (
     <ul
@@ -1251,7 +1134,20 @@ const Menu: FC<MenuProps> = ({
       role={resolvedMode === 'horizontal' ? 'menubar' : 'menu'}
       aria-orientation={resolvedMode === 'horizontal' ? 'horizontal' : 'vertical'}
     >
-      {content}
+      {items && items.length ? (
+        <>
+          {items.map((entry, index) => (
+            <RenderDataEntry
+              key={('key' in entry ? entry.key : undefined) ?? index}
+              arg0={entry}
+              arg1={index}
+              arg2={menuContextValue}
+            />
+          ))}
+        </>
+      ) : (
+        <>{children}</>
+      )}
     </ul>
   )
 }

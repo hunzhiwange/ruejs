@@ -341,7 +341,7 @@ describe('Text.js compat: metadata', () => {
   it('should render apple-itunes-app meta tag', async () => {
     const { html } = await fetchHtml(baseUrl, '/textjs-compat/metadata-itunes')
     expect(html).toContain(
-      '<meta name="apple-itunes-app" content="app-id=123456789, app-argument=myapp://content/123"/>',
+      '<meta name="apple-itunes-app" content="app-id=123456789, app-argument=myapp://content/123" />',
     )
   })
 

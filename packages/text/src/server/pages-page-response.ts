@@ -343,6 +343,10 @@ export async function renderPagesPageResponse(
   // because they were collected before the page had finished rendering.
   // Mirrors Text.js fix: vercel/text.js@9853944
   const bodyStream = await options.renderToReadableStream(pageElement)
+  const shellReady = Reflect.get(bodyStream, 'shellReady')
+  if (shellReady && typeof (shellReady as PromiseLike<void>).then === 'function') {
+    await shellReady
+  }
 
   const shellHtml = await buildPagesShellHtml(bodyMarker, fontHeadHTML, textDataScript, {
     assetTags: options.assetTags,

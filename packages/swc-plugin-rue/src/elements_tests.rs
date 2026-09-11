@@ -102,12 +102,13 @@ fn dispatches_components_and_member_components_to_component_builder() {
     let out = compact(&emit_stmts(stmts));
     assert!(out.contains("_$createComment(\"rue:component:anchor\")"));
     assert!(out.contains("_$createComponent(UI.Panel,()=>({title:title}))"));
-    assert!(out.contains("renderAnchor(__slot2,root,_list1)"));
+    assert!(out.contains("_$mountCompiledSlotAt({parent:root,before:_list1}"));
+    assert!(!out.contains("renderAnchor"));
     assert!(!out.contains("_$createElement(\"UI.Panel\""));
 }
 
 #[test]
-fn rewrites_router_link_fast_path_before_native_building() {
+fn preserves_router_link_component_owner_for_app_isolation() {
     let mut vt = new_vt();
     let el = parse_jsx_element("<RouterLink to=\"/docs\" className=\"link\">Docs</RouterLink>");
     let mut stmts = Vec::new();
@@ -115,12 +116,9 @@ fn rewrites_router_link_fast_path_before_native_building() {
     build_element(&mut vt, &el, &crate::emit::ident("root"), &mut stmts);
 
     let out = compact(&emit_stmts(stmts));
-    assert!(out.contains("const_el1=_$createElement(\"a\",root);"));
-    assert!(out.contains("RouterLink.__rueHref(\"/docs\")"));
-    assert!(out.contains("RouterLink.__rueOnClick(e,\"/docs\",false)"));
-    assert!(out.contains("_$setClassName(_el1,\"link\");"));
-    assert!(out.contains("_$appendChild(_el1,_$createTextNode(\"Docs\"));"));
-    assert!(!out.contains("_$createComponent(RouterLink"));
+    assert!(out.contains("_$mountCompiledComponent(root,RouterLink"), "{out}");
+    assert!(!out.contains("RouterLink.__rueOnClick"), "{out}");
+    assert!(!out.contains("RouterLink.__rueHref"), "{out}");
 }
 
 #[test]

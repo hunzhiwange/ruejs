@@ -39,7 +39,7 @@ function collectTestFiles(dir, prefix = '') {
       continue
     }
 
-    if (!entry.name.endsWith('.test.ts')) continue
+    if (!/\.test\.tsx?$/.test(entry.name)) continue
     if (prefix === '' && excludedFiles.has(entry.name)) continue
     files.push(
       path.posix.join('__tests__', prefix.split(path.sep).join(path.posix.sep), entry.name),

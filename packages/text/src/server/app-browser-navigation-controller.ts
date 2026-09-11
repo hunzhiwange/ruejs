@@ -25,11 +25,7 @@ import {
   type ServerActionRevalidationKind,
 } from './app-browser-action-result.js'
 import type { AppElements } from './app-elements.js'
-import {
-  runRueTransition,
-  useRueLayoutEffect,
-  type RueStateSetter,
-} from './app-browser-hydration.js'
+import { runRueTransition, type RueStateSetter } from './app-browser-hydration.js'
 
 export type HistoryUpdateMode = 'push' | 'replace'
 
@@ -117,16 +113,7 @@ type BrowserNavigationController = {
    * navigation would otherwise be lost.
    */
   drainPrePaintEffects(renderId: number): void
-  NavigationCommitSignal(
-    this: void,
-    {
-      renderId,
-      children,
-    }: {
-      renderId: number
-      children?: TextRenderable
-    },
-  ): TextRenderable
+  commitRender(renderId: number): void
 }
 
 const HARD_NAVIGATION_LOOP_GUARD_KEY = '__text_hard_navigation_target__'
@@ -434,32 +421,9 @@ export function createAppBrowserNavigationController(
     dispatchSynchronousVisibleCommit(approveHmrVisibleCommit(pending))
   }
 
-  function NavigationCommitSignal(
-    this: void,
-    {
-      renderId,
-      children,
-    }: {
-      renderId: number
-      children?: TextRenderable
-    },
-  ): TextRenderable {
-    useRueLayoutEffect(() => {
-      drainPrePaintEffects(renderId)
-
-      const frame = requestAnimationFrame(() => {
-        resolveCommittedNavigations(renderId)
-      })
-
-      return () => {
-        cancelAnimationFrame(frame)
-        // Resolve pending commits to prevent callers from hanging if Rue
-        // unmounts this component without committing (e.g., error boundary).
-        resolveCommittedNavigations(renderId)
-      }
-    }, [renderId])
-
-    return children
+  function commitRender(renderId: number): void {
+    drainPrePaintEffects(renderId)
+    requestAnimationFrame(() => resolveCommittedNavigations(renderId))
   }
 
   function dispatchApprovedVisibleCommit(
@@ -705,6 +669,6 @@ export function createAppBrowserNavigationController(
     commitSameUrlNavigatePayload,
     hmrReplaceTree,
     drainPrePaintEffects,
-    NavigationCommitSignal,
+    commitRender,
   }
 }

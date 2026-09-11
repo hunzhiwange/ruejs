@@ -5,7 +5,3 @@ function createClientServerRendererError(name: string): Error {
 export async function renderToString(): Promise<string> {
   throw createClientServerRendererError('renderToString')
 }
-
-export async function runWithServerDOMAdapter(): Promise<never> {
-  throw createClientServerRendererError('runWithServerDOMAdapter')
-}

@@ -27,7 +27,7 @@ import { ref, _$compiledWithHookId, renderAnchor, _$template, untrack, watchEffe
 import { type FC, h, Fragment } from '@rue-js/rue';
 const _$getTemplate1 = _$template('<span id="n"><!--rue:text-hole:0--></span>');
 const count = _$compiledWithHookId("ref:1:0", ()=>ref(0));
-const Comp: FC = ()=>_$compiledRoot(Object.assign((__rue_parent_context)=>{
+const Comp: FC = ()=>_$compiledRoot((__rue_parent_context)=>{
         const _root = document.createDocumentFragment();
         const _el1_fragment = _$getTemplate1().content.cloneNode(true);
         const _el1 = _el1_fragment.firstChild;
@@ -53,7 +53,7 @@ export default Comp;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec2.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("@rue-js/rue/internal/component"), "{normalized}");
+    assert!(normalized.contains("@rue-js/rue/internal/block"), "{normalized}");
     assert!(normalized.contains("_$createDocumentFragment()"), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
     assert!(normalized.contains("effect(()=>{ const __slot = (count.value)"), "{normalized}");

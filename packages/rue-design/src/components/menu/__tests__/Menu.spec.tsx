@@ -1,7 +1,8 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
 
-import { Menu } from '@rue-js/design'
+import Menu from '..'
 import { attachRouter, createRouter } from '@rue-js/router'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -34,11 +35,13 @@ describe('Menu', () => {
   it('renders with base class and ul', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu>
-        <Menu.Item>{'Item 1'}</Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item>{'Item 1'}</Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -54,11 +57,13 @@ describe('Menu', () => {
     const c = mountContainer()
     resetActiveRuntime()
     ;(['xs', 'sm', 'md', 'lg', 'xl'] as const).forEach(s => {
-      render(
-        <Menu size={s}>
-          <Menu.Item>{'x'}</Menu.Item>
-        </Menu>,
-        c,
+      mountTestApp(c, () =>
+        render(
+          <Menu size={s}>
+            <Menu.Item>{'x'}</Menu.Item>
+          </Menu>,
+          c,
+        ),
       )
     })
 
@@ -71,11 +76,13 @@ describe('Menu', () => {
   it('applies direction classes', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu direction={'vertical'}>
-        <Menu.Item>{'x'}</Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu direction={'vertical'}>
+          <Menu.Item>{'x'}</Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -83,11 +90,13 @@ describe('Menu', () => {
       expect(el.classList.contains('menu-vertical')).toBe(true)
     })
 
-    render(
-      <Menu direction={'horizontal'}>
-        <Menu.Item>{'x'}</Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu direction={'horizontal'}>
+          <Menu.Item>{'x'}</Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -99,11 +108,13 @@ describe('Menu', () => {
   it('appends custom className', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu className={'bg-base-200 rounded-box w-56'}>
-        <Menu.Item>{'x'}</Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu className={'bg-base-200 rounded-box w-56'}>
+          <Menu.Item>{'x'}</Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -117,20 +128,22 @@ describe('Menu', () => {
   it('renders Item with states and different tags', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu>
-        <Menu.Item active={true}>{'A'}</Menu.Item>
-        <Menu.Item disabled={true} as={'button'}>
-          {'B'}
-        </Menu.Item>
-        <Menu.Item focus={true} as={'span'}>
-          {'C'}
-        </Menu.Item>
-        <Menu.Item as={'a'} href={'#x'}>
-          {'D'}
-        </Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item active={true}>{'A'}</Menu.Item>
+          <Menu.Item disabled={true} as={'button'}>
+            {'B'}
+          </Menu.Item>
+          <Menu.Item focus={true} as={'span'}>
+            {'C'}
+          </Menu.Item>
+          <Menu.Item as={'a'} href={'#x'}>
+            {'D'}
+          </Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -151,11 +164,13 @@ describe('Menu', () => {
     const c = mountContainer()
     resetActiveRuntime()
     installMockRouter()
-    render(
-      <Menu>
-        <Menu.Item to={'/about'}>{'Go'}</Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item to={'/about'}>{'Go'}</Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -168,13 +183,15 @@ describe('Menu', () => {
   it('supports href and target on Item', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu>
-        <Menu.Item href={'/x'} target={'_blank'}>
-          {'X'}
-        </Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item href={'/x'} target={'_blank'}>
+            {'X'}
+          </Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -188,11 +205,13 @@ describe('Menu', () => {
     const c = mountContainer()
     resetActiveRuntime()
     const fn = vi.fn()
-    render(
-      <Menu>
-        <Menu.Item onClick={fn}>{'Click'}</Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item onClick={fn}>{'Click'}</Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -207,12 +226,14 @@ describe('Menu', () => {
   it('renders Title as li and h2', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu>
-        <Menu.Title>{'Title'}</Menu.Title>
-        <Menu.Title as={'h2'}>{'Title2'}</Menu.Title>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Title>{'Title'}</Menu.Title>
+          <Menu.Title as={'h2'}>{'Title2'}</Menu.Title>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -226,24 +247,26 @@ describe('Menu', () => {
   it('renders Dropdown and DropdownToggle with show', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu>
-        <Menu.Item>
-          <Menu.DropdownToggle>{'Parent'}</Menu.DropdownToggle>
-          <Menu.Dropdown>
-            <Menu.Item>{'Sub 1'}</Menu.Item>
-            <Menu.Item>{'Sub 2'}</Menu.Item>
-          </Menu.Dropdown>
-        </Menu.Item>
-        <Menu.Item>
-          <Menu.DropdownToggle show={true}>{'Parent2'}</Menu.DropdownToggle>
-          <Menu.Dropdown show={true}>
-            <Menu.Item>{'Sub 1'}</Menu.Item>
-            <Menu.Item>{'Sub 2'}</Menu.Item>
-          </Menu.Dropdown>
-        </Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item>
+            <Menu.DropdownToggle>{'Parent'}</Menu.DropdownToggle>
+            <Menu.Dropdown>
+              <Menu.Item>{'Sub 1'}</Menu.Item>
+              <Menu.Item>{'Sub 2'}</Menu.Item>
+            </Menu.Dropdown>
+          </Menu.Item>
+          <Menu.Item>
+            <Menu.DropdownToggle show={true}>{'Parent2'}</Menu.DropdownToggle>
+            <Menu.Dropdown show={true}>
+              <Menu.Item>{'Sub 1'}</Menu.Item>
+              <Menu.Item>{'Sub 2'}</Menu.Item>
+            </Menu.Dropdown>
+          </Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -259,17 +282,19 @@ describe('Menu', () => {
   it('renders Submenu nested ul', async () => {
     const c = mountContainer()
     resetActiveRuntime()
-    render(
-      <Menu>
-        <Menu.Item>
-          <a>{'Parent'}</a>
-          <Menu.Submenu>
-            <Menu.Item>{'Submenu 1'}</Menu.Item>
-            <Menu.Item>{'Submenu 2'}</Menu.Item>
-          </Menu.Submenu>
-        </Menu.Item>
-      </Menu>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Menu>
+          <Menu.Item>
+            <a>{'Parent'}</a>
+            <Menu.Submenu>
+              <Menu.Item>{'Submenu 1'}</Menu.Item>
+              <Menu.Item>{'Submenu 2'}</Menu.Item>
+            </Menu.Submenu>
+          </Menu.Item>
+        </Menu>,
+        c,
+      ),
     )
 
     await waitForContent(() => {
@@ -284,109 +309,95 @@ describe('Menu', () => {
     const c = mountContainer()
     resetActiveRuntime()
     const items = [
-      { kind: 'title', children: 'Main' },
+      { kind: 'title', label: 'Main' },
       {
-        kind: 'item',
-        children: 'Parent',
-        dropdownToggle: { children: 'Toggle' },
-        dropdown: {
-          show: true,
-          items: [
-            { kind: 'item', children: 'DD 1' },
-            { kind: 'item', children: 'DD 2' },
-          ],
-        },
+        type: 'submenu',
+        key: 'parent',
+        label: 'Parent',
+        children: [{ label: 'DD 1' }, { label: 'DD 2' }],
       },
       {
-        kind: 'item',
-        children: 'Has Submenu',
-        submenu: {
-          items: [
-            { kind: 'item', children: 'Sub 1' },
-            { kind: 'item', children: 'Sub 2' },
-          ],
-        },
+        type: 'submenu',
+        key: 'sub',
+        label: 'Has Submenu',
+        children: [{ label: 'Sub 1' }, { label: 'Sub 2' }],
       },
     ] as any
-    render(<Menu items={items} />, c)
+    mountTestApp(c, () =>
+      render(<Menu items={items} defaultOpenKeys={['parent']} triggerSubMenuAction="click" />, c),
+    )
 
     await waitForContent(() => {
       const el = c.querySelector('.menu') as HTMLElement
       expect(el).toBeTruthy()
       const title = c.querySelector('.menu-title') as HTMLElement
       expect(title).toBeTruthy()
-      const toggles = c.querySelectorAll('.menu-dropdown-toggle')
-      expect(toggles.length).toBe(1)
-      const dds = c.querySelectorAll('.menu-dropdown')
-      expect(dds.length).toBe(1)
-      expect(dds[0].classList.contains('menu-dropdown-show')).toBe(true)
+      const toggles = c.querySelectorAll('.menu li > button[aria-expanded]')
+      expect(toggles.length).toBe(2)
+      expect(toggles[0].getAttribute('aria-expanded')).toBe('true')
       const nested = c.querySelectorAll('.menu li ul')
       expect(nested.length).toBeGreaterThan(0)
     })
   })
 
-  it('toggles legacy dropdown entries from items array', async () => {
+  it('toggles initially open submenu data and emits title clicks', async () => {
     const c = mountContainer()
     resetActiveRuntime()
     const onToggleClick = vi.fn()
     const items = [
       {
-        kind: 'item',
-        children: 'Enterprise',
-        dropdownToggle: { children: 'More', onClick: onToggleClick },
-        dropdown: {
-          visible: true,
-          items: [
-            { kind: 'item', children: 'CRM software' },
-            { kind: 'item', children: 'Marketing management' },
-          ],
-        },
+        type: 'submenu',
+        key: 'enterprise',
+        label: 'Enterprise',
+        onTitleClick: onToggleClick,
+        children: [{ label: 'CRM software' }, { label: 'Marketing management' }],
       },
     ] as any
-    render(<Menu items={items} />, c)
+    mountTestApp(c, () =>
+      render(
+        <Menu items={items} defaultOpenKeys={['enterprise']} triggerSubMenuAction="click" />,
+        c,
+      ),
+    )
 
     await waitForContent(() => {
-      const toggle = c.querySelector('.menu-dropdown-toggle') as HTMLElement
-      const dropdown = c.querySelector('.menu-dropdown') as HTMLElement
-      expect(toggle.classList.contains('menu-dropdown-show')).toBe(true)
+      const toggle = c.querySelector('.menu li > button') as HTMLElement
+      const dropdown = c.querySelector('.menu li > ul') as HTMLElement
+      expect(toggle.getAttribute('aria-expanded') === 'true').toBe(true)
       expect(toggle.getAttribute('aria-expanded')).toBe('true')
-      expect(dropdown.classList.contains('menu-dropdown-show')).toBe(true)
+      expect(!dropdown.classList.contains('hidden')).toBe(true)
     })
 
-    ;(c.querySelector('.menu-dropdown-toggle') as HTMLElement).click()
+    ;(c.querySelector('.menu li > button') as HTMLElement).click()
     await waitForContent(() => {
-      const toggle = c.querySelector('.menu-dropdown-toggle') as HTMLElement
-      const dropdown = c.querySelector('.menu-dropdown') as HTMLElement
-      expect(toggle.classList.contains('menu-dropdown-show')).toBe(false)
+      const toggle = c.querySelector('.menu li > button') as HTMLElement
+      const dropdown = c.querySelector('.menu li > ul') as HTMLElement
+      expect(toggle.getAttribute('aria-expanded') === 'true').toBe(false)
       expect(toggle.getAttribute('aria-expanded')).toBe('false')
-      expect(dropdown.classList.contains('menu-dropdown-show')).toBe(false)
+      expect(!dropdown.classList.contains('hidden')).toBe(false)
       expect(onToggleClick).toHaveBeenCalledTimes(1)
     })
 
-    ;(c.querySelector('.menu-dropdown-toggle') as HTMLElement).click()
+    ;(c.querySelector('.menu li > button') as HTMLElement).click()
     await waitForContent(() => {
-      const dropdown = c.querySelector('.menu-dropdown') as HTMLElement
-      expect(dropdown.classList.contains('menu-dropdown-show')).toBe(true)
+      const dropdown = c.querySelector('.menu li > ul') as HTMLElement
+      expect(!dropdown.classList.contains('hidden')).toBe(true)
       expect(onToggleClick).toHaveBeenCalledTimes(2)
     })
   })
 
-  it('toggles legacy submenu entries from items array', async () => {
+  it('toggles initially closed submenu data', async () => {
     const c = mountContainer()
     resetActiveRuntime()
     const items = [
       {
-        kind: 'item',
-        children: 'Parent',
-        submenu: {
-          items: [
-            { kind: 'item', children: 'Sub 1' },
-            { kind: 'item', children: 'Sub 2' },
-          ],
-        },
+        type: 'submenu',
+        key: 'parent',
+        label: 'Parent',
+        children: [{ label: 'Sub 1' }, { label: 'Sub 2' }],
       },
     ] as any
-    render(<Menu items={items} />, c)
+    mountTestApp(c, () => render(<Menu items={items} triggerSubMenuAction="click" />, c))
 
     await waitForContent(() => {
       const button = c.querySelector('.menu li button') as HTMLButtonElement
@@ -421,7 +432,7 @@ describe('Menu', () => {
       { kind: 'item', to: '/about', children: 'About' },
       { kind: 'item', href: '/ext', target: '_blank', children: 'Ext' },
     ] as any
-    render(<Menu items={items} />, c)
+    mountTestApp(c, () => render(<Menu items={items} />, c))
 
     await waitForContent(() => {
       const lis = c.querySelectorAll('.menu li')

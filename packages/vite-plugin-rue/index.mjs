@@ -23,6 +23,7 @@ const RUE_REACTIVE_PROPS_DESTRUCTURE_HEADER = '/* RUE_REACTIVE_PROPS_DESTRUCTURE
 /** Vite 插件名，也会写入转换错误对象，方便 Vite 定位来源。 */
 const RUE_VITE_PLUGIN_NAME = '@rue-js/vite-plugin-rue'
 const RUE_COMPILER_DIAGNOSTIC_MARKER = '__RUE_COMPILER_DIAGNOSTIC__'
+const RUE_COMPILER_INVARIANT_MARKER = '__RUE_COMPILER_INVARIANT__'
 /** 默认转换超时时间，避免异常输入让开发服务器长时间无响应。 */
 const DEFAULT_TRANSFORM_TIMEOUT_MS = 5000
 /** 限制 Vite 并发 transform 时同时创建的 SWC worker 数量。 */
@@ -888,13 +889,13 @@ const collectIdentifierNames = ast => {
 
 const getRueIslandDescriptorHelperLocal = ast => {
   for (const item of ast.body ?? []) {
-    if (item.type !== 'ImportDeclaration' || item.source?.value !== '@rue-js/runtime/island') {
+    if (item.type !== 'ImportDeclaration' || item.source?.value !== '@rue-js/runtime/server') {
       continue
     }
     for (const specifier of item.specifiers ?? []) {
       if (
         specifier.type === 'ImportSpecifier' &&
-        (specifier.imported?.value ?? specifier.local?.value) === 'createRueIslandDescriptor'
+        (specifier.imported?.value ?? specifier.local?.value) === 'CompiledIsland'
       ) {
         return specifier.local.value
       }
@@ -902,7 +903,7 @@ const getRueIslandDescriptorHelperLocal = ast => {
   }
 
   const names = collectIdentifierNames(ast)
-  const base = '__rueCreateIslandDescriptor'
+  const base = 'RueCompiledIsland'
   let local = base
   let suffix = 1
   while (names.has(local)) {
@@ -915,14 +916,14 @@ const getRueIslandDescriptorHelperLocal = ast => {
 const injectRueIslandDescriptorHelper = (ast, local) => {
   let target = null
   for (const item of ast.body ?? []) {
-    if (item.type === 'ImportDeclaration' && item.source?.value === '@rue-js/runtime/island') {
+    if (item.type === 'ImportDeclaration' && item.source?.value === '@rue-js/runtime/server') {
       target = item
       break
     }
   }
 
   const parsedImport = swc.parseSync(
-    `import { createRueIslandDescriptor as ${local} } from '@rue-js/runtime/island'`,
+    `import { CompiledIsland as ${local} } from '@rue-js/runtime/server'`,
     { syntax: 'typescript', target: 'es2020' },
   ).body[0]
 
@@ -930,7 +931,7 @@ const injectRueIslandDescriptorHelper = (ast, local) => {
     const alreadyImported = target.specifiers.some(
       specifier =>
         specifier.type === 'ImportSpecifier' &&
-        (specifier.imported?.value ?? specifier.local?.value) === 'createRueIslandDescriptor',
+        (specifier.imported?.value ?? specifier.local?.value) === 'CompiledIsland',
     )
     if (!alreadyImported) {
       target.specifiers.push(parsedImport.specifiers[0])
@@ -1081,7 +1082,7 @@ const createIslandDescriptorExpression = (element, directive, metadata, helperLo
   if (fallbackSource) fields.push(`fallback: ${fallbackSource}`)
   fields.push(`metadata: ${JSON.stringify(metadata)}`)
 
-  return createExpressionFromSource(`${helperLocal}({ ${fields.join(', ')} })`)
+  return createExpressionFromSource(`<${helperLocal} {...{ ${fields.join(', ')} }} />`)
 }
 
 const getClientDirectiveSpread = opening => {
@@ -1107,7 +1108,7 @@ const assertSupportedIslandTarget = (opening, imported, id) => {
   }
 }
 
-const transformClientDirectiveAttributes = (code, id = '') => {
+const transformClientDirectiveAttributes = (code, id = '', serverGraph = true) => {
   if (!code.includes('client:')) {
     return { code, islands: [] }
   }
@@ -1178,6 +1179,7 @@ const transformClientDirectiveAttributes = (code, id = '') => {
       spanBase,
     )
     islands.push(metadata)
+    if (!serverGraph) return node
     descriptorCount += 1
     const expression = createIslandDescriptorExpression(node, directive, metadata, helperLocal)
     if (!jsxChild) return expression
@@ -1206,13 +1208,13 @@ const transformClientDirectiveAttributes = (code, id = '') => {
 
 const getRueServerIslandDescriptorHelperLocal = ast => {
   for (const item of ast.body ?? []) {
-    if (item.type !== 'ImportDeclaration' || item.source?.value !== '@rue-js/runtime/island') {
+    if (item.type !== 'ImportDeclaration' || item.source?.value !== '@rue-js/runtime/server') {
       continue
     }
     for (const specifier of item.specifiers ?? []) {
       if (
         specifier.type === 'ImportSpecifier' &&
-        (specifier.imported?.value ?? specifier.local?.value) === 'createRueServerIslandDescriptor'
+        (specifier.imported?.value ?? specifier.local?.value) === 'CompiledServerIsland'
       ) {
         return specifier.local.value
       }
@@ -1220,7 +1222,7 @@ const getRueServerIslandDescriptorHelperLocal = ast => {
   }
 
   const names = collectIdentifierNames(ast)
-  const base = '__rueCreateServerIslandDescriptor'
+  const base = 'RueCompiledServerIsland'
   let local = base
   let suffix = 1
   while (names.has(local)) {
@@ -1233,14 +1235,14 @@ const getRueServerIslandDescriptorHelperLocal = ast => {
 const injectRueServerIslandDescriptorHelper = (ast, local) => {
   let target = null
   for (const item of ast.body ?? []) {
-    if (item.type === 'ImportDeclaration' && item.source?.value === '@rue-js/runtime/island') {
+    if (item.type === 'ImportDeclaration' && item.source?.value === '@rue-js/runtime/server') {
       target = item
       break
     }
   }
 
   const parsedImport = swc.parseSync(
-    `import { createRueServerIslandDescriptor as ${local} } from '@rue-js/runtime/island'`,
+    `import { CompiledServerIsland as ${local} } from '@rue-js/runtime/server'`,
     { syntax: 'typescript', target: 'es2020' },
   ).body[0]
   if (target) {
@@ -1302,7 +1304,7 @@ const createServerIslandDescriptorExpression = (element, id, helperLocal) => {
   const childrenSource = printJsxChildrenSource(element.children)
   if (childrenSource) props.push(`children: ${childrenSource}`)
   return createExpressionFromSource(
-    `${helperLocal}({ id: ${JSON.stringify(id)}, props: { ${props.join(', ')} }, fallback: ${fallbackSource} })`,
+    `<${helperLocal} id={${JSON.stringify(id)}} props={{ ${props.join(', ')} }} fallback={${fallbackSource}} />`,
   )
 }
 
@@ -2942,6 +2944,87 @@ const getErrorMessage = error => {
   return String(error)
 }
 
+/** Decode the structured invariant payload embedded in an SWC wasm failure. */
+const extractCompilerInvariantPayload = error => {
+  const message = getErrorMessage(error)
+  const markerIndex = message.indexOf(RUE_COMPILER_INVARIANT_MARKER)
+  if (markerIndex < 0) return null
+
+  const payloadStart = message.indexOf('{', markerIndex + RUE_COMPILER_INVARIANT_MARKER.length)
+  if (payloadStart < 0) return null
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+  for (let index = payloadStart; index < message.length; index += 1) {
+    const character = message[index]
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (character === '\\') {
+        escaped = true
+      } else if (character === '"') {
+        inString = false
+      }
+      continue
+    }
+    if (character === '"') {
+      inString = true
+    } else if (character === '{') {
+      depth += 1
+    } else if (character === '}') {
+      depth -= 1
+      if (depth === 0) {
+        try {
+          return JSON.parse(message.slice(payloadStart, index + 1))
+        } catch {
+          return null
+        }
+      }
+    }
+  }
+  return null
+}
+
+/** Convert the compiler's closed-ABI failure into a stable Vite-facing hard error. */
+const createCompilerInvariantError = ({ error, source, id }) => {
+  const payload = extractCompilerInvariantPayload(error)
+  if (
+    !payload ||
+    typeof payload.category !== 'string' ||
+    typeof payload.helper !== 'string' ||
+    typeof payload.start !== 'number' ||
+    typeof payload.end !== 'number' ||
+    typeof payload.message !== 'string'
+  ) {
+    return null
+  }
+
+  const { line, column } = sourcePosition(source, { start: payload.start })
+  const invariant = tagRueTransformError(
+    new Error(
+      `[${RUE_VITE_PLUGIN_NAME}] Rue compiler invariant failed for ${id}:${line}:${column}.\n` +
+        `category: ${payload.category}\nhelper: ${payload.helper}\nreason: ${payload.message}`,
+    ),
+    'RUE_COMPILER_INVARIANT',
+  )
+  Object.assign(invariant, {
+    category: payload.category,
+    helper: payload.helper,
+    reason: payload.message,
+    start: payload.start,
+    end: payload.end,
+    file: id,
+    line,
+    column,
+    loc: { file: id, line, column },
+  })
+  if (error?.stack) {
+    invariant.stack = `${invariant.stack}\nCaused by:\n${error.stack}`
+  }
+  return invariant
+}
+
 /** 为某个转换阶段创建带上下文和提示文案的错误。 */
 const createStageError = ({ id, stage, error, hint }) => {
   const parts = [`[${RUE_VITE_PLUGIN_NAME}] ${stage} failed for ${id}.`, getErrorMessage(error)]
@@ -3034,12 +3117,18 @@ const deserializeWorkerError = rawError => {
 }
 
 /** 创建 Rue SWC wasm 插件使用的 @swc/core 转换配置。 */
-const createSwcTransformOptions = ({ pluginPath, isProduction, target = 'client' }) => ({
-  filename: 'rue.tsx',
+const createSwcTransformOptions = ({
+  pluginPath,
+  isProduction,
+  target = 'client',
+  id = 'rue.tsx',
+}) => ({
+  filename: id,
   jsc: {
-    parser: { syntax: 'typescript', tsx: true },
+    parser: { syntax: 'typescript', tsx: !/\.[cm]?[jt]s(?:\?.*)?$/.test(id) },
     target: 'es2020',
     experimental: {
+      runPluginFirst: true,
       plugins: [[pluginPath, { target }]],
     },
   },
@@ -3047,10 +3136,11 @@ const createSwcTransformOptions = ({ pluginPath, isProduction, target = 'client'
 })
 
 /** 在当前线程内直接执行 SWC 转换，主要用于 build 阶段减少 worker 开销。 */
-const runSwcTransformInline = async ({ code, pluginPath, isProduction, target }) => {
+const runSwcTransformInline = async ({ code, pluginPath, isProduction, target, id }) => {
   const out = await swc.transform(
     code,
     createSwcTransformOptions({
+      id,
       pluginPath,
       isProduction: isProduction ?? process.env.NODE_ENV === 'production',
       target,
@@ -3109,7 +3199,7 @@ const sourcePosition = (code, span) => {
 const validateCompilerOnlyOutput = (code, id) => {
   const ast = swc.parseSync(code, {
     syntax: 'typescript',
-    tsx: true,
+    tsx: /\.[cm]?tsx(?:\?|$)|\.jsx(?:\?|$)|\.mdx(?:\?|$)/i.test(id),
     target: 'es2020',
   })
   const violation = findCompilerOnlyViolation(ast)
@@ -3209,8 +3299,8 @@ export async function compileRueStatic(code, options = {}) {
 
   let loweredModel
   try {
-    const serverDirectiveResult = transformServerDirectiveAttributes(code, id, false)
-    const clientDirectiveResult = transformClientDirectiveAttributes(serverDirectiveResult.code, id)
+    const serverDirectiveResult = transformServerDirectiveAttributes(code, id, target === 'server')
+    const clientDirectiveResult = transformClientDirectiveAttributes(serverDirectiveResult.code, id, target === 'server')
     loweredModel = preprocessRueSource(clientDirectiveResult.code, id)
   } catch (error) {
     throw createStageError({
@@ -3246,6 +3336,8 @@ export async function compileRueStatic(code, options = {}) {
     }
     return `${headers.join('\n')}\n${normalizedOut}`
   } catch (error) {
+    const invariant = createCompilerInvariantError({ error, source: code, id })
+    if (invariant) throw invariant
     throw createStageError({
       id,
       stage: 'SWC transform',
@@ -3374,6 +3466,7 @@ const runSwcTransformInWorker = ({ code, id, pluginPath, timeoutMs, isProduction
       worker = new Worker(TRANSFORM_WORKER_PATH, {
         type: 'module',
         workerData: {
+          id,
           code,
           pluginPath,
           isProduction: isProduction ?? process.env.NODE_ENV === 'production',
@@ -3520,7 +3613,7 @@ export default function VitePluginRue(options = {}) {
     const normalizedId = normalizeModuleId(id)
     const normalizedStem = normalizedId.replace(/\.(?:tsx|jsx)$/, '')
     for (const entry of getSortedIslandRegistryEntries()) {
-      if (entry.hydrate === 'only' || entry.hydrate === 'none') continue
+      if (entry.hydrate === 'none') continue
       const importStem = entry.importSource.replace(/\.(?:tsx|jsx)$/, '')
       if (importStem === normalizedStem) return 'hydrate'
     }
@@ -3650,6 +3743,7 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
       const clientDirectiveResult = transformClientDirectiveAttributes(
         serverDirectiveResult.code,
         id,
+        serverGraph || configuredTarget === 'server',
       )
       islands = clientDirectiveResult.islands
       loweredModel = preprocessRueSource(clientDirectiveResult.code, id)
@@ -3702,6 +3796,8 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
         serverIslands,
       }
     } catch (error) {
+      const invariant = createCompilerInvariantError({ error, source: code, id })
+      if (invariant) throw invariant
       if (isRueTransformError(error)) {
         throw error
       }
@@ -3730,6 +3826,11 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
       await preIndexIslandSources(file => this.addWatchFile?.(file))
     },
     resolveId(id, _importer, resolveOptions) {
+      if (/^@rue-js\/rue\/jsx(?:-dev)?-runtime$/.test(id)) {
+        throw new Error(
+          `[${RUE_VITE_PLUGIN_NAME}] Rue compiler required: runtime JSX is unsupported. Compile the original JSX with @rue-js/vite-plugin-rue.`,
+        )
+      }
       if (id === RUE_ISLAND_MANIFEST_ID) {
         return RESOLVED_RUE_ISLAND_MANIFEST_ID
       }
@@ -3786,16 +3887,37 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
     async transform(code, id, transformOptions) {
       // 匹配处理的 JSX 源文件类型；MDX 等上游插件可显式加入。
       const isTsx = transformExtensionPattern.test(id)
-      if (!isTsx) return null
-      // include/exclude 规则过滤
-      if (!isIncluded(id)) return null
+      // TS/JS entry modules can contain startup macros without JSX. They must
+      // pass through SWC too; ordinary dependency modules remain untouched.
+      const isScript = /\.[cm]?[jt]s(?:\?.*)?$/.test(id)
+      const hasRueImport =
+        !isTsx &&
+        isScript &&
+        code.includes('@rue-js/rue') &&
+        swc
+          .parseSync(code, { syntax: 'typescript', tsx: false })
+          .body.some(
+            item =>
+              item.type === 'ImportDeclaration' &&
+              !item.typeOnly &&
+              (item.source.value === '@rue-js/rue' ||
+                JSX_RUNTIME_SOURCE_RE.test(item.source.value)),
+          )
+      if (!isTsx && !(isScript && hasRueImport)) return null
+      if (!isIncluded(id)) {
+        validateCompilerOnlyOutput(code, id)
+        return null
+      }
       // 选择 wasm 插件路径：优先环境变量回退到默认路径
       if (!process.env.RUE_SWC_PLUGIN) {
         process.env.RUE_SWC_PLUGIN = requireFromHere.resolve('@rue-js/swc-plugin-rue')
       }
 
       // 已包含 RUE 头标记则直接跳过
-      if (code.startsWith(RUE_TRANSFORM_HEADER)) return null
+      if (code.startsWith(RUE_TRANSFORM_HEADER)) {
+        validateCompilerOnlyOutput(code, id)
+        return null
+      }
       const base = code
       const environmentName = this.environment?.name
       const serverGraph =

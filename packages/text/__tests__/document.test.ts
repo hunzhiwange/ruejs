@@ -14,7 +14,7 @@ import Document, {
   TextScript,
   getTextMainHtml,
   getTextScriptsHtml,
-} from '../src/shims/document.js'
+} from '../src/shims/document.js?text-ssr'
 
 function render(el: unknown): Promise<string> {
   return renderToString(el)
@@ -55,7 +55,7 @@ describe('Head', () => {
   it('preserves custom children alongside defaults', async () => {
     const html = await render(createElement(Head, null, createElement('title', null, 'My App')))
     // Custom content rendered
-    expect(html).toContain('<title>My App</title>')
+    expect(new DOMParser().parseFromString(html, 'text/html').title).toBe('My App')
     // Defaults still present
     expect(html).toContain('charSet="utf-8"')
   })
@@ -99,36 +99,25 @@ describe('Html', () => {
   it('wraps the entire document as the root element', async () => {
     const html = await render(createElement(Document))
     // Default Document uses Html as root — output must start with <html
-    expect(html).toMatch(/^<html/)
+    expect(html.replace(/<!--[\s\S]*?-->/g, '')).toMatch(/^<html/)
   })
 })
 
-// Regression test for the contract motivating PR #1381 (issue #1361):
-// user `pages/_document.tsx` files commonly use the class form
-// `class MyDocument extends Document`. If the shim's default export is a
-// function, the extends chain produces a class Rue refuses to construct
-// (`Class constructor cannot be invoked without 'new'`), which 500s SSR and
-// surfaces as empty pages in deploy-suite e2e tests.
-//
-// Ported from Text.js: test/e2e/async-modules/pages/_document.jsx
-// https://github.com/vercel/next.js/blob/canary/test/e2e/async-modules/pages/_document.jsx
-describe('Document base class', () => {
-  it('can be extended by a user class that Rue can construct', async () => {
-    class MyDocument extends Document {
-      render() {
-        return createElement(
-          Html,
-          { lang: 'ja' },
-          createElement(Head),
-          createElement(
-            'body',
-            null,
-            createElement('div', { id: 'doc-marker' }, 'ok'),
-            createElement(Main),
-            createElement(TextScript),
-          ),
-        )
-      }
+describe('compiled Document factory', () => {
+  it('composes a custom document through compiled factories', async () => {
+    function MyDocument() {
+      return createElement(
+        Html,
+        { lang: 'ja' },
+        createElement(Head),
+        createElement(
+          'body',
+          null,
+          createElement('div', { id: 'doc-marker' }, 'ok'),
+          createElement(Main),
+          createElement(TextScript),
+        ),
+      )
     }
     const html = await render(createElement(MyDocument))
     expect(html).toMatch(/<html[^>]*lang="ja"/)

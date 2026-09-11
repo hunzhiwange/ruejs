@@ -106,11 +106,8 @@ const joinClassName = (...values: Array<string | undefined | false>) =>
   values.filter(Boolean).join(' ')
 
 /** 判断是否存在 Renderable Content 的内部工具函数。 */
-const hasRenderableContent = (value: any): boolean => {
-  if (value == null) return false
-  if (Array.isArray(value)) return value.some(item => hasRenderableContent(item))
-  return true
-}
+const hasRenderableContent = (value: any): boolean =>
+  value != null && value !== false && value !== ''
 
 /** 判断指定位置是否存在数据驱动项。 */
 const hasPlacementItems = (
@@ -158,23 +155,38 @@ const Section: FC<NavbarSectionProps> = ({
   ...rest
 }) => {
   const Component = as as any
-  return (
-    <Component {...rest} className={buildSectionClassName(placement, align, grow, wrap, className)}>
+  return Component === 'div' ? (
+    <div {...rest} className={buildSectionClassName(placement, align, grow, wrap, className)}>
       {children}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span {...rest} className={buildSectionClassName(placement, align, grow, wrap, className)}>
+      {children}
+    </span>
+  ) : (
+    <></>
   )
 }
 
 /** Item 的内部工具函数。 */
 const Item: FC<NavbarItemProps> = ({ as = 'div', className, children, content, grow, ...rest }) => {
   const Component = as as any
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName('inline-flex min-w-0 items-center', grow && 'flex-1', className)}
     >
-      {content ?? children}
-    </Component>
+      {content !== undefined ? <span>{String(content)}</span> : children}
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName('inline-flex min-w-0 items-center', grow && 'flex-1', className)}
+    >
+      {content !== undefined ? <span>{String(content)}</span> : children}
+    </span>
+  ) : (
+    <></>
   )
 }
 
@@ -193,22 +205,27 @@ const End: FC<Omit<NavbarSectionProps, 'placement'>> = props => (
 
 /** SlotItem 的内部工具函数。 */
 const SlotItem: FC<NavbarSlotItemProps> = ({ content }) => {
-  if (!hasRenderableContent(content)) return null
-  return <Item>{content}</Item>
+  if (!hasRenderableContent(content)) return <></>
+  return <Item content={content} />
 }
 
 /** PlacementItems 的内部工具函数。 */
 const PlacementItems: FC<NavbarPlacementItemsProps> = ({ items, placement }) => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const item = rowArg0
+    const index = rowArg1
+
+    const { key, placement: _placement, content, children, ...rest } = item
+    return <Item {...rest} content={content} />
+  }
+
   return (
     <>
       {(items ?? [])
         .filter(item => (item.placement ?? 'start') === placement)
-        .map((item, index) => {
-          const { key, placement: _placement, content, children, ...rest } = item
-          return (
-            <Item key={key ?? `${placement}-${index}`} {...rest} content={content ?? children} />
-          )
-        })}
+        .map((rowArg0: any, rowArg1: number) => (
+          <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+        ))}
     </>
   )
 }
@@ -241,8 +258,8 @@ const Root: FC<NavbarRootProps> = ({
     hasPlacementItems(items, 'end') || hasRenderableContent(end) || hasRenderableContent(actions)
   const hasStructuredSlots = hasStart || hasCenter || hasEnd
 
-  return (
-    <Component
+  return Component === 'div' ? (
+    <div
       {...rest}
       className={joinClassName(
         'navbar',
@@ -278,7 +295,85 @@ const Root: FC<NavbarRootProps> = ({
           ) : null}
         </>
       )}
-    </Component>
+    </div>
+  ) : Component === 'span' ? (
+    <span
+      {...rest}
+      className={joinClassName(
+        'navbar',
+        wrap && 'flex-wrap gap-y-2',
+        sticky && 'sticky top-0 z-30',
+        bordered && 'border-b border-base-300',
+        className,
+      )}
+    >
+      {hasChildren ? (
+        children
+      ) : (
+        <>
+          {hasStructuredSlots && hasStart ? (
+            <Start {...startProps}>
+              <SlotItem content={brand} />
+              <SlotItem content={start} />
+              <PlacementItems items={items} placement="start" />
+            </Start>
+          ) : null}
+          {hasStructuredSlots && hasCenter ? (
+            <Center {...centerProps}>
+              <SlotItem content={center} />
+              <PlacementItems items={items} placement="center" />
+            </Center>
+          ) : null}
+          {hasStructuredSlots && hasEnd ? (
+            <End {...endProps}>
+              <PlacementItems items={items} placement="end" />
+              <SlotItem content={end} />
+              <SlotItem content={actions} />
+            </End>
+          ) : null}
+        </>
+      )}
+    </span>
+  ) : Component === 'header' ? (
+    <header
+      {...rest}
+      className={joinClassName(
+        'navbar',
+        wrap && 'flex-wrap gap-y-2',
+        sticky && 'sticky top-0 z-30',
+        bordered && 'border-b border-base-300',
+        className,
+      )}
+    >
+      {hasChildren ? (
+        children
+      ) : (
+        <>
+          {hasStructuredSlots && hasStart ? (
+            <Start {...startProps}>
+              <SlotItem content={brand} />
+              <SlotItem content={start} />
+              <PlacementItems items={items} placement="start" />
+            </Start>
+          ) : null}
+          {hasStructuredSlots && hasCenter ? (
+            <Center {...centerProps}>
+              <SlotItem content={center} />
+              <PlacementItems items={items} placement="center" />
+            </Center>
+          ) : null}
+          {hasStructuredSlots && hasEnd ? (
+            <End {...endProps}>
+              <PlacementItems items={items} placement="end" />
+              <SlotItem content={end} />
+              <SlotItem content={actions} />
+            </End>
+          ) : null}
+        </>
+      )}
+    </header>
+  ) : (
+    <></>
   )
 }
 

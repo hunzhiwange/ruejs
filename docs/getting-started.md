@@ -11,22 +11,9 @@ pnpm add @rue-js/rue @rue-js/router
 在 `app.tsx` 中创建应用：
 
 ```tsx
-import {
-  type FC,
-  useApp,
-  installBrowserErrorBridge,
-  installErrorConsole,
-  installDevErrorOverlay,
-} from '@rue-js/rue'
+import { type FC, useApp } from '@rue-js/rue'
 import { RouterView } from '@rue-js/router'
 import router from './router'
-
-// 接入浏览器错误并启用控制台报告，仅在开发环境显示遮罩
-installBrowserErrorBridge()
-installErrorConsole()
-if (import.meta.env.DEV && !import.meta.env.SSR) {
-  installDevErrorOverlay()
-}
 
 const App: FC = () => {
   return (
@@ -40,6 +27,8 @@ const App: FC = () => {
 // 创建并挂载应用
 useApp(App).use(router).mount('#app')
 ```
+
+Rue 会自动将未被组件错误边界处理的运行时错误输出到控制台，无需额外安装或清理错误处理器。
 
 在 `router/index.ts` 中配置路由：
 

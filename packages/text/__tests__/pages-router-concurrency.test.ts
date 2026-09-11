@@ -3,7 +3,12 @@ import { build, type ViteDevServer } from 'vite'
 import path from 'node:path'
 import http from 'node:http'
 import text from '../src/index.js'
-import { createIsolatedFixture, PAGES_FIXTURE_DIR, startFixtureServer } from './helpers.js'
+import {
+  createIsolatedFixture,
+  PAGES_FIXTURE_DIR,
+  startFixtureServer,
+  stripRueSsrMarkers,
+} from './helpers.js'
 
 const CONCURRENCY = 15
 
@@ -13,7 +18,7 @@ async function fetchConcurrentPages(
   count: number,
 ): Promise<string[]> {
   const requests = Array.from({ length: count }, (_, i) =>
-    fetch(`${baseUrl}${pagePath}?id=${i}`).then(r => r.text()),
+    fetch(`${baseUrl}${pagePath}?id=${i}`).then(async r => stripRueSsrMarkers(await r.text())),
   )
 
   return Promise.all(requests)

@@ -7,8 +7,7 @@
  * the standard <form> element with one that intercepts submissions
  * and performs client-side navigation for GET forms (search forms).
  *
- * For POST forms with server actions, it delegates to the active compat
- * form action runtime.
+ * For POST forms with server actions, it delegates to the compiled form action runtime.
  *
  * Usage:
  *   import Form from 'text/form';
@@ -24,12 +23,6 @@ import { navigateClientSide } from './navigation.js'
 import { isDangerousScheme } from './url-safety.js'
 import { toSameOriginPath, withBasePath } from './url-utils.js'
 import { type RueElementProps, type RueRef, type RueSubmitEvent } from './rue-shim-types.js'
-import { createTextElement, type TextNode } from '../runtime/render-protocol.js'
-import {
-  createSafeTextElement,
-  isTextCompatRendererActive,
-  readTextCompatCreateElement,
-} from './rue-element-compat.js'
 
 // Mirrors `__TEXT_ROUTER_BASEPATH` exposure in `text/link` / `text/router`.
 // `addBasePath` is only applied to the form-level `action` prop. A submitter's
@@ -38,7 +31,7 @@ import {
 // can't add it before hydration").
 const __basePath: string = process.env.__TEXT_ROUTER_BASEPATH ?? ''
 
-// Re-export the compat action-state hook to match Text.js's text/form module.
+// Re-export the action-state hook to match Text.js's text/form module.
 export { useActionState }
 
 type FormSubmitter = HTMLButtonElement | HTMLInputElement
@@ -155,27 +148,6 @@ function buildFormData(form: HTMLFormElement, submitter: FormSubmitter | null): 
   }
 }
 
-function cleanFormElementProps(props: Record<string, unknown>): Record<string, unknown> | null {
-  const cleaned: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(props)) {
-    if (value !== undefined) cleaned[key] = value
-  }
-  return Object.keys(cleaned).length > 0 ? cleaned : null
-}
-
-function createCompatFormElement(props: Record<string, unknown>): TextNode {
-  const { children, ...rest } = props
-  const cleanedProps = cleanFormElementProps(rest)
-  const childList = Array.isArray(children) ? children : children !== undefined ? [children] : []
-  const createElement = readTextCompatCreateElement()
-
-  if ((isTextCompatRendererActive() || typeof window !== 'undefined') && createElement) {
-    return createSafeTextElement(createElement, 'form', cleanedProps, ...childList) as TextNode
-  }
-
-  return createTextElement('form', cleanedProps, ...(childList as TextNode[])) as TextNode
-}
-
 type FormProps = {
   /** Target URL for GET forms, or server action for POST forms */
   action: string | ((formData: FormData) => void | Promise<void>)
@@ -187,12 +159,22 @@ type FormProps = {
   onSubmit?: (event: RueSubmitEvent<HTMLFormElement>) => void
 } & Omit<RueElementProps<HTMLFormElement>, 'action' | 'onSubmit'>
 
-function Form(props: FormProps & { ref?: RueRef<HTMLFormElement> }): TextNode {
-  const { action, replace = false, scroll = true, onSubmit, ref, ...rest } = props
-
-  // If action is a function (server action), pass it through the active compat runtime.
+function Form({
+  action,
+  replace = false,
+  scroll = true,
+  onSubmit,
+  ref,
+  children,
+  ...rest
+}: FormProps & { ref?: RueRef<HTMLFormElement> }) {
+  // Compiled forms attach the server action reference and submission handler.
   if (typeof action === 'function') {
-    return createCompatFormElement({ ref, action, onSubmit, ...rest })
+    return (
+      <form {...rest} ref={ref} action={action} onSubmit={onSubmit}>
+        {children}
+      </form>
+    )
   }
 
   // Block dangerous action URLs. Render <form> without action attribute
@@ -205,7 +187,11 @@ function Form(props: FormProps & { ref?: RueRef<HTMLFormElement> }): TextNode {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(`<Form> blocked unsafe action: ${action}`)
     }
-    return createCompatFormElement({ ref, onSubmit, ...rest })
+    return (
+      <form {...rest} ref={ref} onSubmit={onSubmit}>
+        {children}
+      </form>
+    )
   }
 
   // Prefix basePath to the navigating `action` prop (matches Text.js's
@@ -301,12 +287,11 @@ function Form(props: FormProps & { ref?: RueRef<HTMLFormElement> }): TextNode {
     }
   }
 
-  return createCompatFormElement({
-    ref,
-    action: actionHref,
-    onSubmit: handleSubmit,
-    ...rest,
-  })
+  return (
+    <form {...rest} ref={ref} action={actionHref} onSubmit={handleSubmit}>
+      {children}
+    </form>
+  )
 }
 
 export default Form

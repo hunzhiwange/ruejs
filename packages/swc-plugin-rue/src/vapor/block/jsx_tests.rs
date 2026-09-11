@@ -87,9 +87,7 @@ fn jsx_to_block_builds_native_root_attrs_children_and_return() {
     assert!(out.contains("_$appendChild(_root,_$createTextNode(\"hello\"));"));
     assert!(out.contains("const_el1=_$createElement(\"span\",_root);"));
     assert!(out.contains("_$createComment(\"rue:slot:anchor\")"));
-    assert!(out.contains(
-        "effect(()=>{const__slot=(name);untrack(()=>renderAnchor(__slot,_el1,_list1));});"
-    ));
+    assert!(out.contains("_$mountCompiledSlotAt("));
     assert!(out.ends_with("return_root;}"));
 }
 
@@ -104,7 +102,8 @@ fn jsx_fragment_to_block_builds_document_fragment_children_and_return() {
     assert!(out.contains("const_el1=_$createElement(\"span\",_root);"));
     assert!(out.contains("_$appendChild(_el1,_$createTextNode(\"child\"));"));
     assert!(out.contains("_$createComment(\"rue:slot:anchor\")"));
-    assert!(out.contains("effect(()=>{"));
+    assert!(out.contains("_$mountCompiledSlotAt("));
+    assert!(!out.contains("renderAnchor"));
     assert!(out.ends_with("return_root;}"));
 }
 
@@ -117,7 +116,8 @@ fn jsx_to_block_delegates_component_roots() {
     assert!(out.contains("const_root=_$createDocumentFragment();"));
     assert!(out.contains("const_list1=_$createComment(\"rue:component:anchor\")"));
     assert!(out.contains("_$createComponent(Box,()=>({title:title}))"));
-    assert!(out.contains("renderAnchor(__slot2,_root,_list1)"));
+    assert!(out.contains("_$mountCompiledSlotAt({parent:_root,before:_list1}"));
+    assert!(!out.contains("renderAnchor"));
     assert!(out.ends_with("return_root;}"));
 }
 
@@ -143,11 +143,10 @@ fn jsx_to_block_handles_router_link_and_namespaced_fallback_edges() {
     let router = parse_jsx_element(r#"<RouterLink to="/docs">Docs</RouterLink>"#);
     let router_out = compact(&emit_block(router_vt.jsx_to_block(&router)));
 
-    assert!(router_out.contains("const_root=_$createElement(\"a\",__rue_parent_context);"));
-    assert!(router_out.contains("RouterLink.__rueHref(\"/docs\")"));
-    assert!(router_out.contains("RouterLink.__rueOnClick(e,\"/docs\",false)"));
-    assert!(router_out.contains("_$appendChild(_root,_$createTextNode(\"Docs\"));"));
-    assert!(!router_out.contains("_$createComponent(RouterLink"));
+    assert!(router_out.contains("_$mountCompiledComponent(_root,RouterLink"), "{router_out}");
+    assert!(router_out.contains("to:\"/docs\""));
+    assert!(!router_out.contains("RouterLink.__rueHref"));
+    assert!(!router_out.contains("RouterLink.__rueOnClick"));
 
     let mut namespace_vt = new_vt();
     let namespaced = parse_jsx_element(r#"<svg:path xlink:href="url" {...props}>Label</svg:path>"#);

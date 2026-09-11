@@ -3,7 +3,6 @@ import { ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import Code from '../site/components/Code'
 import { Badge, Button, Result, Tabs } from '@rue-js/design'
-
 type TabMode = 'preview' | 'code'
 
 interface ExampleBlockProps {
@@ -327,9 +326,7 @@ const ResultDemo: FC = () => {
               />
             </div>
           )}
-          code={`import { Result } from '@rue-js/design'
-
-<div className="grid gap-4 xl:grid-cols-2">
+          code={`import { Result } from '@rue-js/design'<div className="grid gap-4 xl:grid-cols-2">
   <Result
     size="sm"
     status="success"
@@ -397,9 +394,7 @@ const ResultDemo: FC = () => {
               </div>
             </div>
           )}
-          code={`import { Button, Result } from '@rue-js/design'
-
-<div className="grid gap-5">
+          code={`import { Button, Result } from '@rue-js/design'<div className="grid gap-5">
   <Result
     status={403}
     extra={<Button color="primary">申请访问</Button>}
@@ -469,9 +464,7 @@ const ResultDemo: FC = () => {
               </div>
             </Result>
           )}
-          code={`import { Badge, Button, Result } from '@rue-js/design'
-
-<Result
+          code={`import { Badge, Button, Result } from '@rue-js/design'<Result
   status="success"
   title="云主机已开通"
   subTitle="订单号：RU20260510-0032。资源已完成基础检测，建议立即配置告警与自动快照策略。"
@@ -537,9 +530,7 @@ const ResultDemo: FC = () => {
               />
             </div>
           )}
-          code={`import { Button, Result } from '@rue-js/design'
-
-${rocketIconCode}
+          code={`import { Button, Result } from '@rue-js/design'${rocketIconCode}
 
 <div className="grid gap-5 xl:grid-cols-2">
   <Result
@@ -606,9 +597,7 @@ ${rocketIconCode}
               </div>
             </div>
           )}
-          code={`import { Button, Result } from '@rue-js/design'
-
-${compassIconCode}
+          code={`import { Button, Result } from '@rue-js/design'${compassIconCode}
 
 ${shieldWaveIconCode}
 
@@ -670,9 +659,7 @@ ${shieldWaveIconCode}
               </div>
             </div>
           )}
-          code={`import { Result } from '@rue-js/design'
-
-<div className="grid gap-4 md:grid-cols-3">
+          code={`import { Result } from '@rue-js/design'<div className="grid gap-4 md:grid-cols-3">
   <div className="rounded-[1.75rem] border border-base-300 bg-base-100 p-4 text-center">
     <Result.PRESENTED_IMAGE_403 size="sm" />
     <div className="mt-3 text-sm font-medium">Result.PRESENTED_IMAGE_403</div>

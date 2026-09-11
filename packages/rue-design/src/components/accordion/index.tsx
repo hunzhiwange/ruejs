@@ -5,9 +5,10 @@ Accordion 组件概述
 - 复合能力：items 可直接表达 description / extra / disabled，Title / Content 仍可单独组合。
 */
 import type { FC } from '@rue-js/rue'
-import { ref } from '@rue-js/rue'
+import { ref, onMounted, onUnmounted } from '@rue-js/rue'
 
 let accordionNameSeed = 0
+const radioGroups = new Map<string, Set<(source: object) => void>>()
 
 /** AccordionIcon 类型。 */
 export type AccordionIcon = 'arrow' | 'plus'
@@ -203,58 +204,12 @@ const getStateClass = (open: boolean, force: AccordionForce | undefined) => {
 }
 
 /** 读取 Accordion Group Roots 的内部工具函数。 */
-const getAccordionGroupRoots = (groupName: string, source?: Element | null) => {
-  const queryRoot = source?.getRootNode?.()
-  const scope =
-    queryRoot && typeof (queryRoot as ParentNode).querySelectorAll === 'function'
-      ? (queryRoot as ParentNode)
-      : typeof document !== 'undefined'
-        ? document
-        : null
-
-  if (!scope) return []
-
-  return Array.from(scope.querySelectorAll<HTMLElement>('[data-rue-accordion-group]')).filter(
-    root => root.dataset.rueAccordionGroup === groupName,
-  )
-}
 
 /** 读取 Direct Accordion Input 的内部工具函数。 */
-const getDirectAccordionInput = (root: Element) => {
-  return Array.from(root.children).find(
-    child =>
-      child instanceof HTMLInputElement && (child.type === 'checkbox' || child.type === 'radio'),
-  ) as HTMLInputElement | undefined
-}
 
 /** 读取 Direct Accordion Title 的内部工具函数。 */
-const getDirectAccordionTitle = (root: Element) => {
-  return Array.from(root.children).find(
-    child => child instanceof HTMLElement && child.classList.contains('collapse-title'),
-  ) as HTMLElement | undefined
-}
 
 /** sync Accordion Panel Visual State 的内部工具函数。 */
-const syncAccordionPanelVisualState = (
-  root: Element,
-  open: boolean,
-  force: AccordionForce | undefined,
-) => {
-  if (!(root instanceof HTMLElement)) return
-
-  root.classList.remove('collapse-open', 'collapse-close')
-  root.classList.add(getStateClass(open, force))
-
-  const input = getDirectAccordionInput(root)
-  if (input && input.checked !== open) {
-    input.checked = open
-  }
-
-  const title = getDirectAccordionTitle(root)
-  if (title) {
-    title.setAttribute('aria-expanded', open ? 'true' : 'false')
-  }
-}
 
 /** 构建 Group Next Keys 的内部工具函数。 */
 const buildGroupNextKeys = (
@@ -286,9 +241,9 @@ const buildGroupNextKeys = (
 const isRadioInput = (input: HTMLInputElement | null | undefined) => input?.type === 'radio'
 
 /** 渲染 Header Body 的内部工具函数。 */
-const renderHeaderBody = (item: AccordionDataItem) => {
+const RenderHeaderBody = ({ arg0: item }: { arg0: AccordionDataItem }) => {
   if (item.description == null && item.extra == null) {
-    return item.title
+    return <>{item.title}</>
   }
 
   return (
@@ -352,6 +307,20 @@ const Accordion: FC<AccordionProps> = ({
     ),
   )
   const groupName = name ?? generatedName
+  const groupMember = {}
+  onMounted(() => {
+    const members = radioGroups.get(groupName) ?? new Set<(source: object) => void>()
+    const closeSibling = (source: object) => {
+      if (source !== groupMember && open === undefined && !force)
+        uncontrolledSingleOpen.value = false
+    }
+    members.add(closeSibling)
+    radioGroups.set(groupName, members)
+    onUnmounted(() => {
+      members.delete(closeSibling)
+      if (!members.size) radioGroups.delete(groupName)
+    })
+  })
   const hasItems = normalizedItems.length > 0
   const isGroupControlled = openKeys !== undefined || activeKey !== undefined
   const getCurrentSingleOpen = () => {
@@ -404,46 +373,6 @@ const Accordion: FC<AccordionProps> = ({
     return wrapperClassName
   }
 
-  const syncItemsDom = (nextOpenKeys: ReadonlyArray<AccordionItemKey>, source?: Element | null) => {
-    getAccordionGroupRoots(groupName, source).forEach(root => {
-      const itemIndex = Number(root.dataset.rueAccordionIndex ?? -1)
-      const item = normalizedItems[itemIndex]
-
-      if (!item) return
-
-      const itemForce = item.force ?? force
-      const itemOpen =
-        itemForce === 'open'
-          ? true
-          : itemForce === 'close'
-            ? false
-            : nextOpenKeys.some(key => key === item.key)
-
-      if (root instanceof HTMLDetailsElement && root.open !== itemOpen) {
-        root.open = itemOpen
-      }
-
-      syncAccordionPanelVisualState(root, itemOpen, itemForce)
-    })
-  }
-
-  const syncSingleDom = (source?: Element | null) => {
-    getAccordionGroupRoots(groupName, source).forEach(root => {
-      const panelForce = (root.dataset.rueAccordionForce as AccordionForce | undefined) ?? force
-      const input = getDirectAccordionInput(root)
-      const itemOpen =
-        panelForce === 'open'
-          ? true
-          : panelForce === 'close'
-            ? false
-            : root instanceof HTMLDetailsElement
-              ? root.open
-              : input?.checked === true
-
-      syncAccordionPanelVisualState(root, itemOpen, panelForce)
-    })
-  }
-
   const commitGroupChange = (
     item: NormalizedAccordionItem,
     shouldOpen: boolean,
@@ -465,7 +394,6 @@ const Accordion: FC<AccordionProps> = ({
       if (!isSameKeyList(uncontrolledGroupOpenKeys.value, nextOpenKeys)) {
         uncontrolledGroupOpenKeys.value = nextOpenKeys
       }
-      syncItemsDom(nextOpenKeys, source)
     }
 
     if (onChange) {
@@ -484,8 +412,8 @@ const Accordion: FC<AccordionProps> = ({
       if (uncontrolledSingleOpen.value !== shouldOpen) {
         uncontrolledSingleOpen.value = shouldOpen
       }
-      syncSingleDom(source)
     }
+    if (shouldOpen) radioGroups.get(groupName)?.forEach(closeSibling => closeSibling(groupMember))
     if (onToggle) {
       onToggle(shouldOpen, {
         key: groupName,
@@ -533,7 +461,7 @@ const Accordion: FC<AccordionProps> = ({
                     commitGroupChange(item, !getItemOpen(item), event.currentTarget as Element)
                   }}
                 >
-                  {renderHeaderBody(item)}
+                  <RenderHeaderBody arg0={item} />
                 </summary>
                 <div className={mergedContentClassName}>{item.content}</div>
               </details>
@@ -572,7 +500,7 @@ const Accordion: FC<AccordionProps> = ({
                 className={mergedTitleClassName}
                 aria-expanded={getItemOpen(item) ? 'true' : 'false'}
               >
-                {renderHeaderBody(item)}
+                <RenderHeaderBody arg0={item} />
               </div>
               <div className={mergedContentClassName}>{item.content}</div>
             </div>

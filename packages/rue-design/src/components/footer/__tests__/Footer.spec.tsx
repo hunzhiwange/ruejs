@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { render } from '@rue-js/rue'
@@ -12,13 +13,15 @@ afterEach(() => {
 describe('Footer', () => {
   it('renders with base class and children', async () => {
     const c = document.createElement('div')
-    render(
-      <Footer>
-        <nav>
-          <h6 className={'footer-title'}>{'Title'}</h6>
-        </nav>
-      </Footer>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Footer>
+          <nav>
+            <h6 className={'footer-title'}>{'Title'}</h6>
+          </nav>
+        </Footer>,
+        c,
+      ),
     )
     await waitFooterRender()
     const el = c.querySelector('footer') as HTMLElement
@@ -31,12 +34,12 @@ describe('Footer', () => {
 
   it('applies direction classes', async () => {
     const c = document.createElement('div')
-    render(<Footer direction={'vertical'}>{'x'}</Footer>, c)
+    mountTestApp(c, () => render(<Footer direction={'vertical'}>{'x'}</Footer>, c))
     await waitFooterRender()
     let el = c.querySelector('footer') as HTMLElement
     expect(el.classList.contains('footer-vertical')).toBe(true)
 
-    render(<Footer direction={'horizontal'}>{'x'}</Footer>, c)
+    mountTestApp(c, () => render(<Footer direction={'horizontal'}>{'x'}</Footer>, c))
     await waitFooterRender()
     el = c.querySelector('footer') as HTMLElement
     expect(el.classList.contains('footer-horizontal')).toBe(true)
@@ -44,7 +47,7 @@ describe('Footer', () => {
 
   it('applies center class', async () => {
     const c = document.createElement('div')
-    render(<Footer center={true}>{'x'}</Footer>, c)
+    mountTestApp(c, () => render(<Footer center={true}>{'x'}</Footer>, c))
     await waitFooterRender()
     const el = c.querySelector('footer') as HTMLElement
     expect(el.classList.contains('footer-center')).toBe(true)
@@ -52,7 +55,9 @@ describe('Footer', () => {
 
   it('appends custom className', async () => {
     const c = document.createElement('div')
-    render(<Footer className={'p-10 bg-neutral text-neutral-content'}>{'x'}</Footer>, c)
+    mountTestApp(c, () =>
+      render(<Footer className={'p-10 bg-neutral text-neutral-content'}>{'x'}</Footer>, c),
+    )
     await waitFooterRender()
     const el = c.querySelector('footer') as HTMLElement
     expect(el.classList.contains('p-10')).toBe(true)
@@ -61,18 +66,20 @@ describe('Footer', () => {
 
   it('renders structured brand and sections', async () => {
     const c = document.createElement('div')
-    render(
-      <Footer
-        brand={<p>{'Rue'}</p>}
-        sections={[
-          {
-            key: 'product',
-            title: 'Product',
-            items: [{ label: 'Overview' }, { label: 'Pricing' }],
-          },
-        ]}
-      />,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Footer
+          brand="Rue"
+          sections={[
+            {
+              key: 'product',
+              title: 'Product',
+              items: [{ label: 'Overview' }, { label: 'Pricing' }],
+            },
+          ]}
+        />,
+        c,
+      ),
     )
     await waitFooterRender()
 
@@ -84,11 +91,13 @@ describe('Footer', () => {
 
   it('renders footer link as anchor when href is provided', async () => {
     const c = document.createElement('div')
-    render(
-      <Footer.Link href={'/docs'} target={'_blank'}>
-        {'Docs'}
-      </Footer.Link>,
-      c,
+    mountTestApp(c, () =>
+      render(
+        <Footer.Link href={'/docs'} target={'_blank'}>
+          {'Docs'}
+        </Footer.Link>,
+        c,
+      ),
     )
     await waitFooterRender()
 

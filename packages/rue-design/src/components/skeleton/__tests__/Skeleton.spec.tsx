@@ -1,3 +1,4 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Skeleton from '../index'
@@ -18,7 +19,9 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Skeleton className="h-32 w-32" data-testid="skeleton-root" />, container)
+    mountTestApp(container, () =>
+      render(<Skeleton className="h-32 w-32" data-testid="skeleton-root" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="skeleton-root"]') as HTMLElement
@@ -32,11 +35,13 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Skeleton as="span" text data-testid="skeleton-text">
-        Loading text
-      </Skeleton>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Skeleton as="span" text data-testid="skeleton-text">
+          Loading text
+        </Skeleton>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -52,7 +57,9 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Skeleton aria-label="loading" data-testid="skeleton-attrs" />, container)
+    mountTestApp(container, () =>
+      render(<Skeleton aria-label="loading" data-testid="skeleton-attrs" />, container),
+    )
 
     await waitForContent(() => {
       const element = container.querySelector('[data-testid="skeleton-attrs"]') as HTMLElement
@@ -64,9 +71,11 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Skeleton avatar active paragraph={{ rows: 4 }} data-testid="skeleton-composite" />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Skeleton avatar active paragraph={{ rows: 4 }} data-testid="skeleton-composite" />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -82,11 +91,13 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Skeleton loading={false} avatar>
-        <div data-testid="skeleton-content">Loaded content</div>
-      </Skeleton>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Skeleton loading={false} avatar>
+          <div data-testid="skeleton-content">Loaded content</div>
+        </Skeleton>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -101,28 +112,30 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Skeleton
-        avatar
-        title={{ width: '40%' }}
-        paragraph={{ rows: 2, width: ['100%', '68%'] }}
-        rootClassName="overflow-hidden"
-        classNames={{
-          root: 'border',
-          header: 'pt-1',
-          section: 'gap-4',
-          avatar: 'ring-1',
-          title: 'bg-primary/20',
-          paragraph: 'pb-1',
-        }}
-        styles={{
-          root: { paddingInline: '12px' },
-          title: { height: '20px' },
-          paragraph: { paddingTop: '4px' },
-        }}
-        data-testid="skeleton-semantic"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Skeleton
+          avatar
+          title={{ width: '40%' }}
+          paragraph={{ rows: 2, width: ['100%', '68%'] }}
+          rootClassName="overflow-hidden"
+          classNames={{
+            root: 'border',
+            header: 'pt-1',
+            section: 'gap-4',
+            avatar: 'ring-1',
+            title: 'bg-primary/20',
+            paragraph: 'pb-1',
+          }}
+          styles={{
+            root: { paddingInline: '12px' },
+            title: { height: '20px' },
+            paragraph: { paddingTop: '4px' },
+          }}
+          data-testid="skeleton-semantic"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -150,15 +163,17 @@ describe('Skeleton', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Skeleton.Avatar data-testid="skeleton-avatar" shape="square" size="lg" />
-        <Skeleton.Button data-testid="skeleton-button" shape="circle" />
-        <Skeleton.Input data-testid="skeleton-input" block />
-        <Skeleton.Image data-testid="skeleton-image" aspect="square" />
-        <Skeleton.Node data-testid="skeleton-node">Node</Skeleton.Node>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Skeleton.Avatar data-testid="skeleton-avatar" shape="square" size="lg" />
+          <Skeleton.Button data-testid="skeleton-button" shape="circle" />
+          <Skeleton.Input data-testid="skeleton-input" block />
+          <Skeleton.Image data-testid="skeleton-image" aspect="square" />
+          <Skeleton.Node data-testid="skeleton-node">Node</Skeleton.Node>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -189,7 +204,7 @@ describe('Skeleton', () => {
       </Skeleton.Node>
     )
 
-    render(<Demo />, container)
+    mountTestApp(container, () => render(<Demo />, container))
 
     await waitForContent(() => {
       const node = container.querySelector('[data-testid="skeleton-node-toggle"]') as HTMLElement
@@ -222,13 +237,15 @@ describe('Skeleton', () => {
     const active = ref(true)
     const aspect = ref<'video' | 'square'>('video')
 
-    render(
-      <Skeleton.Image
-        active={() => active.value}
-        aspect={() => aspect.value}
-        data-testid="skeleton-image-toggle"
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Skeleton.Image
+          active={() => active.value}
+          aspect={() => aspect.value}
+          data-testid="skeleton-image-toggle"
+        />,
+        container,
+      ),
     )
 
     await waitForContent(() => {

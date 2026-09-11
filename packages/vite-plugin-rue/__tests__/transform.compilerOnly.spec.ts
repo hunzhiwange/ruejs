@@ -50,7 +50,9 @@ const invokeTransform = async (
 }
 
 const expectClosedCompiledAbi = (code: string) => {
-  expect(code).toMatch(/from\s*["']@rue-js\/rue\/internal(?:\/(?:compiler|component))?["']/)
+  expect(code).toMatch(
+    /from\s*["']@rue-js\/rue\/internal\/(?:dom|reactive|block|component|list|events)["']/,
+  )
   expect(code).not.toContain('@rue-js/runtime-vapor')
   expect(code).not.toContain('@rue-js/rue/vapor')
   expect(code).not.toContain('@rue-js/rue/compiled')
@@ -62,7 +64,7 @@ describe('vite-plugin-rue compiler-only JSX contract', () => {
   it('keeps benchmark-shaped compiled setup on the compiled runtime entry', async () => {
     const code = await compileRueStatic(
       `
-        import { signal } from '@rue-js/rue/internal/compiler'
+        import { signal } from '@rue-js/rue/internal/reactive'
         const initialRows = [{ id: 1, label: 'one' }, { id: 2, label: 'two' }]
         export const App = () => {
           const rows = signal(initialRows)
@@ -81,7 +83,7 @@ describe('vite-plugin-rue compiler-only JSX contract', () => {
     expect(code).toContain('_$compiledRoot(')
     expect(code).toContain('_$reconcileKeyedSingle(')
     expectClosedCompiledAbi(code)
-    expect(code).toMatch(/from\s*["']@rue-js\/rue\/internal\/compiler["']/)
+    expect(code).toMatch(/from\s*["']@rue-js\/rue\/internal\/reactive["']/)
     expect(code).not.toMatch(/from\s*["']@rue-js\/rue\/internal["']/)
   })
 
@@ -166,10 +168,11 @@ describe('vite-plugin-rue compiler-only JSX contract', () => {
   it('compiles component JSX in non-return expression containers', async () => {
     const code = await compileRueStatic(
       `
+        import Card from './Card'
         const moduleNode = <main>module</main>
         const record = { node: <aside>field</aside> }
         function render(node = <header>default</header>) {
-          const nested = () => () => <UI.Card>nested</UI.Card>
+          const nested = () => () => <Card>nested</Card>
           return [node, nested()]
         }
       `,
@@ -252,8 +255,8 @@ describe('vite-plugin-rue compiler-only JSX contract', () => {
     )
     const code = String((result as any)?.code ?? result)
 
-    expect(code).toContain('@rue-js/server-renderer')
-    expect(code).toContain('_$serverElement')
-    expect(code).not.toContain('@rue-js/rue/internal')
+    expect(code).toContain('@rue-js/rue/internal/ssr')
+    expect(code).toContain('_$writeElement')
+    expect(code).not.toMatch(/from\s*["']@rue-js\/rue\/internal["']/)
   })
 })

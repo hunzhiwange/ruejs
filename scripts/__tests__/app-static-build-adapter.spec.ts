@@ -14,6 +14,7 @@ import {
   createDocRouteSourceMap,
   createRouteHtml,
   cleanupAppStaticBuildTempDirs,
+  extractStaticAppRouteInfo,
   isProcessAlive,
   runAppStaticRouteStage,
 } from '../app-static-build.mjs'
@@ -40,6 +41,20 @@ afterEach(async () => {
 })
 
 describe('app static build adapter', () => {
+  it('extracts only concrete absolute application routes for client snapshots', () => {
+    const result = extractStaticAppRouteInfo(`
+      const routes = [
+        { path: '/', component: Home },
+        { path: '/design/button', component: Button },
+        { path: '/guide/:path(.*)', component: Guide },
+        { path: 'child', component: Child },
+      ]
+    `)
+
+    expect(result.staticRoutes).toEqual(['/', '/design/button'])
+    expect([...result.appClientRoutes]).toEqual(['/', '/design/button'])
+  })
+
   it('reports the route-stage start and every completed route', () => {
     const lines: string[] = []
     const reportProgress = createAppStaticRouteProgressReporter({

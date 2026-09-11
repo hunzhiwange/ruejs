@@ -227,7 +227,7 @@ const Toggle: FC<ToggleProps> = ({
     onCheckedChange?.(nextChecked, event)
   }
 
-  const inputNode = (
+  const InputNodeView = () => (
     <input
       {...rest}
       type="checkbox"
@@ -247,12 +247,12 @@ const Toggle: FC<ToggleProps> = ({
   )
 
   if (!needsWrapper) {
-    return inputNode
+    return <InputNodeView />
   }
 
-  const switchNode = (
+  const SwitchNodeView = () => (
     <span className="relative inline-flex shrink-0 items-center justify-center">
-      {inputNode}
+      <InputNodeView />
       {loading ? (
         <span className="pointer-events-none absolute inset-0 inline-flex items-center justify-center text-base-content/70">
           <span className={`loading loading-spinner ${resolveLoadingSizeClass(size)}`.trim()} />
@@ -267,14 +267,14 @@ const Toggle: FC<ToggleProps> = ({
         className={appendClassName('inline-flex align-middle', rootClassName)}
         style={rootStyle}
       >
-        {switchNode}
+        <SwitchNodeView />
       </span>
     )
   }
 
   return (
     <label className={buildRootClassName(mergedDisabled, rootClassName)} style={rootStyle}>
-      {switchNode}
+      <SwitchNodeView />
       <span className={buildContentClassName(contentClassName)}>
         {children != null ? (
           <span className="text-sm font-medium text-base-content">{children}</span>

@@ -1,5 +1,6 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 import MockupWindow from '..'
 
@@ -18,11 +19,13 @@ describe('MockupWindow', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupWindow className="w-full border border-base-300" data-testid="window-root">
-        <div>Hello!</div>
-      </MockupWindow>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupWindow className="w-full border border-base-300" data-testid="window-root">
+          <div>Hello!</div>
+        </MockupWindow>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -38,11 +41,13 @@ describe('MockupWindow', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupWindow id="window-shell" aria-label="mock window">
-        <div className="grid h-80 place-content-center">Dashboard</div>
-      </MockupWindow>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupWindow id="window-shell" aria-label="mock window">
+          <div className="grid h-80 place-content-center">Dashboard</div>
+        </MockupWindow>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -57,20 +62,26 @@ describe('MockupWindow', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupWindow
-        bordered
-        background
-        title="Deployment Preview"
-        description="Generated with structured props"
-        toolbar={<button type="button">Share</button>}
-        actions={<button type="button">Publish</button>}
-        bodyClassName="grid gap-4"
-        data-testid="window-structured"
-      >
-        <div>Panel content</div>
-      </MockupWindow>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupWindow
+          bordered
+          background
+          title="Deployment Preview"
+          description="Generated with structured props"
+          bodyClassName="grid gap-4"
+          data-testid="window-structured"
+        >
+          <Template slot="toolbar">
+            <button type="button">Share</button>
+          </Template>
+          <Template slot="actions">
+            <button type="button">Publish</button>
+          </Template>
+          <div>Panel content</div>
+        </MockupWindow>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -95,25 +106,25 @@ describe('MockupWindow', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <MockupWindow className="w-full">
-        <MockupWindow.Header
-          title="Analytics Snapshot"
-          description="Custom layout"
-          extra={
-            <MockupWindow.Toolbar>
-              <button type="button">Filter</button>
-            </MockupWindow.Toolbar>
-          }
-        />
-        <MockupWindow.Body padding="lg">
-          <div>Views 128k</div>
-        </MockupWindow.Body>
-        <MockupWindow.Actions>
-          <button type="button">Open report</button>
-        </MockupWindow.Actions>
-      </MockupWindow>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <MockupWindow className="w-full">
+          <MockupWindow.Header title="Analytics Snapshot" description="Custom layout">
+            <Template slot="extra">
+              <MockupWindow.Toolbar>
+                <button type="button">Filter</button>
+              </MockupWindow.Toolbar>
+            </Template>
+          </MockupWindow.Header>
+          <MockupWindow.Body padding="lg">
+            <div>Views 128k</div>
+          </MockupWindow.Body>
+          <MockupWindow.Actions>
+            <button type="button">Open report</button>
+          </MockupWindow.Actions>
+        </MockupWindow>,
+        container,
+      ),
     )
 
     await waitForContent(() => {

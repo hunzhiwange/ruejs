@@ -1,5 +1,8 @@
+import type { BlockFactory } from '@rue-js/rue/internal/block'
+import { _$compiledComponent } from '@rue-js/rue/internal/component'
 import { createContext, ref, useRef, useContext, type FC } from '@rue-js/rue'
-import { useSetup } from '@rue-js/rue/internal'
+import { useSetup } from '@rue-js/rue/internal/reactive'
+import { getCurrentAppTarget, provideContext } from '@rue-js/rue/internal/app'
 
 type Awaitable<T> = T | Promise<T>
 
@@ -899,8 +902,11 @@ export const createI18n = (options: ComposerOptions = {}): I18n => {
     global,
     install() {
       // Rue 的安装逻辑保持轻量：记录全局 composer 后，useI18n() 即可解析到它。
-      activeI18n = i18n
-      activeComposer = global
+      if (getCurrentAppTarget()) provideContext(I18nContext, () => global)
+      else {
+        activeI18n = i18n
+        activeComposer = global
+      }
     },
   }
 
@@ -923,7 +929,10 @@ export const I18nProvider: FC<I18nProviderProps> = props => {
 
   const composer = props.composer ?? props.i18n?.global ?? localComposer
 
-  return <I18nContext.Provider value={composer}>{props.children as any}</I18nContext.Provider>
+  return _$compiledComponent(I18nContext.Provider, () => ({
+    value: composer,
+    children: props.children as BlockFactory<any> | undefined,
+  })) as any
 }
 
 /**

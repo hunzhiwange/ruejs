@@ -1,6 +1,6 @@
 /*
 Breadcrumbs 组件概述
-- 推荐使用 items：补齐 path/params、itemRender、menu 与自定义 separator 等能力。
+- 推荐使用 items：补齐 path/params、itemFormatter、menu 与自定义 separator 等能力。
 - 保留 children 形式：继续兼容现有 Breadcrumbs.Item 组合写法，不破坏旧 demo。
 - 视觉沿用 Rue 当前的箭头分隔风格，仅在 items 模式切换为可控的手动分隔符渲染。
 */
@@ -66,7 +66,8 @@ export interface BreadcrumbsRouteItem {
   /** path 配置项。 */
   path?: string
   /** 图标内容。 */
-  icon?: any
+  icon?: string | { path: string }
+  iconClassName?: string
   /** 根节点附加类名。 */
   className?: string
   /** linkClassName 附加类名。 */
@@ -114,14 +115,16 @@ export interface BreadcrumbsProps {
   params?: BreadcrumbsParams
   /** dropdownIcon 图标内容。 */
   dropdownIcon?: any
-  /** itemRender 自定义渲染函数。 */
-  itemRender?: (
+  /** itemFormatter 自定义渲染函数。 */
+  itemFormatter?: (
     route: BreadcrumbsRouteItem,
     params: BreadcrumbsParams,
     routes: ReadonlyArray<BreadcrumbsRouteItem>,
     paths: string[],
     href?: string,
   ) => any
+  /** Compatibility spelling used by data-driven breadcrumb APIs. */
+  itemRender?: BreadcrumbsProps['itemFormatter']
 }
 
 /** BreadcrumbsItemProps 组件属性。 */
@@ -131,12 +134,6 @@ export interface BreadcrumbsItemProps extends BreadcrumbsRouteItem {
 }
 
 /** normalize Children 的内部工具函数。 */
-const _normalizeChildren = (children?: any) => {
-  if (Array.isArray(children)) {
-    return children
-  }
-  return children != null ? [children] : []
-}
 
 /** merge Class Name 的内部工具函数。 */
 const mergeClassName = (base?: string, className?: string) => {
@@ -208,9 +205,6 @@ const preventWhenDisabled = (disabled?: boolean, onClick?: (event: MouseEvent) =
 }
 
 /** Default Separator 的内部工具函数。 */
-const DefaultSeparator: FC = () => {
-  return <span className="inline-block h-1.5 w-1.5 rotate-45 border-t border-r border-current" />
-}
 
 /** Default Dropdown Icon 的内部工具函数。 */
 const DefaultDropdownIcon: FC = () => {
@@ -230,88 +224,94 @@ const DefaultDropdownIcon: FC = () => {
 }
 
 /** 渲染 Menu Trigger 的内部工具函数。 */
+const BreadcrumbText: FC<{ value: string }> = ({ value }) => <span>{String(value)}</span>
+
 const MenuTrigger: FC<{
   menu?: BreadcrumbsMenu
   dropdownIcon?: any
   title: any
   children?: any
 }> = ({ menu, dropdownIcon, title, children }) => {
+  const CompiledRow1 = ({ rowArg0, rowArg1 }: { rowArg0: any; rowArg1: any }) => {
+    const menuItem = rowArg0
+    const index = rowArg1
+
+    const menuTitle = resolveItemTitle(menuItem)
+    const handleClick = preventWhenDisabled(menuItem.disabled, menuItem.onClick)
+    const className = menuItem.className ?? undefined
+
+    if (menuItem.href && !menuItem.disabled) {
+      return (
+        <li key={menuItem.key ?? index}>
+          <a
+            className={className}
+            href={menuItem.href}
+            target={menuItem.target}
+            rel={resolveLinkRel(menuItem.target, menuItem.rel)}
+            onClick={menuItem.onClick ? handleClick : undefined}
+          >
+            <BreadcrumbText value={String(menuTitle)} />
+          </a>
+        </li>
+      )
+    }
+
+    if (!menuItem.disabled && menuItem.onClick) {
+      return (
+        <li key={menuItem.key ?? index}>
+          <button className={className} type="button" onClick={handleClick}>
+            <BreadcrumbText value={String(menuTitle)} />
+          </button>
+        </li>
+      )
+    }
+
+    return (
+      <li key={menuItem.key ?? index}>
+        <span
+          className={mergeClassName(
+            menuItem.disabled ? 'cursor-not-allowed opacity-50' : undefined,
+            className,
+          )}
+        >
+          <BreadcrumbText value={String(menuTitle)} />
+        </span>
+      </li>
+    )
+  }
+
   if (!menu?.items || menu.items.length === 0) {
-    return null
+    return <></>
   }
 
   const triggerLabel = typeof title === 'string' && title ? `打开 ${title} 菜单` : '打开路径菜单'
 
   return (
-    <Dropdown
-      align={menu.align}
-      direction={menu.direction}
-      className={mergeClassName('ms-1', menu.className)}
-    >
-      <Dropdown.Trigger
+    <details className={mergeClassName('dropdown ms-1', menu.className)}>
+      <summary
         className="inline-flex items-center justify-center rounded-full text-base-content/60 outline-none transition-colors hover:text-base-content"
         aria-label={triggerLabel}
       >
         {children != null ? (
           <span style={{ display: 'contents' }}>{children}</span>
+        ) : dropdownIcon != null ? (
+          <span data-rue-breadcrumb-dropdown-icon="true">{String(dropdownIcon)}</span>
         ) : (
-          (dropdownIcon ?? <DefaultDropdownIcon />)
+          <DefaultDropdownIcon />
         )}
-      </Dropdown.Trigger>
-      <Dropdown.Content
-        as="ul"
+      </summary>
+      <ul
         tabIndex={-1}
         className={mergeClassName(
-          'menu z-1 mt-2 min-w-40 rounded-box border border-base-300/60 bg-base-100 p-2 shadow-sm',
+          'dropdown-content menu z-1 mt-2 min-w-40 rounded-box border border-base-300/60 bg-base-100 p-2 shadow-sm',
           menu.contentClassName,
         )}
       >
-        {menu.items.map((menuItem, index) => {
-          const menuTitle = resolveItemTitle(menuItem)
-          const handleClick = preventWhenDisabled(menuItem.disabled, menuItem.onClick)
-          const className = menuItem.className ?? undefined
-
-          if (menuItem.href && !menuItem.disabled) {
-            return (
-              <li key={menuItem.key ?? index}>
-                <a
-                  className={className}
-                  href={menuItem.href}
-                  target={menuItem.target}
-                  rel={resolveLinkRel(menuItem.target, menuItem.rel)}
-                  onClick={menuItem.onClick ? handleClick : undefined}
-                >
-                  {menuTitle}
-                </a>
-              </li>
-            )
-          }
-
-          if (!menuItem.disabled && menuItem.onClick) {
-            return (
-              <li key={menuItem.key ?? index}>
-                <button className={className} type="button" onClick={handleClick}>
-                  {menuTitle}
-                </button>
-              </li>
-            )
-          }
-
-          return (
-            <li key={menuItem.key ?? index}>
-              <span
-                className={mergeClassName(
-                  menuItem.disabled ? 'cursor-not-allowed opacity-50' : undefined,
-                  className,
-                )}
-              >
-                {menuTitle}
-              </span>
-            </li>
-          )
-        })}
-      </Dropdown.Content>
-    </Dropdown>
+        {menu.items.map((rowArg0: any, rowArg1: number) => (
+          <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+        ))}
+      </ul>
+    </details>
   )
 }
 
@@ -324,7 +324,7 @@ interface RenderItemContentOptions {
   routes: ReadonlyArray<BreadcrumbsRouteItem>
   paths: string[]
   dropdownIcon?: any
-  itemRender?: BreadcrumbsProps['itemRender']
+  itemFormatter?: BreadcrumbsProps['itemFormatter']
   fallbackChildren?: any
 }
 
@@ -387,7 +387,7 @@ const buildRenderableItems = (
 }
 
 /** 渲染 Item Content 的内部工具函数。 */
-const renderItemContent = ({
+const RenderItemContent = ({
   item,
   href,
   isLast,
@@ -396,36 +396,37 @@ const renderItemContent = ({
   routes,
   paths,
   dropdownIcon,
-  itemRender,
+  itemFormatter,
   fallbackChildren,
 }: RenderItemContentOptions) => {
-  const title = resolveItemTitle(item, fallbackChildren)
+  const title = itemFormatter
+    ? itemFormatter(item, params, routes, paths, href)
+    : resolveItemTitle(item)
+  const readFallbackSlot = () => fallbackChildren
   const isCurrent = item.current ?? (allowAutoCurrent && isLast && !href)
   const handleClick = preventWhenDisabled(item.disabled, item.onClick)
 
-  if (itemRender) {
-    return (
-      <>
-        {itemRender(item, params, routes, paths, href)}
-        <MenuTrigger menu={item.menu} title={title}>
-          {dropdownIcon}
-        </MenuTrigger>
-      </>
-    )
-  }
-
-  const content = (
-    <>
+  const ContentView = () => (
+    <span className="inline-flex items-center gap-1">
       {item.icon ? (
         <span
-          className="inline-flex shrink-0 items-center justify-center"
+          className={mergeClassName(
+            'inline-flex shrink-0 items-center justify-center',
+            item.iconClassName,
+          )}
           aria-hidden={title != null ? 'true' : undefined}
         >
-          {item.icon}
+          {typeof item.icon === 'object' ? (
+            <svg viewBox="0 0 24 24">
+              <path d={item.icon.path} />
+            </svg>
+          ) : (
+            <span>{String(item.icon)}</span>
+          )}
         </span>
       ) : null}
-      {title}
-    </>
+      {title != null ? <span>{String(title)}</span> : <>{readFallbackSlot()}</>}
+    </span>
   )
 
   const contentClassName =
@@ -448,11 +449,9 @@ const renderItemContent = ({
           rel={resolveLinkRel(item.target, item.rel)}
           onClick={item.onClick ? handleClick : undefined}
         >
-          {content}
+          <ContentView />
         </a>
-        <MenuTrigger menu={item.menu} title={title}>
-          {dropdownIcon}
-        </MenuTrigger>
+        <MenuTrigger menu={item.menu} title={title} dropdownIcon={dropdownIcon} />
       </>
     )
   }
@@ -461,11 +460,9 @@ const renderItemContent = ({
     return (
       <>
         <button className={contentClassName} type="button" onClick={handleClick}>
-          {content}
+          <ContentView />
         </button>
-        <MenuTrigger menu={item.menu} title={title}>
-          {dropdownIcon}
-        </MenuTrigger>
+        <MenuTrigger menu={item.menu} title={title} dropdownIcon={dropdownIcon} />
       </>
     )
   }
@@ -473,11 +470,9 @@ const renderItemContent = ({
   return (
     <>
       <span className={contentClassName} aria-current={isCurrent ? 'page' : undefined}>
-        {content}
+        <ContentView />
       </span>
-      <MenuTrigger menu={item.menu} title={title}>
-        {dropdownIcon}
-      </MenuTrigger>
+      <MenuTrigger menu={item.menu} title={title} dropdownIcon={dropdownIcon} />
     </>
   )
 }
@@ -491,17 +486,46 @@ const Breadcrumbs: FC<BreadcrumbsProps> = ({
   separator,
   params = {},
   dropdownIcon,
-  itemRender,
+  itemFormatter,
 }) => {
   const mergedItems = items && items.length ? items : routes
   let cls = 'breadcrumbs'
+  const readItemContext = () => ({ params, dropdownIcon, itemFormatter })
   if (mergedItems && mergedItems.length) {
     cls += ' [&>ul>li+li]:before:hidden'
   }
   if (className) cls += ` ${className}`
 
   if (mergedItems && mergedItems.length) {
-    const resolvedSeparator = separator ?? <DefaultSeparator />
+    const CompiledRow2 = ({ rowArg0 }: { rowArg0: any }) => {
+      const { item, index, href, isLast, separatorBefore, paths } = rowArg0
+
+      return (
+        <li className={item.className ?? undefined} key={item.key ?? index}>
+          {separatorBefore !== undefined ? (
+            <span
+              className="pointer-events-none inline-flex shrink-0 items-center justify-center ms-2 me-3 text-base-content/40"
+              aria-hidden="true"
+            >
+              {String(separatorBefore)}
+            </span>
+          ) : null}
+          <RenderItemContent
+            {...{
+              item,
+              href,
+              isLast,
+              allowAutoCurrent: true,
+              ...readItemContext(),
+              routes: routeItems,
+              paths,
+            }}
+          />
+        </li>
+      )
+    }
+
+    const resolvedSeparator = separator ?? '›'
     const { routeItems, renderableItems } = buildRenderableItems(
       mergedItems,
       params,
@@ -511,41 +535,17 @@ const Breadcrumbs: FC<BreadcrumbsProps> = ({
     return (
       <div className={cls}>
         <ul>
-          {renderableItems.map(({ item, index, href, isLast, separatorBefore, paths }) => {
-            return (
-              <li className={item.className ?? undefined} key={item.key ?? index}>
-                {separatorBefore !== undefined ? (
-                  <span
-                    className="pointer-events-none inline-flex shrink-0 items-center justify-center ms-2 me-3 text-base-content/40"
-                    aria-hidden="true"
-                  >
-                    {separatorBefore}
-                  </span>
-                ) : null}
-                {renderItemContent({
-                  item,
-                  href,
-                  isLast,
-                  allowAutoCurrent: true,
-                  params,
-                  routes: routeItems,
-                  paths,
-                  dropdownIcon,
-                  itemRender,
-                })}
-              </li>
-            )
-          })}
+          {renderableItems.map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow2 rowArg0={rowArg0} />
+          ))}
         </ul>
       </div>
     )
   }
 
-  const childNodes = _normalizeChildren(children)
-
   return (
     <div className={cls}>
-      <ul>{childNodes.map(child => child)}</ul>
+      <ul>{children}</ul>
     </div>
   )
 }
@@ -554,16 +554,18 @@ const Breadcrumbs: FC<BreadcrumbsProps> = ({
 const Item: FC<BreadcrumbsItemProps> = ({ className, children, ...rest }) => {
   return (
     <li className={className ?? undefined}>
-      {renderItemContent({
-        item: rest,
-        href: rest.href,
-        isLast: false,
-        allowAutoCurrent: false,
-        params: {},
-        routes: [rest],
-        paths: [],
-        fallbackChildren: children,
-      })}
+      <RenderItemContent
+        {...{
+          item: rest,
+          href: rest.href,
+          isLast: false,
+          allowAutoCurrent: false,
+          params: {},
+          routes: [rest],
+          paths: [],
+          fallbackChildren: children,
+        }}
+      />
     </li>
   )
 }

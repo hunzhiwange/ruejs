@@ -34,9 +34,6 @@ export interface StepsProgressDotInfo {
   content?: any
 }
 
-/** StepsProgressDotRender 自定义渲染函数类型。 */
-export type StepsProgressDotRender = (iconDot: any, info: StepsProgressDotInfo) => any
-
 /** StepSharedProps 组件属性。 */
 export interface StepSharedProps {
   /** 组件语义色。 */
@@ -94,7 +91,9 @@ export interface StepsProps {
   /** 组件状态。 */
   status?: StepStatus
   /** progressDot 配置项。 */
-  progressDot?: boolean | StepsProgressDotRender
+  progressDot?:
+    | boolean
+    | ((dot: any, info: { index: number; status: StepStatus; title?: any }) => any)
   /** 值或状态变化时触发的回调。 */
   onChange?: (current: number) => void
   /** 允许透传原生属性或扩展字段。 */
@@ -130,12 +129,6 @@ const joinClassName = (...values: Array<string | undefined | false>) =>
   values.filter(Boolean).join(' ')
 
 /** 转换为 Child Array 的内部工具函数。 */
-const toChildArray = (children: any): any[] => {
-  if (Array.isArray(children)) {
-    return children.flatMap(item => toChildArray(item))
-  }
-  return children == null || typeof children === 'boolean' ? [] : [children]
-}
 
 /** merge Class Name 的内部工具函数。 */
 const mergeClassName = (base: string, className?: string) =>
@@ -168,23 +161,8 @@ const preventEvent = (event: MouseEvent | KeyboardEvent) => {
 }
 
 /** Dot Icon 的内部工具函数。 */
-const DotIcon: FC<{ status?: StepStatus }> = ({ status }) => {
-  const cls =
-    status === 'wait'
-      ? 'inline-block size-2.5 rounded-full border border-base-300 bg-base-100'
-      : 'inline-block size-2.5 rounded-full bg-current'
-  return <span className={cls} />
-}
 
 /** 渲染 Progress Dot 的内部工具函数。 */
-const renderProgressDot = (progressDot: StepsProps['progressDot'], info: StepsProgressDotInfo) => {
-  if (!progressDot) return undefined
-  const dotNode = <DotIcon status={info.status} />
-  if (typeof progressDot === 'function') {
-    return progressDot(dotNode, info)
-  }
-  return dotNode
-}
 
 /** 解析 Item Status 的内部工具函数。 */
 const resolveItemStatus = (
@@ -201,14 +179,22 @@ const resolveItemStatus = (
 }
 
 /** 渲染 Tag 的内部工具函数。 */
-const renderTag = (as: any, props: Record<string, any>, children?: any) => {
-  const nextChildren = toChildArray(children)
-  return (
-    <Component is={as} {...props}>
-      {nextChildren}
-    </Component>
+const StepTag: FC<{ as?: string; attrs: Record<string, any>; children?: any }> = ({
+  as,
+  attrs,
+  children,
+}) =>
+  as === 'li' ? (
+    <li {...attrs}>{children}</li>
+  ) : as === 'ul' ? (
+    <ul {...attrs}>{children}</ul>
+  ) : as === 'button' ? (
+    <button {...attrs}>{children}</button>
+  ) : as === 'span' ? (
+    <span {...attrs}>{children}</span>
+  ) : (
+    <div {...attrs}>{children}</div>
   )
-}
 
 /** Step 的内部工具函数。 */
 const Step: FC<StepProps> = ({
@@ -220,6 +206,7 @@ const Step: FC<StepProps> = ({
   content,
   subTitle,
   icon,
+  progressDot,
   status,
   disabled,
   clickable,
@@ -237,7 +224,8 @@ const Step: FC<StepProps> = ({
   const resolvedColor = getStatusColor(status, color)
   const explicitDataContent = dataContent ?? rest['data-content']
   const resolvedDataContent = explicitDataContent ?? getDefaultDataContent(status, icon != null)
-  const hasStructuredBody = title != null || detail != null || subTitle != null || icon != null
+  const hasStructuredBody =
+    progressDot || title != null || detail != null || subTitle != null || icon != null
   const ariaCurrent = rest['aria-current'] ?? (status === 'process' ? 'step' : undefined)
   const ariaDisabled = disabled ? 'true' : undefined
 
@@ -271,57 +259,80 @@ const Step: FC<StepProps> = ({
       }
     : rest.onKeyDown
   const clickHandler = interactive ? handleClick : rest.onClick
-  const body = hasStructuredBody ? (
-    <>
-      {icon != null ? (
-        <span
-          className={mergeClassName('step-icon', detail != null ? 'mt-0.5' : undefined)}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-      ) : null}
-      <span className="inline-flex min-w-0 flex-col gap-1 py-1 text-start">
-        {heading != null || subTitle != null ? (
-          <span className="flex flex-wrap items-center gap-2 leading-tight">
-            {heading != null ? <span className="font-medium">{heading}</span> : null}
-            {subTitle != null ? <span className="text-xs opacity-60">{subTitle}</span> : null}
+  const StepBody = () =>
+    hasStructuredBody ? (
+      <>
+        {progressDot || icon != null ? (
+          <span
+            className={mergeClassName('step-icon', detail != null ? 'mt-0.5' : undefined)}
+            aria-hidden="true"
+          >
+            {progressDot ? (
+              <span data-rue-step-dot={String(index)} className="h-2 w-2 rounded-full bg-current" />
+            ) : (
+              <span>{String(icon ?? '')}</span>
+            )}
           </span>
         ) : null}
-        {detail != null ? <span className="text-xs leading-snug opacity-70">{detail}</span> : null}
-      </span>
-    </>
-  ) : (
-    children
-  )
+        <span className="inline-flex min-w-0 flex-col gap-1 py-1 text-start">
+          {heading != null || subTitle != null ? (
+            <span className="flex flex-wrap items-center gap-2 leading-tight">
+              {heading != null ? (
+                <span className="font-medium">{String(heading ?? '')}</span>
+              ) : null}
+              {subTitle != null ? (
+                <span className="text-xs opacity-60">{String(subTitle ?? '')}</span>
+              ) : null}
+            </span>
+          ) : null}
+          {detail != null ? (
+            <span className="text-xs leading-snug opacity-70">{String(detail ?? '')}</span>
+          ) : null}
+        </span>
+      </>
+    ) : (
+      <>{children}</>
+    )
 
-  return renderTag(
-    Component,
-    {
-      ...rest,
-      className: mergeClassName(cls, className),
-      ...(resolvedDataContent != null ? { 'data-content': resolvedDataContent } : {}),
-      role,
-      tabIndex,
-      onClick: clickHandler,
-      onKeyDown: keyDownHandler,
-      'aria-current': ariaCurrent,
-      'aria-disabled': ariaDisabled,
-    },
-    body,
+  const nativeProps = {
+    ...rest,
+    className: mergeClassName(cls, className),
+    ...(resolvedDataContent != null ? { 'data-content': resolvedDataContent } : {}),
+    role,
+    tabIndex,
+    onClick: clickHandler,
+    onKeyDown: keyDownHandler,
+    'aria-current': ariaCurrent,
+    'aria-disabled': ariaDisabled,
+  }
+  return Component === 'button' ? (
+    <button {...nativeProps}>
+      <StepBody />
+    </button>
+  ) : Component === 'div' ? (
+    <div {...nativeProps}>
+      <StepBody />
+    </div>
+  ) : (
+    <li {...nativeProps}>
+      <StepBody />
+    </li>
   )
 }
 
 /** Icon 的内部工具函数。 */
 const Icon: FC<StepIconProps> = ({ as = 'span', className, children, ...rest }) => {
   const Component = as as any
-  return renderTag(
-    Component,
-    {
-      ...rest,
-      className: mergeClassName('step-icon', className),
-    },
-    children,
+  return (
+    <StepTag
+      as={Component}
+      attrs={{
+        ...rest,
+        className: mergeClassName('step-icon', className),
+      }}
+    >
+      {children}
+    </StepTag>
   )
 }
 
@@ -339,58 +350,49 @@ const StepsRoot: FC<StepsProps> = ({
   onChange,
   ...rest
 }) => {
+  const readStepProps = (item: StepItem, index: number) => {
+    const itemStatus = resolveItemStatus(item, index, current, status)
+    return {
+      ...item,
+      index,
+      status: itemStatus,
+      color: getStatusColor(itemStatus, item.color),
+      progressDot,
+      clickable: item.clickable ?? (!!onChange || !!item.onClick),
+      'aria-current': index === current ? (item['aria-current'] ?? 'step') : item['aria-current'],
+      onClick: (event: MouseEvent, clickedIndex?: number) => {
+        if (item.disabled) return
+        if (typeof clickedIndex === 'number') {
+          item.onClick?.(event, clickedIndex)
+          if (clickedIndex !== current) onChange?.(clickedIndex)
+        }
+      },
+    }
+  }
+
   const Component = as as any
   const resolvedDirection = resolveDirection(direction, orientation)
-  const renderedItems =
-    items && items.length > 0
-      ? items.map((item, index) => {
-          const itemStatus = resolveItemStatus(item, index, current, status)
-          const itemIcon =
-            item.icon ??
-            renderProgressDot(progressDot, {
-              index,
-              status: itemStatus,
-              title: item.title,
-              description: item.description,
-              content: item.content,
-            })
-          const mergedClickable = item.clickable ?? (!!onChange || !!item.onClick)
-
-          return (
-            <Step
-              key={item.key ?? index}
-              {...item}
-              index={index}
-              status={itemStatus}
-              color={getStatusColor(itemStatus, item.color)}
-              icon={itemIcon}
-              clickable={mergedClickable}
-              aria-current={
-                index === current ? (item['aria-current'] ?? 'step') : item['aria-current']
-              }
-              onClick={(event, clickedIndex) => {
-                if (item.disabled) return
-                if (item.onClick && typeof clickedIndex === 'number')
-                  item.onClick(event, clickedIndex)
-                if (onChange && typeof clickedIndex === 'number' && clickedIndex !== current) {
-                  onChange(clickedIndex)
-                }
-              }}
-            />
-          )
-        })
-      : children
-
   let cls = 'steps'
   if (resolvedDirection) cls += ` steps-${resolvedDirection}`
 
-  return renderTag(
-    Component,
-    {
-      ...rest,
-      className: joinClassName(cls, className),
-    },
-    renderedItems,
+  return (
+    <StepTag
+      as={Component}
+      attrs={{
+        ...rest,
+        className: joinClassName(cls, className),
+      }}
+    >
+      {items && items.length > 0 ? (
+        <>
+          {items.map((item, index) => (
+            <Step key={item.key ?? index} {...readStepProps(item, index)} />
+          ))}
+        </>
+      ) : (
+        <>{children}</>
+      )}
+    </StepTag>
   )
 }
 

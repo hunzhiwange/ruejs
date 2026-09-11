@@ -174,8 +174,6 @@ interface NormalizedRadioOption extends RadioOption {}
 
 let radioGroupNameSeed = 0
 
-/** RUE_COMPONENT_TYPE_KEY 内部常量。 */
-const RUE_COMPONENT_TYPE_KEY = '__rue_component_type'
 const RADIO_GROUP_CHANGE_HANDLED = '__rueRadioGroupChangeHandled'
 
 /** append Class Name 的内部工具函数。 */
@@ -410,13 +408,8 @@ const resolveOrientation = (
 }
 
 /** 判断 Renderable Node 的内部工具函数。 */
-const isRenderableNode = (value: unknown): value is Record<string, any> =>
-  !!value && typeof value === 'object'
 
 /** 判断组件类型是否匹配的内部工具函数。 */
-const isVNodeOfType = (value: Record<string, any>, type: unknown) => {
-  return value[RUE_COMPONENT_TYPE_KEY] === type || value.type === type || value.component === type
-}
 
 type RadioGroupInjectedProps = Pick<
   RadioProps,
@@ -615,55 +608,6 @@ const RadioRoot: FC<RadioProps> = ({
 }
 
 /** inject Radio Group Props 的内部工具函数。 */
-const _injectRadioGroupProps = (
-  value: unknown,
-  injectedProps: RadioGroupInjectedProps,
-): unknown => {
-  if (typeof value === 'function' && (value as { kind?: unknown }).kind === 'block-factory') {
-    return _injectRadioGroupProps((value as () => unknown)(), injectedProps)
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(child => _injectRadioGroupProps(child, injectedProps))
-  }
-  if (!isRenderableNode(value)) {
-    return value
-  }
-
-  const props = value.props
-  if (!props || typeof props !== 'object') {
-    return value
-  }
-
-  const nextProps = {
-    ...(props as Record<string, unknown>),
-  }
-
-  if ('children' in nextProps) {
-    nextProps.children = _injectRadioGroupProps(nextProps.children, injectedProps)
-  }
-
-  if (isVNodeOfType(value, RadioRoot) || isVNodeOfType(value, RadioButton)) {
-    nextProps.__rueRadioGroupValue = injectedProps.__rueRadioGroupValue
-    nextProps.__rueRadioGroupDisabled = injectedProps.__rueRadioGroupDisabled
-    nextProps.__rueRadioGroupControlled = injectedProps.__rueRadioGroupControlled
-    nextProps.__rueRadioGroupOnChange = injectedProps.__rueRadioGroupOnChange
-    nextProps.name = nextProps.name ?? injectedProps.name
-    nextProps.optionType = nextProps.optionType ?? injectedProps.optionType
-    nextProps.buttonStyle = nextProps.buttonStyle ?? injectedProps.buttonStyle
-    nextProps.size = nextProps.size ?? injectedProps.size
-    nextProps.color = nextProps.color ?? injectedProps.color
-    nextProps.block = nextProps.block ?? injectedProps.block
-    if (nextProps.value !== undefined) {
-      nextProps.checked = injectedProps.__rueRadioGroupValue === nextProps.value
-    }
-  }
-
-  return {
-    ...value,
-    props: nextProps,
-  }
-}
 
 /** Group 的内部工具函数。 */
 const Group: FC<RadioGroupProps> = ({
@@ -823,8 +767,10 @@ const Group: FC<RadioGroupProps> = ({
       data-rue-radio-group-size={resolveSizeToken(size)}
       onChange={normalizedOptions.length ? undefined : handleChildrenChange}
     >
-      {normalizedOptions.length
-        ? normalizedOptions.map(option => (
+      {normalizedOptions.length ? (
+        <>
+          {' '}
+          {normalizedOptions.map(option => (
             <RadioRoot
               key={serializeValue(option.value)}
               value={option.value}
@@ -849,8 +795,11 @@ const Group: FC<RadioGroupProps> = ({
             >
               {option.label}
             </RadioRoot>
-          ))
-        : children}
+          ))}{' '}
+        </>
+      ) : (
+        children
+      )}
     </div>
   )
 }

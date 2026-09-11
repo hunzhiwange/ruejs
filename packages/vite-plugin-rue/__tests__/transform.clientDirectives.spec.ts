@@ -28,7 +28,7 @@ const readManifest = async (plugin: any) => {
 }
 
 describe('vite-plugin-rue client directives', () => {
-  it('rewrites direct imports to shared descriptors and exposes an island manifest', async () => {
+  it('rewrites server graph islands to compiled factories and exposes a manifest', async () => {
     const plugin = createPlugin()
     plugin.configResolved?.({ command: 'serve' })
 
@@ -47,7 +47,7 @@ describe('vite-plugin-rue client directives', () => {
 
     const result = await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       source,
       '/Users/Shared/work/dir/data/codes/rue/app/IslandDemo.tsx',
     )
@@ -57,8 +57,8 @@ describe('vite-plugin-rue client directives', () => {
     expect(code).not.toContain('client:visible')
     expect(code).not.toContain('client:media')
     expect(code).not.toContain('client:none')
-    expect(code).toContain('createRueIslandDescriptor as __rueCreateIslandDescriptor')
-    expect(code).toContain('__rueCreateIslandDescriptor({')
+    expect(code).toContain('CompiledIsland as RueCompiledIsland')
+    expect(code).toMatch(/_\$writeComponent\(_\$ctx, "\d+", RueCompiledIsland/)
     expect(code).toContain('component: Counter')
     expect(code).toContain('component: RevenueChart')
     expect(code).toContain('props: {')
@@ -82,7 +82,7 @@ describe('vite-plugin-rue client directives', () => {
 
     const result = await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       `
         const LocalPanel = () => <button>Local</button>
 
@@ -104,7 +104,7 @@ describe('vite-plugin-rue client directives', () => {
 
     const result = await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       `
         import { LocalPanel } from './LocalPanel'
         export const App = () => (
@@ -134,7 +134,7 @@ describe('vite-plugin-rue client directives', () => {
 
     await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       `
         import IdlePanel from './IdlePanel'
         import VisiblePanel from './VisiblePanel'
@@ -239,10 +239,10 @@ describe('vite-plugin-rue client directives', () => {
 
     const result = await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       `
         import Widget from './Widget'
-        const __rueCreateIslandDescriptor = 'occupied'
+        const RueCompiledIsland = 'occupied'
         export const App = () => (
           <Widget client:only fallback={<p>loading</p>} label="ready" />
         )
@@ -251,8 +251,8 @@ describe('vite-plugin-rue client directives', () => {
     )
     const code = String(result?.code ?? '')
 
-    expect(code).toContain('createRueIslandDescriptor as __rueCreateIslandDescriptor1')
-    expect(code).toContain('fallback: _$compiledRoot(')
+    expect(code).toContain('CompiledIsland as RueCompiledIsland1')
+    expect(code).toContain('fallback: async (_$ctx)=>{')
     expect(code).not.toContain('<p>loading</p>')
     expect(code).toContain('"label": "ready"')
     expect(code).not.toMatch(/props:\s*\{[^}]*fallback/s)
@@ -265,7 +265,7 @@ describe('vite-plugin-rue client directives', () => {
 
     await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       `
         import Counter from './Counter'
         export const App = () => <Counter client:load />
@@ -276,7 +276,7 @@ describe('vite-plugin-rue client directives', () => {
 
     await callHook(
       plugin.transform,
-      {},
+      { environment: { name: 'ssr' } },
       `
         import Counter from './Counter'
         export const App = () => <Counter />

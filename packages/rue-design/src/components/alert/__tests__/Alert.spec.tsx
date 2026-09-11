@@ -1,6 +1,7 @@
+import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
-import { Alert } from '@rue-js/design'
+import { Template, render, setReactiveScheduling } from '@rue-js/rue'
+import Alert from '..'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
 setReactiveScheduling('sync')
@@ -18,7 +19,7 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(<Alert>hello</Alert>, container)
+    mountTestApp(container, () => render(<Alert>hello</Alert>, container))
 
     await waitForContent(() => {
       const el = container.querySelector('[role="alert"]') as HTMLElement
@@ -32,13 +33,15 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Alert variant="info">Info</Alert>
-        <Alert color="success">Success</Alert>
-        <Alert type="error">Error</Alert>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Alert variant="info">Info</Alert>
+          <Alert color="success">Success</Alert>
+          <Alert type="error">Error</Alert>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -54,11 +57,13 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Alert outline={true} dash={true} soft={true}>
-        x
-      </Alert>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Alert outline={true} dash={true} soft={true}>
+          x
+        </Alert>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -73,12 +78,14 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Alert direction="vertical">Vertical</Alert>
-        <Alert direction="horizontal">Horizontal</Alert>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Alert direction="vertical">Vertical</Alert>
+          <Alert direction="horizontal">Horizontal</Alert>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -92,14 +99,19 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Alert
-        type="warning"
-        title="Heads up"
-        description="This workspace uses staged preview data."
-        action={<button className="btn btn-xs">Review</button>}
-      />,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Alert
+          type="warning"
+          title="Heads up"
+          description="This workspace uses staged preview data."
+        >
+          <Template slot="action">
+            <button className="btn btn-xs">Review</button>
+          </Template>
+        </Alert>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -116,11 +128,16 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Alert showIcon={true} action={<button className="btn btn-xs">Accept</button>}>
-        <span>we use cookies for no reason.</span>
-      </Alert>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Alert showIcon={true}>
+          <Template slot="action">
+            <button className="btn btn-xs">Accept</button>
+          </Template>
+          <span>we use cookies for no reason.</span>
+        </Alert>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -138,12 +155,14 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Alert>
-        <span id="icon">i</span>
-        <span id="text">Message</span>
-      </Alert>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Alert>
+          <span id="icon">i</span>
+          <span id="text">Message</span>
+        </Alert>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -161,11 +180,13 @@ describe('Alert', () => {
     const handleClose = vi.fn()
     const handleAfterClose = vi.fn()
 
-    render(
-      <Alert closable={true} onClose={handleClose} afterClose={handleAfterClose}>
-        Dismiss me
-      </Alert>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Alert closable={true} onClose={handleClose} afterClose={handleAfterClose}>
+          Dismiss me
+        </Alert>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -184,12 +205,14 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <div>
-        <Alert banner={true} title="Maintenance window" />
-        <Alert closeText="知道了">Saved</Alert>
-      </div>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <div>
+          <Alert banner={true} title="Maintenance window" />
+          <Alert closeText="知道了">Saved</Alert>
+        </div>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
@@ -208,11 +231,13 @@ describe('Alert', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    render(
-      <Alert className="w-full">
-        <span id="t">child</span>
-      </Alert>,
-      container,
+    mountTestApp(container, () =>
+      render(
+        <Alert className="w-full">
+          <span id="t">child</span>
+        </Alert>,
+        container,
+      ),
     )
 
     await waitForContent(() => {
