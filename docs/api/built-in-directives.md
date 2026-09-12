@@ -382,7 +382,7 @@ Rue 组件通常通过 JSX 子元素、render props 或显式的 `slot` 属性�
 
 ## `v-pre` / `r-pre` {#v-pre}
 
-跳过当前元素及其子树中的 Rue 指令改写，用于展示原始指令片段或保留一段不会参与指令编译的 JSX。
+跳过当前元素及其子树中的 Rue 指令改写，并将 JSX 插值表达式按原始文本显示。例如 `{phase.value}` 显示为字面文本，不会读取变量或响应更新；HTML 元素仍正常渲染。表达式属性保留为文本，展开属性不会执行。
 
 ```tsx
 import { ref } from '@rue-js/rue'
@@ -394,11 +394,11 @@ export default function Demo() {
   return (
     <section>
       <div v-pre>
-        <span v-if={phase.value === 'draft'}>{'{{ phase.value }}'}</span>
+        <span v-if={phase.value === 'draft'}>{phase.value}</span>
       </div>
 
       <div r-pre>
-        <span r-if={plan.value === 'pro'}>{'{{ plan.value }}'}</span>
+        <span r-if={plan.value === 'pro'}>{plan.value}</span>
       </div>
     </section>
   )

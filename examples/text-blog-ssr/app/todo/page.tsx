@@ -1,5 +1,3 @@
-'use client'
-
 import ClientTodoApp from '../../components/ClientTodoApp'
 import SiteHeader from '../../components/SiteHeader'
 

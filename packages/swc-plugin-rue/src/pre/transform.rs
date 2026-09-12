@@ -13,9 +13,8 @@ use swc_core::plugin::proxies::PluginCommentsProxy;
 
 use super::for_directive;
 use super::helpers::{
-    arrow_has_reactive_render_control, block_has_custom_composable_call, collect_param_idents,
-    has_component_render_return_in_block, is_fc_pat, is_untyped_arrow_component_decl,
-    lower_props_derived_consts_in_arrow_with_inputs,
+    arrow_has_reactive_render_control, collect_param_idents, has_component_render_return_in_block,
+    is_fc_pat, is_untyped_arrow_component_decl, lower_props_derived_consts_in_arrow_with_inputs,
     lower_props_derived_consts_in_function_with_inputs, process_fn_decl, process_function,
     process_var_decl, rewrite_component_props_destructure_in_arrow,
     rewrite_component_props_destructure_in_function, should_transform_fn_decl,
@@ -290,19 +289,14 @@ impl VisitMut for PreTransform {
                 }
             }
         } else if is_comp && compiled_decl.is_some() {
-            // 深编译组件仍需在 JSX lowering 前处理跨模块 composable 的派生快照；
+            // 深编译组件仍需在 JSX lowering 前处理响应式状态与 composable 的派生快照；
             // compiled component pass 会继续负责 setup 槽位与细粒度 DOM effects。
             for decl in &mut v.decls {
                 let Some(Expr::Arrow(arrow)) = decl.init.as_mut().map(|expr| expr.as_mut()) else {
                     continue;
                 };
-                let BlockStmtOrExpr::BlockStmt(block) = arrow.body.as_ref() else {
-                    continue;
-                };
-                if block_has_custom_composable_call(block) {
-                    let reactive_prop_aliases = collect_param_idents(&arrow.params);
-                    lower_props_derived_consts_in_arrow_with_inputs(arrow, reactive_prop_aliases);
-                }
+                let reactive_prop_aliases = collect_param_idents(&arrow.params);
+                lower_props_derived_consts_in_arrow_with_inputs(arrow, reactive_prop_aliases);
             }
         }
         let prev = self.in_component;

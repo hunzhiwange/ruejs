@@ -3735,7 +3735,13 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
    * @param {string} pluginPath SWC wasm 插件路径。
    * @returns {Promise<string>} 转换后的源码，包含 Rue 转换头标记。
    */
-  const transformWithSwcPlugin = async (code, id, pluginPath, serverGraph) => {
+  const transformWithSwcPlugin = async (
+    code,
+    id,
+    pluginPath,
+    serverGraph,
+    hydrateClientBoundary,
+  ) => {
     let loweredModel
     let islands = []
     let serverIslands = []
@@ -3765,7 +3771,7 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
       const target =
         serverGraph || configuredTarget === 'server'
           ? 'server'
-          : configuredTarget === 'hydrate'
+          : configuredTarget === 'hydrate' || hydrateClientBoundary
             ? 'hydrate'
             : getIslandCompilerTarget(id)
       const out = await scheduleTransform(() =>
@@ -3930,11 +3936,19 @@ export const startRueIslands = (options = {}) => startRueIslandLoader({
         environmentName === 'ssr' ||
         environmentName === 'server' ||
         environmentName === 'rsc'
+      const hydrateClientBoundary =
+        environmentName === 'client' && readLeadingRscDirective(base) === 'use client'
 
       let out = null
       // 若找到 wasm 插件路径，则执行转换
       if (process.env.RUE_SWC_PLUGIN) {
-        out = await transformWithSwcPlugin(base, id, process.env.RUE_SWC_PLUGIN, serverGraph)
+        out = await transformWithSwcPlugin(
+          base,
+          id,
+          process.env.RUE_SWC_PLUGIN,
+          serverGraph,
+          hydrateClientBoundary,
+        )
       }
 
       // 无输出或无变化时跳过

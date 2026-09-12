@@ -1,6 +1,5 @@
 import { signal, computed, type FC } from '@rue-js/rue'
-import SidebarPlayground from '../site/SidebarPlaygroundExample'
-import Code from '../site/components/Code'
+import ExamplePlayground from './ExamplePlayground'
 
 const source = `import { signal, computed } from '@rue-js/rue'
 
@@ -19,8 +18,7 @@ const ToRef: FC = () => {
   const profile = signal({ name: 'Rue', visits: 1 })
   const doubled = computed(() => profile.get().visits * 2)
   return (
-    <SidebarPlayground>
-      <h1 className="text-4xl font-semibold">Signal 路径读写</h1>
+    <ExamplePlayground title="Signal 路径读写" source={source}>
       <p className="my-4">
         使用 get 读取根值，并通过 update 不可变地替换对象。普通对象成员赋值不会自动触发更新。
       </p>
@@ -42,8 +40,7 @@ const ToRef: FC = () => {
           更新姓名
         </button>
       </div>
-      <Code lang="tsx" code={source} />
-    </SidebarPlayground>
+    </ExamplePlayground>
   )
 }
 

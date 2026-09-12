@@ -1,7 +1,7 @@
 import { Component, type FC, useState, computed, useEffect, useRef } from '@rue-js/rue'
 import { RouterLink, useRoute, useRouter } from '@rue-js/router'
 import { readStaticRenderRoute, useStaticRenderContext } from '../../staticRenderContext'
-import SidebarPlayground, { SECTIONS_BY_TYPE } from './SidebarPlaygroundGuide'
+import { SECTIONS_BY_TYPE } from './SidebarPlaygroundGuide'
 import {
   type DocDetailContent,
   loadCachedDocContent,
@@ -150,45 +150,43 @@ const GuideDocDetail: FC<GuideDocDetailProps> = props => {
   const readMdxComponent = () => (docContentType === 'mdx' ? mdxComponentRef.current : null)
 
   return (
-    <SidebarPlayground currentPath={currentPath.get()}>
-      <div>
-        {readMdxComponent() ? (
-          <div className="max-w-none prose prose-sm md:prose-base" id="doc-body">
-            <Component is={readMdxComponent()} />
-          </div>
-        ) : (
-          <div
-            className="max-w-none prose prose-sm md:prose-base"
-            id="doc-body"
-            dangerouslySetInnerHTML={{ __html: html }}
-          ></div>
-        )}
-        {currentIndex.get() >= 0 && (
-          <div className="mt-8 flex justify-between">
-            {prev.get() ? (
-              <RouterLink
-                to={`${context.uiBase}/${prev?.get()?.id}`}
-                className="btn btn-outline btn-sm"
-              >
-                ← 上一页：{prev?.get()?.title}
-              </RouterLink>
-            ) : (
-              <span />
-            )}
-            {next.get() ? (
-              <RouterLink
-                to={`${context.uiBase}/${next?.get()?.id}`}
-                className="btn btn-outline btn-sm"
-              >
-                下一页：{next?.get()?.title} →
-              </RouterLink>
-            ) : (
-              <span />
-            )}
-          </div>
-        )}
-      </div>
-    </SidebarPlayground>
+    <div>
+      {readMdxComponent() ? (
+        <div className="max-w-none prose prose-sm md:prose-base" id="doc-body">
+          <Component is={readMdxComponent()} />
+        </div>
+      ) : (
+        <div
+          className="max-w-none prose prose-sm md:prose-base"
+          id="doc-body"
+          dangerouslySetInnerHTML={{ __html: html }}
+        ></div>
+      )}
+      {currentIndex.get() >= 0 && (
+        <div className="mt-8 flex justify-between">
+          {prev.get() ? (
+            <RouterLink
+              to={`${context.uiBase}/${prev?.get()?.id}`}
+              className="btn btn-outline btn-sm"
+            >
+              ← 上一页：{prev?.get()?.title}
+            </RouterLink>
+          ) : (
+            <span />
+          )}
+          {next.get() ? (
+            <RouterLink
+              to={`${context.uiBase}/${next?.get()?.id}`}
+              className="btn btn-outline btn-sm"
+            >
+              下一页：{next?.get()?.title} →
+            </RouterLink>
+          ) : (
+            <span />
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

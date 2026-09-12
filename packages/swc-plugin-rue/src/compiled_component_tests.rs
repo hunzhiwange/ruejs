@@ -85,6 +85,22 @@ export default Link;
 }
 
 #[test]
+fn lowers_hooks_for_named_function_exported_by_named_default_specifier() {
+    let output = transform_module(
+        r#"
+import { useState } from '@rue-js/rue';
+function Link() {
+  const [pending, setPending] = useState(false);
+  return <a onClick={() => setPending(true)}>{String(pending)}</a>;
+}
+export { Link as default };
+"#,
+    );
+    assert!(output.contains("_$compiledUseState("), "{output}");
+    assert!(!output.contains(" useState("), "{output}");
+}
+
+#[test]
 fn rejects_conditional_hooks_without_props_specialization() {
     for statement in [
         "if (props.active) useState(0);",
@@ -353,6 +369,31 @@ export function EffectView(props) {
 }
 
 #[test]
+fn refreshes_only_returns_that_capture_selector_bindings() {
+    let output = transform_module(
+        r#"
+export function Layout(props) {
+  if (insideLayout()) return <>{props.children}</>;
+  const label = readLabel();
+  function snapshot() { return label; }
+  if (useSnapshot()) return <p>{snapshot()}</p>;
+  return <section>{label}</section>;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+    assert!(compact.contains("__rue_compiled_branch_key:0,create:"), "{output}");
+    for key in [1, 2] {
+        assert!(
+            compact.contains(&format!(
+                "__rue_compiled_branch_key:{key},__rue_compiled_branch_refresh:true"
+            )),
+            "{output}"
+        );
+    }
+}
+
+#[test]
 fn keeps_props_derived_values_live_inside_the_compiled_branch() {
     let output = transform_module(
         r#"
@@ -360,7 +401,7 @@ export function LivePropsView(props) {
   const stable = 'stable';
   const liveLabel = props.label.toUpperCase();
   function snapshotText() { return liveLabel; }
-  if (liveLabel === 'ready') return <p>ready</p>;
+  if (liveLabel === 'ready') return <p>{liveLabel}</p>;
 
   const tail = 'tail';
   return <p title={props.label}>tail</p>;
@@ -430,7 +471,7 @@ fn compiles_switch_control_flow_through_keyed_compiled_branches() {
 export function UnsupportedView(props) {
   switch (props.phase) {
     case 'first': return <p>first</p>;
-    default: return <p>{props.label}</p>;
+    default: return <p>{String(props.label)}</p>;
   }
 }
 "#,
@@ -697,7 +738,9 @@ export function Greeting({ label = 'fallback', active }) {
 
     assert!(compact.contains("_$compiledSignal("), "{output}");
     assert!(compact.contains("_$withCompiledPropsUpdater("), "{output}");
-    assert!(compact.contains("===void0?'fallback':"), "{output}");
+    assert!(compact.contains("===void0?"), "{output}");
+    assert!(compact.contains("'fallback'"), "{output}");
+    assert!(compact.contains("_$compiledValueFactory("), "{output}");
     assert!(!compact.contains("\"@rue-js/rue/internal\""), "{output}");
 }
 

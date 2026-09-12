@@ -45,7 +45,7 @@ export const onServerPrefetch = (callback: () => unknown) => {
 }
 export const runServerPrefetch = () =>
   Promise.all(serverPrefetchCallbacks.splice(0).map(run => run()))
-export const onRenderTriggered = (_callback: (event: unknown) => void) => () => {}
+export { onRenderTriggered } from './runtime-core/compiled'
 
 const compilerRequired = (): never => {
   throw new Error('[rue] this API requires Rue compiler output')

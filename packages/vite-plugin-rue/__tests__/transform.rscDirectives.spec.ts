@@ -57,6 +57,25 @@ describe('vite-plugin-rue RSC directives', () => {
     expect(code).not.toMatch(/@rue-js\/(?:rue\/vapor|runtime-vapor)/)
   })
 
+  it('compiles use client modules for claim hydration in the Vite client environment', async () => {
+    const source = `
+      'use client'
+
+      export default function LikeButton() {
+        return <button type="button">Like</button>
+      }
+    `
+
+    const result = await invokeTransform(source, '/Users/dyhb/code/rue/app/LikeButton.tsx', {
+      environment: { name: 'client' },
+    })
+    const code = typeof result === 'string' ? result : String(result?.code ?? '')
+
+    expect(code).toContain('@rue-js/rue/internal/hydrate')
+    expect(code).toContain('_$claimElement')
+    expect(code).not.toContain('_$compiledRoot')
+  })
+
   it('compiles RSC JSX with server renderer operations', async () => {
     const source = `
       import LikeButton from '../components/LikeButton'

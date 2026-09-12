@@ -20,6 +20,7 @@ export type EffectScheduler = (runner: () => void) => void
 export interface EffectOptions {
   readonly lazy?: boolean
   readonly scheduler?: EffectScheduler
+  readonly onTrigger?: (event: ReactiveTriggerEvent) => void
   readonly watcher?: boolean
 }
 
@@ -61,6 +62,7 @@ const enum EffectField {
   Watcher,
   Cleanups,
   Owner,
+  OnTrigger,
 }
 type EffectRecord = [
   EffectCallback,
@@ -74,6 +76,7 @@ type EffectRecord = [
   boolean,
   EffectCleanup[],
   unknown,
+  ((event: ReactiveTriggerEvent) => void) | undefined,
 ]
 
 const warnByDefault = (message: string): void => console.warn(message)
@@ -408,6 +411,7 @@ export function effectInsertEffect(
     options.watcher === true,
     [],
     stateCore.stateCurrentRenderDebugOwner(storage.state),
+    options.onTrigger,
   ]
   storage.effects.set(id, record)
   storage.scopeOps?.register(scopeDisposer, scopeId)
@@ -465,6 +469,7 @@ export function effectScheduleEffects(
     }
 
     if (event !== undefined) {
+      record[EffectField.OnTrigger]?.({ ...event, effect: id })
       storage.onRenderTriggered?.(
         id,
         {

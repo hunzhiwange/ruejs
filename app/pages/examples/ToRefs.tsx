@@ -1,6 +1,5 @@
 import { signal, computed, type FC } from '@rue-js/rue'
-import SidebarPlayground from '../site/SidebarPlaygroundExample'
-import Code from '../site/components/Code'
+import ExamplePlayground from './ExamplePlayground'
 
 const source = `import { signal, computed } from '@rue-js/rue'
 
@@ -21,8 +20,7 @@ const ToRefs: FC = () => {
   const label = signal('Rue')
   const doubled = computed(() => count.get() * 2)
   return (
-    <SidebarPlayground>
-      <h1 className="text-4xl font-semibold">独立 Signal 与派生值</h1>
+    <ExamplePlayground title="独立 Signal 与派生值" source={source}>
       <p className="my-4">
         返回包含 Signal 句柄的普通对象，可以安全解构句柄；解构 get() 的结果只得到当前值。
       </p>
@@ -38,8 +36,7 @@ const ToRefs: FC = () => {
           切换 label
         </button>
       </div>
-      <Code lang="tsx" code={source} />
-    </SidebarPlayground>
+    </ExamplePlayground>
   )
 }
 

@@ -1,5 +1,10 @@
 import { _$compiledRoot, type BlockRecord } from '../block'
-import { effect, getCurrentOwner, onOwnerCleanup, untrack } from '../../runtime-core/compiled'
+import {
+  renderEffect as effect,
+  getCurrentOwner,
+  onOwnerCleanup,
+  untrack,
+} from '../../runtime-core/compiled'
 import { appendChild, createComment, insertBefore, createElement } from '../dom.browser'
 import type { CompiledBlock } from '../types'
 import { mountSlot, targetBefore } from './shared'

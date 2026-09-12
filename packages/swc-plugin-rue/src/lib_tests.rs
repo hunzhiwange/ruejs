@@ -641,8 +641,8 @@ function View(props) {
     let out = normalize(&emit(apply_pre(program), cm));
 
     assert!(out.contains("v-pre"));
-    assert!(out.contains("v-if={props.skip}"));
-    assert!(out.contains("v-show={props.skipVisible}"));
+    assert!(out.contains("v-if=\"{props.skip}\""));
+    assert!(out.contains("v-show=\"{props.skipVisible}\""));
     assert!(out.contains("v-on:click"));
     assert!(out.contains("props.ok ?"));
     assert!(out.contains("props.waiting ?"));
@@ -1196,8 +1196,8 @@ function View(props) {
     assert!(out.contains("(props.rows).map"), "{out}");
     assert!(out.contains("([row])"), "{out}");
     assert!(out.contains("v-pre"));
-    assert!(out.contains("v-if={row.skip}"));
-    assert!(out.contains("v-show={row.visible}"));
+    assert!(out.contains("v-if=\"{row.skip}\""));
+    assert!(out.contains("v-show=\"{row.visible}\""));
     assert!(out.contains("v-html"));
     assert!(out.contains("row.visible ?"));
     assert!(out.contains("{row.title}"));

@@ -68,6 +68,24 @@ pub(crate) fn build(vt: &mut VaporTransform, element: &JSXElement) -> Option<Exp
                         _ => None,
                     }
                 });
+                if identity.is_none()
+                    && name == "_$keepAlive"
+                    && matches!(&child.opening.name, JSXElementName::Ident(id) if id.sym == "Component")
+                {
+                    identity = child.opening.attrs.iter().find_map(|attr| {
+                        let JSXAttrOrSpread::JSXAttr(attr) = attr else { return None };
+                        if !matches!(&attr.name, JSXAttrName::Ident(id) if id.sym == "is") {
+                            return None;
+                        }
+                        match &attr.value {
+                            Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                                expr: JSXExpr::Expr(value),
+                                ..
+                            })) => Some(*value.clone()),
+                            _ => None,
+                        }
+                    });
+                }
                 crate::element_component::remove_jsx_attr_ident(&mut child.opening.attrs, "key");
                 break;
             }
@@ -89,6 +107,33 @@ pub(crate) fn build(vt: &mut VaporTransform, element: &JSXElement) -> Option<Exp
         })
         .count()
         == 1;
+    // Capture the dynamic target in KeepAlive's reader. A cached slot must not
+    // subscribe to the selector again and replace its component while parked.
+    let mut captured_target = None;
+    if single_child && name == "_$keepAlive" {
+        for child in &mut element.children {
+            let JSXElementChild::JSXElement(child) = child else { continue };
+            if !matches!(&child.opening.name, JSXElementName::Ident(id) if id.sym == "Component") {
+                continue;
+            }
+            for attr in &mut child.opening.attrs {
+                let JSXAttrOrSpread::JSXAttr(attr) = attr else { continue };
+                if !matches!(&attr.name, JSXAttrName::Ident(id) if id.sym == "is") {
+                    continue;
+                }
+                let Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                    expr: JSXExpr::Expr(value),
+                    ..
+                })) = &mut attr.value
+                else {
+                    continue;
+                };
+                let captured = vt.next_slot_ident();
+                captured_target = Some((captured.clone(), *value.clone()));
+                *value = Box::new(Expr::Ident(captured));
+            }
+        }
+    }
     let selected = if single_child && (name == "_$transition" || name == "_$keepAlive") {
         element.children.iter().find_map(|child| {
             let JSXElementChild::JSXExprContainer(JSXExprContainer {
@@ -135,6 +180,41 @@ pub(crate) fn build(vt: &mut VaporTransform, element: &JSXElement) -> Option<Exp
             key: PropName::Ident(ident_name("children")),
             value: Box::new(selected),
         }))));
+    }
+    if let Some((captured, value)) = captured_target {
+        let Expr::Arrow(reader) = &mut read_props else { unreachable!() };
+        let BlockStmtOrExpr::Expr(body) = reader.body.as_mut() else { unreachable!() };
+        let Expr::Paren(paren) = body.as_mut() else { unreachable!() };
+        let Expr::Object(props) = paren.expr.as_mut() else { unreachable!() };
+        for prop in &mut props.props {
+            let PropOrSpread::Prop(prop) = prop else { continue };
+            let Prop::KeyValue(prop) = prop.as_mut() else { continue };
+            if !matches!(&prop.key, PropName::Ident(id) if id.sym == "children") {
+                continue;
+            }
+            prop.value = Box::new(Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
+                callee: Callee::Expr(Box::new(Expr::Paren(ParenExpr {
+                    span: DUMMY_SP,
+                    expr: Box::new(Expr::Arrow(ArrowExpr {
+                        span: DUMMY_SP,
+                        ctxt: SyntaxContext::empty(),
+                        params: vec![Pat::Ident(BindingIdent {
+                            id: captured.clone(),
+                            type_ann: None,
+                        })],
+                        body: Box::new(BlockStmtOrExpr::Expr(prop.value.clone())),
+                        is_async: false,
+                        is_generator: false,
+                        type_params: None,
+                        return_type: None,
+                    })),
+                }))),
+                args: vec![ExprOrSpread { spread: None, expr: Box::new(value.clone()) }],
+                type_args: None,
+            }));
+        }
     }
     Some(call_ident(name, vec![read_props]))
 }

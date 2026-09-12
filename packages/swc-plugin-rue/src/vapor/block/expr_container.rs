@@ -236,7 +236,7 @@ pub(crate) fn emit_compiled_text_binding(
         return None;
     };
     let inner = unwrap_expr(expr.as_ref());
-    if !is_compiled_reactive_scalar_expr(vt, inner, &vt.current_scalar_constructor_shadows()) {
+    if !is_compiled_text_value(vt, inner) {
         return None;
     }
 
@@ -252,6 +252,42 @@ pub(crate) fn emit_compiled_text_binding(
     }));
     emit_compiled_text_effect(vt, &node, container, stmts)?;
     Some(node)
+}
+
+// Reactive provenance proves how to track props, not that their values are
+// text. Keep the capability checks for compiled roots separate from text-only
+// emission: named props may contain JSX, fragments, or collections.
+fn is_compiled_text_value(vt: &VaporTransform, expr: &Expr) -> bool {
+    let shadows = vt.current_scalar_constructor_shadows();
+    if !is_compiled_reactive_scalar_expr(vt, expr, &shadows) {
+        return false;
+    }
+    if let Expr::Call(call) = unwrap_expr(expr)
+        && (matches!(&call.callee, Callee::Expr(callee)
+            if matches!(unwrap_expr(callee), Expr::Ident(name)
+                if matches!(name.sym.as_ref(), "String" | "Number" | "Boolean")
+                    && !shadows.contains(name.sym.as_ref())))
+            || crate::reactive_provenance::is_scalar_call(&vt.plain_local_scopes, expr))
+    {
+        return true;
+    }
+    struct PropRead<'a> {
+        vt: &'a VaporTransform,
+        found: bool,
+    }
+    impl Visit for PropRead<'_> {
+        fn visit_ident(&mut self, ident: &Ident) {
+            self.found |=
+                self.vt.reactive_kind(ident.sym.as_ref()) == Some(ReactiveKind::PropsValue);
+        }
+        fn visit_call_expr(&mut self, call: &CallExpr) {
+            self.found |= crate::compiled_component::is_static_prop_get_call(call);
+            call.visit_children_with(self);
+        }
+    }
+    let mut read = PropRead { vt, found: false };
+    expr.visit_with(&mut read);
+    !read.found
 }
 
 pub(crate) fn is_compiled_text_container(
@@ -275,7 +311,9 @@ pub(crate) fn is_compiled_text_container(
             && args.len() == 1
             && args[0].spread.is_none()
     );
-    if !explicitly_coerced {
+    if !explicitly_coerced
+        && !crate::reactive_provenance::is_scalar_call(&vt.plain_local_scopes, inner)
+    {
         struct RenderableLocalRead<'a> {
             names: &'a HashSet<String>,
             found: bool,
@@ -296,7 +334,7 @@ pub(crate) fn is_compiled_text_container(
             return false;
         }
     }
-    is_compiled_reactive_scalar_expr(vt, inner, &shadows)
+    is_compiled_text_value(vt, inner)
 }
 
 /// Bind a compiler-proven scalar expression to a text node that already exists.
@@ -311,7 +349,7 @@ pub(crate) fn emit_compiled_text_effect(
         return None;
     };
     let inner = unwrap_expr(expr.as_ref());
-    if !is_compiled_reactive_scalar_expr(vt, inner, &vt.current_scalar_constructor_shadows()) {
+    if !is_compiled_text_value(vt, inner) {
         return None;
     }
 

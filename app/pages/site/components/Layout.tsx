@@ -17,16 +17,16 @@ const Header: FC = () => {
               <span className="text-white font-extrabold text-[32px] md:text-[50px]">R</span>
             </span>
             <span className="text-lg md:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
-              {String(_('后悔药 Rue.js'))}
+              {_('后悔药 Rue.js')}
             </span>
           </RouterLink>
           {shouldRenderClientWidgets ? <DocSearchBox /> : null}
         </div>
-        <nav className="navbar-center hidden md:flex" aria-label={String(_('主导航'))}>
+        <nav className="navbar-center hidden md:flex" aria-label={_('主导航')}>
           <ul className="menu menu-horizontal px-1 text-sm">
             <li>
               <RouterLink to="/" className="btn btn-ghost btn-sm">
-                {String(_('首页'))}
+                {_('首页')}
               </RouterLink>
             </li>
             <li className="site-nav-dropdown relative">
@@ -35,28 +35,26 @@ const Header: FC = () => {
                 className="btn btn-ghost btn-sm site-nav-trigger"
                 aria-haspopup="menu"
               >
-                {String(_('文档'))}
+                {_('文档')}
               </button>
               <ul className="site-nav-submenu menu bg-base-100 rounded-box z-50 w-35 p-2 dropdown-panel text-center">
                 <li>
-                  <RouterLink to="/guide/guide/introduction">{String(_('深度指南'))}</RouterLink>
+                  <RouterLink to="/guide/guide/introduction">{_('深度指南')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/examples/hello-world">{String(_('实战例子'))}</RouterLink>
+                  <RouterLink to="/examples/hello-world">{_('实战例子')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/guide/guide/quick-start">{String(_('快速上手'))}</RouterLink>
+                  <RouterLink to="/guide/guide/quick-start">{_('快速上手')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/routing">{String(_('路由指南'))}</RouterLink>
+                  <RouterLink to="/page/routing">{_('路由指南')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/glossary/index">{String(_('术语表'))}</RouterLink>
+                  <RouterLink to="/page/glossary/index">{_('术语表')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/error-reference/index">
-                    {String(_('错误代码参考'))}
-                  </RouterLink>
+                  <RouterLink to="/page/error-reference/index">{_('错误代码参考')}</RouterLink>
                 </li>
               </ul>
             </li>
@@ -71,28 +69,26 @@ const Header: FC = () => {
                 className="btn btn-ghost btn-sm site-nav-trigger"
                 aria-haspopup="menu"
               >
-                {String(_('生态'))}
+                {_('生态')}
               </button>
               <ul className="site-nav-submenu menu bg-base-100 rounded-box z-50 w-35 p-2 dropdown-panel text-center">
                 <li>
-                  <RouterLink to="/page/partners/index">{String(_('合作伙伴'))}</RouterLink>
+                  <RouterLink to="/page/partners/index">{_('合作伙伴')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/plugins">{String(_('插件'))}</RouterLink>
+                  <RouterLink to="/plugins">{_('插件')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/design/button">{String(_('组件库'))}</RouterLink>
+                  <RouterLink to="/design/button">{_('组件库')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/guide/guide/scaling-up/tooling">
-                    {String(_('工具链'))}
-                  </RouterLink>
+                  <RouterLink to="/guide/guide/scaling-up/tooling">{_('工具链')}</RouterLink>
                 </li>
                 <li>
                   <RouterLink to="/textjs">Text.js</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/ecosystem/newsletters">{String(_('新闻简报'))}</RouterLink>
+                  <RouterLink to="/page/ecosystem/newsletters">{_('新闻简报')}</RouterLink>
                 </li>
               </ul>
             </li>
@@ -102,44 +98,44 @@ const Header: FC = () => {
                 className="btn btn-ghost btn-sm site-nav-trigger"
                 aria-haspopup="menu"
               >
-                {String(_('关于'))}
+                {_('关于')}
               </button>
               <ul className="site-nav-submenu menu bg-base-100 rounded-box z-50 w-35 p-2 dropdown-panel text-center">
                 <li>
-                  <RouterLink to="/page/about/faq">{String(_('常见问题'))}</RouterLink>
+                  <RouterLink to="/page/about/faq">{_('常见问题')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/about/team">{String(_('团队'))}</RouterLink>
+                  <RouterLink to="/page/about/team">{_('团队')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/about/releases">{String(_('版本发布'))}</RouterLink>
+                  <RouterLink to="/page/about/releases">{_('版本发布')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/about/community-guide">{String(_('社区指南'))}</RouterLink>
+                  <RouterLink to="/page/about/community-guide">{_('社区指南')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/about/coc">{String(_('行为规范'))}</RouterLink>
+                  <RouterLink to="/page/about/coc">{_('行为规范')}</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/page/about/privacy">{String(_('隐私政策'))}</RouterLink>
+                  <RouterLink to="/page/about/privacy">{_('隐私政策')}</RouterLink>
                 </li>
               </ul>
             </li>
             <li>
               <RouterLink to="/page/sponsor/index" className="btn btn-ghost btn-sm">
-                {String(_('赞助'))}
+                {_('赞助')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/partners/index" className="btn btn-ghost btn-sm">
-                {String(_('合作伙伴'))}
+                {_('合作伙伴')}
               </RouterLink>
             </li>
           </ul>
         </nav>
         <div className="navbar-end gap-2 items-center">
           <RouterLink to="/settings" className="btn btn-ghost btn-sm">
-            {String(_('设置'))}
+            {_('设置')}
           </RouterLink>
         </div>
       </div>
@@ -154,76 +150,76 @@ const Footer: FC = () => {
     <footer className="w-full bg-base-200 overflow-hidden">
       <div className="max-w-[1100px] mx-auto w-full px-6 py-12 grid gap-8 grid-cols-1 md:grid-cols-3">
         <div>
-          <div className="text-base-content font-semibold mb-2">{String(_('文档'))}</div>
+          <div className="text-base-content font-semibold mb-2">{_('文档')}</div>
           <ul className="space-y-2 text-sm">
             <li>
               <RouterLink to="/jsx/basic-elements" className="hover:underline">
-                {String(_('深度指南'))}
+                {_('深度指南')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/examples/hello-world" className="hover:underline">
-                {String(_('实战例子'))}
+                {_('实战例子')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/guide/guide/quick-start" className="hover:underline">
-                {String(_('快速上手'))}
+                {_('快速上手')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/glossary/index" className="hover:underline">
-                {String(_('术语表'))}
+                {_('术语表')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/error-reference/index" className="hover:underline">
-                {String(_('错误码参照表'))}
+                {_('错误码参照表')}
               </RouterLink>
             </li>
           </ul>
         </div>
         <div>
-          <div className="text-base-content font-semibold mb-2">{String(_('关于'))}</div>
+          <div className="text-base-content font-semibold mb-2">{_('关于')}</div>
           <ul className="space-y-2 text-sm">
             <li>
               <RouterLink to="/page/about/faq" className="hover:underline">
-                {String(_('常见问题'))}
+                {_('常见问题')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/about/team" className="hover:underline">
-                {String(_('团队'))}
+                {_('团队')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/about/releases" className="hover:underline">
-                {String(_('版本发布'))}
+                {_('版本发布')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/about/community-guide" className="hover:underline">
-                {String(_('社区指南'))}
+                {_('社区指南')}
               </RouterLink>
             </li>
           </ul>
         </div>
         <div>
-          <div className="text-base-content font-semibold mb-2">{String(_('生态'))}</div>
+          <div className="text-base-content font-semibold mb-2">{_('生态')}</div>
           <ul className="space-y-2 text-sm">
             <li>
               <RouterLink to="/plugins" className="hover:underline">
-                {String(_('插件'))}
+                {_('插件')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/design/button" className="hover:underline">
-                {String(_('组件库'))}
+                {_('组件库')}
               </RouterLink>
             </li>
             <li>
               <RouterLink to="/page/routing" className="hover:underline">
-                {String(_('路由指南'))}
+                {_('路由指南')}
               </RouterLink>
             </li>
             <li>

@@ -1,6 +1,6 @@
 import { _$compiledRoot, type BlockRecord } from '../block'
 import {
-  effect,
+  renderEffect as effect,
   getCurrentOwner,
   onOwnerCleanup,
   untrack,

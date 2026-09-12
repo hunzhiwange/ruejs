@@ -31,7 +31,7 @@ export {
 } from '../scalar-reactivity'
 export { _$compiledScalarOwnedRoot } from '../scalar-owned-root'
 export { _$compiledUseEffect } from '../hooks'
-export { signal as _$compiledSignal } from '../../runtime-core/compiled'
+export { _$compiledSignal } from '../compiler-signal'
 export { batch as _$compiledBatch } from '../../runtime-core/compiled'
 export { _$compiledRenderEffect } from '../../runtime-core/compiled'
 export { onOwnerCleanup as onScopeDispose } from '../../runtime-core/compiled'

@@ -74,6 +74,26 @@ it('captures errors from a descendant owned effect after mount', () => {
   }
 })
 
+it('reports an uncaptured component effect error without rethrowing it', () => {
+  const output = vi.spyOn(console, 'error').mockImplementation(() => {})
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import {signal,effect} from '@rue-js/rue';
+    export const fail=signal(false);
+    export const View=()=>{effect(()=>{if(fail.get())throw Error('effect failure')});return <i>stable</i>};
+  `)
+  const root = _$createComponent(app.View, {})
+  try {
+    root.__rue_compiled_mount(document.body)
+    expect(() => app.fail.set(true)).not.toThrow()
+    expect(output).toHaveBeenCalledTimes(1)
+    expect(output.mock.calls[0][0]).toContain('effect failure')
+  } finally {
+    root.dispose()
+    app.fail.dispose()
+  }
+})
+
 import { retainRootMountError, shouldRetainRootMountError } from '../src/root-mount-error'
 it('retains root mount errors by identity without retaining primitives', () => {
   const error = Error('failure')

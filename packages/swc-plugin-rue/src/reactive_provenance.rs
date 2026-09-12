@@ -22,6 +22,7 @@ enum FactoryKind {
     Signal,
     ObjectValue,
     UseState,
+    I18n,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -32,12 +33,17 @@ enum Binding {
     RefCollection,
     SignalTuple,
     StateTuple,
+    Composer,
+    ScalarFunction,
 }
 
 impl Binding {
     fn code(self) -> &'static str {
         match self {
             Self::Unknown => "unknown",
+            Self::Factory(FactoryKind::I18n) => "factory-i18n",
+            Self::Composer => "composer",
+            Self::ScalarFunction => "scalar-function",
             Self::Factory(FactoryKind::RefLike) => "factory-ref",
             Self::Factory(FactoryKind::ToRefs) => "factory-to-refs",
             Self::Factory(FactoryKind::Signal) => "factory-signal",
@@ -58,6 +64,9 @@ impl Binding {
     fn from_code(code: &str) -> Option<Self> {
         Some(match code {
             "unknown" => Self::Unknown,
+            "factory-i18n" => Self::Factory(FactoryKind::I18n),
+            "composer" => Self::Composer,
+            "scalar-function" => Self::ScalarFunction,
             "factory-ref" => Self::Factory(FactoryKind::RefLike),
             "factory-to-refs" => Self::Factory(FactoryKind::ToRefs),
             "factory-signal" => Self::Factory(FactoryKind::Signal),
@@ -108,6 +117,27 @@ pub(crate) fn reactive_kind(scopes: &[HashSet<String>], name: &str) -> Option<Re
     }
 }
 
+// Library return contracts are attached to resolved bindings, never callee spelling.
+fn member_binding(value: Binding, name: Option<&str>) -> Binding {
+    match value {
+        Binding::RefCollection => Binding::Value(ReactiveKind::RefLike),
+        Binding::Composer if matches!(name, Some("_" | "d" | "n" | "isLocaleLoading")) => {
+            Binding::ScalarFunction
+        }
+        _ => Binding::Unknown,
+    }
+}
+
+pub(crate) fn is_scalar_call(scopes: &[HashSet<String>], expr: &Expr) -> bool {
+    let Expr::Call(call) = crate::utils::unwrap_expr(expr) else { return false };
+    scalar_call_result(scopes, call)
+}
+
+pub(crate) fn scalar_call_result(scopes: &[HashSet<String>], call: &CallExpr) -> bool {
+    let Callee::Expr(callee) = &call.callee else { return false };
+    ScopeBuilder::new(scopes).eval_expr(callee) == Binding::ScalarFunction
+}
+
 fn factory_kind(imported: &str) -> Option<FactoryKind> {
     Some(match imported {
         "ref" | "shallowRef" | "customRef" | "toRef" | "computed" => FactoryKind::RefLike,
@@ -123,6 +153,7 @@ fn factory_kind(imported: &str) -> Option<FactoryKind> {
 
 fn factory_result(factory: FactoryKind) -> Binding {
     match factory {
+        FactoryKind::I18n => Binding::Composer,
         FactoryKind::RefLike => Binding::Value(ReactiveKind::RefLike),
         FactoryKind::ToRefs => Binding::RefCollection,
         FactoryKind::Signal => Binding::Value(ReactiveKind::Signal),
@@ -164,6 +195,21 @@ impl<'a> ScopeBuilder<'a> {
         match crate::utils::unwrap_expr(expr) {
             Expr::Ident(ident) => self.resolve(ident.sym.as_ref()).unwrap_or(Binding::Unknown),
             Expr::Call(call) => self.eval_call(call),
+            Expr::Member(member) => {
+                let name = match &member.prop {
+                    MemberProp::Ident(name) => Some(name.sym.to_string()),
+                    MemberProp::Computed(computed) => {
+                        match crate::utils::unwrap_expr(&computed.expr) {
+                            Expr::Lit(Lit::Str(name)) => {
+                                Some(name.value.to_string_lossy().into_owned())
+                            }
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                member_binding(self.eval_expr(&member.obj), name.as_deref())
+            }
             _ => Binding::Unknown,
         }
     }
@@ -213,19 +259,15 @@ impl<'a> ScopeBuilder<'a> {
                     match property {
                         ObjectPatProp::Assign(property) => self.bind(
                             property.key.sym.as_ref(),
-                            if value == Binding::RefCollection {
-                                Binding::Value(ReactiveKind::RefLike)
-                            } else {
+                            if property.value.is_some() && value != Binding::RefCollection {
                                 Binding::Unknown
+                            } else {
+                                member_binding(value, Some(property.key.sym.as_ref()))
                             },
                         ),
                         ObjectPatProp::KeyValue(property) => self.bind_pat(
                             property.value.as_ref(),
-                            if value == Binding::RefCollection {
-                                Binding::Value(ReactiveKind::RefLike)
-                            } else {
-                                Binding::Unknown
-                            },
+                            member_binding(value, static_prop_name(&property.key).as_deref()),
                         ),
                         ObjectPatProp::Rest(property) => {
                             self.bind_pat(property.arg.as_ref(), Binding::Unknown)
@@ -443,7 +485,8 @@ pub(crate) fn collect_module_scope(module: &Module, outer: &[HashSet<String>]) -
     for item in &module.body {
         if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item
             && !import.type_only
-            && is_rue_source(&import.src.value.to_string_lossy())
+            && (is_rue_source(&import.src.value.to_string_lossy())
+                || import.src.value.to_string_lossy() == "@rue-js/i18n")
         {
             for specifier in &import.specifiers {
                 let ImportSpecifier::Named(named) = specifier else { continue };
@@ -457,7 +500,12 @@ pub(crate) fn collect_module_scope(module: &Module, outer: &[HashSet<String>]) -
                     }
                     None => named.local.sym.to_string(),
                 };
-                if let Some(factory) = factory_kind(&imported) {
+                let factory = if import.src.value.to_string_lossy() == "@rue-js/i18n" {
+                    (imported == "useI18n").then_some(FactoryKind::I18n)
+                } else {
+                    factory_kind(&imported)
+                };
+                if let Some(factory) = factory {
                     builder.bind(named.local.sym.as_ref(), Binding::Factory(factory));
                 }
             }

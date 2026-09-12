@@ -6,5 +6,9 @@ import './style.css'
 const { router } = createApp()
 
 router.isReady().then(() => {
-  useApp(App).use(router).mount('#app')
+  const target = document.querySelector('#app')
+  if (!target) throw new Error('Missing #app mount target')
+
+  target.replaceChildren()
+  useApp(App).use(router).mount(target)
 })

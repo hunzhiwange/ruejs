@@ -1,3 +1,4 @@
+import { sameCompiledValue } from './compiler-signal'
 import { batch, type CompiledSignalHandle } from '../runtime-core/compiled'
 import { createRootSignal } from '../runtime-core/reactive-kernel/signal-base'
 import { getSharedReactiveStorage } from '../runtime-core/reactive-kernel/shared-runtime'
@@ -55,7 +56,7 @@ const sameKeys = (
   previous.length === next.length && previous.every((key, index) => Object.is(key, next[index]))
 
 const samePropValue = (key: CompiledPropKey, previous: unknown, next: unknown): boolean =>
-  Object.is(previous, next) ||
+  sameCompiledValue(previous, next) ||
   (key === 'children' &&
     Array.isArray(previous) &&
     Array.isArray(next) &&

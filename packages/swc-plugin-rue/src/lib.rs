@@ -22,6 +22,7 @@ mod compiled_props;
 mod custom_element;
 mod diagnostics;
 mod element_builtin;
+mod transition_identity;
 mod element_children;
 mod element_component;
 mod element_expr;
@@ -92,7 +93,12 @@ mod reactive_provenance_tests;
 
 #[plugin_transform]
 // 插件入口：供 SWC 在编译时调用
-pub fn transform(program: Program, metadata: TransformPluginProgramMetadata) -> Program {
+pub fn transform(mut program: Program, metadata: TransformPluginProgramMetadata) -> Program {
+    use swc_core::common::SourceMapper;
+    pre::pre_directive::preserve(
+        &mut program,
+        Some(&|span| metadata.source_map.span_to_snippet(span).ok()),
+    );
     let config = metadata
         .get_transform_plugin_config()
         .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok());
@@ -130,6 +136,7 @@ fn run_server_transform(program: Program) -> Program {
 
 pub(crate) fn run_node_plan_transform(program: Program, hydrate: bool) -> Program {
     let mut program = program;
+    pre::pre_directive::preserve(&mut program, None);
     let props_components = compiled_props::components(&program);
     let default_exported_components = match &program {
         Program::Module(module) => compiled_component::default_exported_component_spans(module),
@@ -174,6 +181,7 @@ fn run_full_transform_with_options(
     comments: Option<swc_core::plugin::proxies::PluginCommentsProxy>,
 ) -> Program {
     let mut program = program;
+    pre::pre_directive::preserve(&mut program, None);
     if let Err(error) = bootstrap::lower(&mut program) {
         if swc_core::common::errors::HANDLER.is_set() {
             swc_core::common::errors::HANDLER.with(|handler| {
@@ -187,6 +195,7 @@ fn run_full_transform_with_options(
     let props_components = compiled_props::components(&program);
     let mut p = program;
     if let Program::Module(module) = &mut p {
+        transition_identity::preserve(module);
         compiled_component::lower_custom_hooks(module);
     }
     log::info("rue-swc: apply(pre+vapor) start");
@@ -296,6 +305,7 @@ fn first_residual_jsx_span(program: &Program) -> Option<Span> {
 pub fn apply_pre(program: Program) -> Program {
     let mut p = program;
     log::info("rue-swc: apply_pre start");
+    pre::pre_directive::preserve(&mut p, None);
     p.visit_mut_with(&mut pre::PreTransform::default());
     log::info("rue-swc: apply_pre done");
     p

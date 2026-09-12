@@ -48,6 +48,25 @@ fn without_imports(src: &str) -> String {
 }
 
 #[test]
+fn once_directives_do_not_install_scalar_subscriptions() {
+    for directive in ["v-once", "r-once"] {
+        let output = transform_module(&format!(
+            r#"import {{ ref }} from '@rue-js/rue';
+const Demo = () => {{
+  const count = ref(0);
+  return <section>{{true && <span {directive}>count: {{count.value}}</span>}}</section>;
+}};"#
+        ));
+        let code = compact(&without_imports(&output));
+        assert!(code.contains("_$compiledMemo("), "{output}");
+        assert!(code.contains("count.value"), "{output}");
+        assert!(!code.contains("_$compiledText("), "{output}");
+        assert!(!code.contains("_$compiledScalarText("), "{output}");
+        assert!(!code.contains("effect("), "{output}");
+    }
+}
+
+#[test]
 fn hoists_and_deduplicates_static_html_with_the_shared_template_helper() {
     let output = transform_module(
         r#"
@@ -171,7 +190,7 @@ fn template_shell_clones_single_scalar_text_hole() {
     let output = transform_module_with_static_props(
         r#"
 function View(props) {
-  return <section><div>静态</div><div>{props.label}</div><p>静态</p></section>;
+  return <section><div>静态</div><div>{String(props.label)}</div><p>静态</p></section>;
 }
 const App = () => <View label="初始" />;
 "#,
@@ -212,13 +231,13 @@ fn direct_text_candidates_keep_mixed_svg_and_table_boundaries_safe() {
     let output = transform_module_with_static_props(
         r#"
 function Mixed(props) {
-  return <div>prefix {props.value}</div>;
+  return <div>prefix {String(props.value)}</div>;
 }
 function SvgValue(props) {
-  return <svg><text>{props.value}</text></svg>;
+  return <svg><text>{String(props.value)}</text></svg>;
 }
 function TableValue(props) {
-  return <table><tbody><tr><td>{props.value}</td></tr></tbody></table>;
+  return <table><tbody><tr><td>{String(props.value)}</td></tr></tbody></table>;
 }
 const App = () => <><Mixed value="mixed" /><SvgValue value="svg" /><TableValue value="cell" /></>;
 "#,
@@ -238,7 +257,7 @@ fn template_shell_supports_nested_mixed_text_holes() {
     let output = transform_module_with_static_props(
         r#"
 function View(props) {
-  return <section><div>{props.label} - {props.value}</div><p>prefix {props.note}<span>{props.tail}</span></p></section>;
+  return <section><div>{String(props.label)} - {String(props.value)}</div><p>prefix {String(props.note)}<span>{String(props.tail)}</span></p></section>;
 }
 const App = () => <View label="标签" value="值" note="说明" tail="结尾" />;
 "#,
@@ -276,11 +295,11 @@ fn template_shell_accepts_inlined_safe_branch_local_text() {
     let output = transform_module_with_static_props(
         r#"
 function View(props) {
-  if (props.mode === 0) return <div>A · {props.label}</div>;
+  if (props.mode === 0) return <div>A · {String(props.label)}</div>;
   const hello = 'hello';
-  if (props.mode === 1) return <section>B · {props.label} · {hello}</section>;
+  if (props.mode === 1) return <section>B · {String(props.label)} · {hello}</section>;
   const world = 'world';
-  return <article>C · {props.label} · {world}</article>;
+  return <article>C · {String(props.label)} · {world}</article>;
 }
 const App = () => <View mode={0} label="初始" />;
 "#,
@@ -301,7 +320,7 @@ fn template_shell_coalesces_adjacent_static_text_for_hole_paths() {
     let output = transform_module_with_static_props(
         r#"
 function View(props) {
-  return <div>{props.left} prefix {'fixed'} {props.right}</div>;
+  return <div>{String(props.left)} prefix {'fixed'} {String(props.right)}</div>;
 }
 const App = () => <View left="左" right="右" />;
 "#,
@@ -323,10 +342,10 @@ fn template_shell_deduplicates_equal_hole_shapes() {
     let output = transform_module_with_static_props(
         r#"
 function First(props) {
-  return <div>{props.label} - {props.value}</div>;
+  return <div>{String(props.label)} - {String(props.value)}</div>;
 }
 function Second(props) {
-  return <div>{props.title} - {props.detail}</div>;
+  return <div>{String(props.title)} - {String(props.detail)}</div>;
 }
 const App = () => <><First label="一" value="二" /><Second title="三" detail="四" /></>;
 "#,
@@ -794,7 +813,7 @@ const View = props => {
   return (
     <section className={props.className}>
       <i data-static="before">before</i>
-      {props.value}
+      {String(props.value ?? '')}
       {props.show ? <b>shown</b> : null}
       {local}
       {props.items.map(item => <em key={item.id}>{item.label}</em>)}
@@ -907,9 +926,27 @@ const _$mountCompiledSlotFactory = (target, _owner, create) => {{
 const _$mountCompiledKeyedRow = (factory, patch, memo, target) => {{
   const actual = target ?? {{parent: document.createDocumentFragment(), before: null}};
   const block = factory(actual, {{}}, 0);
-  return {{node: block.first, last: block.last, patch, memo, dispose: block.dispose}};
+  return {{node: block.first, last: block.last, patch, memo, dispose: () => {{
+    for (let node = block.first; node;) {{
+      const next = node === block.last ? null : node.nextSibling;
+      if (node.parentNode) node.parentNode.removeChild(node);
+      if (node === block.last) break;
+      node = next;
+    }}
+    memo?.dispose?.();
+  }}}};
 }};
 const _$mountCompiledKeyedSingleRow = _$mountCompiledKeyedRow;
+const _$mountCompiledKeyedSingleRowDirect = (setup, patch, memo, target) => {{
+  const actual = target ?? {{parent: document.createDocumentFragment(), before: null}};
+  const [first, last] = setup(actual.parent);
+  if (first == null || first !== last) throw new Error("invalid row");
+  actual.parent.insertBefore(first, actual.before);
+  return {{node: first, last, patch, memo, dispose: () => {{
+    if (first.parentNode) first.parentNode.removeChild(first);
+    memo?.dispose?.();
+  }}}};
+}};
 
 const _$disposeCompiledKeyedRows = rows => {{ for (const row of rows) row.dispose(); }};
 const _$disposeCompiledKeyedSingleRows = _$disposeCompiledKeyedRows;
@@ -974,7 +1011,7 @@ const _$reconcileKeyed = (parent, before, previous, items, getKey, renderItem) =
       entry.patch(item, index);
       old.delete(key);
     }} else {{
-      entry = {{ key, ...renderItem(item, index) }};
+      entry = {{ ...renderItem(item, index), key }};
     }}
     parent.insertBefore(entry.node, before);
     return entry;
@@ -1071,7 +1108,7 @@ fn template_skeleton_mounts_components_and_preserves_lazy_slots_at_opaque_holes(
         r#"
 import { Layout, Panel, Member } from './compiled-components';
 function CompiledPanel(props) {
-  return <strong>{props.label}</strong>;
+  return <strong>{String(props.label)}</strong>;
 }
 const View = props => (
   <Layout>

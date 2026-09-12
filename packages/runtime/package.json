@@ -40,6 +40,18 @@
       "import": "./dist/server.js",
       "development": "./src/server.ts"
     },
+    "./island": {
+      "types": "./src/island.ts",
+      "module": "./dist/island.js",
+      "import": "./dist/island.js",
+      "development": "./src/island.ts"
+    },
+    "./server-island": {
+      "types": "./src/server-island.ts",
+      "module": "./dist/server-island.js",
+      "import": "./dist/server-island.js",
+      "development": "./src/server-island.ts"
+    },
     "./internal/compiler": {
       "types": "./src/compiler-internal.ts",
       "module": "./dist/compiler-internal.js",

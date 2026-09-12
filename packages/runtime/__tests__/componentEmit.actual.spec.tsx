@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { afterEach, expect, it } from 'vitest'
 import { evaluateComponent } from './compiled-component-test-utils'
 import { _$createComponent } from '../src/compiled-component-call'
+import { CUSTOM_ELEMENT_EMIT_BRIDGE_KEY } from '../src/custom-elements.shared'
 import { setReactiveScheduling } from '../src/runtime-core/compiled'
 
 afterEach(() => {
@@ -60,5 +61,25 @@ it('emit reads a replaced callback from current props', () => {
   } finally {
     root.dispose()
     app.handler.dispose()
+  }
+})
+
+it('emit falls back to the custom element bridge when no callback prop exists', () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import {useEmit} from '@rue-js/rue';
+    export const View=props=>{const emit=useEmit(props);return <button onClick={()=>emit('shadow-save', {id: 7})}>emit</button>};
+  `)
+  const events: Array<{ name: string; args: unknown[] }> = []
+  const root = _$createComponent(app.View, {
+    [CUSTOM_ELEMENT_EMIT_BRIDGE_KEY]: (name: string, args: unknown[]) =>
+      events.push({ name, args }),
+  })
+  try {
+    root.__rue_compiled_mount(document.body)
+    document.querySelector('button')!.click()
+    expect(events).toEqual([{ name: 'shadow-save', args: [{ id: 7 }] }])
+  } finally {
+    root.dispose()
   }
 })

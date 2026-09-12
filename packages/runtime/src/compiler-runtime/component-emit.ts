@@ -1,6 +1,7 @@
 import { _$compiledPropsGet } from '../compiled-props'
+import { CUSTOM_ELEMENT_EMIT_BRIDGE_KEY } from '../custom-elements.shared'
 
-/** Emit is a direct call to the current prop handler, with no runtime instance bridge. */
+/** Emit calls the current prop handler or the Custom Element host bridge. */
 export const useEmit =
   (props: object) =>
   (event: string, ...args: unknown[]): unknown => {
@@ -10,5 +11,7 @@ export const useEmit =
       .map(part => part[0].toUpperCase() + part.slice(1))
       .join('')}`
     const handler = _$compiledPropsGet(props, key)
-    return typeof handler === 'function' ? handler(...args) : undefined
+    if (typeof handler === 'function') return handler(...args)
+    const bridge = _$compiledPropsGet(props, CUSTOM_ELEMENT_EMIT_BRIDGE_KEY)
+    return typeof bridge === 'function' ? bridge(event, args) : undefined
   }

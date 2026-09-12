@@ -1,7 +1,7 @@
 import {
   createOwner,
   disposeOwner,
-  effect,
+  renderEffect as effect,
   onOwnerCleanup,
   untrack,
   runWithOwner,
@@ -145,7 +145,7 @@ export const _$mountCompiledSlotFactory = (
 
 export const _$mountCompiledSlotAt = <Props extends object>(
   target: CompiledTarget,
-  readFactory: () => BlockFactory<Props> | null | undefined,
+  readFactory: () => unknown,
   readProps: () => Props,
 ): void => {
   let mountedFactory: BlockFactory<Props> | null | undefined
@@ -158,7 +158,8 @@ export const _$mountCompiledSlotAt = <Props extends object>(
   }
   onOwnerCleanup(cleanup)
   effect(() => {
-    const factory = readFactory()
+    const value = readFactory()
+    const factory = value == null ? value : _$compiledValueFactory<Props>(value)
     const props = readProps()
     if (
       factory === mountedFactory &&

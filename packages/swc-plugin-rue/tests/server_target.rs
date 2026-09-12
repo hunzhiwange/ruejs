@@ -184,3 +184,28 @@ fn action_state_alias_lowers_state_and_pending_reads() {
         assert!(!output.contains("state.count"), "{output}");
     }
 }
+
+#[test]
+fn writer_and_claim_support_control_flow_in_block_list_rows() {
+    let source = r#"
+export const View = ({items}) => <nav>{items.map(item => {
+  if (item.hidden) return null;
+  if (item.featured) {
+    return <strong key={item.slug}>{item.title}</strong>;
+  }
+  const active = item.current;
+  return <a className={active ? 'active' : ''} key={item.slug}>{item.title}</a>;
+})}</nav>;
+"#;
+    let (program, cm) = utils::parse(source, "server-block-list-row.tsx");
+    for (output, operation) in [
+        (utils::emit(apply_server(program.clone()), cm.clone()), "_$writeList"),
+        (utils::emit(swc_plugin_rue::apply_hydrate(program), cm), "_$claimList"),
+    ] {
+        assert!(output.contains(operation), "{output}");
+        assert!(output.contains("const active"), "{output}");
+        assert!(output.contains(".hidden"), "{output}");
+        assert!(output.contains(".featured"), "{output}");
+        assert!(!output.contains("items.map"), "{output}");
+    }
+}

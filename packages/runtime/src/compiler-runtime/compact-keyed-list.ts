@@ -2,7 +2,7 @@ import {
   _$collectCompiledOwnerCleanups,
   createOwner,
   disposeOwner,
-  effect,
+  renderEffect as effect,
   runWithOwner,
   signal,
   untrack,
@@ -132,7 +132,15 @@ const mountBatchRow = <T, K>(
   ownerless: boolean,
 ): void => {
   if (ownerless) {
-    const mounted = mount(item, index, { parent: staging, before: null, batch: true })
+    // Nested ownerless lists must not consume the owner of an enclosing row.
+    const previousOwner = initializingRowOwner
+    initializingRowOwner = undefined
+    let mounted: ReturnType<typeof mount>
+    try {
+      mounted = mount(item, index, { parent: staging, before: null, batch: true })
+    } finally {
+      initializingRowOwner = previousOwner
+    }
     if (
       (mounted as typeof mounted & { [batchPlacement]?: ParentNode })[batchPlacement] === staging
     ) {

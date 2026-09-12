@@ -106,6 +106,35 @@ describe('compiled slot browser hydration', () => {
     expect(container.querySelector('button')).toBe(button)
     expect(container.querySelector('h1')).toBe(heading)
   })
+  it('claims an opaque server slot after pre-hydration descendant mutations', () => {
+    const browser = compileNodePlan(
+      `export {claimServerHTML} from '@rue-js/runtime/internal/hydrate'`,
+      'hydrate',
+    )
+    const container = document.createElement('div')
+    container.innerHTML = '<main><p>Server content</p></main>'
+    const main = container.querySelector('main')!
+    main.querySelector('p')!.textContent = 'Enhanced before hydration'
+    const handle = browser.hydrateRoot(container, () =>
+      browser.claimServerHTML('<main><p>Server content</p></main>'),
+    )
+    roots.push(handle)
+    expect(container.querySelector('main')).toBe(main)
+    expect(main.textContent).toBe('Enhanced before hydration')
+  })
+  it('rejects a different top-level server slot element', () => {
+    const browser = compileNodePlan(
+      `export {claimServerHTML} from '@rue-js/runtime/internal/hydrate'`,
+      'hydrate',
+    )
+    const container = document.createElement('div')
+    container.innerHTML = '<article><p>Server content</p></article>'
+    expect(() =>
+      browser.hydrateRoot(container, () =>
+        browser.claimServerHTML('<main><p>Server content</p></main>'),
+      ),
+    ).toThrow('expected compiled server slot')
+  })
   it('claims a server fragment in document.body and disposes it cleanly', async () => {
     const value = await fixture()
     document.body.innerHTML = value.frame.html

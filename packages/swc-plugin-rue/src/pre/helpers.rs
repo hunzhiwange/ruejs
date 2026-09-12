@@ -2800,10 +2800,6 @@ pub fn block_has_reactive_render_control(block: &BlockStmt) -> bool {
     block.stmts.iter().take(ret_idx + 1).any(stmt_has_render_control)
 }
 
-pub fn block_has_custom_composable_call(block: &BlockStmt) -> bool {
-    node_contains_custom_composable_call(block)
-}
-
 pub fn arrow_has_reactive_render_control(arrow: &ArrowExpr) -> bool {
     match arrow.body.as_ref() {
         BlockStmtOrExpr::BlockStmt(block) => block_has_reactive_render_control(block),

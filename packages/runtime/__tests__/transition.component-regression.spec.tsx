@@ -122,3 +122,52 @@ it('compiled Transition schedules leave for conditional children', async () => {
   expect(document.body.textContent).toBe('visible')
   root.dispose()
 })
+
+it.each(['default', 'out-in', 'in-out'])(
+  'preserves component root keys in %s transitions',
+  async mode => {
+    setReactiveScheduling('sync')
+    const { exports: app } = evaluateComponent(`
+    import { Transition as Motion, ref } from '@rue-js/rue';
+    export const index = ref(0); export const trace = [];
+    const cards = [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Beta' }];
+    const Card = props => <section key={props.card.id}>{props.card.title}</section>;
+    export const View = () => <Motion mode="${mode}" duration={20}
+      onBeforeEnter={() => trace.push('enter')} onBeforeLeave={() => trace.push('leave')}>
+      <Card card={cards[index.value]} />
+    </Motion>;
+  `)
+    const root = app.View()
+    root.__rue_compiled_mount(document.body)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    app.trace.length = 0
+    app.index.value = 1
+    expect(document.body.textContent).toBe(mode === 'out-in' ? 'Alpha' : 'AlphaBeta')
+    expect(app.trace).toEqual(
+      mode === 'out-in' ? ['leave'] : mode === 'in-out' ? ['enter'] : ['leave', 'enter'],
+    )
+    await new Promise(resolve => setTimeout(resolve, 65))
+    expect(document.body.textContent).toBe('Beta')
+    expect(app.trace).toEqual(mode === 'in-out' ? ['enter', 'leave'] : ['leave', 'enter'])
+    root.dispose()
+    expect(document.body.childNodes).toHaveLength(0)
+  },
+)
+
+it('keeps component identity when only non-key props change', async () => {
+  setReactiveScheduling('sync')
+  const { exports: app } = evaluateComponent(`
+    import { Transition, ref } from '@rue-js/rue';
+    export const card = ref({ id: 'same', title: 'Before' }); export const trace = [];
+    const Card = props => <section key={props.card.id}>{props.card.title}</section>;
+    export const View = () => <Transition duration={20} onBeforeLeave={() => trace.push('leave')}><Card card={card.value} /></Transition>;
+  `)
+  const root = app.View()
+  root.__rue_compiled_mount(document.body)
+  const original = document.querySelector('section')
+  app.card.value = { id: 'same', title: 'After' }
+  expect(document.querySelector('section')).toBe(original)
+  expect(document.body.textContent).toBe('After')
+  expect(app.trace).toEqual([])
+  root.dispose()
+})

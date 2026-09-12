@@ -30,6 +30,50 @@ export const View = () => <main><Child {...values.get()}/></main>;
 `
 
 describe('closed component factory', () => {
+  it.each(['sync', 'microtask'] as const)(
+    'preserves opaque children when a route-like selector stays on the same branch (%s)',
+    async mode => {
+      setReactiveScheduling(mode)
+      const { exports: app } = evaluateComponent(`
+        import { signal, onUnmounted } from '@rue-js/rue';
+        export const route = signal('overview');
+        export const trace = { unmounted: 0 };
+        const insideLayout = () => route.get() !== 'outside';
+        export const Child = () => {
+          onUnmounted(() => trace.unmounted++);
+          return <input value="preserved" />;
+        };
+        export const View = props => {
+          if (insideLayout()) return <>{props.children}</>;
+          const label = route.get().toUpperCase();
+          return <p>{label}</p>;
+        };
+      `)
+      const child = _$createComponent(app.Child, {})
+      const root = _$createComponent(app.View, { children: child })
+      disposals.push(() => {
+        root.dispose()
+        child.dispose()
+        app.route.dispose()
+      })
+      root.__rue_compiled_mount(document.body)
+      const input = document.querySelector('input')!
+      input.focus()
+      for (const path of ['guards', 'overview', 'guards']) {
+        app.route.set(path)
+        await new Promise(resolve => setTimeout(resolve, 0))
+        expect(document.querySelector('input')).toBe(input)
+        expect(document.activeElement).toBe(input)
+        expect(app.trace.unmounted).toBe(0)
+      }
+      app.route.set('outside')
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(document.querySelector('input')).toBeNull()
+      expect(document.querySelector('p')?.textContent).toBe('OUTSIDE')
+      expect(app.trace.unmounted).toBe(1)
+    },
+  )
+
   it('has no class, arbitrary value, registry, or runtime bridge path', () => {
     for (const file of ['compiler-runtime/component-call.ts', 'compiler-runtime/component.ts']) {
       const implementation = readFileSync(`packages/runtime/src/${file}`, 'utf8')
@@ -40,7 +84,7 @@ describe('closed component factory', () => {
     const code = compileComponent(source)
     expect(code).toContain('_$compiledComponent')
     expect(code).not.toMatch(
-      /compiledValue|renderAnchor|compiledDynamicComponent|MarkComponentRenderReactive/,
+      /compiledValue(?!Factory)|renderAnchor|compiledDynamicComponent|MarkComponentRenderReactive/,
     )
     expect(code).toContain('_$rueSlots')
     expect(code).toContain('_$rueOwner')

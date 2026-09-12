@@ -3,13 +3,17 @@ import SidebarPlayground from '../site/SidebarPlaygroundExample'
 import Code from '../site/components/Code'
 
 const VPreAndRPre: FC = () => {
-  const activeTab = ref<'preview' | 'code'>('code')
+  const activeTab = ref<'preview' | 'code'>('preview')
   const phase = ref<'draft' | 'published'>('draft')
   const plan = ref<'pro' | 'basic'>('pro')
 
   return (
     <SidebarPlayground>
       <h1 className="text-5xl font-semibold mb-4 md:mb-4">v-pre / r-pre</h1>
+
+      <p className="mb-4 opacity-70">
+        pre 区域原样显示 JSX 表达式，切换状态不会求值或更新；下方对照区域正常更新。
+      </p>
 
       <div role="tablist" className="tabs tabs-box">
         <button
@@ -63,11 +67,11 @@ const VPreAndRPre: FC = () => {
       </div>
 
       <div v-pre className="rounded-box border border-dashed border-base-300 p-4">
-        <span v-if={phase.value === 'draft'}>{'{{ phase.value }}'}</span>
+        <span v-if={phase.value === 'draft'}>{phase.value}</span>
       </div>
 
       <div r-pre className="rounded-box border border-dashed border-base-300 p-4">
-        <span r-if={plan.value === 'pro'}>{'{{ plan.value }}'}</span>
+        <span r-if={plan.value === 'pro'}>{plan.value}</span>
       </div>
 
       <div className="rounded-box border border-base-300 p-4">
@@ -130,13 +134,13 @@ export default VPreAndRPre;`}
                   <div className="space-y-2">
                     <div className="text-sm opacity-70">当前阶段：{phase.value}</div>
                     <div v-pre className="rounded-box border border-dashed border-base-300 p-4">
-                      <span v-if={phase.value === 'draft'}>{'{{ phase.value }}'}</span>
+                      <span v-if={phase.value === 'draft'}>{phase.value}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm opacity-70">当前套餐：{plan.value}</div>
                     <div r-pre className="rounded-box border border-dashed border-base-300 p-4">
-                      <span r-if={plan.value === 'pro'}>{'{{ plan.value }}'}</span>
+                      <span r-if={plan.value === 'pro'}>{plan.value}</span>
                     </div>
                   </div>
                 </div>

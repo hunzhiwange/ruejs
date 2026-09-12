@@ -1,4 +1,4 @@
-import { effect } from '../runtime-core/compiled'
+import { renderEffect as effect } from '../runtime-core/compiled'
 import type { CompactCompiledRootHandle } from './compact-root'
 
 const UPDATE_PROPS_KEY = '__rue_compiled_update_props__' as const

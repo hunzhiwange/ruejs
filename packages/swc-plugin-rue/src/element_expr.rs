@@ -1143,6 +1143,9 @@ fn is_potentially_renderable_call_expr(call: &CallExpr) -> bool {
 }
 
 fn is_opaque_renderable_call_expr(vt: &VaporTransform, call: &CallExpr) -> bool {
+    if crate::reactive_provenance::scalar_call_result(&vt.plain_local_scopes, call) {
+        return false;
+    }
     if !is_potentially_renderable_call_expr(call) {
         return false;
     }
@@ -1159,6 +1162,9 @@ fn is_opaque_renderable_call_expr(vt: &VaporTransform, call: &CallExpr) -> bool 
 }
 
 pub(crate) fn is_proven_plain_call_expr(vt: &VaporTransform, expr: &Expr) -> bool {
+    if crate::reactive_provenance::is_scalar_call(&vt.plain_local_scopes, expr) {
+        return true;
+    }
     let Expr::Call(call) = crate::utils::unwrap_expr(expr) else {
         return false;
     };
@@ -1891,6 +1897,23 @@ pub(crate) fn emit_element_expr_container_child_at(
         return;
     };
     let inner = crate::utils::unwrap_expr(expr.as_ref());
+    if crate::vapor::is_compiled_text_container(vt, ec) {
+        let text = vt.next_el_ident();
+        stmts.push(const_decl(
+            text.clone(),
+            call_ident("_$compiledCreateTextNode", vec![string_expr("")]),
+        ));
+        stmts.push(Stmt::Expr(ExprStmt {
+            span: DUMMY_SP,
+            expr: Box::new(call_member(
+                parent.clone(),
+                "replaceChild",
+                vec![Expr::Ident(text.clone()), Expr::Ident(anchor.clone())],
+            )),
+        }));
+        crate::vapor::emit_compiled_text_effect(vt, &text, ec, stmts);
+        return;
+    }
     let list_stmt_start = stmts.len();
     if let Expr::Call(call) = inner
         && crate::element_list::try_build_list_from_map_at(vt, parent, anchor, call, stmts)

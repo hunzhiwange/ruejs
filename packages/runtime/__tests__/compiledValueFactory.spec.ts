@@ -75,4 +75,22 @@ describe('_$compiledValueFactory', () => {
     expect(parent.textContent).toBe('child')
     expect(parent.firstChild).toBe(mountedChild)
   })
+
+  it('normalizes raw compiled block values at opaque slot boundaries', () => {
+    const parent = document.createElement('div')
+    const child = _$compiledRoot(host => {
+      const node = document.createElement('span')
+      node.textContent = 'child'
+      host?.appendChild(node)
+      return [node, node]
+    })
+
+    _$mountCompiledSlotAt(
+      { parent, before: null },
+      () => child,
+      () => ({}),
+    )
+
+    expect(parent.innerHTML).toBe('<span>child</span>')
+  })
 })

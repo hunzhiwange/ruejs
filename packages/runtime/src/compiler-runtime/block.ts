@@ -2,7 +2,7 @@ import {
   adoptOwner,
   createOwner,
   disposeOwner,
-  effect,
+  renderEffect as effect,
   getCurrentOwner,
   onOwnerCleanup,
   runOwnerLifecycle,

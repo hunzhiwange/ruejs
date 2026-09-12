@@ -157,10 +157,8 @@ fn lowers_single_expr_children_for_plain_jsx_call_and_empty_cases() {
 
     assert!(call_lowered.stmts.is_empty());
     assert!(!call_lowered.is_function);
-    assert!(
-        call_out.contains("_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
-    );
-    assert!(call_out.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
+    assert!(call_out.contains("_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
+    assert!(call_out.contains("_$createElement(\"span\",_root)"));
 
     let mut empty_vt = new_vt();
     let empty = parse_jsx_element("<Box>{null}</Box>");

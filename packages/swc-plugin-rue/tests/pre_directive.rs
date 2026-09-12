@@ -60,3 +60,69 @@ export default Demo
     assert!(out.contains("r-else"));
     assert!(!out.contains("props.ok ?"));
 }
+
+#[test]
+fn pre_preserves_expression_syntax_without_evaluating_it() {
+    use swc_core::ecma::ast::*;
+    use swc_core::ecma::visit::{Visit, VisitWith};
+    #[derive(Default)]
+    struct Expressions {
+        text: Vec<String>,
+        calls: usize,
+    }
+    impl Visit for Expressions {
+        fn visit_str(&mut self, value: &Str) {
+            self.text.push(value.value.to_string_lossy().into_owned());
+        }
+        fn visit_call_expr(&mut self, call: &CallExpr) {
+            if let Callee::Expr(callee) = &call.callee {
+                if matches!(callee.as_ref(), Expr::Ident(id) if id.sym == "explode") {
+                    self.calls += 1;
+                }
+            }
+            call.visit_children_with(self);
+        }
+    }
+    for directive in ["v-pre", "r-pre"] {
+        let src = format!(
+            r#"
+const Demo = () => <div>
+  <section {directive} title={{explode()}}>
+    <span>{{phase.value}}</span>
+    <>{{explode()}}{{ok ? <b>yes</b> : null}}</>
+  </section>
+  <p>{{live.value}}</p>
+</div>;
+"#
+        );
+        for transform in [
+            swc_plugin_rue::apply_pre,
+            swc_plugin_rue::apply,
+            swc_plugin_rue::apply_server,
+            swc_plugin_rue::apply_hydrate,
+        ] {
+            let (program, cm) = utils::parse(&src, "pre_expressions.tsx");
+            let program = transform(program);
+            let mut expressions = Expressions::default();
+            program.visit_with(&mut expressions);
+            assert_eq!(expressions.calls, 0, "pre expressions must not execute");
+            assert!(
+                expressions.text.iter().any(|s| s.contains("{phase.value}")),
+                "{:?}",
+                expressions.text
+            );
+            assert!(
+                expressions.text.iter().any(|s| s.contains("{explode()}")),
+                "{:?}",
+                expressions.text
+            );
+            assert!(
+                expressions.text.iter().any(|s| s.contains("<b>yes</b>")),
+                "{:?}",
+                expressions.text
+            );
+            let out = utils::emit(program, cm);
+            assert!(out.contains("live.value"), "outside expressions remain reactive: {out}");
+        }
+    }
+}

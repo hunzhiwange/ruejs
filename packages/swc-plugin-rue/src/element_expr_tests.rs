@@ -265,8 +265,8 @@ fn rewrites_hook_wrapped_memo_calls_for_slot_with_empty_fallbacks() {
     let out = compact(&emit_expr(make_expr_for_slot(&mut vt, &expr)));
 
     assert!(out.contains("_$compiledWithHookId(\"memo:0:0\",()=>_$compiledMemo('memo',()"));
-    assert!(out.contains("_$compiledRoot((__rue_parent_context)=>{"));
-    assert!(out.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
+    assert!(out.contains("_$compiledRoot(()=>{"));
+    assert!(out.contains("_$createElement(\"span\",_root)"));
     assert!(out.contains(":\"\""));
 }
 
@@ -792,36 +792,27 @@ fn rewrites_slot_conditionals_with_renderable_calls_and_plain_fallbacks() {
         &mut vt,
         &parse_expr("ok ? _$compiledMemo('memo', () => <span />, []) : null", true),
     )));
-    assert!(
-        cond_out.contains("ok?_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
-    );
+    assert!(cond_out.contains("ok?_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
     assert!(cond_out.contains(":\"\""));
 
     let and_out = compact(&emit_expr(make_expr_for_slot(
         &mut vt,
         &parse_expr("ok && _$compiledMemo('memo', () => <span />, [])", true),
     )));
-    assert!(
-        and_out.contains("ok?_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
-    );
+    assert!(and_out.contains("ok?_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
     assert!(and_out.contains(":\"\""));
 
     let or_out = compact(&emit_expr(make_expr_for_slot(
         &mut vt,
         &parse_expr("renderFallback() || _$compiledMemo('memo', () => <span />, [])", true),
     )));
-    assert!(or_out.contains(
-        "renderFallback()||_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{"
-    ));
+    assert!(or_out.contains("renderFallback()||_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
 
     let left_renderable_or = compact(&emit_expr(make_expr_for_slot(
         &mut vt,
         &parse_expr("_$compiledMemo('memo', () => <span />, []) || fallback", true),
     )));
-    assert!(
-        left_renderable_or
-            .contains("_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
-    );
+    assert!(left_renderable_or.contains("_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
     assert!(left_renderable_or.contains("||fallback"));
 }
 
@@ -832,7 +823,7 @@ fn covers_fragment_once_nested_opaque_and_rewrite_false_edges() {
         make_expr_for_slot(vt, &parse_expr("ok ? <>frag</> : value", true))
     });
     let once_out = compact(&emit_expr(once_fragment));
-    assert!(once_out.contains("ok?_$compiledRoot((__rue_parent_context)=>{"));
+    assert!(once_out.contains("ok?_$compiledRoot(()=>{"), "{once_out}");
     assert!(once_out.contains("_$createDocumentFragment()"));
     assert!(!once_out.contains("watchEffect("));
 
@@ -841,10 +832,7 @@ fn covers_fragment_once_nested_opaque_and_rewrite_false_edges() {
         &mut branch_vt,
         &parse_expr("ok ? null : _$compiledMemo('memo', () => <span />, [])", true),
     )));
-    assert!(
-        cond_out
-            .contains("ok?\"\":_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
-    );
+    assert!(cond_out.contains("ok?\"\":_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
 
     let or_left_out = compact(&emit_expr(make_expr_for_slot(
         &mut branch_vt,

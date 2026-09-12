@@ -753,6 +753,26 @@ fn fallthrough_branch_render_expr(block: &BlockStmt) -> Option<Expr> {
 
 struct KeyCompiledBranchReturns {
     next_key: usize,
+    selector_bindings: HashSet<String>,
+}
+
+#[derive(Default)]
+struct SelectorBindingCollector {
+    names: HashSet<String>,
+}
+
+impl Visit for SelectorBindingCollector {
+    fn visit_return_stmt(&mut self, _: &ReturnStmt) {}
+    fn visit_function(&mut self, _: &Function) {}
+    fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+
+    fn visit_binding_ident(&mut self, binding: &BindingIdent) {
+        self.names.insert(binding.id.sym.to_string());
+    }
+
+    fn visit_fn_decl(&mut self, declaration: &FnDecl) {
+        self.names.insert(declaration.ident.sym.to_string());
+    }
 }
 
 impl VisitMut for KeyCompiledBranchReturns {
@@ -767,8 +787,16 @@ impl VisitMut for KeyCompiledBranchReturns {
         let key =
             Expr::Lit(Lit::Num(Number { span: DUMMY_SP, value: self.next_key as f64, raw: None }));
         self.next_key += 1;
-        return_stmt.arg =
-            Some(Box::new(crate::element_expr::refreshing_compiled_branch_case(key, *result)));
+        // Reactive props are read by the mounted block itself. Recreate a same-key
+        // branch only when its closure captures a selector-local snapshot.
+        let mut captures =
+            UnavailableReferenceDetector { unavailable: &self.selector_bindings, found: false };
+        result.visit_with(&mut captures);
+        return_stmt.arg = Some(Box::new(if captures.found {
+            crate::element_expr::refreshing_compiled_branch_case(key, *result)
+        } else {
+            crate::element_expr::compiled_branch_case(key, *result)
+        }));
     }
 }
 
@@ -1003,14 +1031,33 @@ pub(crate) fn default_exported_identifier_names(module: &Module) -> HashSet<Stri
     module
         .body
         .iter()
-        .filter_map(|item| match item {
+        .flat_map(|item| match item {
             ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export)) => {
                 match crate::utils::unwrap_expr(export.expr.as_ref()) {
-                    Expr::Ident(ident) => Some(ident.sym.to_string()),
-                    _ => None,
+                    Expr::Ident(ident) => vec![ident.sym.to_string()],
+                    _ => Vec::new(),
                 }
             }
-            _ => None,
+            ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => export
+                .specifiers
+                .iter()
+                .filter_map(|specifier| {
+                    let ExportSpecifier::Named(named) = specifier else { return None };
+                    let exported = named.exported.as_ref()?;
+                    let is_default = match exported {
+                        ModuleExportName::Ident(ident) => ident.sym == *"default",
+                        ModuleExportName::Str(value) => value.value == *"default",
+                    };
+                    if !is_default {
+                        return None;
+                    }
+                    match &named.orig {
+                        ModuleExportName::Ident(ident) => Some(ident.sym.to_string()),
+                        ModuleExportName::Str(_) => None,
+                    }
+                })
+                .collect(),
+            _ => Vec::new(),
         })
         .collect()
 }
@@ -1359,13 +1406,14 @@ impl VisitMut for PropsSlotRewriter<'_> {
             && let MemberProp::Ident(prop) = &member.prop
             && let Some(slot) = self.slots.get(prop.sym.as_ref())
         {
-            let event = crate::emit::ident("$event");
+            // Component callbacks may carry multiple arguments (for example id and patch).
+            let event = crate::emit::ident("$args");
             let handler = crate::emit::call_member(slot.clone(), "get", vec![]);
             let invoke = Expr::Call(CallExpr {
                 span: DUMMY_SP,
                 callee: Callee::Expr(Box::new(handler)),
                 args: vec![ExprOrSpread {
-                    spread: None,
+                    spread: Some(DUMMY_SP),
                     expr: Box::new(Expr::Ident(event.clone())),
                 }],
                 type_args: None,
@@ -1373,7 +1421,12 @@ impl VisitMut for PropsSlotRewriter<'_> {
             });
             **expr = Expr::Arrow(ArrowExpr {
                 span: DUMMY_SP,
-                params: vec![Pat::Ident(BindingIdent { id: event, type_ann: None })],
+                params: vec![Pat::Rest(RestPat {
+                    span: DUMMY_SP,
+                    dot3_token: DUMMY_SP,
+                    arg: Box::new(Pat::Ident(BindingIdent { id: event, type_ann: None })),
+                    type_ann: None,
+                })],
                 body: Box::new(BlockStmtOrExpr::Expr(Box::new(invoke))),
                 is_async: false,
                 is_generator: false,
@@ -2086,7 +2139,12 @@ fn lower_branch_render(
         branch_stmts.push(stmt);
     }
 
-    branch_stmts.visit_mut_with(&mut KeyCompiledBranchReturns { next_key: 0 });
+    let mut bindings = SelectorBindingCollector::default();
+    branch_stmts.visit_with(&mut bindings);
+    branch_stmts.visit_mut_with(&mut KeyCompiledBranchReturns {
+        next_key: 0,
+        selector_bindings: bindings.names,
+    });
 
     let factory = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,

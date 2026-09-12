@@ -286,11 +286,18 @@ pub(crate) fn compiled_list_call_is_safe(vt: &VaporTransform, call: &CallExpr) -
 }
 
 pub(crate) fn is_compiled_safe_element(vt: &VaporTransform, element: &JSXElement) -> bool {
+    // Scalar lowering installs live bindings; once/memo factories need snapshot writes.
+    if vt.is_once_context() {
+        return false;
+    }
     let shadowed_names = vt.current_scalar_constructor_shadows();
     compiled_scalar_element_is_safe(vt, element, &shadowed_names)
 }
 
 pub(crate) fn is_compiled_safe_fragment(vt: &VaporTransform, fragment: &JSXFragment) -> bool {
+    if vt.is_once_context() {
+        return false;
+    }
     let shadowed_names = vt.current_scalar_constructor_shadows();
     fragment.children.iter().all(|child| compiled_child_is_safe(vt, child, &shadowed_names))
 }

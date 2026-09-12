@@ -267,25 +267,8 @@ impl ServerTransform {
                 let Expr::Arrow(row) = arg.expr.as_ref() else {
                     panic!("Rue SSR/claim list requires an inline row factory")
                 };
-                let BlockStmtOrExpr::Expr(body) = row.body.as_ref() else {
-                    panic!("Rue SSR/claim list requires an expression row factory")
-                };
-                let mut row_body = (**body).clone();
-                let key = match &row_body {
-                    Expr::JSXElement(el) => el.opening.attrs.iter().find_map(|attr| match attr {
-                        JSXAttrOrSpread::JSXAttr(JSXAttr {
-                            name: JSXAttrName::Ident(name),
-                            value:
-                                Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-                                    expr: JSXExpr::Expr(value),
-                                    ..
-                                })),
-                            ..
-                        }) if name.sym == *"key" => Some((**value).clone()),
-                        _ => None,
-                    }),
-                    _ => None,
-                };
+                let mut row_body = (*row.body).clone();
+                let key_body = row_body.clone();
                 let id = self.id();
                 let key_params = row.params.clone();
                 let mut reads = std::collections::HashMap::new();
@@ -309,14 +292,40 @@ impl ServerTransform {
                     collect_row_pattern_reads(pattern, getter, &mut reads);
                     params.push(Pat::Ident(BindingIdent { id: name, type_ann: None }));
                 }
-                row_body.visit_mut_with(&mut PlanPropReads(reads));
-                let plan = self.expression_plan(row_body);
-                let row_factory =
-                    self.arrow(params.clone(), BlockStmtOrExpr::Expr(Box::new(plan)), false);
-                let key_fn = if let Some(key) = key {
-                    self.arrow(key_params, BlockStmtOrExpr::Expr(Box::new(key)), false)
-                } else {
-                    Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))
+                let mut prop_reads = PlanPropReads(reads);
+                row_body.visit_mut_with(&mut prop_reads);
+                let row_factory_body = match row_body {
+                    BlockStmtOrExpr::Expr(body) => {
+                        BlockStmtOrExpr::Expr(Box::new(self.expression_plan(*body)))
+                    }
+                    BlockStmtOrExpr::BlockStmt(mut block) => {
+                        block.visit_mut_with(&mut ServerListBlockReturns { transform: self });
+                        block.stmts.push(Stmt::Return(ReturnStmt {
+                            span: DUMMY_SP,
+                            arg: Some(Box::new(self.plan(vec![]))),
+                        }));
+                        BlockStmtOrExpr::BlockStmt(block)
+                    }
+                };
+                let row_factory = self.arrow(params.clone(), row_factory_body, false);
+                let key_fn = match key_body {
+                    BlockStmtOrExpr::Expr(body) => list_row_key(body.as_ref()).map_or_else(
+                        || Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+                        |key| self.arrow(key_params, BlockStmtOrExpr::Expr(Box::new(key)), false),
+                    ),
+                    BlockStmtOrExpr::BlockStmt(mut block) => {
+                        let mut keys = ServerListBlockKeys { count: 0 };
+                        block.visit_mut_with(&mut keys);
+                        if keys.count == 0 {
+                            Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))
+                        } else {
+                            block.stmts.push(Stmt::Return(ReturnStmt {
+                                span: DUMMY_SP,
+                                arg: Some(Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })))),
+                            }));
+                            self.arrow(key_params, BlockStmtOrExpr::BlockStmt(block), false)
+                        }
+                    }
                 };
                 stmts.push(self.instruction(
                     "List",
@@ -488,6 +497,68 @@ fn root_jsx(expression: &Expr) -> bool {
         Expr::Bin(b) if b.op == BinaryOp::LogicalAnd => root_jsx(&b.right),
         Expr::Array(a) => a.elems.iter().flatten().any(|e| root_jsx(&e.expr)),
         _ => false,
+    }
+}
+
+fn list_row_key(expression: &Expr) -> Option<Expr> {
+    let element = match expression {
+        Expr::Paren(value) => return list_row_key(value.expr.as_ref()),
+        Expr::TsAs(value) => return list_row_key(value.expr.as_ref()),
+        Expr::TsTypeAssertion(value) => return list_row_key(value.expr.as_ref()),
+        Expr::TsNonNull(value) => return list_row_key(value.expr.as_ref()),
+        Expr::TsSatisfies(value) => return list_row_key(value.expr.as_ref()),
+        Expr::JSXElement(element) => element,
+        _ => return None,
+    };
+    element.opening.attrs.iter().find_map(|attr| match attr {
+        JSXAttrOrSpread::JSXAttr(JSXAttr {
+            name: JSXAttrName::Ident(name),
+            value:
+                Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                    expr: JSXExpr::Expr(value),
+                    ..
+                })),
+            ..
+        }) if name.sym == *"key" => Some((**value).clone()),
+        _ => None,
+    })
+}
+
+struct ServerListBlockReturns<'a> {
+    transform: &'a mut ServerTransform,
+}
+
+impl VisitMut for ServerListBlockReturns<'_> {
+    fn visit_mut_function(&mut self, _: &mut Function) {}
+
+    fn visit_mut_arrow_expr(&mut self, _: &mut ArrowExpr) {}
+
+    fn visit_mut_return_stmt(&mut self, statement: &mut ReturnStmt) {
+        let result = statement
+            .arg
+            .take()
+            .map(|value| *value)
+            .unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })));
+        statement.arg = Some(Box::new(self.transform.expression_plan(result)));
+    }
+}
+
+struct ServerListBlockKeys {
+    count: usize,
+}
+
+impl VisitMut for ServerListBlockKeys {
+    fn visit_mut_function(&mut self, _: &mut Function) {}
+
+    fn visit_mut_arrow_expr(&mut self, _: &mut ArrowExpr) {}
+
+    fn visit_mut_return_stmt(&mut self, statement: &mut ReturnStmt) {
+        let key = statement.arg.as_deref().and_then(list_row_key);
+        if key.is_some() {
+            self.count += 1;
+        }
+        statement.arg =
+            Some(Box::new(key.unwrap_or(Expr::Lit(Lit::Null(Null { span: DUMMY_SP })))));
     }
 }
 

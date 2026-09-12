@@ -1,6 +1,5 @@
 import { signal, computed, type FC } from '@rue-js/rue'
-import SidebarPlayground from '../site/SidebarPlaygroundExample'
-import Code from '../site/components/Code'
+import ExamplePlayground from './ExamplePlayground'
 
 const source = `import { signal, computed } from '@rue-js/rue'
 
@@ -17,8 +16,7 @@ const IsProxy: FC = () => {
   const state = signal({ count: 1 })
   const doubled = computed(() => state.get().count * 2)
   return (
-    <SidebarPlayground>
-      <h1 className="text-4xl font-semibold">无代理状态模型</h1>
+    <ExamplePlayground title="无代理状态模型" source={source}>
       <p className="my-4">
         状态容器维护路径依赖图，不创建响应式对象代理。需要给外部函数传数据时显式创建快照，并将结果写回
         Signal。
@@ -34,8 +32,7 @@ const IsProxy: FC = () => {
           计数 + 1
         </button>
       </div>
-      <Code lang="tsx" code={source} />
-    </SidebarPlayground>
+    </ExamplePlayground>
   )
 }
 

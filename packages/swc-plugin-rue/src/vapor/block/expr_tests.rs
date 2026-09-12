@@ -197,10 +197,8 @@ fn vapor_block_expr_rewrites_calls_for_slot_values() {
         &mut memo_vt,
         &parse_expr("_$compiledMemo('memo', () => <span />, [])", true),
     )));
-    assert!(
-        memo_out.contains("_$compiledMemo('memo',()=>_$compiledRoot((__rue_parent_context)=>{")
-    );
-    assert!(memo_out.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
+    assert!(memo_out.contains("_$compiledMemo('memo',()=>_$compiledRoot(()=>{"));
+    assert!(memo_out.contains("_$createElement(\"span\",_root)"), "{memo_out}");
 
     let mut hook_vt = new_vt();
     let hook_out = compact(&emit_expr(build_slot_expr(

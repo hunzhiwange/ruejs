@@ -18,6 +18,7 @@ declare global {
     }
     export interface IntrinsicAttributes {
       key?: string | number
+      'server:defer'?: boolean | ''
       'client:load'?: boolean | ''
       'client:idle'?: boolean | '' | { timeout: number }
       'client:visible'?: boolean | '' | { rootMargin: string }

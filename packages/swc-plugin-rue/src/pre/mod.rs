@@ -17,6 +17,7 @@ mod if_directive;
 mod model_directive;
 mod on_directive;
 mod on_setup;
+pub(crate) mod pre_directive;
 mod show_directive;
 mod side_effect;
 mod template_directive;

@@ -6,6 +6,10 @@ import {
 import { getSharedReactiveRuntime } from './reactive-kernel/shared-runtime.js'
 import { createSelectorSubscriptions } from './reactive-kernel/selector.js'
 import * as effects from './reactive-kernel/effect-core.js'
+import {
+  schedulerEnqueue,
+  schedulerScheduleMicrotaskDrain,
+} from './reactive-kernel/scheduler-core.js'
 import { graphDebugStats } from './reactive-kernel/graph-core.js'
 import {
   getSharedReactiveStorage,
@@ -23,6 +27,7 @@ export type EffectCallback = () => unknown
 export type EffectScheduler = (runner: () => void) => void
 
 export interface EffectOptions {
+  readonly onTrigger?: (event: effects.ReactiveTriggerEvent) => void
   readonly lazy?: boolean
   readonly scheduler?: EffectScheduler
   readonly onDispose?: EffectCleanup
@@ -345,36 +350,76 @@ export const effect = (callback: EffectCallback, options?: EffectOptions | null)
   return result
 }
 
+const renderTriggeredCallbacks = new Map<
+  CompiledOwner,
+  Set<(event: effects.ReactiveTriggerEvent) => void>
+>()
+
+export const onRenderTriggered = (
+  callback: (event: effects.ReactiveTriggerEvent) => void,
+): (() => void) => {
+  const owner = currentOwner
+  if (owner === undefined) return () => {}
+  let callbacks = renderTriggeredCallbacks.get(owner)
+  if (!callbacks) {
+    callbacks = new Set()
+    renderTriggeredCallbacks.set(owner, callbacks)
+    onOwnerCleanup(() => renderTriggeredCallbacks.delete(owner))
+  }
+  callbacks.add(callback)
+  return () => {
+    callbacks.delete(callback)
+  }
+}
+
+/** Render subscriptions report triggers without tracking reads made by debug hooks. */
+export const renderEffect = (
+  callback: EffectCallback,
+  options?: EffectOptions | null,
+): EffectHandle => {
+  const owner = currentOwner
+  return effect(callback, {
+    ...options,
+    onTrigger: event => {
+      if (renderTriggeredCallbacks.size === 0) return
+      let cursor = owner
+      while (cursor !== undefined) {
+        const callbacks = renderTriggeredCallbacks.get(cursor)
+        if (callbacks) {
+          untrack(() => {
+            for (const callback of [...callbacks]) callback(event)
+          })
+          break
+        }
+        cursor = owners.get(cursor)?.[OwnerField.Parent]
+      }
+    },
+  })
+}
+
 /**
  * Run compiler-generated DOM/list work synchronously once, then coalesce invalidations into the
  * next microtask. Public effects continue to use the configured (frame by default) scheduler.
  */
 export const _$compiledRenderEffect = (callback: EffectCallback): EffectHandle => {
   let initialized = false
-  let pending = false
-  return effect(callback, {
+  let handle: EffectHandle | undefined
+  const scheduler = reactiveRuntime().scheduler
+  handle = renderEffect(callback, {
     scheduler: runner => {
       if (!initialized) {
         initialized = true
-        pending = true
-        try {
-          runner()
-        } finally {
-          pending = false
-        }
+        runner()
         return
       }
-      if (pending) return
-      pending = true
-      queueMicrotask(() => {
-        try {
-          runner()
-        } finally {
-          pending = false
-        }
-      })
+      if (handle === undefined) return
+      // Share the flush barrier with public effects: list patches can enqueue attribute work
+      // that must finish before nextTick resolves.
+      schedulerEnqueue(scheduler, handle.id, runner)
+      schedulerScheduleMicrotaskDrain(scheduler)
     },
   })
+  return handle
 }
 
 type CompiledTextTarget = {
@@ -384,7 +429,7 @@ type CompiledTextTarget = {
 /** Bind a compiler-proven scalar expression to a text node without repeating update boilerplate. */
 export const _$compiledText = (node: CompiledTextTarget, read: () => unknown): EffectHandle => {
   let previous: string | undefined
-  return effect(() => {
+  return renderEffect(() => {
     const raw = read()
     const next = raw == null || typeof raw === 'boolean' ? '' : String(raw)
     if (Object.is(previous, next)) return

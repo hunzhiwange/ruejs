@@ -2,12 +2,11 @@ import {
   batch,
   createOwner,
   disposeOwner,
-  effect,
+  renderEffect as effect,
   onOwnerCleanup,
   runWithOwner,
   runOwnerLifecycle,
   setOwnerEffectBoundary,
-  signal,
   untrack,
   type CompiledOwner,
 } from '../runtime-core/compiled'
@@ -26,7 +25,7 @@ export const RUE_COMPILED_COMPONENT_READ_PROPS_KEY =
   '__rue_compiled_component_read_props__' as const
 export const RUE_COMPILED_COMPONENT_TRACK_PROPS_KEY =
   '__rue_compiled_component_track_props__' as const
-export const _$compiledSignal = signal
+export { _$compiledSignal } from './compiler-signal'
 export const _$compiledBatch = batch
 export type CompiledPropsUpdater<Props> = (nextProps: Props) => void
 export type CompiledComponentHandle<Props> = BlockRecord & {
@@ -50,6 +49,7 @@ export const _$mountCompiledComponent = <Props extends object>(
   withComponentErrorScope(() => {
     const owner = createOwner()
     let block: BlockRecord | undefined
+    let mounted = false
     let disposed = false
     const cleanup = () => {
       if (disposed) return
@@ -70,7 +70,8 @@ export const _$mountCompiledComponent = <Props extends object>(
               try {
                 run()
               } catch (error) {
-                if (!dispatchComponentError(error, owner, 'component effect')) throw error
+                const captured = dispatchComponentError(error, owner, 'component effect')
+                if (!mounted && !captured) throw error
               }
             }),
           )
@@ -90,6 +91,7 @@ export const _$mountCompiledComponent = <Props extends object>(
             runOwnerLifecycle(owner, 'beforeMount')
             block.__rue_compiled_mount(parent)
             runOwnerLifecycle(owner, 'mounted')
+            mounted = true
             let initial = true
             effect(() => {
               const next = readProps()

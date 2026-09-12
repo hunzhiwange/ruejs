@@ -6,7 +6,7 @@ import {
   setOwnerEffectBoundary,
   createOwner,
   disposeOwner,
-  effect,
+  renderEffect as effect,
   getCurrentOwner,
   onOwnerCleanup,
   runWithOwner,
@@ -925,6 +925,16 @@ export const hydrateRange = (
 }
 
 /** Claims a server-only slot without interpreting its values or rebuilding interactive components. */
+const hasSameServerNodeShape = (actual: Node, expected: Node): boolean => {
+  if (actual.nodeType !== expected.nodeType) return false
+  if (actual.nodeType === 1)
+    return (
+      (actual as Element).localName === (expected as Element).localName &&
+      (actual as Element).namespaceURI === (expected as Element).namespaceURI
+    )
+  return actual.nodeValue === expected.nodeValue
+}
+
 export const claimServerHTML =
   (html: string): ClaimPlan =>
   context => {
@@ -934,7 +944,7 @@ export const claimServerHTML =
       if (!context.claim) insert(context, expected)
       else {
         const actual = context.next
-        if (!actual || actual === context.end || !actual.isEqualNode(expected))
+        if (!actual || actual === context.end || !hasSameServerNodeShape(actual, expected))
           mismatch(context, 'compiled server slot')
         context.next = actual!.nextSibling
       }
