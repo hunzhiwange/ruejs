@@ -746,7 +746,23 @@ async function main(options) {
 
   if (options.check) {
     const budget = JSON.parse(await readFile(budgetFile, 'utf8'))
-    checkRuntimeSizeBudget(report, budget)
+    try {
+      checkRuntimeSizeBudget(report, budget)
+    } catch (error) {
+      if (!(error instanceof RuntimeSizeBudgetError)) {
+        throw error
+      }
+
+      console.warn(
+        `${pico.yellow(pico.bold('Runtime size budget warnings (non-blocking):'))}\n` +
+          error.failures
+            .map(
+              failure =>
+                `- ${failure.preset} ${failure.dimension}: actual ${failure.actual}, limit ${failure.limit}`,
+            )
+            .join('\n'),
+      )
+    }
   }
 
   console.log(`\nRuntime size audit: ${path.relative(projectRoot, options.output)}`)

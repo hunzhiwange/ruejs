@@ -12,13 +12,13 @@ Generated from `deleted-test-recovery.manifest.json` after the 2026-09-20 full r
 
 ## Classification summary
 
-| Classification | Deleted paths | Meaning |
-|---|---:|---|
-| Migrated passing | 150 | Restored at the original test path and currently passes. |
-| Migrated failing | 0 | No restored path retains an executable expected failure. |
-| Covered | 42 | Observable behavior is exercised by the manifest's current test evidence. |
-| Obsolete | 7 | Removed implementation/helper; rationale is retained by the manifest evidence. |
-| **Total** | **199** | Every deleted path occurs exactly once. |
+| Classification   | Deleted paths | Meaning                                                                        |
+| ---------------- | ------------: | ------------------------------------------------------------------------------ |
+| Migrated passing |           150 | Restored at the original test path and currently passes.                       |
+| Migrated failing |             0 | No restored path retains an executable expected failure.                       |
+| Covered          |            42 | Observable behavior is exercised by the manifest's current test evidence.      |
+| Obsolete         |             7 | Removed implementation/helper; rationale is retained by the manifest evidence. |
+| **Total**        |       **199** | Every deleted path occurs exactly once.                                        |
 
 ## Expected failure queue
 
