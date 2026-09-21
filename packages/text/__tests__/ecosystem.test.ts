@@ -21,11 +21,12 @@ import {
 
 const FIXTURES_DIR = path.resolve(__dirname, 'fixtures', 'ecosystem')
 
-async function startFixture(name: string, port: number) {
+async function startFixture(name: string, port: number, readinessPath = '/') {
   const fixture = await startFixtureDevServer({
     name,
     port,
     root: path.join(FIXTURES_DIR, name),
+    readinessPath,
   })
   return {
     ...fixture,
@@ -177,7 +178,7 @@ describe('text-intl', () => {
   let fetchPage: (path: string) => Promise<{ html: string; status: number }>
 
   beforeAll(async () => {
-    const fixture = await startFixture('text-intl', 4403)
+    const fixture = await startFixture('text-intl', 4403, '/en')
     proc = fixture.process
     fetchPage = fixture.fetchPage
   }, FIXTURE_HOOK_TIMEOUT_MS)

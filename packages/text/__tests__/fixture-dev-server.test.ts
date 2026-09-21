@@ -4,6 +4,7 @@ import {
   FIXTURE_HOOK_TIMEOUT_MS,
   FIXTURE_STARTUP_TIMEOUT_MS,
   startFixtureDevServer,
+  stopFixtureDevServer,
   type FixtureDevServer,
 } from './fixture-dev-server.js'
 
@@ -70,6 +71,42 @@ describe('fixture dev server helper', () => {
     if (fixtureProcess) {
       await waitForProcessExit(fixtureProcess)
       expect(isProcessRunning(fixtureProcess)).toBe(false)
+    }
+  })
+
+  it('waits for a non-5xx response on the configured readiness path', async () => {
+    const fixture = await startFixtureDevServer({
+      name: 'eventually-ready',
+      root: process.cwd(),
+      port: 49_998,
+      command: {
+        bin: process.execPath,
+        args: [
+          '-e',
+          [
+            "const http = require('node:http')",
+            'let attempts = 0',
+            'http.createServer((req, res) => {',
+            "  if (req.url !== '/ready') { res.statusCode = 404; res.end(); return }",
+            '  attempts += 1',
+            '  res.statusCode = attempts === 1 ? 500 : 200',
+            '  res.end(String(attempts))',
+            '}).listen(49998)',
+          ].join(';'),
+        ],
+      },
+      readinessPath: '/ready',
+      startupTimeoutMs: 2_000,
+      readinessPollIntervalMs: 10,
+      serverSettleDelayMs: 0,
+    })
+
+    try {
+      const result = await fixture.fetchPage('/ready')
+      expect(result.status).toBe(200)
+      expect(Number(result.html)).toBeGreaterThanOrEqual(3)
+    } finally {
+      await stopFixtureDevServer(fixture.process)
     }
   })
 })

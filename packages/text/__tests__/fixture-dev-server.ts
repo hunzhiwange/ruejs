@@ -39,6 +39,7 @@ type FixtureDevServerOptions = {
   startupTimeoutMs?: number
   readinessPollIntervalMs?: number
   readyRequestTimeoutMs?: number
+  readinessPath?: string
   serverSettleDelayMs?: number
   onSpawn?: (proc: ChildProcess) => void
 }
@@ -54,6 +55,7 @@ export async function startFixtureDevServer({
   startupTimeoutMs = FIXTURE_STARTUP_TIMEOUT_MS,
   readinessPollIntervalMs = READY_POLL_INTERVAL_MS,
   readyRequestTimeoutMs = READY_REQUEST_TIMEOUT_MS,
+  readinessPath = '/',
   serverSettleDelayMs = SERVER_SETTLE_DELAY_MS,
   onSpawn,
 }: FixtureDevServerOptions): Promise<FixtureDevServer> {
@@ -86,6 +88,7 @@ export async function startFixtureDevServer({
       startupTimeoutMs,
       readinessPollIntervalMs,
       readyRequestTimeoutMs,
+      readinessPath,
     })
   } catch (error) {
     await stopFixtureDevServer(proc)
@@ -313,6 +316,7 @@ async function waitForFixtureReady({
   startupTimeoutMs,
   readinessPollIntervalMs,
   readyRequestTimeoutMs,
+  readinessPath,
 }: {
   name: string
   baseUrl: string
@@ -321,6 +325,7 @@ async function waitForFixtureReady({
   startupTimeoutMs: number
   readinessPollIntervalMs: number
   readyRequestTimeoutMs: number
+  readinessPath: string
 }) {
   await new Promise<void>((resolve, reject) => {
     const deadline = Date.now() + startupTimeoutMs
@@ -354,11 +359,15 @@ async function waitForFixtureReady({
       }
 
       try {
-        const res = await fetch(`${baseUrl}/`, {
+        const res = await fetch(`${baseUrl}${readinessPath}`, {
           redirect: 'manual',
           signal: AbortSignal.timeout(readyRequestTimeoutMs),
         })
         await res.body?.cancel()
+        if (res.status >= 500) {
+          pollTimer = setTimeout(checkReady, readinessPollIntervalMs)
+          return
+        }
         cleanup()
         resolve()
       } catch {
