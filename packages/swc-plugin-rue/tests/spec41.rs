@@ -111,7 +111,8 @@ export default HelloWorld;
     std::fs::write("target/vapor_outputs/spec41.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("const x = ref(0)"), "{out}");
-    assert!(normalized.contains("_$compiledRoot("), "{out}");
+    assert!(normalized.contains("_$compiledStaticRoot("), "{out}");
+    assert!(normalized.contains("_$compiledScalarRoot("), "{out}");
     assert!(normalized.contains("return [ _root, _root ]"), "{out}");
-    assert!(normalized.contains("_$compiledText(_el3, ()=>x.value)"), "{out}");
+    assert!(normalized.contains("_$compiledScalarText(_el3, ()=>x.value)"), "{out}");
 }

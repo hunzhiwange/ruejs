@@ -287,8 +287,8 @@ export default Events;
     assert!(normalized.contains("_$compiledSetup"), "{normalized}");
     assert!(normalized.contains("effect"), "{normalized}");
     assert!(normalized.contains("addEventListener"), "{normalized}");
-    assert!(normalized.contains("_$setValue"), "{normalized}");
-    assert!(normalized.contains("_$setDisabled"), "{normalized}");
-    assert!(normalized.contains("RouterLink.__rueHref"), "{normalized}");
+    assert!(normalized.contains(".value = __child"), "{normalized}");
+    assert!(normalized.contains(".disabled ="), "{normalized}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{normalized}");
     assert!(!normalized.contains("watchEffect"), "{normalized}");
 }

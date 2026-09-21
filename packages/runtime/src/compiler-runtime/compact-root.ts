@@ -1,5 +1,7 @@
 export { _$compiledRoot } from './block'
+import { _$registerPortableCompiledRoot } from './block'
 import type { BlockRecord, BlockSetup } from './block'
+import { insertBefore } from './dom.browser'
 
 /** Owner-free root for compiler-proven static component bodies. */
 export const _$compiledStaticRoot = (setup: BlockSetup): BlockRecord => {
@@ -21,7 +23,7 @@ export const _$compiledStaticRoot = (setup: BlockSetup): BlockRecord => {
     }
     first = last = null
   }
-  return {
+  const root: BlockRecord = {
     get first() {
       return first
     },
@@ -37,7 +39,7 @@ export const _$compiledStaticRoot = (setup: BlockSetup): BlockRecord => {
         let node = first
         while (node) {
           const next = node.nextSibling
-          parent.insertBefore(node, before)
+          insertBefore(parent, node, before)
           if (node === last) break
           node = next
         }
@@ -46,6 +48,8 @@ export const _$compiledStaticRoot = (setup: BlockSetup): BlockRecord => {
     },
     dispose,
   }
+  _$registerPortableCompiledRoot(root, () => _$compiledStaticRoot(setup))
+  return root
 }
 export type {
   BlockRecord as CompactCompiledRootHandle,

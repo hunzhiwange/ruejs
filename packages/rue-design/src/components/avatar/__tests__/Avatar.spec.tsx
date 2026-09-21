@@ -159,6 +159,16 @@ describe('Avatar', () => {
     expect(fallback.textContent).toContain('AI')
   })
 
+  it('renders a JSX icon prop as content instead of function source', async () => {
+    const c = document.createElement('div')
+    const Icon = () => <svg data-testid="avatar-icon" />
+    mountTestApp(c, () => render(<Avatar icon={<Icon />} />, c))
+    await waitAvatarRender()
+
+    expect(c.querySelector('[data-testid="avatar-icon"]')).toBeTruthy()
+    expect(c.textContent).not.toContain('mountCompiledSlotFactory')
+  })
+
   it('respects onError returning false to keep image visible', async () => {
     const c = document.createElement('div')
     mountTestApp(c, () => render(<Avatar src={'broken.png'} onError={() => false} />, c))

@@ -76,6 +76,23 @@ export interface MasonryProps<T extends MasonryDataItem = MasonryDataItem> {
 
 /** BREAKPOINT_SEQUENCE 内部常量。 */
 const BREAKPOINT_SEQUENCE: MasonryBreakpoint[] = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl']
+
+/**
+ * Compiled slots mount their native roots directly into the receiving element.
+ * Keep those roots equivalent to an explicit MasonryItem without requiring
+ * callers to add a wrapper around every child.
+ */
+const DIRECT_ITEM_STYLES = `
+:where(.rue-masonry) > :where(:not(style):not([data-rue-masonry-item])) {
+  display: inline-block;
+  width: 100%;
+  vertical-align: top;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: var(--rue-masonry-row-gap, 16px);
+}
+`
 /** BREAKPOINT_MIN_WIDTH 内部常量。 */
 const BREAKPOINT_MIN_WIDTH: Record<MasonryBreakpoint, number> = {
   xs: 0,
@@ -593,7 +610,8 @@ const Masonry: FC<MasonryProps<any>> = ({
       className={mergeClassNames('rue-masonry', className)}
       data-rue-masonry=""
     >
-      {items ? (
+      <style>{DIRECT_ITEM_STYLES}</style>
+      {items && items.length > 0 ? (
         <>
           {contentItems.get().map((item, index) => (
             <MasonryItem
@@ -609,6 +627,8 @@ const Masonry: FC<MasonryProps<any>> = ({
             </MasonryItem>
           ))}
         </>
+      ) : items && empty != null ? (
+        <>{empty}</>
       ) : (
         <>{children}</>
       )}
@@ -620,7 +640,8 @@ const Masonry: FC<MasonryProps<any>> = ({
       className={mergeClassNames('rue-masonry', className)}
       data-rue-masonry=""
     >
-      {items ? (
+      <style>{DIRECT_ITEM_STYLES}</style>
+      {items && items.length > 0 ? (
         <>
           {contentItems.get().map((item, index) => (
             <MasonryItem
@@ -636,6 +657,8 @@ const Masonry: FC<MasonryProps<any>> = ({
             </MasonryItem>
           ))}
         </>
+      ) : items && empty != null ? (
+        <>{empty}</>
       ) : (
         <>{children}</>
       )}

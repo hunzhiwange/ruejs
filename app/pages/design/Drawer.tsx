@@ -337,7 +337,7 @@ const DrawerPage: FC = () => {
           title="Drawer sidebar"
           summary="展示最基础的 daisyUI drawer 结构，适合使用 Toggle / Content / Side / Overlay。"
           tab={tabs.basic}
-          preview={
+          preview={() => (
             <div className="card bg-base-100 shadow-sm">
               <div className="card-body">
                 <DrawerSidebar
@@ -364,7 +364,7 @@ const DrawerPage: FC = () => {
                 </DrawerSidebar>
               </div>
             </div>
-          }
+          )}
           code={`<DrawerSidebar className="h-56 overflow-hidden rounded-box">
   <DrawerSidebar.Toggle id="drawer-basic" />
   <DrawerSidebar.Content className="flex flex-col items-center justify-center">
@@ -579,7 +579,7 @@ const DrawerPage: FC = () => {
           title="Drawer sidebar that opens from right side"
           summary="基础的 end 写法继续有效，适合快速保持项目代码支持。"
           tab={tabs.right}
-          preview={
+          preview={() => (
             <div className="card bg-base-100 shadow-sm">
               <div className="card-body">
                 <DrawerSidebar end={true} className="h-56 overflow-hidden rounded-box">
@@ -599,7 +599,7 @@ const DrawerPage: FC = () => {
                 </DrawerSidebar>
               </div>
             </div>
-          }
+          )}
           code={`<DrawerSidebar end={true} className="h-56 overflow-hidden rounded-box">
   <DrawerSidebar.Toggle id="drawer-right" />
   <DrawerSidebar.Content className="flex flex-col items-center justify-center">

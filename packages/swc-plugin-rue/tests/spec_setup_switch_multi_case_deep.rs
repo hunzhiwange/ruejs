@@ -53,7 +53,7 @@ const Comp: FC = ()=>{
     const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = ref(0);
             const pre = computed(()=>a.value + 1);
-            pre.get();
+            untrack(()=>pre.get());
             const __rue_phase2_pre = pre;
             watchEffect(()=>console.log('setup', __rue_phase2_pre.get()));
             switch(a.value % 3){

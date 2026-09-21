@@ -283,7 +283,7 @@ export default UseCart;
     std::fs::write("target/vapor_outputs/spec5.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert_eq!(normalized.matches("_$reconcileKeyedSingle(").count(), 2);
-    assert_eq!(normalized.matches("_$mountCompiledKeyedSingleRow(").count(), 2);
+    assert_eq!(normalized.matches("_$mountCompiledKeyedSingleRowDirect(").count(), 2);
     assert!(normalized.contains("let _$rowItem1 = pr"));
     assert!(normalized.contains("let _$rowItem2 = i"));
     for field in ["_$rowItem1.name", "_$rowItem1.price", "_$rowItem2.name", "_$rowItem2.qty"] {

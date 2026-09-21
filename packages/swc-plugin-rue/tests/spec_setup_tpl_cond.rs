@@ -26,7 +26,7 @@ const Comp: FC = ()=>{
     const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = ref(0);
             const t = computed(()=>`n=${a.value}-${a.value > 0 ? 'x' : 'y'}`);
-            t.get();
+            untrack(()=>t.get());
             const __rue_phase2_t = t;
             return {
                 a: a,

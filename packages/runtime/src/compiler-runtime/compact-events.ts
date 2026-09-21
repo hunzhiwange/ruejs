@@ -1,7 +1,7 @@
 import { resolveDOMHostParentContext } from './dom.browser'
 import { trackFormControlEvent } from './form-controls'
 
-type CompiledDelegatedHandler = () => unknown
+type CompiledDelegatedHandler = (event: Event) => unknown
 type CompiledDelegatedHandlerRead = () => CompiledDelegatedHandler | null | undefined
 
 type DelegatedTarget = EventTarget & { parentNode?: Node | null }
@@ -45,7 +45,7 @@ const dispatch = (root: EventTarget, type: string, event: Event): void => {
     const registration = readHandler(target, type)
     if (registration?.root === root) {
       const handler = registration.read()
-      if (typeof handler === 'function') handler()
+      if (typeof handler === 'function') handler(event)
     }
     if (target === root || event.cancelBubble) break
   }
@@ -54,7 +54,7 @@ const dispatch = (root: EventTarget, type: string, event: Event): void => {
 const canListen = (value: unknown): value is EventTarget =>
   value != null && typeof (value as EventTarget).addEventListener === 'function'
 
-/** Register a compiler-proven zero-argument bubbling handler on a shared mount root. */
+/** Register a compiler-proven bubbling handler on a shared mount root. */
 const registerCompiledDelegateEvent = (
   root: EventTarget | null | undefined,
   target: EventTarget,
@@ -121,9 +121,9 @@ const registerCompiledDelegateEvent = (
   ) {
     queueMicrotask(() => {
       if (disposed || listenerRoot.contains(target) || !canListen(target)) return
-      fallbackListener = () => {
+      fallbackListener = event => {
         const handler = read()
-        if (typeof handler === 'function') handler()
+        if (typeof handler === 'function') handler(event)
       }
       target.addEventListener(type, fallbackListener)
     })

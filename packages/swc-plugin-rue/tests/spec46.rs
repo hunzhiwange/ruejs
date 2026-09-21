@@ -44,14 +44,12 @@ useApp(RootApp).use(router).mount('#app')
         "{output}"
     );
     assert!(output.contains("_$compiledRoot("), "{output}");
-    assert!(
-        output.contains("_$compiledScalarText(_el3, ()=>_$compiledPropsGet(p, \"children\"))"),
-        "{output}"
-    );
+    assert!(output.contains("()=>_$compiledPropsGet(p, \"children\")"), "{output}");
     assert!(output.contains("_$mountCompiledComponent(_root, RouterView, ()=>({}))"), "{output}");
     assert!(output.contains("_$compiledComponent(ParentBox, ()=>({"), "{output}");
     assert!(
-        output.contains("children: (target, slotProps, owner)=>_$mountCompiledSlotFactory("),
+        output.contains("children: (target, slotProps, owner)=>{")
+            && output.contains("_$mountCompiledSlotFactory("),
         "{output}"
     );
     assert!(!output.contains("renderAnchor"), "{output}");

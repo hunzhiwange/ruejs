@@ -226,42 +226,42 @@ const CountAndSizesPreview: FC = () => {
 
 const LegacyBasicRatingPreview: FC = () => {
   const basicValue = ref('2')
+  const customValue = ref(3)
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <Rating>
+        <Rating
+          value={Number(basicValue.value)}
+          onChange={next => {
+            basicValue.value = String(next)
+          }}
+        >
           {wholeValues.map(value => (
             <Rating.Item
               key={value}
-              name="rating-basic"
               value={value}
               aria-label={`${value} star`}
-              checked={basicValue.value === value}
-              onChange={() => {
-                basicValue.value = value
-              }}
-              className="mask mask-star"
+              className="mask mask-star opacity-35 data-[rating-active=true]:opacity-100"
             />
           ))}
         </Rating>
         <p className="m-0 text-sm text-base-content/70">当前评分：{basicValue.value}</p>
       </div>
       <div className="space-y-2">
-        <Rating>
-          <Rating.Item as="div" className="mask mask-star" aria-label="1 star" />
-          <Rating.Item as="div" className="mask mask-star" aria-label="2 star" />
-          <Rating.Item
-            as="div"
-            className="mask mask-star"
-            aria-label="3 star"
-            aria-current="true"
-          />
-          <Rating.Item as="div" className="mask mask-star" aria-label="4 star" />
-          <Rating.Item as="div" className="mask mask-star" aria-label="5 star" />
+        <Rating value={customValue.value} onChange={next => (customValue.value = next)}>
+          {wholeValues.map(value => (
+            <Rating.Item
+              key={`custom-${value}`}
+              as="div"
+              value={value}
+              className="mask mask-star opacity-35 transition-opacity data-[rating-active=true]:opacity-100"
+              aria-label={`${value} star`}
+            />
+          ))}
         </Rating>
         <p className="m-0 text-sm text-base-content/70">
-          展示 group + item 结构，适合完全自定义 mask 或静态只读展示。
+          自定义宿主也由 group 统一管理，当前评分：{customValue.value}
         </p>
       </div>
     </div>
@@ -844,15 +844,15 @@ const RatingPage: FC = () => {
           code={codeBlock([
             "const wholeValues = ['1', '2', '3', '4', '5']",
             '',
-            '<Rating>',
+            '<Rating value={Number(value.value)} onChange={next => (value.value = String(next))}>',
             '  {wholeValues.map(value => (',
             '    <Rating.Item key={value} name="rating-basic" value={value} className="mask mask-star" aria-label={`${value} star`} />',
             '  ))}',
             '</Rating>',
             '',
-            '<Rating>',
-            '  <Rating.Item as="div" className="mask mask-star" aria-label="1 star" />',
-            '  <Rating.Item as="div" className="mask mask-star" aria-current="true" aria-label="3 star" />',
+            '<Rating value={customValue.value} onChange={next => (customValue.value = next)}>',
+            '  <Rating.Item as="div" value="1" className="mask mask-star opacity-35 data-[rating-active=true]:opacity-100" aria-label="1 star" />',
+            '  <Rating.Item as="div" value="3" className="mask mask-star opacity-35 data-[rating-active=true]:opacity-100" aria-label="3 star" />',
             '</Rating>',
           ])}
         />

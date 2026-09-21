@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use swc_core::common::{DUMMY_SP, SyntaxContext};
 // SWC ECMAScript AST 节点类型集合（JSXExprContainer/CondExpr/BinExpr/ArrowExpr 等）
 use swc_core::ecma::ast::*;
-use swc_core::ecma::visit::{Visit, VisitMutWith, VisitWith};
+use swc_core::ecma::visit::{Visit, VisitMut, VisitMutWith, VisitWith};
 
 use crate::emit::*;
 use crate::log;
@@ -193,12 +193,8 @@ pub(crate) fn is_compiled_slot_source_expr(expr: &Expr) -> bool {
     matches!(inner, Expr::Member(MemberExpr { obj, .. }) if matches!(crate::utils::unwrap_expr(obj), Expr::Ident(id) if id.sym == "slots"))
         || matches!(
             inner,
-            Expr::Member(MemberExpr { obj, prop: MemberProp::Ident(prop), .. })
-                if prop.sym.as_ref() == "children" && matches!(
-                        crate::utils::unwrap_expr(obj.as_ref()),
-                        Expr::Ident(id)
-                            if matches!(id.sym.as_ref(), "props" | "__rue_props")
-                    )
+            Expr::Member(MemberExpr { prop: MemberProp::Ident(prop), .. })
+                if prop.sym.as_ref() == "children"
         )
         || matches!(
             inner,
@@ -216,14 +212,21 @@ pub(crate) fn is_compiled_slot_source_expr(expr: &Expr) -> bool {
 pub(crate) fn is_compiled_slot_expr(vt: &VaporTransform, expr: &Expr) -> bool {
     is_compiled_slot_source_expr(expr)
         || matches!(crate::utils::unwrap_expr(expr),
-        Expr::Member(MemberExpr {obj, ..}) if matches!(crate::utils::unwrap_expr(obj), Expr::Ident(id)
-            if vt.reactive_kind(id.sym.as_ref()) == Some(crate::reactive_provenance::ReactiveKind::SlotsValue)))
+        Expr::Member(MemberExpr {obj, ..})
+            if matches!(crate::utils::unwrap_expr(obj), Expr::Ident(id)
+                if vt.reactive_kind(id.sym.as_ref()) == Some(crate::reactive_provenance::ReactiveKind::SlotsValue)))
 }
 
 /// Build the compiled slot ABI. A mounted call returns `CompiledBlock`; a value-style
 /// call without a target returns the compact root so ordinary children helpers remain compatible.
 pub(crate) fn compiled_slot_factory_expr(vt: &mut VaporTransform, inner: &Expr) -> Option<Expr> {
-    let compiled = compiled_branch_result(vt, inner)?;
+    let compiled = compiled_branch_result(vt, inner).or_else(|| {
+        // JSX-valued named props may contain opaque runtime values. They are not a
+        // compiler-proven closed branch, but the normal Vapor child lowering can
+        // still preserve them through the value-factory boundary. Dropping the
+        // whole prop here turns a valid preview/panel into a silent blank.
+        jsx_expr_to_slot_expr(vt, crate::utils::unwrap_expr(inner))
+    })?;
     let create_ident = vt.next_slot_ident();
     let create = Expr::Arrow(ArrowExpr {
         span: DUMMY_SP,
@@ -343,6 +346,22 @@ fn scalar_compiled_root_expr(value: Expr) -> Expr {
     ])
 }
 
+fn renderable_value_compiled_root_expr(vt: &mut VaporTransform, value: Expr) -> Expr {
+    let root = ident("_root");
+    let anchor = ident("__rue_slot_anchor");
+    let mut stmts = vec![
+        const_decl(root.clone(), call_ident("_$createDocumentFragment", vec![])),
+        const_decl(
+            anchor.clone(),
+            call_ident("_$compiledCreateComment", vec![string_expr("rue:slot")]),
+        ),
+        crate::emit::append_child(root.clone(), Expr::Ident(anchor.clone())),
+    ];
+    crate::element_slot::render_between_for_slot_at(vt, &root, &anchor, &value, &mut stmts);
+    stmts.push(return_root(root));
+    compiled_root_from_stmts(stmts)
+}
+
 fn return_expr(expr: Expr) -> Stmt {
     Stmt::Return(ReturnStmt { span: DUMMY_SP, arg: Some(Box::new(expr)) })
 }
@@ -408,7 +427,9 @@ pub(crate) fn refreshing_compiled_branch_case(key: Expr, result: Expr) -> Expr {
 }
 
 pub(crate) fn compiled_branch_result(vt: &mut VaporTransform, expr: &Expr) -> Option<Expr> {
-    let inner = crate::utils::unwrap_expr(expr);
+    let source_inner = crate::utils::unwrap_expr(expr);
+    let renderable_string = renderable_string_operand(vt, source_inner);
+    let inner = renderable_string.as_ref().unwrap_or(source_inner);
     match inner {
         Expr::JSXElement(element)
             if crate::element_component::build_compiled_dynamic_component_expr(vt, element)
@@ -439,19 +460,7 @@ pub(crate) fn compiled_branch_result(vt: &mut VaporTransform, expr: &Expr) -> Op
             Some(compiled_root_from_stmts(stmts))
         }
         _ if is_compiled_slot_expr(vt, inner) => {
-            let root = ident("_root");
-            let anchor = ident("__rue_slot_anchor");
-            let mut stmts = vec![
-                const_decl(root.clone(), call_ident("_$createDocumentFragment", vec![])),
-                const_decl(
-                    anchor.clone(),
-                    call_ident("_$compiledCreateComment", vec![string_expr("rue:slot")]),
-                ),
-                crate::emit::append_child(root.clone(), Expr::Ident(anchor.clone())),
-            ];
-            crate::element_slot::render_between_for_slot_at(vt, &root, &anchor, inner, &mut stmts);
-            stmts.push(return_root(root));
-            Some(compiled_root_from_stmts(stmts))
+            Some(renderable_value_compiled_root_expr(vt, inner.clone()))
         }
         _ if is_static_empty_like(inner) => Some(empty_compiled_root_expr()),
         _ if crate::vapor::is_compiled_reactive_scalar_expr(
@@ -460,7 +469,12 @@ pub(crate) fn compiled_branch_result(vt: &mut VaporTransform, expr: &Expr) -> Op
             &vt.current_scalar_constructor_shadows(),
         ) =>
         {
-            Some(scalar_compiled_root_expr(inner.clone()))
+            if crate::vapor::is_compiled_text_value(vt, inner) {
+                Some(scalar_compiled_root_expr(inner.clone()))
+            } else {
+                let value = string_call_operand(inner).unwrap_or_else(|| inner.clone());
+                Some(renderable_value_compiled_root_expr(vt, value))
+            }
         }
         Expr::Cond(_) | Expr::Bin(_) => try_make_compiled_branch_expr(vt, inner),
         _ => None,
@@ -1087,28 +1101,6 @@ fn is_non_ref_member_expr(inner: &Expr) -> bool {
     }
 }
 
-fn member_root_ident(member: &MemberExpr) -> Option<&Ident> {
-    let mut current = crate::utils::unwrap_expr(member.obj.as_ref());
-    loop {
-        match current {
-            Expr::Ident(ident) => return Some(ident),
-            Expr::Member(parent) => {
-                current = crate::utils::unwrap_expr(parent.obj.as_ref());
-            }
-            _ => return None,
-        }
-    }
-}
-
-fn is_plain_local_member_expr(vt: &VaporTransform, inner: &Expr) -> bool {
-    let Expr::Member(member) = inner else {
-        return false;
-    };
-    member_root_ident(member)
-        .map(|ident| vt.current_plain_local_names().contains(ident.sym.as_ref()))
-        .unwrap_or(false)
-}
-
 fn is_text_coercion_call_name(name: &str) -> bool {
     matches!(name, "String" | "Number" | "Boolean" | "BigInt" | "Date" | "parseInt" | "parseFloat")
 }
@@ -1142,7 +1134,7 @@ fn is_potentially_renderable_call_expr(call: &CallExpr) -> bool {
     !is_text_coercion_call_name(callee_name)
 }
 
-fn is_opaque_renderable_call_expr(vt: &VaporTransform, call: &CallExpr) -> bool {
+pub(crate) fn is_opaque_renderable_call_expr(vt: &VaporTransform, call: &CallExpr) -> bool {
     if crate::reactive_provenance::scalar_call_result(&vt.plain_local_scopes, call) {
         return false;
     }
@@ -1406,9 +1398,11 @@ fn contains_nested_opaque_renderable_expr(vt: &VaporTransform, inner: &Expr) -> 
                 !vt.current_plain_local_names().contains(name)
             }
         }
-        Expr::Member(_) => {
-            !is_plain_local_member_expr(vt, unwrapped) && is_non_ref_member_expr(unwrapped)
-        }
+        // A property read from a plain local is not necessarily text. Component APIs
+        // commonly carry JSX nodes in data records (for example `item.label`). Treat
+        // non-ref member reads as opaque renderables so the slot runtime can preserve
+        // nodes while still accepting scalar values.
+        Expr::Member(_) => is_non_ref_member_expr(unwrapped),
         Expr::Call(call) => {
             is_opaque_renderable_call_expr(vt, call) || map_call_returns_known_renderable(vt, call)
         }
@@ -1447,9 +1441,7 @@ fn contains_opaque_renderable_expr(vt: &VaporTransform, inner: &Expr) -> bool {
                 !vt.current_plain_local_names().contains(name)
             }
         }
-        Expr::Member(_) => {
-            !is_plain_local_member_expr(vt, unwrapped) && is_non_ref_member_expr(unwrapped)
-        }
+        Expr::Member(_) => is_non_ref_member_expr(unwrapped),
         Expr::Call(call) => {
             is_opaque_renderable_call_expr(vt, call) || map_call_returns_known_renderable(vt, call)
         }
@@ -1655,13 +1647,15 @@ pub fn contains_jsx_in_expr(inner_top: &Expr) -> bool {
 fn reject_unsupported_child_value(inner: &Expr) -> bool {
     let unsupported = match crate::utils::unwrap_expr(inner) {
         Expr::Object(_) | Expr::Array(_) => true,
-        Expr::Call(call) => matches!(
-            &call.callee,
-            Callee::Expr(callee) if matches!(
-                crate::utils::unwrap_expr(callee),
-                Expr::Member(member) if matches!(&member.prop, MemberProp::Ident(prop) if prop.sym == "map")
-            )
-        ),
+        Expr::Call(call) => {
+            matches!(
+                &call.callee,
+                Callee::Expr(callee) if matches!(
+                    crate::utils::unwrap_expr(callee),
+                    Expr::Member(member) if matches!(&member.prop, MemberProp::Ident(prop) if prop.sym == "map")
+                )
+            ) && !call_returns_jsx_renderable(call)
+        }
         _ => false,
     };
     if unsupported {
@@ -1709,9 +1703,13 @@ pub fn emit_element_expr_container_child(
             if reject_unsupported_child_value(inner) {
                 return;
             }
-            let inner_expr = crate::utils::unwrap_expr(expr.as_ref()).clone();
+            let source_expr = crate::utils::unwrap_expr(expr.as_ref());
+            let inner_expr =
+                renderable_string_operand(vt, source_expr).unwrap_or_else(|| source_expr.clone());
             // 识别任意对象的 .children 作为插槽（不再局限 props.children）
-            if crate::utils::is_children_member_expr(&inner_expr) {
+            if crate::utils::is_children_member_expr(&inner_expr)
+                || crate::element_expr::is_compiled_slot_expr(vt, &inner_expr)
+            {
                 log::debug("element_expr: children member expr (slot)");
                 let is_children = true;
                 crate::element_slot::render_between_for_slot(
@@ -1896,8 +1894,10 @@ pub(crate) fn emit_element_expr_container_child_at(
     let JSXExpr::Expr(expr) = &ec.expr else {
         return;
     };
-    let inner = crate::utils::unwrap_expr(expr.as_ref());
-    if crate::vapor::is_compiled_text_container(vt, ec) {
+    let source_inner = crate::utils::unwrap_expr(expr.as_ref());
+    let renderable_string = renderable_string_operand(vt, source_inner);
+    let inner = renderable_string.as_ref().unwrap_or(source_inner);
+    if renderable_string.is_none() && crate::vapor::is_compiled_text_container(vt, ec) {
         let text = vt.next_el_ident();
         stmts.push(const_decl(
             text.clone(),
@@ -1944,6 +1944,130 @@ pub(crate) fn emit_element_expr_container_child_at(
     } else {
         crate::element_slot::render_between_for_slot_at(vt, parent, anchor, &expr_for_slot, stmts);
     }
+}
+
+/// JSX-valued component props use the compiled slot-factory ABI. Preserve that
+/// renderable capability when a component defensively writes `String(prop)` in
+/// a JSX child position; scalar values still flow through the same slot
+/// normalization and are rendered as text.
+pub(crate) fn renderable_string_operand(vt: &VaporTransform, expr: &Expr) -> Option<Expr> {
+    let operand = string_call_operand(expr)?;
+    if matches!(
+        crate::utils::unwrap_expr(&operand),
+        Expr::Member(MemberExpr {
+            prop: MemberProp::Ident(property),
+            ..
+        }) if property.sym == *"value"
+    ) {
+        return None;
+    }
+    let Expr::Call(call) = crate::utils::unwrap_expr(expr) else { unreachable!() };
+    let Callee::Expr(callee) = &call.callee else { unreachable!() };
+    let Expr::Ident(name) = crate::utils::unwrap_expr(callee.as_ref()) else { unreachable!() };
+    if vt.current_scalar_constructor_shadows().contains(name.sym.as_ref()) {
+        return None;
+    }
+
+    struct PropRead<'a> {
+        vt: &'a VaporTransform,
+        renderable_names: HashSet<String>,
+        found: bool,
+    }
+    impl Visit for PropRead<'_> {
+        fn visit_ident(&mut self, ident: &Ident) {
+            self.found |= ident.sym.starts_with("_$rowItem")
+                || self.renderable_names.contains(ident.sym.as_ref())
+                || self.vt.reactive_kind(ident.sym.as_ref()).is_some_and(|kind| {
+                    matches!(
+                        kind,
+                        crate::reactive_provenance::ReactiveKind::PropsValue
+                            | crate::reactive_provenance::ReactiveKind::RenderableRefLike
+                    )
+                });
+        }
+
+        fn visit_member_expr(&mut self, member: &MemberExpr) {
+            if let Expr::Call(call) = crate::utils::unwrap_expr(member.obj.as_ref())
+                && call.args.is_empty()
+                && matches!(&call.callee, Callee::Expr(callee)
+                    if matches!(crate::utils::unwrap_expr(callee.as_ref()), Expr::Member(accessor)
+                        if matches!(&accessor.prop, MemberProp::Ident(property)
+                            if property.sym.as_ref() == "get")))
+            {
+                self.found = true;
+            }
+            member.visit_children_with(self);
+        }
+
+        fn visit_call_expr(&mut self, call: &CallExpr) {
+            self.found |= is_compiled_props_get_call(call);
+            call.visit_children_with(self);
+        }
+    }
+
+    let mut read =
+        PropRead { vt, renderable_names: vt.current_renderable_local_names(), found: false };
+    operand.visit_with(&mut read);
+    read.found.then_some(operand)
+}
+
+pub(crate) fn string_call_operand(expr: &Expr) -> Option<Expr> {
+    let Expr::Call(call) = crate::utils::unwrap_expr(expr) else {
+        return None;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+        return None;
+    };
+    let Expr::Ident(name) = crate::utils::unwrap_expr(callee.as_ref()) else {
+        return None;
+    };
+    if name.sym != *"String" || call.args.len() != 1 || call.args[0].spread.is_some() {
+        return None;
+    }
+    Some(crate::utils::unwrap_expr(call.args[0].expr.as_ref()).clone())
+}
+
+pub(crate) fn is_compiled_props_get_call(call: &CallExpr) -> bool {
+    matches!(&call.callee, Callee::Expr(callee)
+        if matches!(crate::utils::unwrap_expr(callee.as_ref()), Expr::Ident(name)
+            if name.sym == *"_$compiledPropsGet"))
+        && call.args.len() == 2
+        && call.args.iter().all(|arg| arg.spread.is_none())
+}
+
+pub(crate) fn normalize_renderable_string_factories(module: &mut Module) {
+    struct Normalizer;
+
+    impl VisitMut for Normalizer {
+        fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
+            call.visit_mut_children_with(self);
+            let is_value_factory = matches!(&call.callee, Callee::Expr(callee)
+                if matches!(crate::utils::unwrap_expr(callee.as_ref()), Expr::Ident(name)
+                    if name.sym == *"_$compiledValueFactory"));
+            if !is_value_factory || call.args.len() != 1 || call.args[0].spread.is_some() {
+                return;
+            }
+            let Some(operand) = string_call_operand(call.args[0].expr.as_ref()) else {
+                return;
+            };
+
+            struct CompiledPropRead(bool);
+            impl Visit for CompiledPropRead {
+                fn visit_call_expr(&mut self, call: &CallExpr) {
+                    self.0 |= crate::compiled_component::is_static_prop_get_call(call)
+                        || is_compiled_props_get_call(call);
+                    call.visit_children_with(self);
+                }
+            }
+            let mut read = CompiledPropRead(false);
+            operand.visit_with(&mut read);
+            if read.0 {
+                call.args[0].expr = Box::new(operand);
+            }
+        }
+    }
+
+    module.visit_mut_with(&mut Normalizer);
 }
 
 #[cfg(test)]

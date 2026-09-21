@@ -4,7 +4,16 @@ Dropdown 组件概述
 - 同时补齐更接近成熟组件库的增强 API：menu/items、trigger、open/defaultOpen、popupRender。
 - 视觉仍沿用 Rue 当前的 dropdown 基底，只做交互与组织能力增强。
 */
-import { computed, onMounted, onUnmounted, ref, useRef, watch, type FC } from '@rue-js/rue'
+import {
+  computed,
+  onMounted,
+  onUnmounted,
+  ref,
+  Teleport,
+  useRef,
+  watch,
+  type FC,
+} from '@rue-js/rue'
 import Menu from '../menu/index'
 import type { MenuClickInfo, MenuDataEntry, MenuProps } from '../menu/index'
 
@@ -82,6 +91,7 @@ interface DropdownProps {
   overlay?: any
   content?: any
   popupRender?: (originNode: any) => any
+  popupStrategy?: 'absolute' | 'fixed'
 
   menu?: DropdownMenuProps
   items?: ReadonlyArray<MenuDataEntry>
@@ -287,6 +297,43 @@ const getSafeContextOverlayPosition = (
     x: Math.min(Math.max(position.x, minX), maxX),
     y: Math.min(Math.max(position.y, minY), maxY),
   }
+}
+
+/** 读取普通触发浮层的视口位置，避免浮层参与祖先滚动容器的溢出计算。 */
+const getSafeTriggerOverlayPosition = (
+  triggerElement: HTMLElement,
+  overlayElement: HTMLElement,
+  direction: DropdownDirection,
+  align: DropdownAlign,
+) => {
+  const triggerRect = triggerElement.getBoundingClientRect()
+  const overlayRect = overlayElement.getBoundingClientRect()
+  const overlayWidth = overlayRect.width || overlayElement.offsetWidth
+  const overlayHeight = overlayRect.height || overlayElement.offsetHeight
+  const gap = 8
+
+  let x = triggerRect.left
+  let y = triggerRect.bottom + gap
+
+  if (direction === 'top') y = triggerRect.top - overlayHeight - gap
+  if (direction === 'left') {
+    x = triggerRect.left - overlayWidth - gap
+    y = triggerRect.top
+  }
+  if (direction === 'right') {
+    x = triggerRect.right + gap
+    y = triggerRect.top
+  }
+
+  if (direction === 'top' || direction === 'bottom') {
+    if (align === 'center') x = triggerRect.left + (triggerRect.width - overlayWidth) / 2
+    if (align === 'end') x = triggerRect.right - overlayWidth
+  } else {
+    if (align === 'center') y = triggerRect.top + (triggerRect.height - overlayHeight) / 2
+    if (align === 'end') y = triggerRect.bottom - overlayHeight
+  }
+
+  return getSafeContextOverlayPosition({ x, y }, overlayElement)
 }
 
 /** 读取右键浮层的固定定位样式。 */
@@ -528,6 +575,8 @@ const Dropdown: FC<DropdownProps> = (
     triggerClassName,
     overlay,
     content,
+    popupRender,
+    popupStrategy = 'absolute',
 
     menu,
     items,
@@ -568,6 +617,7 @@ const Dropdown: FC<DropdownProps> = (
       triggerClassName,
       overlay,
       content,
+      popupRender,
 
       menu,
       items,
@@ -629,8 +679,21 @@ const Dropdown: FC<DropdownProps> = (
     ) {
       return
     }
-    if (visible && contextPosition.value) {
-      const safePosition = getSafeContextOverlayPosition(contextPosition.value, overlayElement)
+    if (
+      visible &&
+      (contextPosition.value || (popupStrategy === 'fixed' && hasElementDom(triggerElement)))
+    ) {
+      overlayElement.style.position = 'fixed'
+      overlayElement.style.width = 'max-content'
+      overlayElement.style.maxWidth = `calc(100vw - ${CONTEXT_MENU_VIEWPORT_PADDING * 2}px)`
+      const safePosition = contextPosition.value
+        ? getSafeContextOverlayPosition(contextPosition.value, overlayElement)
+        : getSafeTriggerOverlayPosition(
+            triggerElement!,
+            overlayElement,
+            resolvedDirection ?? 'bottom',
+            resolvedAlign ?? 'start',
+          )
       overlayElement.style.position = 'fixed'
       overlayElement.style.inset = 'auto auto auto auto'
       overlayElement.style.left = `${safePosition.x}px`
@@ -644,6 +707,8 @@ const Dropdown: FC<DropdownProps> = (
       return
     }
     overlayElement.style.position = ''
+    overlayElement.style.width = ''
+    overlayElement.style.maxWidth = ''
     overlayElement.style.inset = ''
     overlayElement.style.left = ''
     overlayElement.style.top = ''
@@ -720,6 +785,7 @@ const Dropdown: FC<DropdownProps> = (
         currentTriggers.value.includes('click') || currentTriggers.value.includes('contextMenu')
       if (!allowOutsideClose) return
       if (rootElement?.contains(event.target as Node)) return
+      if (overlayElement?.contains(event.target as Node)) return
       requestOpenChange(false, 'outside')
     }
 
@@ -820,8 +886,10 @@ const Dropdown: FC<DropdownProps> = (
       )
     }
 
-    return slots.overlay ? <>{slots.overlay}</> : <>{String(overlay ?? content ?? '')}</>
+    return slots.overlay ? <>{slots.overlay}</> : <>{overlay ?? content}</>
   }
+  const RenderPopupNode = () =>
+    popupRender ? popupRender(<RenderOverlaySourceNode />) : <RenderOverlaySourceNode />
   const RenderOverlayNode = () => (
     <div
       ref={setOverlayElement}
@@ -838,9 +906,17 @@ const Dropdown: FC<DropdownProps> = (
           )}
         />
       ) : null}
-      <RenderOverlaySourceNode />
+      <RenderPopupNode />
     </div>
   )
+  const RenderMountedOverlayNode = () =>
+    popupStrategy === 'fixed' ? (
+      <Teleport to={typeof document === 'undefined' ? undefined : document.body}>
+        <RenderOverlayNode />
+      </Teleport>
+    ) : (
+      <RenderOverlayNode />
+    )
   const setRootElement = (element: HTMLElement | null) => {
     rootElement = element
     syncDropdownDom(currentOpen.value)
@@ -903,7 +979,7 @@ const Dropdown: FC<DropdownProps> = (
         onKeyDown={handleRootKeyDown}
       >
         <RenderTriggerNode />
-        {hasOverlay ? <RenderOverlayNode /> : null}
+        {hasOverlay ? <RenderMountedOverlayNode /> : null}
       </span>
     )
   }
@@ -920,7 +996,7 @@ const Dropdown: FC<DropdownProps> = (
         onKeyDown={handleRootKeyDown}
       >
         <RenderTriggerNode />
-        {hasOverlay ? <RenderOverlayNode /> : null}
+        {hasOverlay ? <RenderMountedOverlayNode /> : null}
       </section>
     )
   }
@@ -937,7 +1013,7 @@ const Dropdown: FC<DropdownProps> = (
         onKeyDown={handleRootKeyDown}
       >
         <RenderTriggerNode />
-        {hasOverlay ? <RenderOverlayNode /> : null}
+        {hasOverlay ? <RenderMountedOverlayNode /> : null}
       </article>
     )
   }
@@ -954,7 +1030,7 @@ const Dropdown: FC<DropdownProps> = (
         onKeyDown={handleRootKeyDown}
       >
         <RenderTriggerNode />
-        {hasOverlay ? <RenderOverlayNode /> : null}
+        {hasOverlay ? <RenderMountedOverlayNode /> : null}
       </details>
     )
   }
@@ -971,7 +1047,7 @@ const Dropdown: FC<DropdownProps> = (
         onKeyDown={handleRootKeyDown}
       >
         <RenderTriggerNode />
-        {hasOverlay ? <RenderOverlayNode /> : null}
+        {hasOverlay ? <RenderMountedOverlayNode /> : null}
       </ul>
     )
   }
@@ -988,7 +1064,7 @@ const Dropdown: FC<DropdownProps> = (
         onKeyDown={handleRootKeyDown}
       >
         <RenderTriggerNode />
-        {hasOverlay ? <RenderOverlayNode /> : null}
+        {hasOverlay ? <RenderMountedOverlayNode /> : null}
       </div>
     )
   }
@@ -1004,7 +1080,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </div>
   ) : Component === 'span' ? (
     <span
@@ -1017,7 +1093,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </span>
   ) : Component === 'section' ? (
     <section
@@ -1030,7 +1106,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </section>
   ) : Component === 'article' ? (
     <article
@@ -1043,7 +1119,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </article>
   ) : Component === 'details' ? (
     <details
@@ -1056,7 +1132,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </details>
   ) : Component === 'ul' ? (
     <ul
@@ -1069,7 +1145,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </ul>
   ) : Component === 'button' ? (
     <button
@@ -1082,7 +1158,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </button>
   ) : Component === 'li' ? (
     <li
@@ -1095,7 +1171,7 @@ const Dropdown: FC<DropdownProps> = (
       onKeyDown={handleRootKeyDown}
     >
       <RenderTriggerNode />
-      {hasOverlay ? <RenderOverlayNode /> : null}
+      {hasOverlay ? <RenderMountedOverlayNode /> : null}
     </li>
   ) : (
     <></>

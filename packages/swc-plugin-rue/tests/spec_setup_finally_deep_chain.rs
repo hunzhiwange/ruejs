@@ -45,7 +45,7 @@ function Comp(): JSX.Element {
                             `t=${a.value > 1 ? 'A' : 'B'}`
                         ]
                 }));
-            info.get();
+            untrack(()=>info.get());
             const __rue_phase2_info = info;
             watchEffect(()=>console.log('pre', __rue_phase2_info.get().x));
             try {

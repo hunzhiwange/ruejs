@@ -1,6 +1,7 @@
 /*
 Fieldset 模块概述
 - 汇总字段集组件的公开类型、渲染入口和局部工具逻辑。
+- 结构化内容属性与 children 一样通过编译插槽挂载，可承载 JSX 渲染值。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
 import type { FC } from '@rue-js/rue'
@@ -29,13 +30,15 @@ export interface FieldsetRootProps {
   /** 组件子内容。 */
   children?: any
   /** legend 配置项。 */
-  legend?: string | number
+  legend?: any
   /** 描述内容。 */
-  description?: string | number
+  description?: any
   /** hint 配置项。 */
-  hint?: string | number
+  hint?: any
   /** 主体内容。 */
-  content?: string | number
+  content?: any
+  /** 底部操作区。 */
+  actions?: any
   /** 数据驱动渲染项。 */
   items?: ReadonlyArray<FieldsetItemData>
   /** 组件尺寸。 */
@@ -69,7 +72,7 @@ export interface FieldsetLegendProps {
   /** 组件子内容。 */
   children?: any
   /** aside 配置项。 */
-  aside?: string | number
+  aside?: any
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
@@ -95,13 +98,13 @@ export interface FieldsetItemProps {
   /** 组件子内容。 */
   children?: any
   /** 展示标签。 */
-  label?: string | number
+  label?: any
   /** 描述内容。 */
-  description?: string | number
+  description?: any
   /** hint 配置项。 */
-  hint?: string | number
+  hint?: any
   /** control 配置项。 */
-  control?: 'input' | 'textarea'
+  control?: any
   controlProps?: Record<string, any>
   /** required 配置项。 */
   required?: boolean
@@ -288,7 +291,7 @@ const Legend: FC<FieldsetLegendProps> = ({ className, children, aside, ...rest }
       {hasAside ? (
         <span className="flex w-full items-center gap-2">
           <span>{children}</span>
-          <span className="ml-auto text-xs font-normal opacity-65">{String(aside)}</span>
+          <span className="ml-auto text-xs font-normal opacity-65">{aside}</span>
         </span>
       ) : (
         children
@@ -303,7 +306,7 @@ const Label: FC<FieldsetLabelProps> = ({ as = 'label', className, children, tone
 
   if (as === 'p') {
     return (
-      <p {...rest} className={joinClassName(cls, 'min-w-0 whitespace-normal break-words')}>
+      <p {...rest} className={joinClassName(cls, 'block min-w-0 whitespace-normal break-words')}>
         {children}
       </p>
     )
@@ -384,7 +387,7 @@ const Item: FC<FieldsetItemProps> = ({
               )}
               tone={resolvedTone}
             >
-              <span>{String(label)}</span>
+              <span>{label}</span>
               {required ? <span className="text-error text-xs font-medium">必填</span> : null}
               {!required && optional ? <span className="text-xs opacity-60">可选</span> : null}
             </Label>
@@ -400,7 +403,7 @@ const Item: FC<FieldsetItemProps> = ({
               )}
               tone={invalid ? 'error' : (descriptionProps?.tone ?? 'muted')}
             >
-              {String(description)}
+              {description}
             </Label>
           ) : null}
         </div>
@@ -411,6 +414,8 @@ const Item: FC<FieldsetItemProps> = ({
             <input {...controlProps} />
           ) : control === 'textarea' ? (
             <textarea {...controlProps} />
+          ) : control != null ? (
+            control
           ) : (
             children
           )}
@@ -425,7 +430,7 @@ const Item: FC<FieldsetItemProps> = ({
               )}
               tone={invalid ? 'error' : (hintProps?.tone ?? 'muted')}
             >
-              {String(hint)}
+              {hint}
             </Label>
           ) : null}
         </div>
@@ -443,6 +448,7 @@ const Root: FC<FieldsetRootProps> = (
     description,
     hint,
     content,
+    actions,
     items,
     size,
     tone,
@@ -499,7 +505,7 @@ const Root: FC<FieldsetRootProps> = (
         <>
           {hasRenderableContent(legend) ? (
             <Legend className={joinClassName(invalid && 'text-error', legendClassName)}>
-              {String(legend)}
+              {legend}
             </Legend>
           ) : null}
           {hasRenderableContent(description) ? (
@@ -512,12 +518,12 @@ const Root: FC<FieldsetRootProps> = (
                 descriptionClassName,
               )}
             >
-              {String(description)}
+              {description}
             </Label>
           ) : null}
           {hasContent ? (
             <div className={joinClassName('grid min-w-0', resolveGapClass(size), contentClassName)}>
-              {String(content)}
+              {content}
             </div>
           ) : null}
           {!hasContent && hasItems ? (
@@ -537,14 +543,14 @@ const Root: FC<FieldsetRootProps> = (
                 hintClassName,
               )}
             >
-              {String(hint)}
+              {hint}
             </Label>
           ) : null}
-          {slots.actions != null ? (
+          {hasRenderableContent(actions) || slots.actions != null ? (
             <div
               className={joinClassName('mt-1 flex flex-wrap justify-end gap-2', actionsClassName)}
             >
-              {slots.actions}
+              {hasRenderableContent(actions) ? actions : slots.actions}
             </div>
           ) : null}
         </>

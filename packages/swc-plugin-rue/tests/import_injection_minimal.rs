@@ -90,6 +90,7 @@ fn compiler_consumes_jsx_in_every_expression_container() {
     let src = r##"
 const moduleNode = <main>module</main>;
 const record = { node: <aside>field</aside> };
+function UI() {}
 
 function withDefault(node = <header>default</header>) {
   const nested = () => () => <section>nested</section>;
@@ -117,7 +118,7 @@ async function loadView() {
     assert!(!out.contains("<section"), "{out}");
     assert!(!out.contains("<UI.Card"), "{out}");
     assert!(!out.contains("<footer"), "{out}");
-    assert!(out.contains("_$createComponent(UI.Card"), "{out}");
+    assert!(out.contains("_$mountCompiledComponent(_root, UI.Card"), "{out}");
 }
 
 #[test]
@@ -187,7 +188,8 @@ useApp(App).mount('#app');
 
     assert!(first_line.contains("from \"@rue-js/rue/internal/reactive\""), "{out}");
     assert!(first_line.contains("ref"));
-    assert!(first_line.contains("useApp"));
+    assert!(out.contains("_$createApp"), "{out}");
+    assert!(out.contains("@rue-js/rue/internal/app"), "{out}");
     assert!(normalized.contains(&utils::normalize("import { type FC } from '@rue-js/rue';")));
     assert!(
         !normalized
@@ -215,10 +217,10 @@ const Demo: FC = () => {
             && !line.contains("@rue-js/rue/internal/compiler")
     });
     let builtins_import =
-        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/builtin\""));
+        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/transitiongroup\""));
 
     assert!(internal_import.is_some_and(|line| line.contains("ref")), "{out}");
-    assert!(builtins_import.is_some_and(|line| line.contains("TransitionGroup")), "{out}");
+    assert!(builtins_import.is_some_and(|line| line.contains("_$transitionGroup")), "{out}");
     assert!(normalized.contains(&utils::normalize("import { type FC } from '@rue-js/rue';")));
     assert!(!normalized.contains(&utils::normalize(
         "import { type FC, TransitionGroup, ref } from '@rue-js/rue';",
@@ -249,10 +251,10 @@ const Demo: FC = () => {
             && !line.contains("@rue-js/rue/internal/compiler")
     });
     let builtins_import =
-        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/builtin\""));
+        out.lines().find(|line| line.contains("from \"@rue-js/rue/internal/transition\""));
 
     assert!(internal_import.is_some_and(|line| line.contains("ref")), "{out}");
-    assert!(builtins_import.is_some_and(|line| line.contains("Transition")), "{out}");
+    assert!(builtins_import.is_some_and(|line| line.contains("_$transition")), "{out}");
     assert!(normalized.contains(&utils::normalize("import { type FC } from '@rue-js/rue';")));
     assert!(
         !normalized.contains(&utils::normalize(
@@ -337,7 +339,7 @@ export const Demo = () => <Child>{message.get()}</Child>;
     let (program, cm) = utils::parse(src, "public-signal-mixed-vapor.tsx");
     let out = utils::strip_marker(&utils::emit(apply(program), cm));
     for (helper, entry) in
-        [("signal", "reactive"), ("_$compiledRoot", "block"), ("_$createComponent", "component")]
+        [("signal", "reactive"), ("_$compiledRoot", "block"), ("_$compiledComponent", "component")]
     {
         assert!(import_for(&out, entry).contains(helper), "missing {helper}: {out}");
     }
@@ -366,7 +368,7 @@ export const Demo = () => <div>{message.get()}</div>;
         normalized.contains(&utils::normalize("const message = createSignal('ready');")),
         "{out}"
     );
-    assert!(normalized.contains(&utils::normalize("()=>signal()")), "{out}");
+    assert!(normalized.contains(&utils::normalize("(signal)=>_$compiledBridgeSignal()")), "{out}");
     assert!(!normalized.contains(&utils::normalize("()=>createSignal()")), "{out}");
     assert!(!out.contains("from \"@rue-js/rue\""), "{out}");
     assert!(!out.contains("from \"@rue-js/rue/internal/component\""), "{out}");

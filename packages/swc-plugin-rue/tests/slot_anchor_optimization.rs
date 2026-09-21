@@ -18,9 +18,7 @@ const Layout: FC = props => <article>{props.children}</article>
     assert!(!out.contains(&utils::normalize("_$compiledText(")));
     assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt(")), "{out}");
     assert!(
-        out.contains(&utils::normalize(
-            "()=>_$compiledValueFactory(_$compiledPropsGet(props, \"children\"))"
-        )),
+        out.contains(&utils::normalize("()=>_$compiledPropsGet(props, \"children\")")),
         "{out}"
     );
     assert!(!out.contains("renderAnchor"), "{out}");

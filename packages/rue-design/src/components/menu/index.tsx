@@ -511,9 +511,7 @@ const RenderItemContent = ({
   return (
     <>
       {hasIcon ? (
-        <span className="inline-flex shrink-0 items-center justify-center">
-          {String(icon ?? '')}
-        </span>
+        <span className="inline-flex shrink-0 items-center justify-center">{icon}</span>
       ) : null}
       {children != null || text != null ? (
         <span
@@ -523,11 +521,9 @@ const RenderItemContent = ({
         </span>
       ) : null}
       {extra != null ? (
-        <span className="ml-auto shrink-0 pl-3 text-xs opacity-70">{String(extra ?? '')}</span>
+        <span className="ml-auto shrink-0 pl-3 text-xs opacity-70">{extra}</span>
       ) : null}
-      {suffix != null ? (
-        <span className="ml-2 shrink-0 opacity-60">{String(suffix ?? '')}</span>
-      ) : null}
+      {suffix != null ? <span className="ml-2 shrink-0 opacity-60">{suffix}</span> : null}
     </>
   )
 }
@@ -1036,7 +1032,7 @@ const Menu: FC<MenuProps> = ({
   selectable = true,
   multiple = false,
   inlineIndent = 24,
-  triggerSubMenuAction = 'hover',
+  triggerSubMenuAction = 'click',
   selectedKeys,
   defaultSelectedKeys,
   openKeys,

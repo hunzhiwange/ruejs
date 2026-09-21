@@ -1,0 +1,263 @@
+{
+  "task": 9,
+  "status": "completed",
+  "baseline": {
+    "command": "pnpm exec vitest run --project unit-jsdom packages/runtime/__tests__/basicTodoList.actual.spec.tsx packages/runtime/__tests__/localCounter.actual.spec.tsx packages/runtime/__tests__/localTodoList.actual.spec.tsx packages/runtime/__tests__/resourceDemo.actual.spec.tsx packages/runtime/__tests__/routerDemo.actual.spec.tsx packages/runtime/__tests__/treeView.actual.spec.tsx",
+    "exitCode": 1,
+    "result": "No test files found before restoration"
+  },
+  "manifestSelection": {
+    "assigned": 39,
+    "migrated": 34,
+    "removedWithEvidence": 5,
+    "skipped": 0
+  },
+  "verification": {
+    "command": "pnpm exec vitest run --project unit-jsdom <all 34 extant targetTask=9 paths>",
+    "exitCode": 0,
+    "testFiles": "34 passed (34)",
+    "tests": "38 passed (38)",
+    "skippedTests": 0
+  },
+  "entries": [
+    {
+      "originalPath": "packages/runtime/__tests__/basicTodoList.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/home-demos/BasicTodoListDemo.tsx",
+      "evidencePath": "packages/runtime/__tests__/basicTodoList.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/customRef.actual.spec.tsx",
+      "status": "removed",
+      "removalEvidence": "CustomRefDemo was removed from app/pages/examples/home-demos",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/editableUserProfile.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/EditableUserProfile.tsx",
+      "evidencePath": "packages/runtime/__tests__/editableUserProfile.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/effectScope.actual.spec.tsx",
+      "status": "removed",
+      "removalEvidence": "EffectScope page was removed from app/pages/examples",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/fetchingData.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/FetchingData.tsx",
+      "evidencePath": "packages/runtime/__tests__/fetchingData.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/getCurrentScope.actual.spec.tsx",
+      "status": "removed",
+      "removalEvidence": "GetCurrentScope page was removed from app/pages/examples",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/helloChildren.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/HelloChildren.tsx",
+      "evidencePath": "packages/runtime/__tests__/helloChildren.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/helloWorld.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/HelloWorld.tsx",
+      "evidencePath": "packages/runtime/__tests__/helloWorld.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/i18nLocaleSwitcher.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/I18nSwitcher.tsx",
+      "evidencePath": "packages/runtime/__tests__/i18nLocaleSwitcher.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/isRef.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/IsRef.tsx",
+      "evidencePath": "packages/runtime/__tests__/isRef.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/localCounter.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/home-demos/LocalCounterDemo.tsx",
+      "evidencePath": "packages/runtime/__tests__/localCounter.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/localTodoList.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/home-demos/LocalTodoListDemo.tsx",
+      "evidencePath": "packages/runtime/__tests__/localTodoList.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/markdownEditor.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/MarkdownEditor.tsx",
+      "evidencePath": "packages/runtime/__tests__/markdownEditor.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/modal.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/Modal.tsx",
+      "evidencePath": "packages/runtime/__tests__/modal.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/nextTickDemo.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/NextTick.tsx",
+      "evidencePath": "packages/runtime/__tests__/nextTickDemo.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/onDeactivated.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/OnDeactivated.tsx",
+      "evidencePath": "packages/runtime/__tests__/onDeactivated.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/onErrorCaptured.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/OnErrorCaptured.tsx",
+      "evidencePath": "packages/runtime/__tests__/onErrorCaptured.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/onScopeDispose.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/OnScopeDispose.tsx",
+      "evidencePath": "packages/runtime/__tests__/onScopeDispose.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/persistentSidebarPlayground.actual.spec.tsx",
+      "status": "removed",
+      "removalEvidence": "createPersistentSidebarPlayground was removed; current site uses a different persistent sidebar implementation",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/reactStyleConditional.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/ReactStyleConditional.tsx",
+      "evidencePath": "packages/runtime/__tests__/reactStyleConditional.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/ReactiveCounter.tsx",
+      "evidencePath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/refDisplay.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "inline current-compiler ref display fixture",
+      "evidencePath": "packages/runtime/__tests__/refDisplay.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderCounter.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/RenderCounter.tsx",
+      "evidencePath": "packages/runtime/__tests__/renderCounter.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTracked.actual.spec.tsx",
+      "status": "removed",
+      "removalEvidence": "OnRenderTracked page was removed; OnRenderTriggered remains separately covered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/OnRenderTriggered.tsx",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/resourceDemo.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/ResourceDemo.tsx",
+      "evidencePath": "packages/runtime/__tests__/resourceDemo.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/resourceJSX.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/ResourceJSX.tsx",
+      "evidencePath": "packages/runtime/__tests__/resourceJSX.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/routerDemo.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/RouterDemo.tsx",
+      "evidencePath": "packages/runtime/__tests__/routerDemo.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/shallowRef.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/ShallowRef.tsx",
+      "evidencePath": "packages/runtime/__tests__/shallowRef.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/signalPages.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePaths": [
+        "app/pages/examples/ToRef.tsx",
+        "app/pages/examples/ToRefs.tsx",
+        "app/pages/examples/IsProxy.tsx",
+        "app/pages/examples/IsReadonly.tsx"
+      ],
+      "evidencePath": "packages/runtime/__tests__/signalPages.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/storeQuerySync.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/StoreQuerySync.tsx",
+      "evidencePath": "packages/runtime/__tests__/storeQuerySync.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/todoApp.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/TodoApp.tsx",
+      "evidencePath": "packages/runtime/__tests__/todoApp.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/transitionMode.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/TransitionMode.tsx",
+      "evidencePath": "packages/runtime/__tests__/transitionMode.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/TreeView.tsx",
+      "evidencePath": "packages/runtime/__tests__/treeView.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useStateArray.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/UseStateArray.tsx",
+      "evidencePath": "packages/runtime/__tests__/useStateArray.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useStateCounter.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/UseStateCounter.tsx",
+      "evidencePath": "packages/runtime/__tests__/useStateCounter.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useStateObject.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/UseStateObject.tsx",
+      "evidencePath": "packages/runtime/__tests__/useStateObject.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/webComponentFeatureLab.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/WebComponentFeatureLab.tsx",
+      "evidencePath": "packages/runtime/__tests__/webComponentFeatureLab.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/webComponents.actual.spec.tsx",
+      "status": "migrated",
+      "sourcePath": "app/pages/examples/WebComponents.tsx",
+      "evidencePath": "packages/runtime/__tests__/webComponents.actual.spec.tsx"
+    }
+  ]
+}

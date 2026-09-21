@@ -152,7 +152,7 @@ describe('compiled simple native row patch', () => {
     const output = compile(`export const View = () => <ul>{rows.get().map(row =>
       <li key={row.id} onClick={() => capture(row)}>{row.label}</li>
     )}</ul>`)
-    expect(output).toContain('_$mountCompiledKeyedSingleRowOwnerless(')
+    expect(output).toContain('_$mountCompiledKeyedSingleRowDirect(')
     const names = [...output.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)].flatMap(
       match => match[1].split(',').map(name => name.trim()),
     )
@@ -161,10 +161,10 @@ describe('compiled simple native row patch', () => {
     const actual = capabilityBindings(output)
     const bindings = {
       ...actual,
-      _$mountCompiledKeyedSingleRowOwnerless: (
-        ...args: Parameters<typeof compilerInternalRuntime._$mountCompiledKeyedSingleRowOwnerless>
+      _$mountCompiledKeyedSingleRowDirect: (
+        ...args: Parameters<typeof compilerInternalRuntime._$mountCompiledKeyedSingleRowDirect>
       ) => {
-        const result = actual._$mountCompiledKeyedSingleRowOwnerless(...args)
+        const result = actual._$mountCompiledKeyedSingleRowDirect(...args)
         mounted.push(result)
         return result
       },
@@ -221,9 +221,9 @@ describe('compiled simple native row patch', () => {
           className={row.id === capture.get() ? 'selected' : ''}>{row.label}</li>
       )}</ul>
     `)
-    expect(output).toContain('_$mountCompiledKeyedSingleRowOwnerless(')
+    expect(output).toContain('_$mountCompiledKeyedSingleRowDirect(')
     expect(output).not.toContain('_$mountCompiledKeyedSingleRowSetup')
-    expect(output).toContain('.subscribe(')
+    expect(output).toContain('.subscribeKeyUnique(')
     const names = [...output.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)].flatMap(
       match => match[1].split(',').map(name => name.trim()),
     )
@@ -330,7 +330,7 @@ describe('compiled simple native row patch', () => {
         <li key={row.id} className={row.className}>{row.label}</li>
       )}</ul>
     `)
-    expect(resourceFree).toContain('_$mountCompiledKeyedSingleRowOwnerless(')
+    expect(resourceFree).toContain('_$mountCompiledKeyedSingleRowDirect(')
     expect(resourceFree).not.toContain('_$mountCompiledKeyedSingleRow(')
     expect(resourceFree).toContain('_$reconcileKeyedSingle')
     expect(resourceFree).not.toContain('_$reconcileKeyed,')

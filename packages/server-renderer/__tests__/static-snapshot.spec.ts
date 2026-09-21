@@ -121,4 +121,105 @@ document.querySelector('#app').innerHTML = [
       }),
     ).rejects.toThrow('Could not find the client module entry')
   })
+
+  it('cleans up client timers when a snapshot finishes', async () => {
+    const root = await createTempDir()
+    const outDir = path.join(root, 'client')
+    const outputFile = path.join(root, 'snapshot.html')
+    const timerState = { fired: false }
+
+    await mkdir(path.join(outDir, 'assets'), { recursive: true })
+    await writeFile(
+      path.join(outDir, 'index.html'),
+      `<!doctype html>
+<html>
+  <head>
+    <script type="module" crossorigin src="/assets/app.mjs"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`,
+    )
+    await writeFile(
+      path.join(outDir, 'assets/app.mjs'),
+      `
+setInterval(() => {
+  globalThis.__snapshotTimerState.fired = true
+}, 250)
+document.querySelector('#app').innerHTML = '<main>ready</main>'
+`,
+    )
+
+    const snapshotClientRoute = staticRenderer.snapshotClientRoute as (options: {
+      outDir: string
+      route: string
+      outputFile: string
+      extraGlobals?: Record<string, unknown>
+      settleMs?: number
+      waitMs?: number
+    }) => Promise<unknown>
+
+    await snapshotClientRoute({
+      outDir,
+      route: '/',
+      outputFile,
+      extraGlobals: { __snapshotTimerState: timerState },
+      settleMs: 20,
+      waitMs: 1000,
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(timerState.fired).toBe(false)
+  })
+
+  it('snapshots routes whose content keeps changing', async () => {
+    const root = await createTempDir()
+    const outDir = path.join(root, 'client')
+    const outputFile = path.join(root, 'snapshot.html')
+
+    await mkdir(path.join(outDir, 'assets'), { recursive: true })
+    await writeFile(
+      path.join(outDir, 'index.html'),
+      `<!doctype html>
+<html>
+  <head>
+    <script type="module" crossorigin src="/assets/app.mjs"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>`,
+    )
+    await writeFile(
+      path.join(outDir, 'assets/app.mjs'),
+      `
+let value = 0
+const app = document.querySelector('#app')
+const render = () => {
+  app.innerHTML = '<main>value-' + value++ + '</main>'
+}
+render()
+setInterval(render, 10)
+`,
+    )
+
+    const snapshotClientRoute = staticRenderer.snapshotClientRoute as (options: {
+      outDir: string
+      route: string
+      outputFile: string
+      settleMs?: number
+      waitMs?: number
+    }) => Promise<{ html: string }>
+
+    await expect(
+      snapshotClientRoute({
+        outDir,
+        route: '/',
+        outputFile,
+        settleMs: 50,
+        waitMs: 500,
+      }),
+    ).resolves.toMatchObject({ html: expect.stringMatching(/^<main>value-\d+<\/main>$/) })
+  })
 })

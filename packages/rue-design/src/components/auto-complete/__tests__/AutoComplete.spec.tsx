@@ -33,6 +33,88 @@ afterEach(() => {
 })
 
 describe('AutoComplete', () => {
+  it('keeps the popup closed before input and shows the default empty state after searching', async () => {
+    const container = mountTestContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <AutoComplete
+          data-testid="auto-complete-no-results"
+          options={[{ value: 'useComponent' }]}
+        />,
+        container,
+      ),
+    )
+
+    const input = container.querySelector(
+      '[data-testid="auto-complete-no-results"]',
+    ) as HTMLInputElement
+
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelector('[role="listbox"]')).toBeNull()
+
+    input.focus()
+
+    await waitForContent(() => {
+      expect(input.getAttribute('aria-expanded')).toBe('true')
+      expect(container.querySelector('[role="listbox"]')?.textContent).toContain('useComponent')
+      expect(container.textContent).not.toContain('暂无匹配建议')
+    })
+
+    input.value = 'missing'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    await waitForContent(() => {
+      expect(input.getAttribute('aria-expanded')).toBe('true')
+      expect(container.querySelector('[role="listbox"]')?.textContent).toContain('暂无匹配建议')
+    })
+  })
+
+  it('renders JSX option labels as nodes instead of object text', async () => {
+    const container = mountTestContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <AutoComplete
+          data-testid="auto-complete-jsx-label"
+          options={[
+            {
+              value: 'runtime/useComponent',
+              label: (
+                <span data-testid="auto-complete-rich-label">
+                  useComponent lazy route
+                  <span data-testid="auto-complete-rich-description">Lazy route loader</span>
+                </span>
+              ),
+              description: 'Lazy route loader',
+            },
+          ]}
+        />,
+        container,
+      ),
+    )
+
+    const input = container.querySelector(
+      '[data-testid="auto-complete-jsx-label"]',
+    ) as HTMLInputElement
+    input.focus()
+    input.value = 'runtime'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    await waitForContent(() => {
+      expect(
+        container.querySelector('[data-testid="auto-complete-rich-label"]')?.textContent,
+      ).toContain('useComponent lazy route')
+      expect(
+        container.querySelectorAll('[data-testid="auto-complete-rich-description"]'),
+      ).toHaveLength(1)
+      expect(container.textContent?.match(/Lazy route loader/g)).toHaveLength(1)
+      expect(container.textContent).not.toContain('[object Object]')
+    })
+  })
+
   it('filters options and selects the highlighted item with Enter', async () => {
     const container = mountTestContainer()
     const handleSelect = vi.fn()

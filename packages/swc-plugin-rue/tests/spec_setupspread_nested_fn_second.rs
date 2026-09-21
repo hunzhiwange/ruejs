@@ -58,7 +58,7 @@ const Comp: FC = ()=>{
                         ...build2(),
                         more: `p=${a.value}-${a.value > 0 ? 'x' : 'y'}`
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             const arr = computed(()=>[
                         ...build2().nested,
@@ -70,7 +70,7 @@ const Comp: FC = ()=>{
                             'f'
                         ]
                 ]);
-            arr.get();
+            untrack(()=>arr.get());
             const __rue_phase2_arr = arr;
             return {
                 a: a,

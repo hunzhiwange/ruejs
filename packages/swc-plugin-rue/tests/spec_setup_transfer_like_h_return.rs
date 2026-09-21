@@ -82,7 +82,7 @@ const TransferLike: FC<Props> = ({ targetKeys, defaultTargetKeys, showSearch }) 
         .expect("locate TransferLike component");
     let transfer_like_slice = &normalized[transfer_like_start..];
     let top_level_setup_idx = transfer_like_slice
-        .find(&utils::normalize(r#"const _$useSetup = _$compiledWithHookId("useSetup:0:0"#))
+        .find(&utils::normalize(r#"const _$useSetup = _$compiledSetup("useSetup:0:0"#))
         .expect("expected top-level useSetup inside TransferLike");
     let search_config_idx = transfer_like_slice
         .find(&utils::normalize(
@@ -172,7 +172,7 @@ const TransferLike = ({ targetKeys, defaultTargetKeys, showSearch }) => {
 
     assert!(normalized.contains(&utils::normalize(
         r#"const TransferLike = (__rue_props)=>{
-      const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
+      const _$useSetup = _$compiledSetup("useSetup:0:0", ()=>{
       const searchConfig = normalizeSearchConfig(__rue_props.showSearch);
       const uncontrolledTargetKeysRef = ref(__rue_props.defaultTargetKeys ?? __rue_props.targetKeys ?? []);
       const searchValueRef = ref(searchConfig.defaultValue);

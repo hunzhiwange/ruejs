@@ -73,9 +73,13 @@ export default OrCases;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec26.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert_eq!(normalized.matches("_$compiledRoot(").count(), 4);
+    assert_eq!(
+        normalized.matches("_$compiledRoot(").count()
+            + normalized.matches("_$compiledStaticRoot(").count(),
+        4
+    );
     assert_eq!(normalized.matches("return [").count(), 4);
     assert_eq!(normalized.matches("_$compiledBranchAt(").count(), 0, "{out}");
     assert_eq!(normalized.matches("_$compiledBranch(").count(), 0, "{out}");
-    assert!(normalized.contains("renderAnchor(__slot,"), "{out}");
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{out}");
 }

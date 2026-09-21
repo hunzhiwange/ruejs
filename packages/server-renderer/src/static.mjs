@@ -323,6 +323,48 @@ const installStaticScrollShim = window => {
 }
 
 const installStaticRenderGlobals = (window, snapshots, options = {}) => {
+  const timeoutHandles = new Set()
+  const intervalHandles = new Set()
+  const nativeSetTimeout = globalThis.setTimeout?.bind(globalThis)
+  const nativeClearTimeout = globalThis.clearTimeout?.bind(globalThis)
+  const nativeSetInterval = globalThis.setInterval?.bind(globalThis)
+  const nativeClearInterval = globalThis.clearInterval?.bind(globalThis)
+  const setTimeout =
+    typeof nativeSetTimeout === 'function'
+      ? (callback, delay, ...args) => {
+          let handle
+          const wrapped = (...callbackArgs) => {
+            timeoutHandles.delete(handle)
+            callback(...callbackArgs)
+          }
+          handle = nativeSetTimeout(wrapped, delay, ...args)
+          timeoutHandles.add(handle)
+          return handle
+        }
+      : undefined
+  const clearTimeout =
+    typeof nativeClearTimeout === 'function'
+      ? handle => {
+          timeoutHandles.delete(handle)
+          nativeClearTimeout(handle)
+        }
+      : undefined
+  const setInterval =
+    typeof nativeSetInterval === 'function'
+      ? (callback, delay, ...args) => {
+          const handle = nativeSetInterval(callback, delay, ...args)
+          intervalHandles.add(handle)
+          return handle
+        }
+      : undefined
+  const clearInterval =
+    typeof nativeClearInterval === 'function'
+      ? handle => {
+          intervalHandles.delete(handle)
+          nativeClearInterval(handle)
+        }
+      : undefined
+
   const globals = {
     window,
     self: window,
@@ -360,6 +402,12 @@ const installStaticRenderGlobals = (window, snapshots, options = {}) => {
     getComputedStyle: window.getComputedStyle.bind(window),
     localStorage: window.localStorage,
     sessionStorage: window.sessionStorage,
+    // Client bundles resolve timer globals from globalThis in Node. Track those
+    // timers so they cannot outlive the static DOM that created them.
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
     requestAnimationFrame: window.requestAnimationFrame.bind(window),
     cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
   }
@@ -434,6 +482,17 @@ const installStaticRenderGlobals = (window, snapshots, options = {}) => {
     for (const [key, value] of Object.entries(options.extraGlobals)) {
       defineStaticGlobal(snapshots, key, value)
     }
+  }
+
+  return () => {
+    if (typeof nativeClearTimeout === 'function') {
+      for (const handle of timeoutHandles) nativeClearTimeout(handle)
+    }
+    if (typeof nativeClearInterval === 'function') {
+      for (const handle of intervalHandles) nativeClearInterval(handle)
+    }
+    timeoutHandles.clear()
+    intervalHandles.clear()
   }
 }
 
@@ -613,9 +672,10 @@ export const runWithStaticRenderDom = async (route, callback, options = {}) => {
     url: createStaticRenderUrl(normalizedRoute, options.baseUrl),
   })
   const snapshots = new Map()
+  let cleanupTimers = () => {}
 
   try {
-    installStaticRenderGlobals(dom.window, snapshots, options)
+    cleanupTimers = installStaticRenderGlobals(dom.window, snapshots, options)
     return await callback({
       dom,
       window: dom.window,
@@ -623,6 +683,7 @@ export const runWithStaticRenderDom = async (route, callback, options = {}) => {
       route: normalizedRoute,
     })
   } finally {
+    cleanupTimers()
     restoreStaticGlobals(snapshots)
     dom.window.close()
   }
@@ -645,6 +706,7 @@ export const waitForStaticAppHtml = async (window, options = {}) => {
   const start = Date.now()
   let stableHtml = ''
   let stableSince = 0
+  let contentSince = 0
 
   while (Date.now() - start < waitMs) {
     await delay(50)
@@ -658,7 +720,15 @@ export const waitForStaticAppHtml = async (window, options = {}) => {
     if (!hasContent) {
       stableHtml = ''
       stableSince = 0
+      contentSince = 0
       continue
+    }
+
+    // Some client routes intentionally keep updating their DOM (for example, a
+    // countdown). Static snapshots still need a deterministic first rendered
+    // state instead of waiting for a state that can never become stable.
+    if (!contentSince) {
+      contentSince = Date.now()
     }
 
     if (html !== stableHtml) {
@@ -666,7 +736,7 @@ export const waitForStaticAppHtml = async (window, options = {}) => {
       stableSince = Date.now()
     }
 
-    if (Date.now() - stableSince >= settleMs) {
+    if (Date.now() - stableSince >= settleMs || Date.now() - contentSince >= settleMs) {
       return html
     }
   }

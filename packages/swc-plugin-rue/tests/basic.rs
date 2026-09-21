@@ -252,7 +252,10 @@ export default Page;
     std::fs::write("target/vapor_outputs/basic_helper_call_slot.out.js", stripped).ok();
 
     assert!(out.contains("_$mountCompiledSlotAt"));
-    assert!(out.contains("show ? _$compiledValueFactory(renderIcon())"));
+    assert!(
+        out.contains("show ? (target, slotProps, owner)=>_$compiledValueFactory(renderIcon())")
+    );
+    assert!(out.contains("_$mountCompiledSlotFactory(target, owner,"));
     assert!(!out.contains("renderAnchor"));
     assert!(
         !out.contains(&utils::normalize(

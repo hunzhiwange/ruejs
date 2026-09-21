@@ -752,6 +752,22 @@ fn value_member_expr(ident: Ident) -> Expr {
     crate::emit::call_member(ident, "get", vec![])
 }
 
+fn untracked_value_member_expr(ident: Ident) -> Expr {
+    crate::emit::call_ident(
+        "untrack",
+        vec![Expr::Arrow(ArrowExpr {
+            span: DUMMY_SP,
+            params: vec![],
+            body: Box::new(BlockStmtOrExpr::Expr(Box::new(value_member_expr(ident)))),
+            is_async: false,
+            is_generator: false,
+            type_params: None,
+            return_type: None,
+            ctxt: SyntaxContext::empty(),
+        })],
+    )
+}
+
 fn wrap_expr_in_computed(expr: Expr) -> Expr {
     let computed_body = match expr {
         Expr::Object(_) => Expr::Paren(ParenExpr { span: DUMMY_SP, expr: Box::new(expr) }),
@@ -828,7 +844,7 @@ fn collect_phase2_derived_const_candidates(
                 continue;
             };
             let name = binding.id.sym.to_string();
-            if is_phase2_private_name(&name) {
+            if is_phase2_private_name(&name) || reactive_names.contains(&name) {
                 continue;
             }
             let Some(init) = &decl.init else {
@@ -876,6 +892,82 @@ fn collect_phase2_reactive_source_names(block: &BlockStmt, ret_idx: usize) -> Ha
                 continue;
             };
             names.insert(binding.id.sym.to_string());
+        }
+    }
+
+    // Hook containers commonly expose the actual reactive value through `.current`, e.g.
+    // `const openRef = useRef(ref(false)); const open = openRef.current`. Preserve that alias as
+    // a reactive source so values derived from `open.value` are not frozen in setup snapshots.
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for stmt in block.stmts.iter().take(ret_idx) {
+            let Stmt::Decl(Decl::Var(var)) = stmt else {
+                continue;
+            };
+            for decl in &var.decls {
+                let Pat::Ident(binding) = &decl.name else {
+                    continue;
+                };
+                let Some(init) = &decl.init else {
+                    continue;
+                };
+                let Expr::Member(member) = crate::utils::unwrap_expr(init.as_ref()) else {
+                    continue;
+                };
+                let MemberProp::Ident(property) = &member.prop else {
+                    continue;
+                };
+                let Expr::Ident(source) = crate::utils::unwrap_expr(member.obj.as_ref()) else {
+                    continue;
+                };
+                if property.sym.as_ref() == "current" && names.contains(source.sym.as_ref()) {
+                    changed |= names.insert(binding.id.sym.to_string());
+                }
+            }
+        }
+    }
+
+    names
+}
+
+fn collect_phase2_locally_reactive_derived_names(
+    block: &BlockStmt,
+    ret_idx: usize,
+    candidate_names: &HashSet<String>,
+) -> HashSet<String> {
+    let mut names = collect_phase2_reactive_source_names(block, ret_idx);
+    let mut changed = true;
+
+    while changed {
+        changed = false;
+        for stmt in block.stmts.iter().take(ret_idx) {
+            let Stmt::Decl(Decl::Var(var)) = stmt else {
+                continue;
+            };
+            for decl in &var.decls {
+                let Pat::Ident(binding) = &decl.name else {
+                    continue;
+                };
+                let name = binding.id.sym.to_string();
+                if names.contains(&name) {
+                    continue;
+                }
+                let Some(init) = &decl.init else {
+                    continue;
+                };
+                if !candidate_names.contains(&name)
+                    && !matches!(
+                        crate::utils::unwrap_expr(init.as_ref()),
+                        Expr::Arrow(_) | Expr::Fn(_)
+                    )
+                {
+                    continue;
+                }
+                if expr_references_names(init.as_ref(), &names) {
+                    changed |= names.insert(name);
+                }
+            }
         }
     }
 
@@ -1134,6 +1226,19 @@ impl<'a> Phase2UsageCollector<'a> {
 }
 
 impl Visit for Phase2UsageCollector<'_> {
+    fn visit_jsx_element_name(&mut self, name: &JSXElementName) {
+        if let JSXElementName::Ident(ident) = name {
+            let helper_name = ident.sym.as_ref();
+            if !self.is_shadowed(helper_name)
+                && let Some(helper_name) = self.resolve_phase2_helper_name(helper_name)
+            {
+                self.visit_phase2_helper_with_current_mode(&helper_name);
+                return;
+            }
+        }
+        name.visit_children_with(self);
+    }
+
     fn visit_expr(&mut self, expr: &Expr) {
         if let Expr::Ident(ident) = expr {
             let name = ident.sym.as_ref();
@@ -1235,6 +1340,17 @@ fn expr_is_snapshot_initializer(expr: &Expr) -> bool {
                 | "shallowReadonly"
         )
     })
+}
+
+pub(crate) fn stmt_is_snapshot_initializer(stmt: &Stmt) -> bool {
+    let Stmt::Decl(Decl::Var(var)) = stmt else {
+        return false;
+    };
+    !var.decls.is_empty()
+        && var
+            .decls
+            .iter()
+            .all(|decl| decl.init.as_ref().is_some_and(|init| expr_is_snapshot_initializer(init)))
 }
 
 fn expr_is_function_literal(expr: &Expr) -> bool {
@@ -1653,6 +1769,8 @@ fn apply_phase2_props_derived_const_lowering(
     if derived_names.is_empty() {
         return false;
     }
+    let locally_reactive_names =
+        collect_phase2_locally_reactive_derived_names(block, ret_idx, &candidate_names);
 
     let mut used_names = collect_block_declared_names(block);
     used_names.extend(reactive_inputs.iter().cloned());
@@ -1720,7 +1838,9 @@ fn apply_phase2_props_derived_const_lowering(
                 }
                 _ => None,
             };
-            let should_prime = derived_binding.is_some();
+            let should_prime_untracked = derived_binding
+                .as_ref()
+                .is_some_and(|binding| locally_reactive_names.contains(binding.sym.as_ref()));
 
             if derived_binding.is_some()
                 && let Some(init) = decl.init.take()
@@ -1740,15 +1860,18 @@ fn apply_phase2_props_derived_const_lowering(
                 continue;
             };
 
-            if should_prime {
-                // The source const initializer is eager. Prime every lowered computed at the same
-                // lexical point both to preserve that order and to connect component render
-                // effects when the value is otherwise first read inside a returned Vapor setup.
-                rewritten_stmts.push(Stmt::Expr(ExprStmt {
-                    span: DUMMY_SP,
-                    expr: Box::new(value_member_expr(binding_ident.clone())),
-                }));
-            }
+            // The source const initializer is eager. Prime every lowered computed at the same
+            // lexical point to preserve that order. Values derived from component-local reactive
+            // state are primed without subscribing the surrounding structural branch: the
+            // returned Vapor bindings establish their own fine-grained subscriptions.
+            rewritten_stmts.push(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(if should_prime_untracked {
+                    untracked_value_member_expr(binding_ident.clone())
+                } else {
+                    value_member_expr(binding_ident.clone())
+                }),
+            }));
 
             let name = binding_ident.sym.to_string();
             let Some(alias_ident) = alias_idents.get(&name).cloned() else {
@@ -1774,6 +1897,13 @@ fn apply_phase2_props_derived_const_lowering(
     true
 }
 
+// Phase-two lowering needs the final render boundary rather than the first early-return
+// boundary. Components commonly guard an alternate render before declaring values used by
+// their main render; stopping at that guard would leave those props-derived values as snapshots.
+fn find_phase2_return_index(block: &BlockStmt) -> Option<usize> {
+    block.stmts.iter().rposition(stmt_contains_return)
+}
+
 #[allow(dead_code)]
 pub fn lower_props_derived_consts_in_arrow(arrow: &mut ArrowExpr) -> bool {
     lower_props_derived_consts_in_arrow_with_inputs(arrow, HashSet::new())
@@ -1786,7 +1916,7 @@ pub fn lower_props_derived_consts_in_arrow_with_inputs(
     let BlockStmtOrExpr::BlockStmt(block) = arrow.body.as_mut() else {
         return false;
     };
-    let Some(ret_idx) = find_first_return_index(block) else {
+    let Some(ret_idx) = find_phase2_return_index(block) else {
         return false;
     };
     let mut reactive_inputs = collect_param_idents(&arrow.params);
@@ -1807,7 +1937,7 @@ pub fn lower_props_derived_consts_in_function_with_inputs(
     let Some(block) = &mut func.body else {
         return false;
     };
-    let Some(ret_idx) = find_first_return_index(block) else {
+    let Some(ret_idx) = find_phase2_return_index(block) else {
         return false;
     };
     let params: Vec<Pat> = func.params.iter().map(|param| param.pat.clone()).collect();
@@ -1817,14 +1947,17 @@ pub fn lower_props_derived_consts_in_function_with_inputs(
     apply_phase2_props_derived_const_lowering(block, ret_idx, &reactive_inputs)
 }
 
-fn make_hidden_props_binding(type_ann: Option<Box<TsTypeAnn>>) -> Pat {
+fn make_hidden_props_binding(props_ident: &str, type_ann: Option<Box<TsTypeAnn>>) -> Pat {
     Pat::Ident(BindingIdent {
-        id: Ident::new(Atom::from(REACTIVE_PROPS_IDENT), DUMMY_SP, SyntaxContext::empty()),
+        id: Ident::new(Atom::from(props_ident), DUMMY_SP, SyntaxContext::empty()),
         type_ann,
     })
 }
 
-fn build_rest_destructure_prologue(object_pat: &ObjectPat) -> Option<Stmt> {
+fn build_rest_destructure_prologue_with_ident(
+    object_pat: &ObjectPat,
+    props_ident: &str,
+) -> Option<Stmt> {
     let rest_prop = object_pat.props.iter().find_map(|prop| match prop {
         ObjectPatProp::Rest(rest) => Some(rest.clone()),
         _ => None,
@@ -1865,7 +1998,7 @@ fn build_rest_destructure_prologue(object_pat: &ObjectPat) -> Option<Stmt> {
             span: DUMMY_SP,
             name: Pat::Object(ObjectPat { span: DUMMY_SP, props, optional: false, type_ann: None }),
             init: Some(Box::new(Expr::Ident(Ident::new(
-                Atom::from(REACTIVE_PROPS_IDENT),
+                Atom::from(props_ident),
                 DUMMY_SP,
                 SyntaxContext::empty(),
             )))),
@@ -1875,11 +2008,12 @@ fn build_rest_destructure_prologue(object_pat: &ObjectPat) -> Option<Stmt> {
     }))))
 }
 
-fn prepare_component_props_param_rewrite(
+fn prepare_component_props_param_rewrite_with_ident(
     pat: &Pat,
+    props_ident: &str,
 ) -> Option<(HashMap<String, Expr>, Pat, Vec<Stmt>)> {
     let hidden_props_expr =
-        Expr::Ident(Ident::new(Atom::from(REACTIVE_PROPS_IDENT), DUMMY_SP, SyntaxContext::empty()));
+        Expr::Ident(Ident::new(Atom::from(props_ident), DUMMY_SP, SyntaxContext::empty()));
 
     match pat {
         Pat::Object(object_pat) => {
@@ -1888,14 +2022,20 @@ fn prepare_component_props_param_rewrite(
                 if object_pat_has_nested_rest_excluding_top_level(object_pat) {
                     return None;
                 }
-                if let Some(stmt) = build_rest_destructure_prologue(object_pat) {
+                if let Some(stmt) =
+                    build_rest_destructure_prologue_with_ident(object_pat, props_ident)
+                {
                     prologue.push(stmt);
                 }
             }
 
             let mut alias_exprs = HashMap::new();
             collect_reactive_prop_alias_exprs_from_pat(pat, hidden_props_expr, &mut alias_exprs);
-            Some((alias_exprs, make_hidden_props_binding(object_pat.type_ann.clone()), prologue))
+            Some((
+                alias_exprs,
+                make_hidden_props_binding(props_ident, object_pat.type_ann.clone()),
+                prologue,
+            ))
         }
         Pat::Assign(assign) => {
             let Pat::Object(object_pat) = assign.left.as_ref() else {
@@ -1906,7 +2046,9 @@ fn prepare_component_props_param_rewrite(
                 if object_pat_has_nested_rest_excluding_top_level(object_pat) {
                     return None;
                 }
-                if let Some(stmt) = build_rest_destructure_prologue(object_pat) {
+                if let Some(stmt) =
+                    build_rest_destructure_prologue_with_ident(object_pat, props_ident)
+                {
                     prologue.push(stmt);
                 }
             }
@@ -1921,7 +2063,10 @@ fn prepare_component_props_param_rewrite(
                 alias_exprs,
                 Pat::Assign(AssignPat {
                     span: assign.span,
-                    left: Box::new(make_hidden_props_binding(object_pat.type_ann.clone())),
+                    left: Box::new(make_hidden_props_binding(
+                        props_ident,
+                        object_pat.type_ann.clone(),
+                    )),
                     right: assign.right.clone(),
                 }),
                 prologue,
@@ -1932,12 +2077,19 @@ fn prepare_component_props_param_rewrite(
 }
 
 pub fn rewrite_component_props_destructure_in_arrow(arrow: &mut ArrowExpr) -> bool {
+    rewrite_component_props_destructure_in_arrow_with_ident(arrow, REACTIVE_PROPS_IDENT)
+}
+
+pub fn rewrite_component_props_destructure_in_arrow_with_ident(
+    arrow: &mut ArrowExpr,
+    props_ident: &str,
+) -> bool {
     let Some(first_param) = arrow.params.first_mut() else {
         return false;
     };
     let original_pat = first_param.clone();
     let Some((alias_exprs, replacement_pat, mut prologue)) =
-        prepare_component_props_param_rewrite(&original_pat)
+        prepare_component_props_param_rewrite_with_ident(&original_pat, props_ident)
     else {
         return false;
     };
@@ -1973,12 +2125,19 @@ pub fn rewrite_component_props_destructure_in_arrow(arrow: &mut ArrowExpr) -> bo
 }
 
 pub fn rewrite_component_props_destructure_in_function(func: &mut Function) -> bool {
+    rewrite_component_props_destructure_in_function_with_ident(func, REACTIVE_PROPS_IDENT)
+}
+
+pub fn rewrite_component_props_destructure_in_function_with_ident(
+    func: &mut Function,
+    props_ident: &str,
+) -> bool {
     let Some(first_param) = func.params.first_mut() else {
         return false;
     };
     let original_pat = first_param.pat.clone();
     let Some((alias_exprs, replacement_pat, mut prologue)) =
-        prepare_component_props_param_rewrite(&original_pat)
+        prepare_component_props_param_rewrite_with_ident(&original_pat, props_ident)
     else {
         return false;
     };
@@ -2061,6 +2220,47 @@ fn collect_setup_with_locals(
     let mut available: HashSet<String> = initial_available.clone();
     let mut known_locals: HashSet<String> = initial_known.clone();
 
+    struct AssignedNameCollector {
+        names: HashSet<String>,
+        function_depth: usize,
+    }
+
+    impl Visit for AssignedNameCollector {
+        fn visit_assign_expr(&mut self, assign: &AssignExpr) {
+            if self.function_depth > 0
+                && let AssignTarget::Simple(SimpleAssignTarget::Ident(binding)) = &assign.left
+            {
+                self.names.insert(binding.id.sym.to_string());
+            }
+            assign.visit_children_with(self);
+        }
+
+        fn visit_update_expr(&mut self, update: &UpdateExpr) {
+            if self.function_depth > 0
+                && let Expr::Ident(ident) = update.arg.as_ref()
+            {
+                self.names.insert(ident.sym.to_string());
+            }
+            update.visit_children_with(self);
+        }
+
+        fn visit_function(&mut self, function: &Function) {
+            self.function_depth += 1;
+            function.visit_children_with(self);
+            self.function_depth -= 1;
+        }
+
+        fn visit_arrow_expr(&mut self, arrow: &ArrowExpr) {
+            self.function_depth += 1;
+            arrow.visit_children_with(self);
+            self.function_depth -= 1;
+        }
+    }
+
+    let mut assigned = AssignedNameCollector { names: HashSet::new(), function_depth: 0 };
+    block.visit_with(&mut assigned);
+    let assigned_names = assigned.names;
+
     fn collect_pat_idents(pat: &Pat, out: &mut Vec<String>) {
         match pat {
             Pat::Ident(BindingIdent { id, .. }) => {
@@ -2112,6 +2312,19 @@ fn collect_setup_with_locals(
         known_locals: &HashSet<String>,
         available: &HashSet<String>,
     ) -> bool {
+        struct AssignedTargetCollector {
+            names: HashSet<String>,
+        }
+
+        impl Visit for AssignedTargetCollector {
+            fn visit_assign_expr(&mut self, assign: &AssignExpr) {
+                if let AssignTarget::Simple(SimpleAssignTarget::Ident(binding)) = &assign.left {
+                    self.names.insert(binding.id.sym.to_string());
+                }
+                assign.visit_children_with(self);
+            }
+        }
+
         let mut refs = HashSet::new();
         match stmt {
             Stmt::Decl(Decl::Var(var)) => {
@@ -2126,6 +2339,12 @@ fn collect_setup_with_locals(
             }
             _ => return false,
         }
+
+        // The general expression dependency collector intentionally focuses on assignment values.
+        // Setup extraction must additionally treat assignment targets as lexical dependencies.
+        let mut assigned_targets = AssignedTargetCollector { names: HashSet::new() };
+        stmt.visit_with(&mut assigned_targets);
+        refs.extend(assigned_targets.names);
 
         refs.into_iter().any(|ident| known_locals.contains(&ident) && !available.contains(&ident))
     }
@@ -2228,46 +2447,19 @@ fn collect_setup_with_locals(
             })
     }
 
-    fn expr_is_hoistable_watch_effect(expr: &Expr) -> bool {
-        let Expr::Call(call) = crate::utils::unwrap_expr(expr) else {
-            return false;
-        };
-
-        if call_callee_ident_name(call) == Some("watchEffect") {
-            return call.args.first().is_some_and(|arg| {
-                matches!(crate::utils::unwrap_expr(arg.expr.as_ref()), Expr::Arrow(_) | Expr::Fn(_))
-            });
-        }
-
-        if call_callee_ident_name(call) != Some("_$compiledWithHookId") {
-            return false;
-        }
-
-        let Some(runner) = call.args.get(1) else {
-            return false;
-        };
-        let Expr::Arrow(arrow) = crate::utils::unwrap_expr(runner.expr.as_ref()) else {
-            return false;
-        };
-        let Some(body_expr) = arrow_body_expr(arrow) else {
-            return false;
-        };
-        let Expr::Call(inner_call) = crate::utils::unwrap_expr(body_expr) else {
-            return false;
-        };
-
-        call_callee_ident_name(inner_call) == Some("watchEffect")
-            && inner_call.args.first().is_some_and(|arg| {
-                matches!(crate::utils::unwrap_expr(arg.expr.as_ref()), Expr::Arrow(_) | Expr::Fn(_))
-            })
-    }
-
     fn var_decl_is_hoistable_computed(var: &VarDecl) -> bool {
         !var.decls.is_empty()
             && var
                 .decls
                 .iter()
                 .all(|decl| decl.init.as_ref().is_some_and(|init| expr_is_hoistable_computed(init)))
+    }
+
+    fn var_decl_is_snapshot_initializer(var: &VarDecl) -> bool {
+        !var.decls.is_empty()
+            && var.decls.iter().all(|decl| {
+                decl.init.as_ref().is_some_and(|init| expr_is_snapshot_initializer(init))
+            })
     }
 
     struct AwaitExprDetector {
@@ -2284,69 +2476,6 @@ fn collect_setup_with_locals(
         let mut detector = AwaitExprDetector { found: false };
         stmt.visit_with(&mut detector);
         detector.found
-    }
-
-    fn expr_is_setup_helper(expr: &Expr) -> bool {
-        matches!(crate::utils::unwrap_expr(expr), Expr::Arrow(_) | Expr::Fn(_))
-    }
-
-    fn var_decl_is_setup_helper(var: &VarDecl) -> bool {
-        !var.decls.is_empty()
-            && var
-                .decls
-                .iter()
-                .all(|decl| decl.init.as_ref().is_some_and(|init| expr_is_setup_helper(init)))
-    }
-
-    fn expr_is_hoistable_setup_effect(expr: &Expr) -> bool {
-        let Expr::Call(call) = crate::utils::unwrap_expr(expr) else {
-            return false;
-        };
-
-        let is_setup_effect_name = |name: &str| {
-            // setup 副作用类调用需要保留在 setup 语义内，生命周期注册不能被错误提升。
-            matches!(
-                name,
-                "watch"
-                    | "watchEffect"
-                    | "createEffect"
-                    | "effect"
-                    | "onMounted"
-                    | "onUnmounted"
-                    | "onBeforeMount"
-                    | "onBeforeUnmount"
-                    | "onServerPrefetch"
-                    | "onUpdated"
-                    | "onBeforeUpdate"
-                    | "onActivated"
-                    | "onDeactivated"
-            )
-        };
-
-        if let Some(name) = call_callee_ident_name(call)
-            && is_setup_effect_name(name)
-        {
-            return true;
-        }
-
-        if call_callee_ident_name(call) != Some("_$compiledWithHookId") {
-            return false;
-        }
-
-        let Some(runner) = call.args.get(1) else {
-            return false;
-        };
-        let Expr::Arrow(arrow) = crate::utils::unwrap_expr(runner.expr.as_ref()) else {
-            return false;
-        };
-        let Some(body_expr) = arrow_body_expr(arrow) else {
-            return false;
-        };
-        let Expr::Call(inner_call) = crate::utils::unwrap_expr(body_expr) else {
-            return false;
-        };
-
-        call_callee_ident_name(inner_call).is_some_and(is_setup_effect_name)
     }
 
     // 迭代遍历语句，直到遇到包含 return 的语句为止（ret_idx 为边界，不跨越）。
@@ -2368,6 +2497,37 @@ fn collect_setup_with_locals(
 
         match s {
             Stmt::Decl(Decl::Var(var)) => {
+                // Destructuring a component input is a live render binding. Hoisting it into
+                // _$compiledSetup freezes the first props snapshot and breaks controlled props.
+                if var.decls.iter().any(|decl| {
+                    matches!(&decl.name, Pat::Object(_))
+                        && decl.init.as_deref().is_some_and(|init| {
+                            matches!(crate::utils::unwrap_expr(init), Expr::Ident(id)
+                                if initial_available.contains(id.sym.as_ref()))
+                        })
+                }) {
+                    continue;
+                }
+                // Moving mutable bindings into the setup closure and exporting their current
+                // values creates two independent bindings. Render-time ref callbacks then update
+                // the outer copy while lifecycle/event closures keep observing the setup copy.
+                // Keep let/var declarations at component scope so every closure shares the same
+                // lexical binding.
+                let mutable_null_cell = var.kind != VarDeclKind::Const
+                    && var.decls.iter().any(|decl| {
+                        decl.init.as_ref().is_some_and(|init| {
+                            matches!(crate::utils::unwrap_expr(init), Expr::Lit(Lit::Null(_)))
+                        })
+                    });
+                if var.kind != VarDeclKind::Const
+                    && (mutable_null_cell
+                        || declared_names.iter().any(|name| assigned_names.contains(name)))
+                {
+                    // The declaration stays in the render scope, but later statements still need
+                    // to know that its binding is unavailable to the extracted setup closure.
+                    known_locals.extend(declared_names.iter().cloned());
+                    continue;
+                }
                 if var_decl_contains_jsx(var) {
                     break;
                 }
@@ -2377,8 +2537,8 @@ fn collect_setup_with_locals(
                     break;
                 }
                 let is_hoistable_computed = var_decl_is_hoistable_computed(var);
-                let is_setup_helper = var_decl_is_setup_helper(var);
-                if !uses_unavailable_locals || is_hoistable_computed || is_setup_helper {
+                let is_snapshot_initializer = var_decl_is_snapshot_initializer(var);
+                if !uses_unavailable_locals || is_hoistable_computed || is_snapshot_initializer {
                     // 收集变量声明，并从解构模式中递归提取所有绑定的标识符名称
                     collected.push(s.clone());
                     for vd in &var.decls {
@@ -2407,15 +2567,10 @@ fn collect_setup_with_locals(
             }
             _ => {
                 // 其他普通语句（如空语句、已知安全的 watcher、纯表达式等）可直接收集
-                let hoistable_expr_stmt = match s {
-                    Stmt::Expr(expr_stmt) => {
-                        expr_is_hoistable_watch_effect(expr_stmt.expr.as_ref())
-                            || expr_is_hoistable_setup_effect(expr_stmt.expr.as_ref())
-                    }
-                    _ => false,
-                };
-
-                if !uses_unavailable_locals || hoistable_expr_stmt {
+                // A setup effect may execute synchronously (notably an immediate watcher). Keep it
+                // in source order when it closes over a local that could not be moved into setup;
+                // otherwise the extracted setup runs inside that local's temporal dead zone.
+                if !uses_unavailable_locals {
                     collected.push(s.clone());
                 }
             }
@@ -2481,6 +2636,12 @@ pub fn inject_setup(
         return;
     }
     let mut new_body: Vec<Stmt> = Vec::new();
+    let insertion_idx = block
+        .stmts
+        .iter()
+        .take(ret_idx)
+        .position(|stmt| collected.iter().any(|collected_stmt| collected_stmt == stmt))
+        .unwrap_or(0);
     // 构建 useSetup 包裹及解构绑定的两段声明
     let setup_args = (
         "useSetup:0:0",
@@ -2506,11 +2667,14 @@ pub fn inject_setup(
             setup_args.4,
         )
     };
-    for d in decls {
-        // 依次插入：先插入 useSetup 容器声明，再插入 const/let 解构绑定
-        new_body.push(d);
-    }
+    let mut decls = Some(decls);
     for (i, s) in block.stmts.iter().enumerate() {
+        if i == insertion_idx {
+            // Insert the setup region at the first extracted statement's lexical position. A
+            // snapshot initializer may depend on an earlier render-local helper; placing the
+            // region at the function head would execute it inside that helper's TDZ.
+            new_body.extend(decls.take().expect("setup declarations inserted once"));
+        }
         if i < ret_idx {
             let is_collected = collected.iter().any(|c| c == s);
             if is_collected {
@@ -2520,6 +2684,9 @@ pub fn inject_setup(
         }
         // 保留未收集的前置语句与边界之后的所有语句（含 return）
         new_body.push(s.clone());
+    }
+    if let Some(decls) = decls {
+        new_body.extend(decls);
     }
     block.stmts = new_body;
 }

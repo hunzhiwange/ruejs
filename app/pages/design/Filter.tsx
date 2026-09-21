@@ -25,7 +25,6 @@ const signalModes = [
 ] as const
 
 const priorityModes = [
-  { label: '全部', value: 'all', color: 'neutral' as const },
   { label: '高优先级', value: 'high', color: 'error' as const, variant: 'filled' as const },
   { label: '需关注', value: 'watch', color: 'warning' as const, variant: 'filled' as const },
   { label: '稳定', value: 'stable', color: 'success' as const, variant: 'outlined' as const },
@@ -363,7 +362,12 @@ const items = [
                   <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] opacity-60">
                     Tone Overrides
                   </div>
-                  <Filter as="div" items={priorityModes} defaultValue="all" variant="outlined" />
+                  <Filter
+                    as="div"
+                    items={priorityModes}
+                    reset={{ label: '全部', color: 'neutral' }}
+                    variant="outlined"
+                  />
                 </div>
                 <div>
                   <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] opacity-60">
@@ -381,12 +385,11 @@ const items = [
           code={`<Filter
   as="div"
   items={[
-    { label: '全部', value: 'all', color: 'neutral' },
     { label: '高优先级', value: 'high', color: 'error', variant: 'filled' },
     { label: '需关注', value: 'watch', color: 'warning', variant: 'filled' },
     { label: '稳定', value: 'stable', color: 'success', variant: 'outlined' },
   ]}
-  defaultValue="all"
+  reset={{ label: '全部', color: 'neutral' }}
   variant="outlined"
 />
 

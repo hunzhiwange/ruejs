@@ -437,8 +437,10 @@ const Timeline: FC<TimelineProps> = ({
   items,
 }) => {
   const resolvedDirection = normalizeDirection(direction, orientation)
+  const isHorizontal = resolvedDirection !== 'vertical'
   const cls = joinClassName(
     'timeline',
+    isHorizontal && 'overflow-x-auto',
     resolvedDirection && `timeline-${resolvedDirection}`,
     snapIcon && 'timeline-snap-icon',
     compact && 'timeline-compact',

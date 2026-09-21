@@ -522,10 +522,12 @@ describe('compiled keyed list codegen', () => {
 })
 
 describe('closed row and slot factories', () => {
-  it('uses the same owned factory for native rows and excludes compatibility helpers', () => {
+  it('uses the direct factory for proven native rows and excludes compatibility helpers', () => {
     const output = compile(directRowSource)
-    expect(output).toContain('_$mountCompiledKeyedSingleRow(')
-    expect(output).not.toMatch(/Ownerless|RowSetup|renderAnchor|internal\/component["']/)
+    expect(output).toContain('_$mountCompiledKeyedSingleRowDirect(')
+    expect(output).not.toMatch(
+      /mountCompiledKeyedSingleRowOwnerless|RowSetup|renderAnchor|internal\/component["']/,
+    )
   })
   it.each([
     ['plain object', '({ arbitrary: true })'],

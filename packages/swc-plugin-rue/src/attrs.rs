@@ -102,6 +102,70 @@ fn is_string_boolean_attr(name: &str) -> bool {
     name.starts_with("data-") || name.starts_with("aria-")
 }
 
+fn normalize_html_pattern(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    let mut normalized = String::with_capacity(value.len());
+    let mut in_class = false;
+    let mut first_class_token = false;
+    let mut index = 0;
+
+    while index < chars.len() {
+        let character = chars[index];
+        if character == '\\' {
+            normalized.push(character);
+            if let Some(next) = chars.get(index + 1) {
+                normalized.push(*next);
+                index += 1;
+            }
+            first_class_token = false;
+        } else if !in_class && character == '[' {
+            in_class = true;
+            first_class_token = true;
+            normalized.push(character);
+        } else if in_class && character == '^' && first_class_token {
+            normalized.push(character);
+        } else if in_class && character == ']' {
+            in_class = false;
+            first_class_token = false;
+            normalized.push(character);
+        } else {
+            if in_class
+                && character == '-'
+                && (first_class_token || chars.get(index + 1) == Some(&']'))
+            {
+                normalized.push('\\');
+            }
+            normalized.push(character);
+            first_class_token = false;
+        }
+        index += 1;
+    }
+
+    normalized
+}
+
+fn normalized_static_attr_string(name: &str, value: &Str) -> Str {
+    if name != "pattern" {
+        return value.clone();
+    }
+    let Some(pattern) = value.value.as_str() else {
+        return value.clone();
+    };
+    let mut normalized = value.clone();
+    normalized.value = normalize_html_pattern(pattern).into();
+    normalized.raw = None;
+    normalized
+}
+
+fn normalized_static_attr_expr(name: &str, value: Expr) -> Expr {
+    match value {
+        Expr::Lit(Lit::Str(value)) => {
+            Expr::Lit(Lit::Str(normalized_static_attr_string(name, &value)))
+        }
+        value => value,
+    }
+}
+
 fn is_custom_element_opening(opening: &JSXOpeningElement) -> bool {
     match &opening.name {
         JSXElementName::Ident(id) => crate::custom_element::is_custom_element_tag(id.sym.as_ref()),
@@ -212,7 +276,11 @@ fn try_emit_static_expr_attr(
             stmts,
             call_ident(
                 "_$setAttribute",
-                vec![Expr::Ident(target.clone()), string_expr(name), attr_value],
+                vec![
+                    Expr::Ident(target.clone()),
+                    string_expr(name),
+                    normalized_static_attr_expr(name, attr_value),
+                ],
             ),
         );
         return true;
@@ -417,11 +485,16 @@ fn compiled_event_spec(name: &str) -> Option<CompiledEventSpec> {
             break;
         }
     }
-    (!event.is_empty()).then(|| CompiledEventSpec {
-        name: event.to_ascii_lowercase(),
-        capture,
-        once,
-        passive,
+    (!event.is_empty()).then(|| {
+        let name = match (event.to_ascii_lowercase().as_str(), capture) {
+            // JSX focus events bubble through component wrappers. The corresponding
+            // native focus/blur events do not, so non-capture listeners use their
+            // bubbling variants while capture listeners observe the native events.
+            ("focus", false) => "focusin".to_string(),
+            ("blur", false) => "focusout".to_string(),
+            (name, _) => name.to_string(),
+        };
+        CompiledEventSpec { name, capture, once, passive }
     })
 }
 
@@ -469,6 +542,8 @@ fn is_delegated_bubbling_event(name: &str) -> bool {
             | "dragover"
             | "dragstart"
             | "drop"
+            | "focusin"
+            | "focusout"
             | "input"
             | "keydown"
             | "keypress"
@@ -894,7 +969,12 @@ fn emit_direct_static_attr(
                     Expr::Lit(Lit::Bool(Bool { span: DUMMY_SP, value: true })),
                 ))
             }
-            _ => emit_direct_attribute(stmts, target, name, Expr::Lit(Lit::Str(value.clone()))),
+            _ => emit_direct_attribute(
+                stmts,
+                target,
+                name,
+                Expr::Lit(Lit::Str(normalized_static_attr_string(name, value))),
+            ),
         },
         Some(JSXAttrValue::JSXExprContainer(container)) => {
             let JSXExpr::Expr(expr) = &container.expr else {
@@ -956,7 +1036,12 @@ fn emit_direct_static_attr(
                 }
                 _ => {
                     if let Some(value) = get_static_stringified_expr(inner) {
-                        emit_direct_attribute(stmts, target, name, value);
+                        emit_direct_attribute(
+                            stmts,
+                            target,
+                            name,
+                            normalized_static_attr_expr(name, value),
+                        );
                     }
                 }
             }

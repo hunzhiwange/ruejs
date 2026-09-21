@@ -1,5 +1,19 @@
 import type { HistoryLike } from '@rue-js/router'
 import { expect } from 'vitest'
+import type { BlockRecord } from '../src/compiler-runtime/block'
+
+const mountedBlocks = new WeakMap<HTMLElement, BlockRecord>()
+
+export const render = (block: BlockRecord | null, container: HTMLElement) => {
+  mountedBlocks.get(container)?.dispose()
+  mountedBlocks.delete(container)
+  container.replaceChildren()
+
+  if (block) {
+    block.__rue_compiled_mount(container)
+    mountedBlocks.set(container, block)
+  }
+}
 
 export const flush = async (turns = 3) => {
   for (let turn = 0; turn < turns; turn += 1) {

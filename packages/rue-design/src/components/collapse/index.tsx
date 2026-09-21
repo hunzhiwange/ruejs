@@ -362,16 +362,18 @@ const RenderTitleBody = ({
   arg4?: string
 }) => {
   if (description == null && extra == null) {
-    return <>{String(title ?? '')}</>
+    return <RenderCollapseContent content={title} />
   }
 
   return (
     <div className="flex w-full items-start justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <div>{String(title ?? '')}</div>
+        <div>
+          <RenderCollapseContent content={title} />
+        </div>
         {description != null ? (
           <div className={appendClassName('mt-1 text-xs opacity-70', descriptionClassName)}>
-            {String(description ?? '')}
+            <RenderCollapseContent content={description} />
           </div>
         ) : null}
       </div>
@@ -381,12 +383,14 @@ const RenderTitleBody = ({
           onClick={(event: MouseEvent) => event.stopPropagation()}
           onKeyDown={(event: KeyboardEvent) => event.stopPropagation()}
         >
-          {String(extra ?? '')}
+          <RenderCollapseContent content={extra} />
         </div>
       ) : null}
     </div>
   )
 }
+
+const RenderCollapseContent = ({ content }: { content: any }) => <>{content}</>
 
 /** items 模式统一使用状态类驱动展开，增强布局与交互能力。 */
 const Collapse: FC<CollapseProps> = ({
@@ -421,7 +425,7 @@ const Collapse: FC<CollapseProps> = ({
       key: item.key ?? index,
       index,
       label: item.label ?? item.title,
-      content: item.content,
+      content: item.children ?? item.content,
     })) ?? []
   const hasItems = normalizedItems.length > 0
   const resolvedBordered = bordered ?? hasItems
@@ -592,7 +596,9 @@ const Collapse: FC<CollapseProps> = ({
               ) : null}
             </div>
           </div>
-          <div className={mergedContentClassName}>{String(item.content ?? '')}</div>
+          <div className={mergedContentClassName}>
+            <RenderCollapseContent content={item.content} />
+          </div>
         </div>
       )
     }

@@ -49,6 +49,21 @@ describe('Validator', () => {
     expect(handleInput).toHaveBeenCalledTimes(1)
   })
 
+  it('normalizes legacy pattern literals forwarded through component props', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(<Validator pattern="[A-Za-z0-9-]+" data-testid="validator-pattern" />, container),
+    )
+
+    await waitForContent(() => {
+      const input = container.querySelector('[data-testid="validator-pattern"]') as HTMLInputElement
+      expect(input.pattern).toBe('[A-Za-z0-9\\-]+')
+      expect(() => input.checkValidity()).not.toThrow()
+    })
+  })
+
   it('supports select and textarea hosts', async () => {
     const container = mountContainer()
     resetActiveRuntime()

@@ -123,7 +123,7 @@ fn emits_compiled_slot_for_dynamic_text_exprs() {
 
     assert!(out.contains("_$createComment(\"rue:slot:anchor\")"));
     assert!(out.contains("_$mountCompiledSlotAt({parent:_root,before:_list1}"), "{out}");
-    assert!(out.contains("_$compiledValueFactory((message))"), "{out}");
+    assert!(out.contains("_$compiledValueFactory(message)"), "{out}");
     assert!(!out.contains("renderAnchor"), "{out}");
 }
 
@@ -196,6 +196,23 @@ fn emits_cached_effect_for_existing_text() {
 }
 
 #[test]
+fn keeps_reactive_object_members_on_the_renderable_value_path() {
+    let mut vt = new_vt();
+    let module = parse_module(
+        "import { signal } from '@rue-js/rue'; const option = signal({ label: 'ready' });",
+    );
+    vt.plain_local_scopes.push(crate::reactive_provenance::collect_module_scope(&module, &[]));
+    let root = crate::emit::ident("_root");
+    let mut stmts = Vec::new();
+
+    handle_expr_container(&mut vt, &root, &parse_expr_container("option.get().label"), &mut stmts);
+    let out = compact(&emit_stmts(stmts));
+
+    assert!(out.contains("_$compiledValueFactory(option.get().label)"), "{out}");
+    assert!(!out.contains("_$compiledText("), "{out}");
+}
+
+#[test]
 fn renders_static_jsx_slots_once_and_map_expressions_as_lists() {
     let root = crate::emit::ident("_root");
 
@@ -250,7 +267,8 @@ fn handles_children_slots_non_map_calls_and_static_component_variants() {
     );
     let member_children_out = compact(&emit_stmts(member_children_stmts));
     assert!(member_children_out.contains("_$createComment(\"rue:children:anchor\")"));
-    assert!(member_children_out.contains("_$compiledValueFactory(ctx.children)"));
+    assert!(member_children_out.contains("()=>ctx.children"));
+    assert!(!member_children_out.contains("_$compiledValueFactory(ctx.children)"));
     assert!(!member_children_out.contains("rue:slot:anchor"));
 
     let mut call_vt = new_vt();

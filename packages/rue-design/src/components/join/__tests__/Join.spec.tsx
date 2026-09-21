@@ -121,6 +121,30 @@ describe('Join', () => {
     })
   })
 
+  it('renders data-driven items inside arbitrary semantic root tags', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Join
+          as="nav"
+          itemClassName="btn"
+          items={[{ key: 'all', label: 'All', active: true }]}
+          data-testid="join-nav"
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const root = container.querySelector('[data-testid="join-nav"]') as HTMLElement
+      expect(root.tagName.toLowerCase()).toBe('nav')
+      expect(root.classList.contains('join')).toBe(true)
+      expect(root.querySelector('.join-item')?.textContent).toBe('All')
+    })
+  })
+
   it('supports active and disabled item semantics', async () => {
     const container = mountContainer()
     resetActiveRuntime()

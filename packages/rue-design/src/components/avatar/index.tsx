@@ -287,7 +287,7 @@ const Avatar: FC<AvatarProps> = ({
   const sizeConfig = resolveSizeConfig(size)
   const textContent = text ?? primitiveChildText
   const FallbackContent = () =>
-    icon != null ? <>{String(icon)}</> : children ? <>{children}</> : <DefaultAvatarIcon />
+    icon != null ? <>{icon}</> : children ? <>{children}</> : <DefaultAvatarIcon />
   const rootClassName = mergeClassName(
     status ? `avatar not-prose avatar-${status}` : 'avatar not-prose',
     className,

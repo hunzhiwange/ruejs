@@ -279,7 +279,9 @@ const syncPendingSelectValue = (select: any) => {
 const installControlledMultiSelectToggle = (select: any) => {
   if (select[RUE_CONTROLLED_MULTI_SELECT_TOGGLE]) return
   select[RUE_CONTROLLED_MULTI_SELECT_TOGGLE] = true
+  let handledOption: HTMLOptionElement | null = null
   select.addEventListener('mousedown', (event: MouseEvent) => {
+    handledOption = null
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || select.disabled) {
       return
     }
@@ -296,6 +298,7 @@ const installControlledMultiSelectToggle = (select: any) => {
     if (!Array.isArray(controlledValue)) return
 
     event.preventDefault()
+    handledOption = option
     const nextValues = new Set(controlledValue.map(String))
     if (nextValues.has(option.value)) nextValues.delete(option.value)
     else nextValues.add(option.value)
@@ -307,6 +310,17 @@ const installControlledMultiSelectToggle = (select: any) => {
     select.focus()
     select.dispatchEvent(new Event('input', { bubbles: true }))
     select.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  select.addEventListener('click', (event: MouseEvent) => {
+    if (!handledOption) return
+
+    const option = handledOption
+    handledOption = null
+    if (event.target === option || event.target === select) {
+      // Chromium can still run the native option click after a cancelled mousedown.
+      // Cancel that second default toggle so the controlled value is not immediately undone.
+      event.preventDefault()
+    }
   })
 }
 

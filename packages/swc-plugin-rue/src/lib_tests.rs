@@ -483,10 +483,9 @@ const View = (props) => {
     let out = normalize(&emit(apply(program), cm));
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains("_$compiledRoot("));
-    assert!(out.contains(&normalize("_$compiledComponent(Panel")));
+    assert!(out.contains(&normalize("_$createComponent(Panel")));
     assert!(!out.contains(&normalize("_$compiledKeyedList")));
-    assert!(out.contains("_$mountCompiledComponent(_root, RouterLink"), "{out}");
+    assert!(out.contains("_$createComponent(RouterLink"), "{out}");
     assert!(out.contains("to: _$compiledPropsGet(props, \"to\")"), "{out}");
     assert!(out.contains(&normalize("const current = ref(null);")), "{out}");
 }
@@ -856,7 +855,7 @@ function View({ rows, form, activeId, slotName, ...rest }) {
     assert!(!out.contains("_$compiledKeyedList"));
     assert!(out.contains("_$compiledWithEventModifiers"));
     assert!(out.contains("_$compiledShowStyle"));
-    assert!(out.contains("_$compiledComponent(Shell"));
+    assert!(out.contains("_$createComponent(Shell"));
     assert!(out.contains("_$transitionGroup("));
 }
 
@@ -1110,14 +1109,15 @@ function View({ count, rows }) {
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
     assert!(out.contains(&normalize("@rue-js/rue/internal")));
-    assert!(out.contains("const total = _$rueCompiledProp0.get() * 2"), "{out}");
+    assert!(out.contains("const total = computed(()=>_$rueCompiledProp0.get() * 2)"), "{out}");
+    assert!(out.contains("const __rue_phase2_total = total"), "{out}");
     assert!(
         out.contains(&normalize("for(let total = 0; total < 2; total++)console.log(total);")),
         "{out}"
     );
     assert!(out.contains("const total of _$rueCompiledProp1.get()"), "{out}");
     assert!(out.contains("console.log(total)"), "{out}");
-    assert!(out.contains("return total"), "{out}");
+    assert!(out.contains("return __rue_phase2_total.get()"), "{out}");
     assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
 }
 
@@ -1223,14 +1223,14 @@ function View({ rows, form, ready, slotName }) {
 
     assert!(out.contains("_$compiledPropsGet(__rue_props, \"rows\")"), "{out}");
     assert!(out.contains("_$compiledPropsGet(__rue_props, \"form\")"), "{out}");
-    assert!(out.contains("_$compiledComponent(Dialog"), "{out}");
+    assert!(out.contains("_$createComponent(Dialog"), "{out}");
     assert!(out.contains("_$compiledShowStyle"));
     assert!(out.contains("__rue_slots"));
     assert!(out.contains("slotName"), "{out}");
     assert!(out.contains("bodyLazy: _$rueCompiledProp0.get().body"), "{out}");
     assert!(out.contains("onUpdateBodyLazy"));
     assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains("_$compiledComponent(Footer"), "{out}");
+    assert!(out.contains("_$createComponent(Footer"), "{out}");
 }
 
 #[test]
@@ -1293,12 +1293,13 @@ function View({ count, records, totals }) {
     let (program, cm) = parse_program(src);
     let out = normalize(&emit(transform(program, empty_plugin_metadata()), cm));
 
-    assert!(out.contains("const total = _$rueCompiledProp0.get() * 2"), "{out}");
+    assert!(out.contains("const total = computed(()=>_$rueCompiledProp0.get() * 2)"), "{out}");
+    assert!(out.contains("const __rue_phase2_total = total"), "{out}");
     assert!(out.contains("for(total in _$rueCompiledProp1.get())"), "{out}");
     assert!(out.contains("total of _$rueCompiledProp2.get()"), "{out}");
     assert!(out.contains("console.log(total)"), "{out}");
-    assert!(out.contains("return { total }"), "{out}");
-    assert!(out.contains("after(total)"), "{out}");
+    assert!(out.contains("return { total: __rue_phase2_total.get() }"), "{out}");
+    assert!(out.contains("after(total.get())"), "{out}");
 }
 
 #[test]
@@ -1433,7 +1434,8 @@ function View(props) {
     assert!(!out.contains("_$compiledBranch("), "{out}");
     assert!(out.matches("_$mountCompiledSlotAt(").count() >= 1, "{out}");
     assert!(!out.contains("_$settextContent(_") || !out.contains(", indicator.get());"), "{out}");
-    assert!(out.contains("String(indicator.get())"), "{out}");
+    assert!(!out.contains("String(indicator.get())"), "{out}");
+    assert!(out.matches("_$compiledValueFactory(indicator.get())").count() >= 3, "{out}");
     assert!(out.contains("_$rueCompiledProp3.get().get(0)"), "{out}");
 }
 
@@ -1489,6 +1491,43 @@ fn compiled_props_direct_and_structural_reads() {
         assert!(output.contains(helper), "missing {helper}: {output}");
     }
     assert!(!output.contains("props.title"), "{output}");
+}
+
+#[test]
+fn compiled_props_keeps_top_level_body_destructure_live() {
+    let (program, cm) = parse_program(
+        r#"
+        export function View(props) {
+            const { open, onOpenChange, label = 'closed', ...rest } = props;
+            if (rest.hidden) return <></>;
+            return <button aria-expanded={open} onClick={() => onOpenChange?.(!open)}>{label}</button>;
+        }
+    "#,
+    );
+    let output = emit(run_full_transform(program, true, None), cm);
+    assert!(!output.contains("const { open, onOpenChange"), "{output}");
+    assert!(output.contains("_$compiledPropsGet("), "{output}");
+    assert!(output.contains("\"open\""), "{output}");
+    assert!(output.contains("_$compiledOmitProps("), "{output}");
+}
+
+#[test]
+fn compiled_props_keeps_values_derived_from_body_destructure_live() {
+    let (program, cm) = parse_program(
+        r#"
+        import type { FC } from '@rue-js/rue';
+        const getPanel = placement => ({ className: `panel-${placement}` });
+        export const View: FC = props => {
+            const { placement = 'top' } = props;
+            const panel = getPanel(placement);
+            return <div className={panel.className} />;
+        };
+    "#,
+    );
+    let output = emit(run_full_transform(program, true, None), cm);
+    assert!(output.contains("computed(()=>getPanel("), "{output}");
+    assert!(output.contains("_$compiledPropsGet("), "{output}");
+    assert!(output.contains("panel.get().className"), "{output}");
 }
 
 #[test]
@@ -1603,4 +1642,41 @@ fn bootstrap_rejects_runtime_jsx() {
     let (program, _) =
         parse_program("import { jsx } from '@rue-js/rue/jsx-runtime'; jsx('main', {});");
     apply(program);
+}
+
+#[test]
+fn nested_component_keeps_enclosing_destructured_props_binding() {
+    let source = r#"
+export const List = ({ dataSource, renderItem }) => {
+  const PageItem = ({ item }) =>
+    renderItem ? renderItem(item) : <li>{item.name}</li>;
+  return <ul>{dataSource.map(item => <PageItem item={item} />)}</ul>;
+};
+"#;
+    let (program, cm) = parse_program(source);
+    let out = emit(apply(program), cm);
+
+    assert!(out.contains("__rue_nested_props_"), "{out}");
+    assert!(out.contains("renderItem"), "{out}");
+    assert!(!out.contains("_$compiledPropsGet(__rue_nested_props_1, \"renderItem\")"), "{out}");
+}
+
+#[test]
+fn body_props_destructure_respects_nested_block_bindings() {
+    let source = r#"
+export const Table = props => {
+  const { children, dataSource } = props;
+  const flattenRows = records => records.flatMap(record => {
+    const children = record.children ?? [];
+    return children.length > 0 ? [record, ...flattenRows(children)] : [record];
+  });
+  return <table>{flattenRows(dataSource).map(row => <tr key={row.id} />)}</table>;
+};
+"#;
+    let (program, cm) = parse_program(source);
+    let out = emit(apply(program), cm);
+
+    assert!(out.contains("const children = record.children ?? [];"), "{out}");
+    assert!(out.contains("children.length > 0"), "{out}");
+    assert!(!out.contains("\"children\").length"), "{out}");
 }

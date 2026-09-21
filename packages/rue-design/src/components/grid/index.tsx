@@ -290,7 +290,8 @@ const resolveGutterPair = (
   if (Array.isArray(gutter)) {
     return [resolveResponsiveValue(gutter[0], width), resolveResponsiveValue(gutter[1], width)]
   }
-  return [resolveResponsiveValue(gutter, width), undefined]
+  const resolved = resolveResponsiveValue(gutter, width)
+  return [resolved, resolved]
 }
 
 /** 归一化 Col Config 的内部工具函数。 */

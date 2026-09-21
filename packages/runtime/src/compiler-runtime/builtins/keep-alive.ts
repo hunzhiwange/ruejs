@@ -56,9 +56,11 @@ export const _$keepAlive = (readProps: () => CompiledKeepAliveProps): BlockRecor
     effect(() => {
       const props = readProps()
       const key = props.cacheKey
+      const name =
+        props.cacheName === 'Component' && typeof key === 'string' ? key : props.cacheName
       const cacheable =
-        matchesKeepAlive(props.include, props.cacheName) &&
-        (props.exclude == null || !matchesKeepAlive(props.exclude, props.cacheName)) &&
+        matchesKeepAlive(props.include, name) &&
+        (props.exclude == null || !matchesKeepAlive(props.exclude, name)) &&
         Number(props.max ?? Infinity) > 0
       untrack(() => {
         if (!initialized || !Object.is(key, activeKey)) {

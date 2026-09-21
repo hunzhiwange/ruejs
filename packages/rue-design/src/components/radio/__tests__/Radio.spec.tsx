@@ -37,16 +37,45 @@ describe('Radio', () => {
     })
   })
 
-  it('applies color and size modifiers', async () => {
+  it('applies every color modifier and a size modifier', async () => {
     const container = mountContainer()
     resetActiveRuntime()
 
-    mountTestApp(container, () => render(<Radio color="primary" size="lg" />, container))
+    mountTestApp(container, () =>
+      render(
+        <>
+          <Radio color="neutral" data-color="neutral" />
+          <Radio color="primary" data-color="primary" />
+          <Radio color="secondary" data-color="secondary" />
+          <Radio color="accent" data-color="accent" />
+          <Radio color="success" data-color="success" />
+          <Radio color="warning" data-color="warning" />
+          <Radio color="info" data-color="info" />
+          <Radio color="error" size="lg" data-color="error" />
+        </>,
+        container,
+      ),
+    )
 
     await waitForContent(() => {
-      const input = container.querySelector('input.radio') as HTMLInputElement
-      expect(input.classList.contains('radio-primary')).toBe(true)
-      expect(input.classList.contains('radio-lg')).toBe(true)
+      const colors = [
+        'neutral',
+        'primary',
+        'secondary',
+        'accent',
+        'success',
+        'warning',
+        'info',
+        'error',
+      ]
+
+      colors.forEach(color => {
+        const input = container.querySelector(`[data-color="${color}"]`) as HTMLInputElement
+        expect(input.classList.contains(`radio-${color}`)).toBe(true)
+      })
+
+      const error = container.querySelector('[data-color="error"]') as HTMLInputElement
+      expect(error.classList.contains('radio-lg')).toBe(true)
     })
   })
 

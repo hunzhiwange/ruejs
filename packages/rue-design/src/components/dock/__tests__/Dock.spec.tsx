@@ -203,14 +203,18 @@ describe('Dock', () => {
   it('auto renders items when items prop is provided', async () => {
     const c = document.createElement('div')
     const items = [
-      { icon: <span>{'I1'}</span>, label: 'L1' },
-      { icon: <span>{'I2'}</span>, label: 'L2' },
+      { icon: <span className={'dock-test-icon'}>{'I1'}</span>, label: 'L1' },
+      { icon: <span className={'dock-test-icon'}>{'I2'}</span>, label: 'L2' },
     ]
     mountTestApp(c, () => render(<Dock items={items} activeIndex={0} />, c))
     await flushDock()
     const el = c.querySelector('.dock') as HTMLElement
     const labels = el.querySelectorAll('.dock-label')
     expect(labels.length).toBe(2)
+    expect(el.querySelectorAll('.dock-test-icon').length).toBe(2)
+    expect(el.textContent).not.toContain('[object Object]')
+    expect(el.textContent).toContain('I1')
+    expect(el.textContent).toContain('L1')
     const btns = el.querySelectorAll('button')
     expect(btns[0].classList.contains('dock-active')).toBe(true)
   })

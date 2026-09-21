@@ -8,6 +8,8 @@ const MARKER_PREFIX: &str = "\0rue:reactive-provenance:";
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReactiveKind {
     RefLike,
+    ComputedValue,
+    RenderableRefLike,
     Signal,
     ObjectValue,
     StateValue,
@@ -18,6 +20,7 @@ pub(crate) enum ReactiveKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FactoryKind {
     RefLike,
+    Computed,
     ToRefs,
     Signal,
     ObjectValue,
@@ -45,11 +48,14 @@ impl Binding {
             Self::Composer => "composer",
             Self::ScalarFunction => "scalar-function",
             Self::Factory(FactoryKind::RefLike) => "factory-ref",
+            Self::Factory(FactoryKind::Computed) => "factory-computed",
             Self::Factory(FactoryKind::ToRefs) => "factory-to-refs",
             Self::Factory(FactoryKind::Signal) => "factory-signal",
             Self::Factory(FactoryKind::ObjectValue) => "factory-object",
             Self::Factory(FactoryKind::UseState) => "factory-use-state",
             Self::Value(ReactiveKind::RefLike) => "value-ref",
+            Self::Value(ReactiveKind::ComputedValue) => "value-computed",
+            Self::Value(ReactiveKind::RenderableRefLike) => "value-renderable-ref",
             Self::Value(ReactiveKind::Signal) => "value-signal",
             Self::Value(ReactiveKind::ObjectValue) => "value-object",
             Self::Value(ReactiveKind::StateValue) => "value-state",
@@ -68,11 +74,14 @@ impl Binding {
             "composer" => Self::Composer,
             "scalar-function" => Self::ScalarFunction,
             "factory-ref" => Self::Factory(FactoryKind::RefLike),
+            "factory-computed" => Self::Factory(FactoryKind::Computed),
             "factory-to-refs" => Self::Factory(FactoryKind::ToRefs),
             "factory-signal" => Self::Factory(FactoryKind::Signal),
             "factory-object" => Self::Factory(FactoryKind::ObjectValue),
             "factory-use-state" => Self::Factory(FactoryKind::UseState),
             "value-ref" => Self::Value(ReactiveKind::RefLike),
+            "value-computed" => Self::Value(ReactiveKind::ComputedValue),
+            "value-renderable-ref" => Self::Value(ReactiveKind::RenderableRefLike),
             "value-signal" => Self::Value(ReactiveKind::Signal),
             "value-object" => Self::Value(ReactiveKind::ObjectValue),
             "value-state" => Self::Value(ReactiveKind::StateValue),
@@ -92,6 +101,10 @@ fn marker(name: &str, binding: Binding) -> String {
 
 pub(crate) fn signal_value_marker(name: &str) -> String {
     marker(name, Binding::Value(ReactiveKind::Signal))
+}
+
+pub(crate) fn computed_value_marker(name: &str) -> String {
+    marker(name, Binding::Value(ReactiveKind::ComputedValue))
 }
 
 fn binding_in_scope(scope: &HashSet<String>, name: &str) -> Option<Binding> {
@@ -117,10 +130,47 @@ pub(crate) fn reactive_kind(scopes: &[HashSet<String>], name: &str) -> Option<Re
     }
 }
 
+pub(crate) fn reactive_member_is_scalar(scopes: &[HashSet<String>], member: &MemberExpr) -> bool {
+    let static_property = match &member.prop {
+        MemberProp::Ident(_) | MemberProp::PrivateName(_) => true,
+        MemberProp::Computed(ComputedPropName { expr, .. }) => matches!(
+            crate::utils::unwrap_expr(expr),
+            Expr::Lit(Lit::Str(_) | Lit::Num(_) | Lit::BigInt(_))
+        ),
+    };
+    if !static_property {
+        return false;
+    }
+
+    match crate::utils::unwrap_expr(&member.obj) {
+        Expr::Ident(ident) => {
+            matches!(&member.prop, MemberProp::Ident(property) if property.sym.as_ref() == "value")
+                && matches!(
+                    reactive_kind(scopes, ident.sym.as_ref()),
+                    Some(ReactiveKind::RefLike | ReactiveKind::StateValue)
+                )
+        }
+        Expr::Call(call) => {
+            let Callee::Expr(callee) = &call.callee else { return false };
+            let Expr::Member(accessor) = crate::utils::unwrap_expr(callee) else { return false };
+            let MemberProp::Ident(property) = &accessor.prop else { return false };
+            let Expr::Ident(source) = crate::utils::unwrap_expr(&accessor.obj) else {
+                return false;
+            };
+            call.args.is_empty()
+                && property.sym.as_ref() == "get"
+                && reactive_kind(scopes, source.sym.as_ref()) == Some(ReactiveKind::ComputedValue)
+        }
+        Expr::Member(_) => false,
+        _ => false,
+    }
+}
+
 // Library return contracts are attached to resolved bindings, never callee spelling.
 fn member_binding(value: Binding, name: Option<&str>) -> Binding {
     match value {
         Binding::RefCollection => Binding::Value(ReactiveKind::RefLike),
+        Binding::Value(ReactiveKind::PropsValue) => Binding::Value(ReactiveKind::RenderableRefLike),
         Binding::Composer if matches!(name, Some("_" | "d" | "n" | "isLocaleLoading")) => {
             Binding::ScalarFunction
         }
@@ -140,9 +190,10 @@ pub(crate) fn scalar_call_result(scopes: &[HashSet<String>], call: &CallExpr) ->
 
 fn factory_kind(imported: &str) -> Option<FactoryKind> {
     Some(match imported {
-        "ref" | "shallowRef" | "customRef" | "toRef" | "computed" => FactoryKind::RefLike,
+        "ref" | "shallowRef" | "customRef" | "toRef" => FactoryKind::RefLike,
+        "computed" => FactoryKind::Computed,
         "toRefs" => FactoryKind::ToRefs,
-        "signal" => FactoryKind::Signal,
+        "signal" | "_$compiledSignal" => FactoryKind::Signal,
         "reactive" | "shallowReactive" | "readonly" | "shallowReadonly" | "propsReactive" => {
             FactoryKind::ObjectValue
         }
@@ -155,6 +206,7 @@ fn factory_result(factory: FactoryKind) -> Binding {
     match factory {
         FactoryKind::I18n => Binding::Composer,
         FactoryKind::RefLike => Binding::Value(ReactiveKind::RefLike),
+        FactoryKind::Computed => Binding::Value(ReactiveKind::RenderableRefLike),
         FactoryKind::ToRefs => Binding::RefCollection,
         FactoryKind::Signal => Binding::Value(ReactiveKind::Signal),
         FactoryKind::ObjectValue => Binding::Value(ReactiveKind::ObjectValue),
@@ -221,6 +273,17 @@ impl<'a> ScopeBuilder<'a> {
         if callee_name == "_$compiledUseState" {
             return Binding::SignalTuple;
         }
+        if callee_name == "_$compiledSignal" {
+            return if call.args.first().is_some_and(|arg| {
+                matches!(crate::utils::unwrap_expr(arg.expr.as_ref()), Expr::Call(source)
+                    if crate::compiled_component::is_static_prop_get_call(source)
+                        || crate::element_expr::is_compiled_props_get_call(source))
+            }) {
+                Binding::Value(ReactiveKind::RenderableRefLike)
+            } else {
+                Binding::Value(ReactiveKind::Signal)
+            };
+        }
         if callee_name == "_$compiledWithHookId" {
             return call
                 .args
@@ -233,8 +296,145 @@ impl<'a> ScopeBuilder<'a> {
             Some(Binding::Factory(FactoryKind::UseState)) if use_state_signal_kind(call) => {
                 Binding::SignalTuple
             }
+            Some(Binding::Factory(FactoryKind::Computed)) => self.computed_result(call),
             Some(Binding::Factory(factory)) => factory_result(factory),
             _ => Binding::Unknown,
+        }
+    }
+
+    fn computed_result(&self, call: &CallExpr) -> Binding {
+        let Some(getter) = call.args.first().map(|arg| crate::utils::unwrap_expr(&arg.expr)) else {
+            return Binding::Value(ReactiveKind::RenderableRefLike);
+        };
+        let value = match getter {
+            Expr::Arrow(arrow) => match arrow.body.as_ref() {
+                BlockStmtOrExpr::Expr(expr) => Some(crate::utils::unwrap_expr(expr)),
+                BlockStmtOrExpr::BlockStmt(block) => block.stmts.iter().rev().find_map(|stmt| {
+                    let Stmt::Return(ReturnStmt { arg: Some(expr), .. }) = stmt else {
+                        return None;
+                    };
+                    Some(crate::utils::unwrap_expr(expr))
+                }),
+            },
+            Expr::Fn(function) => function.function.body.as_ref().and_then(|block| {
+                block.stmts.iter().rev().find_map(|stmt| {
+                    let Stmt::Return(ReturnStmt { arg: Some(expr), .. }) = stmt else {
+                        return None;
+                    };
+                    Some(crate::utils::unwrap_expr(expr))
+                })
+            }),
+            _ => None,
+        };
+        if value.is_some_and(|value| self.expr_is_proven_scalar(value)) {
+            Binding::Value(ReactiveKind::RefLike)
+        } else if value.is_some_and(|value| self.expr_has_renderable_source(value)) {
+            Binding::Value(ReactiveKind::RenderableRefLike)
+        } else {
+            Binding::Value(ReactiveKind::ComputedValue)
+        }
+    }
+
+    fn expr_has_renderable_source(&self, expr: &Expr) -> bool {
+        struct RenderableSource<'a, 'b> {
+            builder: &'a ScopeBuilder<'b>,
+            found: bool,
+        }
+
+        impl Visit for RenderableSource<'_, '_> {
+            fn visit_ident(&mut self, ident: &Ident) {
+                self.found |= matches!(
+                    self.builder.resolve(ident.sym.as_ref()),
+                    Some(Binding::Value(
+                        ReactiveKind::RenderableRefLike
+                            | ReactiveKind::PropsValue
+                            | ReactiveKind::SlotsValue
+                    ))
+                );
+            }
+
+            fn visit_call_expr(&mut self, call: &CallExpr) {
+                self.found |= crate::compiled_component::is_static_prop_get_call(call)
+                    || crate::element_expr::is_compiled_props_get_call(call);
+                call.visit_children_with(self);
+            }
+        }
+
+        let mut source = RenderableSource { builder: self, found: false };
+        expr.visit_with(&mut source);
+        source.found
+    }
+
+    fn expr_is_proven_scalar(&self, expr: &Expr) -> bool {
+        match crate::utils::unwrap_expr(expr) {
+            Expr::Lit(Lit::Str(_) | Lit::Bool(_) | Lit::Null(_) | Lit::Num(_) | Lit::BigInt(_)) => {
+                true
+            }
+            Expr::Ident(ident) => {
+                ident.sym.as_ref() == "undefined"
+                    || matches!(
+                        self.resolve(ident.sym.as_ref()),
+                        Some(Binding::Value(ReactiveKind::RefLike | ReactiveKind::Signal))
+                    )
+            }
+            Expr::Member(member) => {
+                let MemberProp::Ident(property) = &member.prop else {
+                    return false;
+                };
+                matches!(
+                    crate::utils::unwrap_expr(&member.obj),
+                    Expr::Ident(ident)
+                        if property.sym.as_ref() == "value"
+                            && matches!(
+                                self.resolve(ident.sym.as_ref()),
+                                Some(Binding::Value(
+                                    ReactiveKind::RefLike | ReactiveKind::StateValue
+                                ))
+                            )
+                )
+            }
+            Expr::Unary(unary) => !matches!(unary.op, UnaryOp::Delete),
+            Expr::Bin(binary) => {
+                !matches!(
+                    binary.op,
+                    BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing
+                ) || (self.expr_is_proven_scalar(&binary.left)
+                    && self.expr_is_proven_scalar(&binary.right))
+            }
+            Expr::Cond(cond) => {
+                self.expr_is_proven_scalar(&cond.cons) && self.expr_is_proven_scalar(&cond.alt)
+            }
+            Expr::Tpl(_) => true,
+            Expr::Seq(sequence) => {
+                sequence.exprs.last().is_some_and(|expr| self.expr_is_proven_scalar(expr))
+            }
+            Expr::Call(call) => {
+                if scalar_call_result(self.outer, call) {
+                    return true;
+                }
+                let Callee::Expr(callee) = &call.callee else {
+                    return false;
+                };
+                let Expr::Member(member) = crate::utils::unwrap_expr(callee) else {
+                    return false;
+                };
+                let MemberProp::Ident(property) = &member.prop else {
+                    return false;
+                };
+                call.args.is_empty()
+                    && property.sym.as_ref() == "get"
+                    && matches!(
+                        crate::utils::unwrap_expr(&member.obj),
+                        Expr::Ident(ident)
+                            if matches!(
+                                self.resolve(ident.sym.as_ref()),
+                                Some(Binding::Value(
+                                    ReactiveKind::Signal | ReactiveKind::RefLike
+                                ))
+                            )
+                    )
+            }
+            _ => false,
         }
     }
 

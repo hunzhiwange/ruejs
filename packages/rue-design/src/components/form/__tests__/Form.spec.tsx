@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, nextTick, setReactiveScheduling } from '@rue-js/rue'
 import Form, { createForm, createFormList, useWatch } from '../index'
+import Input from '../../input'
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 
 setReactiveScheduling('sync')
@@ -168,6 +169,177 @@ describe('Form compiler-only fields', () => {
     form.resetFields()
     await flush()
     expect(input.value).toBe('Rue')
+  })
+  it('supports root, item, and list render props', async () => {
+    const form = createForm(),
+      container = host()
+    mountTestApp(container, () =>
+      render(
+        <Form
+          form={form}
+          initialValues={{ name: 'Rue', users: [{ name: 'A' }] }}
+          render={formInstance => (
+            <>
+              <Form.Item
+                form={formInstance}
+                name="name"
+                render={control => <input data-rendered-item="true" {...control} />}
+              />
+              <Form.List
+                form={formInstance}
+                name="users"
+                render={(fields, operation) => (
+                  <section data-rendered-list="true">
+                    {fields.map(field => (
+                      <Form.Item
+                        form={formInstance}
+                        name={['users', field.name, 'name']}
+                        render={control => <input {...control} />}
+                      />
+                    ))}
+                    <button type="button" onClick={() => operation.add({ name: 'B' })}>
+                      Add
+                    </button>
+                  </section>
+                )}
+              />
+            </>
+          )}
+        />,
+        container,
+      ),
+    )
+
+    expect(container.querySelector('[data-rendered-item="true"]')).not.toBeNull()
+    expect(container.querySelector('[data-rendered-list="true"]')).not.toBeNull()
+    expect(Array.from(container.querySelectorAll('input')).map(input => input.value)).toEqual([
+      'Rue',
+      'A',
+    ])
+    container.querySelector('button')!.click()
+    await flush()
+    expect(Array.from(container.querySelectorAll('input')).map(input => input.value)).toEqual([
+      'Rue',
+      'A',
+      'B',
+    ])
+  })
+  it('keeps sibling nested render fields bound to their own values', async () => {
+    setReactiveScheduling('frame')
+    const form = createForm(),
+      container = host()
+    mountTestApp(container, () =>
+      render(
+        <Form
+          form={form}
+          initialValues={{ profile: { name: 'Rue', email: 'team@rue.dev' } }}
+          render={formInstance => (
+            <>
+              <Form.Item
+                form={formInstance}
+                name={['profile', 'name']}
+                render={control => <Input {...control} placeholder="name" />}
+              />
+              <Form.Item
+                form={formInstance}
+                name={['profile', 'email']}
+                rules={[{ required: true }, { type: 'email' }]}
+                hasFeedback={true}
+                extra="feedback"
+                render={control => <Input {...control} placeholder="team@rue.dev" />}
+              />
+            </>
+          )}
+        />,
+        container,
+      ),
+    )
+
+    await flush()
+
+    expect(Array.from(container.querySelectorAll('input')).map(input => input.value)).toEqual([
+      'Rue',
+      'team@rue.dev',
+    ])
+    const feedback = container.querySelector('[data-rue-form-feedback="true"]')!
+    expect(feedback.parentElement?.classList.contains('flex')).toBe(true)
+    expect(
+      feedback.parentElement?.contains(
+        container.querySelector('input[placeholder="team@rue.dev"]'),
+      ),
+    ).toBe(true)
+    setReactiveScheduling('sync')
+  })
+  it('writes rendered text controls back without moving the caret', async () => {
+    const form = createForm(),
+      container = host()
+    mountTestApp(container, () =>
+      render(
+        <Form form={form} initialValues={{ keyword: 'runtime vapor' }}>
+          <Form.Item
+            form={form}
+            name="keyword"
+            render={control => <Input {...control} placeholder="keyword" />}
+          />
+        </Form>,
+        container,
+      ),
+    )
+
+    const input = container.querySelector('input')!
+    input.focus()
+    input.value = 'framework core'
+    input.setSelectionRange(9, 9)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await flush()
+
+    const currentInput = container.querySelector('input')!
+    expect(form.getFieldValue('keyword')).toBe('framework core')
+    expect(document.activeElement).toBe(currentInput)
+    expect(currentInput.value).toBe('framework core')
+    expect(currentInput.selectionStart).toBe(9)
+    expect(currentInput.selectionEnd).toBe(9)
+  })
+  it('keeps focus when a rendered dynamic list refreshes', async () => {
+    const form = createForm(),
+      container = host()
+    mountTestApp(container, () =>
+      render(
+        <Form form={form} initialValues={{ users: [{ name: 'Rue' }, { name: 'Vapor' }] }}>
+          <Form.List
+            form={form}
+            name="users"
+            render={fields => (
+              <div>
+                {fields.map(field => (
+                  <div key={field.key}>
+                    <Form.Item
+                      form={form}
+                      name={['users', field.name, 'name']}
+                      render={control => <Input {...control} />}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          />
+        </Form>,
+        container,
+      ),
+    )
+
+    const input = container.querySelector('input')!
+    input.focus()
+    input.value = 'Rue compiler'
+    input.setSelectionRange(4, 4)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await flush()
+
+    const currentInput = container.querySelector('input')!
+    expect(form.getFieldValue(['users', 0, 'name'])).toBe('Rue compiler')
+    expect(document.activeElement).toBe(currentInput)
+    expect(currentInput.selectionStart).toBe(4)
+    expect(currentInput.selectionEnd).toBe(4)
   })
   it('supports dynamic list add, remove and move using explicit field data', async () => {
     const form = createForm(),

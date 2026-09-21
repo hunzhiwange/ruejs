@@ -47,11 +47,9 @@ export default Demo;
     let normalized = normalize(&strip_marker(&out));
 
     assert!(!normalized.contains(&normalize("_$compiledKeyedList({")), "{normalized}");
-    assert!(normalized.contains(&normalize("_$createComponent(Surface, ()=>({")), "{normalized}");
-    let child2 = normalized.find("__child2").expect("first component child");
-    let child3 = normalized.find("__child3").expect("second component child");
-    assert!(normalized.contains("children: ["), "{normalized}");
-    assert!(child2 < child3, "{normalized}");
-    assert!(normalized.contains("item.placement"), "{normalized}");
-    assert!(normalized.contains("item.title"), "{normalized}");
+    assert!(normalized.contains(&normalize("_$compiledComponent(Surface, ()=>({")), "{normalized}");
+    assert!(normalized.contains("children: (target, slotProps, owner)=>"), "{normalized}");
+    let placement = normalized.find("_$rowItem1.get().placement").expect("first component child");
+    let title = normalized.find("_$rowItem1.get().title").expect("second component child");
+    assert!(placement < title, "{normalized}");
 }

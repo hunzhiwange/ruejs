@@ -4,7 +4,7 @@ Carousel 组件概述
 - 布局策略：scrollx 模式保留 daisyUI carousel/item 的宽度与对齐语义，fade 模式切到叠层过渡。
 - 兼容目标：继续支持旧版 align/direction/auto/interval/loop/activeIndex/items 写法，同时补齐常用能力。
 */
-import type { FC } from '@rue-js/rue'
+import type { FC, RenderOutput } from '@rue-js/rue'
 import { nextTick, onMounted, onUnmounted, ref, watch } from '@rue-js/rue'
 
 /** CarouselAlign 对齐方式类型。 */
@@ -22,8 +22,8 @@ export type CarouselAutoDirection = 'forward' | 'backward'
 export interface CarouselDataItem {
   /** 数据项唯一标识。 */
   key?: string | number
-  /** 主体内容。 */
-  content: string | number
+  /** 主体内容，支持文本与 JSX 可渲染值。 */
+  content: RenderOutput
   /** 根节点附加类名。 */
   className?: string
 }
@@ -149,6 +149,12 @@ interface CarouselItemProps {
   children?: any
   [key: string]: any
 }
+
+interface CarouselItemContentProps {
+  content: RenderOutput
+}
+
+const CarouselItemContent: FC<CarouselItemContentProps> = ({ content }) => <>{content}</>
 
 type InlineStyle = string | Record<string, string | number | null | undefined>
 
@@ -402,6 +408,7 @@ const Carousel: FC<CarouselProps> = (
   const progressToken = ref(0)
   const hovered = ref(false)
   const currentIndexState = ref(initialIndex)
+  const resolvedSlideCountState = ref(slideCountHint)
 
   const getRenderedSlides = () => {
     const track = trackElement
@@ -604,6 +611,10 @@ const Carousel: FC<CarouselProps> = (
   const syncLayout = (dontAnimate = false) => {
     // SSR refs point to server nodes without browser layout/query APIs.
     if (typeof rootElement?.querySelector !== 'function') return
+    const renderedCount = getRenderedSlides().length
+    if (renderedCount > 0 && renderedCount !== resolvedSlideCountState.value) {
+      resolvedSlideCountState.value = renderedCount
+    }
     syncRef()
     if (mergedEffect === 'fade') {
       syncFadeLayout(dontAnimate)
@@ -714,8 +725,7 @@ const Carousel: FC<CarouselProps> = (
     commitIndex(currentIndexState.value - 1, { source: 'user' })
   }
 
-  const visualCount =
-    normalizedItems.length > 0 ? normalizedItems.length : (declaredSlideCount ?? 0)
+  const visualCount = resolvedSlideCountState.value
   const canShowControls = visualCount > 1
 
   let rootClassName = 'carousel relative overflow-hidden'
@@ -864,7 +874,7 @@ const Carousel: FC<CarouselProps> = (
                   className={`carousel-item${item.className ? ` ${item.className}` : ''}`}
                   data-rue-carousel-slide={String(index)}
                 >
-                  {String(item.content)}
+                  <CarouselItemContent content={item.content} />
                 </div>
               ))}{' '}
             </>
@@ -880,7 +890,7 @@ const Carousel: FC<CarouselProps> = (
                 className={`carousel-item${item.className ? ` ${item.className}` : ''}`}
                 data-rue-carousel-slide={String(index)}
               >
-                {String(item.content)}
+                <CarouselItemContent content={item.content} />
               </div>
             ))}{' '}
           </>

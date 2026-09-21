@@ -83,7 +83,7 @@ describe('Collapse', () => {
               key: 'overview',
               label: 'Overview',
               description: '系统概览',
-              extra: 'Beta',
+              extra: <span data-testid="collapse-extra">Beta</span>,
               content: 'Overview content',
               open: true,
             },
@@ -105,6 +105,28 @@ describe('Collapse', () => {
     expect(items[1].classList.contains('collapse-close')).toBe(true)
     expect(c.textContent).toContain('系统概览')
     expect(c.textContent).toContain('Beta')
+    expect(c.querySelector('[data-testid="collapse-extra"]')).toBeTruthy()
+  })
+
+  it('renders item children and keeps content as an alias', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <Collapse
+          items={[
+            { key: 'children', label: 'Children', children: <strong>Children content</strong> },
+            { key: 'content', label: 'Content', content: 'Content alias' },
+          ]}
+        />,
+        c,
+      ),
+    )
+    await waitCollapseRender()
+
+    const contents = c.querySelectorAll('.collapse-content')
+    expect(contents[0].textContent).toBe('Children content')
+    expect(contents[0].querySelector('strong')).toBeTruthy()
+    expect(contents[1].textContent).toBe('Content alias')
   })
 
   it('toggles uncontrolled items opened by defaultActiveKey', async () => {

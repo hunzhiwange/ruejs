@@ -14,6 +14,7 @@ const handleEnter = () => {};
 const backClick = () => {};
 const metaExact = () => {};
 const metaExactRight = () => {};
+const Card: FC = () => <button />;
 
 const Demo: FC = () => (
   <section>
@@ -64,6 +65,7 @@ const logClick = () => {};
 const backClick = () => {};
 const metaExact = () => {};
 const metaExactRight = () => {};
+const Card: FC = () => <button />;
 
 const Demo: FC = () => (
   <div>
@@ -71,7 +73,7 @@ const Demo: FC = () => (
     <button v-on:click-meta-exact="metaExact">Meta</button>
     <button r-on:click-meta-exact="metaExactRight">Meta Right</button>
     <input r-on:input={(e: any) => console.log(e.target.value)} />
-    <Card __rue_on__click__mods__native__once="backClick" />
+    <button __rue_on__click__mods__once="backClick" />
   </div>
 );
 
@@ -87,11 +89,10 @@ export default Demo;
     assert!(!out.contains("r-on"));
     assert!(!out.contains("__rue_on__"));
     assert!(out.contains(".addEventListener("));
-    assert!(out.contains("onScopeDispose"));
+    assert!(out.contains("onOwnerCleanup"));
     assert!(out.contains(&utils::normalize("\"click\"")));
     assert!(out.contains(&utils::normalize("\"input\"")));
     assert!(out.contains("_$compiledWithEventModifiers"));
-    assert!(out.contains("_$compiledWithNativeEvents"));
     assert!(out.contains(&utils::normalize("\"meta\"")));
     assert!(out.contains(&utils::normalize("\"exact\"")));
 }

@@ -50,7 +50,8 @@ useApp(RootApp).use(router).mount('#app');
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$compiledComponent(SiteLayout, ()=>({"), "{normalized}");
     assert!(
-        normalized.contains("children: (target, slotProps, owner)=>_$mountCompiledSlotFactory("),
+        normalized.contains("children: (target, slotProps, owner)=>{")
+            && normalized.contains("_$mountCompiledSlotFactory("),
         "{normalized}"
     );
     assert!(

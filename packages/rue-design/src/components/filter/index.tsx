@@ -5,7 +5,7 @@ Filter 组件概述
 - 数据驱动模式直接通过 JSX 输出完整 input 属性，适配 Vapor 深编译路径。
 */
 import type { FC } from '@rue-js/rue'
-import { ref } from '@rue-js/rue'
+import { effect, ref } from '@rue-js/rue'
 
 /** FilterMode 类型。 */
 export type FilterMode = 'form' | 'div'
@@ -539,6 +539,14 @@ const Filter: FC<FilterProps> = ({
   const controlledValues = ref<FilterValue[]>(normalizeValueList(value, resolvedType))
   const uncontrolledValues = ref<FilterValue[]>(defaultValues)
   const controlledMode = ref(value !== undefined)
+  effect(() => {
+    if (value !== undefined) {
+      controlledMode.value = true
+    }
+    if (controlledMode.value) {
+      controlledValues.value = normalizeValueList(value, resolvedType)
+    }
+  })
   const isControlled = () => controlledMode.value
   const getCurrentValues = () => {
     const values = isControlled() ? controlledValues.value : uncontrolledValues.value

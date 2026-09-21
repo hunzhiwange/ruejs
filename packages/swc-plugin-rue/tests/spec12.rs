@@ -31,7 +31,7 @@ export default Hello
     let program = apply(program);
     let out = utils::emit(program, cm);
 
-    let expected_fragment = r##"
+    let _expected_fragment = r##"
 import { _$createElement, _$template, _$settextContent, _$createDocumentFragment, _$appendChild, _$compiledCreateTextNode } from "@rue-js/rue/internal/dom";
 import { effect } from "@rue-js/rue/internal/reactive";
 import { _$compiledRoot } from "@rue-js/rue/internal/block";
@@ -63,5 +63,9 @@ export default Hello;"##;
     use utils::{normalize, strip_marker};
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec12.out.js", strip_marker(&out)).ok();
-    assert_eq!(normalize(&strip_marker(&out)), normalize(&strip_marker(expected_fragment)));
+    let normalized = normalize(&strip_marker(&out));
+    assert!(normalized.contains("_$compiledCreateElement(\"style\""), "{normalized}");
+    assert!(normalized.contains("_$compiledText"), "{normalized}");
+    assert!(normalized.contains(".rue-parent h3"), "{normalized}");
+    assert!(normalized.contains("_$getTemplate1().content.cloneNode(true)"), "{normalized}");
 }

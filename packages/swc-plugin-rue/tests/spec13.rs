@@ -112,7 +112,7 @@ export default MarkdownEditor;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec13.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("_$compiledWithHookId(\"useSetup:0:0\""), "{normalized}");
+    assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
     assert!(normalized.contains("_$setValue(_el5, input.value)"), "{normalized}");
     assert!(normalized.contains("_$setInnerHTML"), "{normalized}");
     assert!(normalized.contains("renderMarkdown(input.value)"), "{normalized}");

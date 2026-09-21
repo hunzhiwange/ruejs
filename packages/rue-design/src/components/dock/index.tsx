@@ -35,11 +35,11 @@ export interface DockItemData {
   /** 根节点附加类名。 */
   className?: string
   /** 图标内容。 */
-  icon?: string | number
+  icon?: any
   /** iconClassName 附加类名。 */
   iconClassName?: string
   /** 展示标签。 */
-  label?: string | number
+  label?: any
   /** labelClassName 附加类名。 */
   labelClassName?: string
   /** 链接地址。 */
@@ -301,10 +301,8 @@ const RenderDataItem = ({
           aria-disabled={item.disabled ? 'true' : undefined}
           onClick={click}
         >
-          <span className={item.iconClassName}>{String(item.icon ?? '')}</span>
-          <span className={appendClassName('dock-label', item.labelClassName)}>
-            {String(item.label ?? '')}
-          </span>
+          <span className={item.iconClassName}>{item.icon}</span>
+          <span className={appendClassName('dock-label', item.labelClassName)}>{item.label}</span>
         </a>
       ) : (
         <button
@@ -315,10 +313,8 @@ const RenderDataItem = ({
           aria-current={active() ? 'page' : undefined}
           onClick={click}
         >
-          <span className={item.iconClassName}>{String(item.icon ?? '')}</span>
-          <span className={appendClassName('dock-label', item.labelClassName)}>
-            {String(item.label ?? '')}
-          </span>
+          <span className={item.iconClassName}>{item.icon}</span>
+          <span className={appendClassName('dock-label', item.labelClassName)}>{item.label}</span>
         </button>
       )}
     </>

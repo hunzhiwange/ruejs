@@ -202,8 +202,8 @@ const DefaultCloseIcon: FC = () => (
 
 /** 读取 Menu Open Icon 的内部工具函数。 */
 const RenderMenuOpenIcon = ({ arg0: menuIcon, arg1: icon }: { arg0: any; arg1: any }) => {
-  if (menuIcon != null) return <span>{String(menuIcon)}</span>
-  if (icon != null) return <span>{String(icon)}</span>
+  if (menuIcon != null) return <span>{menuIcon}</span>
+  if (icon != null) return <span>{icon}</span>
   return <DefaultMenuIcon />
 }
 
@@ -220,7 +220,7 @@ const FabToggleIcon: FC<{
         <RenderMenuOpenIcon arg0={menuIcon} arg1={icon} />
       </span>
       <span data-rue-fab-close-icon="true" className={open ? undefined : 'hidden'}>
-        {closeIcon != null ? <span>{String(closeIcon)}</span> : <DefaultCloseIcon />}
+        {closeIcon != null ? <span>{closeIcon}</span> : <DefaultCloseIcon />}
       </span>
     </span>
   )
@@ -340,7 +340,7 @@ const ActionButton: FC<
               <Template slot="icon">
                 <RenderFabToggleIcon arg0={open} arg1={icon} arg2={closeIcon} arg3={menuIcon} />
               </Template>
-              {resolvedShape === 'circle' ? null : <span>{String(mergedContent ?? '')}</span>}
+              {resolvedShape === 'circle' ? null : <span>{mergedContent ?? ''}</span>}
             </Button>
           </MaybeBadge>
         </MaybeTooltip>
@@ -354,9 +354,9 @@ const ActionButton: FC<
         <MaybeBadge badge={badge}>
           <Button {...buttonProps}>
             <Template slot="icon">
-              <span data-rue-fab-icon="true">{String(icon ?? '')}</span>
+              <span data-rue-fab-icon="true">{icon ?? ''}</span>
             </Template>
-            {resolvedShape === 'circle' ? null : <span>{String(mergedContent ?? '')}</span>}
+            {resolvedShape === 'circle' ? null : <span>{mergedContent ?? ''}</span>}
           </Button>
         </MaybeBadge>
       </MaybeTooltip>
@@ -542,11 +542,19 @@ const Fab: FC<FabProps> = props => {
   onMounted(() => {
     if (typeof window === 'undefined') return
 
-    const handleWindowClick = (event: MouseEvent) => {
+    const outsideClickCandidates = new WeakSet<Event>()
+    const captureWindowClick = (event: MouseEvent) => {
       const isOpen =
         rootElement?.querySelector('[aria-expanded]')?.getAttribute('aria-expanded') === 'true'
       if (!isOpen || currentTrigger.value !== 'click') return
-      if (rootElement?.contains(event.target as Node)) return
+      const eventTarget = event.target as Element | null
+      const eventFabRoot = eventTarget?.closest?.('[data-rue-fab-root="true"]')
+      if (rootElement ? rootElement.contains(eventTarget as Node) : eventFabRoot) return
+      outsideClickCandidates.add(event)
+    }
+
+    const handleWindowClick = (event: MouseEvent) => {
+      if (!outsideClickCandidates.has(event)) return
       requestOpenChange(false)
     }
 
@@ -556,11 +564,13 @@ const Fab: FC<FabProps> = props => {
       requestOpenChange(false)
     }
 
-    window.addEventListener('click', handleWindowClick, true)
+    window.addEventListener('click', captureWindowClick, true)
+    window.addEventListener('click', handleWindowClick)
     window.addEventListener('keydown', handleWindowKeydown)
 
     onUnmounted(() => {
-      window.removeEventListener('click', handleWindowClick, true)
+      window.removeEventListener('click', captureWindowClick, true)
+      window.removeEventListener('click', handleWindowClick)
       window.removeEventListener('keydown', handleWindowKeydown)
     })
   })

@@ -41,7 +41,7 @@ const Comp: FC = ()=>{
                             t: `x=${a.value}`
                         }
                 ]);
-            inner.get();
+            untrack(()=>inner.get());
             const __rue_phase2_inner = inner;
             const calc = ()=>a.value + 1;
             const obj = computed(()=>({
@@ -55,7 +55,7 @@ const Comp: FC = ()=>{
                             y: ()=>a.value > 0 ? 'yes' : 'no'
                         }
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             return {
                 a: a,

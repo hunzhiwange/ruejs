@@ -128,6 +128,35 @@ describe('Carousel', () => {
     })
   })
 
+  it('derives controls from compiled children after their initial mount', async () => {
+    const c = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(c, () =>
+      render(
+        <Carousel arrows dots speed={0}>
+          <Carousel.Item className="w-full">1</Carousel.Item>
+          <Carousel.Item className="w-full">2</Carousel.Item>
+          <Carousel.Item className="w-full">3</Carousel.Item>
+        </Carousel>,
+        c,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(c.querySelectorAll('.carousel-item').length).toBe(3)
+      expect(c.querySelector('[aria-label="Previous slide"]')).toBeTruthy()
+      expect(c.querySelector('[aria-label="Next slide"]')).toBeTruthy()
+      expect(c.querySelectorAll('[data-rue-carousel-dot]').length).toBe(3)
+    })
+
+    await click(c.querySelector('[aria-label="Next slide"]'))
+
+    await waitForContent(() => {
+      expect(c.querySelector('.carousel')?.getAttribute('data-rue-carousel-current')).toBe('1')
+    })
+  })
+
   it('renders fade children as slides instead of stringifying JSX nodes', async () => {
     const c = mountContainer()
     resetActiveRuntime()
@@ -231,6 +260,10 @@ describe('Carousel', () => {
       const els = c.querySelectorAll('.carousel-item')
       expect(els.length).toBe(3)
       expect((els[1] as HTMLElement).classList.contains('w-full')).toBe(true)
+      expect(c.textContent).not.toContain('[object Object]')
+      expect(c.querySelector('#s1')?.textContent).toBe('1')
+      expect(c.querySelector('#s2')?.textContent).toBe('2')
+      expect(c.querySelector('img[alt="y"]')).toBeTruthy()
       expect(typeof carouselRef.current?.goTo).toBe('function')
       expect(typeof carouselRef.current?.next).toBe('function')
       expect(typeof carouselRef.current?.prev).toBe('function')

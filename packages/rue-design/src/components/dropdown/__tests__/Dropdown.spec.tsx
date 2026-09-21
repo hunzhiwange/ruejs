@@ -112,7 +112,8 @@ describe('Dropdown', () => {
     })
 
     const trigger = container.querySelector('[aria-haspopup="menu"]') as HTMLDivElement
-    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    const triggerButton = trigger.querySelector('button') as HTMLButtonElement
+    triggerButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
     await waitForContent(() => {
       const root = container.querySelector('.dropdown') as HTMLElement
@@ -131,6 +132,39 @@ describe('Dropdown', () => {
       const root = container.querySelector('.dropdown') as HTMLElement
       expect(root.classList.contains('dropdown-open')).toBe(false)
       expect(openChanges).toEqual(['trigger:true', 'menu:false'])
+    })
+  })
+
+  it('renders JSX overlay content and applies popupRender around the origin node', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Dropdown
+          trigger="click"
+          overlay={<div data-testid="dropdown-origin">Origin</div>}
+          popupRender={originNode => (
+            <section data-testid="dropdown-popup-wrapper">
+              <header>Header</header>
+              {originNode}
+              <footer>Footer</footer>
+            </section>
+          )}
+        >
+          <button type="button">Open</button>
+        </Dropdown>,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const wrapper = container.querySelector('[data-testid="dropdown-popup-wrapper"]')
+      expect(wrapper).toBeTruthy()
+      expect(wrapper?.querySelector('[data-testid="dropdown-origin"]')?.textContent).toBe('Origin')
+      expect(wrapper?.textContent).toContain('Header')
+      expect(wrapper?.textContent).toContain('Footer')
+      expect(container.textContent).not.toContain('[object Object]')
     })
   })
 

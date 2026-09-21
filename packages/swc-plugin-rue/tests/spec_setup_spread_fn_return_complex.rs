@@ -50,13 +50,13 @@ const Comp: FC = ()=>{
                         ...build(),
                         z: a.value
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             const arr = computed(()=>[
                         ...build().nested,
                         a.value > 0 ? 't' : 'f'
                 ]);
-            arr.get();
+            untrack(()=>arr.get());
             const __rue_phase2_arr = arr;
             return {
                 a: a,

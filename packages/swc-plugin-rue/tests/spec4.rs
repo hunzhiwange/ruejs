@@ -57,7 +57,7 @@ export default C;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec4.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("_$compiledRoot("), "{normalized}");
+    assert!(normalized.contains("_$compiledStaticRoot("), "{normalized}");
     assert!(
         normalized.contains("_$compiledCreateElement(\"div\", __rue_parent_context)"),
         "{normalized}"

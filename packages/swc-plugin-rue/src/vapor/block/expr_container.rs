@@ -38,39 +38,6 @@ fn is_scalar_accessor_call(call: &CallExpr, shadowed_names: &HashSet<String>) ->
         && is_compiled_scalar_expr_with_shadows(call.args[0].expr.as_ref(), shadowed_names)
 }
 
-fn static_member_object(member: &MemberExpr) -> Option<&Expr> {
-    match &member.prop {
-        MemberProp::Ident(_) | MemberProp::PrivateName(_) => Some(unwrap_expr(member.obj.as_ref())),
-        MemberProp::Computed(computed)
-            if matches!(
-                unwrap_expr(computed.expr.as_ref()),
-                Expr::Lit(Lit::Str(_) | Lit::Num(_) | Lit::BigInt(_))
-            ) =>
-        {
-            Some(unwrap_expr(member.obj.as_ref()))
-        }
-        MemberProp::Computed(_) => None,
-    }
-}
-
-fn reactive_member_is_scalar(vt: &VaporTransform, member: &MemberExpr) -> bool {
-    let Some(object) = static_member_object(member) else {
-        return false;
-    };
-    match object {
-        Expr::Ident(ident) => match vt.reactive_kind(ident.sym.as_ref()) {
-            Some(ReactiveKind::ObjectValue | ReactiveKind::PropsValue) => true,
-            Some(ReactiveKind::RefLike | ReactiveKind::StateValue) => {
-                matches!(&member.prop, MemberProp::Ident(property) if property.sym.as_ref() == "value")
-            }
-            Some(ReactiveKind::Signal | ReactiveKind::SlotsValue) | None => false,
-        },
-        Expr::Member(parent) => reactive_member_is_scalar(vt, parent),
-        Expr::Call(call) => reactive_signal_get_is_scalar(vt, call),
-        _ => false,
-    }
-}
-
 fn reactive_signal_get_is_scalar(vt: &VaporTransform, call: &CallExpr) -> bool {
     if let Callee::Expr(callee) = &call.callee
         && matches!(callee.as_ref(), Expr::Ident(id) if id.sym == "_$compiledReadPath")
@@ -139,7 +106,23 @@ pub(crate) fn is_compiled_reactive_scalar_expr(
                 || vt.reactive_kind(ident.sym.as_ref())
                     == Some(crate::reactive_provenance::ReactiveKind::RefLike)
         }
-        Expr::Member(member) => reactive_member_is_scalar(vt, member),
+        Expr::Member(member) => {
+            let renderable_names = vt.current_renderable_local_names();
+            let reads_renderable_accessor = matches!(unwrap_expr(&member.obj), Expr::Call(call)
+            if matches!(&call.callee, Callee::Expr(callee)
+                if matches!(unwrap_expr(callee), Expr::Member(accessor)
+                    if matches!(unwrap_expr(&accessor.obj), Expr::Ident(source)
+                        if renderable_names.contains(source.sym.as_ref())
+                            || crate::reactive_provenance::has_binding(
+                                &vt.plain_local_scopes,
+                                &format!("__rue_phase2_{}", source.sym),
+                            )))));
+            !reads_renderable_accessor
+                && crate::reactive_provenance::reactive_member_is_scalar(
+                    &vt.plain_local_scopes,
+                    member,
+                )
+        }
         Expr::Call(call) => {
             is_reactive_scalar_accessor_call(vt, call, shadowed_names)
                 || crate::element_expr::is_proven_plain_call_expr(vt, expr)
@@ -172,8 +155,13 @@ pub(crate) fn is_compiled_reactive_scalar_expr(
 pub(crate) fn display_scalar_expr(vt: &VaporTransform, expr: &Expr) -> Expr {
     match unwrap_expr(expr) {
         Expr::Ident(ident)
-            if vt.reactive_kind(ident.sym.as_ref())
-                == Some(crate::reactive_provenance::ReactiveKind::RefLike) =>
+            if matches!(
+                vt.reactive_kind(ident.sym.as_ref()),
+                Some(
+                    crate::reactive_provenance::ReactiveKind::RefLike
+                        | crate::reactive_provenance::ReactiveKind::ComputedValue
+                )
+            ) =>
         {
             Expr::Member(crate::emit::member(ident.clone(), "value"))
         }
@@ -257,7 +245,26 @@ pub(crate) fn emit_compiled_text_binding(
 // Reactive provenance proves how to track props, not that their values are
 // text. Keep the capability checks for compiled roots separate from text-only
 // emission: named props may contain JSX, fragments, or collections.
-fn is_compiled_text_value(vt: &VaporTransform, expr: &Expr) -> bool {
+pub(crate) fn is_compiled_text_value(vt: &VaporTransform, expr: &Expr) -> bool {
+    if crate::element_expr::renderable_string_operand(vt, expr).is_some() {
+        return false;
+    }
+    // A compiler-generated prop signal remains type-opaque. In a nullish
+    // fallback it may carry a JSX slot factory, so it cannot use textContent.
+    if let Expr::Bin(BinExpr { op: BinaryOp::NullishCoalescing, left, .. }) = unwrap_expr(expr) {
+        struct OpaqueCompiledProp(bool);
+        impl Visit for OpaqueCompiledProp {
+            fn visit_ident(&mut self, ident: &Ident) {
+                self.0 |= ident.sym.starts_with("_$rueCompiledProp")
+                    || ident.sym.starts_with("_$rueCompiledSlot");
+            }
+        }
+        let mut opaque = OpaqueCompiledProp(false);
+        left.visit_with(&mut opaque);
+        if opaque.0 {
+            return false;
+        }
+    }
     let shadows = vt.current_scalar_constructor_shadows();
     if !is_compiled_reactive_scalar_expr(vt, expr, &shadows) {
         return false;
@@ -277,11 +284,13 @@ fn is_compiled_text_value(vt: &VaporTransform, expr: &Expr) -> bool {
     }
     impl Visit for PropRead<'_> {
         fn visit_ident(&mut self, ident: &Ident) {
-            self.found |=
-                self.vt.reactive_kind(ident.sym.as_ref()) == Some(ReactiveKind::PropsValue);
+            self.found |= ident.sym.starts_with("_$rueCompiledProp")
+                || ident.sym.starts_with("_$rueCompiledSlot")
+                || self.vt.reactive_kind(ident.sym.as_ref()) == Some(ReactiveKind::PropsValue);
         }
         fn visit_call_expr(&mut self, call: &CallExpr) {
-            self.found |= crate::compiled_component::is_static_prop_get_call(call);
+            self.found |= crate::compiled_component::is_static_prop_get_call(call)
+                || crate::element_expr::is_compiled_props_get_call(call);
             call.visit_children_with(self);
         }
     }
@@ -298,6 +307,9 @@ pub(crate) fn is_compiled_text_container(
         return false;
     };
     let inner = unwrap_expr(expr.as_ref());
+    if crate::element_expr::renderable_string_operand(vt, inner).is_some() {
+        return false;
+    }
     let shadows = vt.current_scalar_constructor_shadows();
     let explicitly_coerced = matches!(
         inner,

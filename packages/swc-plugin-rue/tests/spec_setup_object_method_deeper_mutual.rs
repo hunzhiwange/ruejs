@@ -46,7 +46,7 @@ const Comp: FC = ()=>{
                             return g2() + f2();
                         }
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             return {
                 a: a,

@@ -75,8 +75,6 @@ export const ALLOWED_MODULES = Object.freeze([
 ])
 export const LEGACY_PUBLIC_ENTRIES = Object.freeze([
   './internal',
-  './island',
-  './server-island',
   './dom',
   './public/*',
   './dist/*',

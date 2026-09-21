@@ -241,4 +241,33 @@ describe('Popover', () => {
       expect(overlay.querySelector('span')).toBeNull()
     })
   })
+
+  it('renders and opens an overlay passed through the overlay prop', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Popover
+          trigger="click"
+          overlay={<div data-testid="overlay-prop-panel">Overlay prop body</div>}
+          overlayClassName="popover-test-overlay"
+        >
+          <button data-testid="overlay-prop-trigger">Open overlay prop</button>
+        </Popover>,
+        container,
+      ),
+    )
+
+    const trigger = container.querySelector('[data-testid="overlay-prop-trigger"]') as HTMLElement
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+    await waitForContent(() => {
+      const overlay = container.querySelector('.popover-test-overlay') as HTMLElement
+      expect(overlay.getAttribute('aria-hidden')).toBe('false')
+      expect(container.querySelector('[data-testid="overlay-prop-panel"]')?.textContent).toBe(
+        'Overlay prop body',
+      )
+    })
+  })
 })

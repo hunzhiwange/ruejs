@@ -395,6 +395,11 @@ interface ToastMessageViewportProps extends ToastUseMessageOptions {
   onDestroy: (key: ToastMessageKey) => void
 }
 
+type ToastMessageItemDefaults = Pick<
+  ToastUseMessageOptions,
+  'duration' | 'closable' | 'pauseOnHover' | 'showIcon' | 'variant' | 'type'
+>
+
 let toastMessageSeed = 0
 
 /** trim Toast Message Records 的内部工具函数。 */
@@ -438,7 +443,7 @@ const resolveToastMountElement = (
 /** Toast Message Viewport 的内部工具函数。 */
 const ToastRecordView: FC<{
   record: ToastMessageRecord
-  defaults: ToastUseMessageOptions
+  defaults: ToastMessageItemDefaults
   onDestroy: (key: ToastMessageKey) => void
 }> = ({ record, defaults, onDestroy }) => (
   <ToastItem
@@ -457,14 +462,41 @@ const ToastRecordView: FC<{
 const ToastMessageViewport: FC<ToastMessageViewportProps> = ({
   records,
   onDestroy,
-  ...defaults
-}) => (
-  <Toast {...defaults} placement={defaults.placement ?? TOAST_USE_MESSAGE_DEFAULT_PLACEMENT}>
-    {records.map(record => (
-      <ToastRecordView key={record.key} record={record} defaults={defaults} onDestroy={onDestroy} />
-    ))}
-  </Toast>
-)
+  getContainer: _getContainer,
+  maxCount: _maxCount,
+  duration,
+  closable,
+  pauseOnHover,
+  showIcon,
+  variant,
+  type,
+  ...viewportProps
+}) => {
+  const itemDefaults: ToastMessageItemDefaults = {
+    duration,
+    closable,
+    pauseOnHover,
+    showIcon,
+    variant,
+    type,
+  }
+
+  return (
+    <Toast
+      {...viewportProps}
+      placement={viewportProps.placement ?? TOAST_USE_MESSAGE_DEFAULT_PLACEMENT}
+    >
+      {records.map(record => (
+        <ToastRecordView
+          key={record.key}
+          record={record}
+          defaults={itemDefaults}
+          onDestroy={onDestroy}
+        />
+      ))}
+    </Toast>
+  )
+}
 
 /** use Toast Message 的内部工具函数。 */
 const useToastMessage = (options: ToastUseMessageOptions = {}) => {
@@ -618,7 +650,7 @@ const useToastMessage = (options: ToastUseMessageOptions = {}) => {
     },
   }
 
-  return [ctx.api!, contextHolder] as const
+  return [ctx.api!, <ToastHolder state={contextHolder} />] as const
 }
 
 /** 解析 Item Role 的内部工具函数。 */

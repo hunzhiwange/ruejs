@@ -64,8 +64,8 @@ fn assert_shape(name: &str, row: &str, expected: RowMountShape) {
             assert!(output.contains("_$mountCompiledKeyedRow"), "{name}: {output}");
         }
         RowMountShape::OwnedRenderBetween | RowMountShape::OwnedOpaqueRenderBetween => {
-            assert!(output.contains("rows.value.map"), "{name}: {output}");
-            assert!(output.contains("renderAnchor(__slot"), "{name}: {output}");
+            assert!(output.contains("_$reconcileKeyed"), "{name}: {output}");
+            assert!(output.contains("_$mountCompiledKeyedRow"), "{name}: {output}");
         }
     }
     assert!(!output.contains("_$compiledKeyedList"), "{name}: {output}");
@@ -74,7 +74,7 @@ fn assert_shape(name: &str, row: &str, expected: RowMountShape) {
 #[test]
 fn spread_row_reports_compiled_runtime_capability() {
     let output = transform("<li key={row.id} {...row.attrs} data-row-id={row.id}>{row.label}</li>");
-    assert!(output.contains("_$spreadAttributes"), "{output}");
+    assert!(output.contains("_$compiledSpreadAttributes"), "{output}");
     assert!(!output.contains("_$compiledKeyedList"), "{output}");
     assert!(!output.contains("state: _map1_state"), "{output}");
 }
@@ -202,7 +202,8 @@ fn structural_and_component_refs_remain_conservative() {
     let component =
         transform("<ChildRow key={row.id} ref={node => rowRef(row.id, node)} row={row} />");
     assert!(!component.contains(concat!("direct", "Root: true")), "{component}");
-    assert!(component.contains("renderAnchor(__slot"), "{component}");
+    assert!(component.contains("_$createComponent(ChildRow"), "{component}");
+    assert!(component.contains("_$mountCompiledSlotFactory"), "{component}");
 }
 
 #[test]

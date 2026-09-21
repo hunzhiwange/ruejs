@@ -287,8 +287,24 @@ const MenuTrigger: FC<{
   const triggerLabel = typeof title === 'string' && title ? `打开 ${title} 菜单` : '打开路径菜单'
 
   return (
-    <details className={mergeClassName('dropdown ms-1', menu.className)}>
-      <summary
+    <Dropdown
+      as="span"
+      trigger="click"
+      popupStrategy="fixed"
+      align={menu.align}
+      direction={menu.direction}
+      className={mergeClassName('ms-1', menu.className)}
+      overlayClassName={mergeClassName('mt-2 min-w-40 p-2', menu.contentClassName)}
+      overlay={
+        <ul tabIndex={-1} className="menu w-full bg-transparent p-0">
+          {menu.items.map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
+        </ul>
+      }
+    >
+      <button
+        type="button"
         className="inline-flex items-center justify-center rounded-full text-base-content/60 outline-none transition-colors hover:text-base-content"
         aria-label={triggerLabel}
       >
@@ -299,19 +315,8 @@ const MenuTrigger: FC<{
         ) : (
           <DefaultDropdownIcon />
         )}
-      </summary>
-      <ul
-        tabIndex={-1}
-        className={mergeClassName(
-          'dropdown-content menu z-1 mt-2 min-w-40 rounded-box border border-base-300/60 bg-base-100 p-2 shadow-sm',
-          menu.contentClassName,
-        )}
-      >
-        {menu.items.map((rowArg0: any, rowArg1: number) => (
-          <CompiledRow1 rowArg0={rowArg0} rowArg1={rowArg1} />
-        ))}
-      </ul>
-    </details>
+      </button>
+    </Dropdown>
   )
 }
 

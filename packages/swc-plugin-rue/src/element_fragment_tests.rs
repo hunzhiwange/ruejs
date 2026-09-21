@@ -124,6 +124,7 @@ fn falls_back_to_slot_rendering_for_non_map_call_expr_children() {
     let out = compile_fragment_children("<>{renderChild(value)}</>");
 
     assert!(!out.contains("_$compiledKeyedList"));
-    assert!(out.contains(&normalize(r#"renderChild(value)"#)));
+    assert!(out.contains(&normalize(r#"renderChild(__slot"#)));
+    assert!(out.contains(&normalize(r#"(value)"#)));
     assert!(out.contains(&normalize(r#"_$mountCompiledSlotAt("#)));
 }

@@ -1,0 +1,148 @@
+{
+  "task": 7,
+  "status": "completed",
+  "focusedCommand": "pnpm exec vitest run --project unit-jsdom packages/runtime/__tests__/custom-elements.spec.tsx packages/runtime/__tests__/reactiveScheduling.frame.spec.ts packages/runtime/__tests__/restored-test-harness.spec.tsx packages/runtime/__tests__/errorCaptured.spec.ts packages/runtime/__tests__/renderTriggered.actual.spec.tsx packages/runtime/__tests__/resourceJSX.actual.spec.tsx packages/runtime/__tests__/server.lifecycle.spec.tsx packages/runtime/__tests__/transitionMode.actual.spec.tsx packages/runtime/__tests__/compiled-watch.spec.ts",
+  "routerCommand": "pnpm exec vitest run packages/router/__tests__/router.navigation-lifecycle.spec.tsx --reporter=dot",
+  "result": {
+    "runtimeTestFiles": 9,
+    "runtimeTests": 20,
+    "routerTestFiles": 1,
+    "routerTests": 4,
+    "failed": 0,
+    "skipped": 0,
+    "boundary": "clean",
+    "manifestShardEntries": 26
+  },
+  "entries": [
+    {
+      "originalPath": "packages/rue/__tests__/rue.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "rationale": "Migrated to the compiler-only mount/dispose harness; the removed native render bridge is not reopened."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledVaporFallback.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "rationale": "Compiler-only mount and shared reactive ownership are covered without the removed Vapor fallback."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiler-runtime.compact-kernel.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/compiler-runtime.entrypoints.spec.ts",
+      "rationale": "Current compact compiler ABI entrypoints replace the deleted compatibility kernel assertions."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/custom-elements.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/custom-elements.spec.tsx",
+      "rationale": "Public exports and the compiled-runtime-only custom-element boundary are retained."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/customRef.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/reactive-kernel.watch-resource-log.spec.ts",
+      "rationale": "Custom reactive source behavior is covered through the current kernel watch/resource contract."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/errorCaptured.vapor.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/errorCaptured.spec.ts",
+      "rationale": "Error capture is exercised through compiled component owners; the removed render/Vapor branch is obsolete."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/getCurrentScope.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/reactive-kernel.scheduler-scope.spec.ts",
+      "rationale": "Current scheduler/scope ownership contract covers scope acquisition and disposal."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/nextTick.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/nextTick.examples.spec.ts",
+      "rationale": "Current nextTick ordering and coalescing behavior is covered by example-level public tests."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/reactiveScheduling.frame.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/reactiveScheduling.frame.spec.ts",
+      "rationale": "Restored frame-to-timeout fallback behavior against the current reactive scheduler."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTracked.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "rationale": "Current compiled debug hook coverage replaces deleted render-object instrumentation."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTriggered.gating.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "rationale": "Current compiled debug hook coverage verifies gated trigger reporting."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTriggered.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "rationale": "Current compiled debug hook coverage retains observable trigger events."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/resource.min.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/resourceJSX.actual.spec.tsx",
+      "rationale": "Resource loading and resolved JSX states use the compiler-only fixture."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/router.advanced.spec.tsx",
+      "evidencePath": "packages/router/__tests__/router.navigation-lifecycle.spec.tsx",
+      "rationale": "Navigation, guards, failures, DOM flush, and cleanup use the current useApp/RouterView entry."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rue.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/compiler-runtime.entrypoints.spec.ts",
+      "rationale": "The compiler runtime entry contract replaces deleted lazy default-runtime and native render bridge checks."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/runtime-architecture.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/compiler-runtime.entrypoints.spec.ts",
+      "rationale": "Architecture invariants are asserted at current compiler-only entrypoints."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/server.ssr.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/server.lifecycle.spec.tsx",
+      "rationale": "SSR serialization/hydration lifecycle uses the current server compiler and renderer."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/transition.renderable.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/transitionMode.actual.spec.tsx",
+      "rationale": "Compiled JSX Transition behavior replaces the removed callable Transition renderable ABI."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useComponent.lazyHydration.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/island.spec.tsx",
+      "rationale": "Lazy hydration is covered through the current compiled island/server hydration path; dynamic local component factories are removed."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useComponent.loading.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/island.spec.tsx",
+      "rationale": "Async loading boundaries are covered through current compiled island hydration."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useComponent.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/island.spec.tsx",
+      "rationale": "Async component behavior is represented by compiler-known island factories, replacing the removed imperative renderable wrapper."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useState.react-compat.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "rationale": "State update behavior is covered through the current compiled reactive state API."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useVaporApp.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "rationale": "Current useApp/compiler mount lifecycle replaces the deleted useVaporApp compatibility entry."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vaporEntry.interop.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/reactive-kernel.entry-interop.spec.ts",
+      "rationale": "Current entry interoperability is asserted without reopening the removed Vapor package boundary."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vaporReactivity.app.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "rationale": "Compiled application reactivity replaces the deleted Vapor application adapter."
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/watchPostEffect.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/compiled-watch.spec.ts",
+      "rationale": "Post/sync watch timing is covered against the current compiled reactive scheduler."
+    }
+  ]
+}

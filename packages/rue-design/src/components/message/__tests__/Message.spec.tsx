@@ -1,7 +1,6 @@
-import { ToastHolder } from '../../toast'
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it } from 'vitest'
-import { render, setReactiveScheduling } from '@rue-js/rue'
+import { type FC, render, setReactiveScheduling } from '@rue-js/rue'
 import Message from '..'
 import {
   click,
@@ -52,7 +51,7 @@ describe('Message', () => {
 
       return (
         <div>
-          <ToastHolder state={contextHolder} />
+          {contextHolder}
           <button
             type="button"
             data-testid="open"
@@ -110,6 +109,10 @@ describe('Message', () => {
     const container = mountContainer()
     resetActiveRuntime()
 
+    const Surface: FC<{ content: any }> = ({ content }) => (
+      <div data-testid="scope-box">{content}</div>
+    )
+
     const Demo = () => {
       const [messageApi, contextHolder] = Message.useMessage({
         duration: 0,
@@ -117,18 +120,22 @@ describe('Message', () => {
       })
 
       return (
-        <div data-testid="scope-box">
-          <ToastHolder state={contextHolder} />
-          <button
-            type="button"
-            data-testid="open-local"
-            onClick={() => {
-              messageApi.info('局部提示', 0)
-            }}
-          >
-            open local
-          </button>
-        </div>
+        <Surface
+          content={
+            <>
+              {contextHolder}
+              <button
+                type="button"
+                data-testid="open-local"
+                onClick={() => {
+                  messageApi.info('局部提示', 0)
+                }}
+              >
+                open local
+              </button>
+            </>
+          }
+        />
       )
     }
 

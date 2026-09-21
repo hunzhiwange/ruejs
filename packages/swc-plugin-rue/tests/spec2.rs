@@ -56,7 +56,7 @@ export default Comp;
     assert!(normalized.contains("@rue-js/rue/internal/block"), "{normalized}");
     assert!(normalized.contains("_$createDocumentFragment()"), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
-    assert!(normalized.contains("effect(()=>{ const __slot = (count.value)"), "{normalized}");
-    assert!(normalized.contains("renderAnchor(__slot, _el3, _el4)"), "{normalized}");
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{normalized}");
+    assert!(normalized.contains("_$compiledValueFactory(count.value)"), "{normalized}");
     assert!(!normalized.contains("watchEffect"), "{normalized}");
 }

@@ -36,12 +36,15 @@ export default SpreadProps;
 
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(output.contains("_$compiledRoot"), "{output}");
-    assert!(output.contains("renderAnchor(__slot1"), "{output}");
-    assert!(output.contains("()=>_$compiledPropsGet(props, \"text\")"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
+    assert!(
+        output.contains("_$compiledValueFactory(_$compiledPropsGet(props, \"text\"))"),
+        "{output}"
+    );
     assert!(output.contains("_$compiledPropsGet(props, \"className\")"), "{output}");
     assert!(output.contains("...base"), "{output}");
     assert!(output.contains("...extra"), "{output}");
-    assert!(output.contains("_$createComponent(Button, ()=>({"), "{output}");
-    assert!(output.contains("RouterLink.__rueHref"), "{output}");
+    assert!(output.contains("_$compiledComponent(Button, ()=>({"), "{output}");
+    assert!(output.contains("_$compiledComponent(RouterLink, ()=>({"), "{output}");
     assert!(!output.contains("const __slot = (_$compiledPropsGet(props, \"text\"))"), "{output}");
 }

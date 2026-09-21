@@ -30,6 +30,26 @@ fn transform_module(src: &str) -> String {
 }
 
 #[test]
+fn leaves_plain_destructured_helpers_outside_the_component_props_transform() {
+    let output = transform_module(
+        r#"
+const resolveSurfaceClass = ({ variant, invalid }) => {
+  if (invalid) return 'border-error';
+  if (variant === 'outlined') return 'border-base';
+  return undefined;
+};
+
+const Root = ({ variant, invalid }) => (
+  <fieldset className={resolveSurfaceClass({ variant, invalid })}>content</fieldset>
+);
+"#,
+    );
+
+    assert!(!output.contains("const resolveSurfaceClass = (__rue_props"), "{output}");
+    assert!(output.contains("resolveSurfaceClass({"), "{output}");
+}
+
+#[test]
 fn lowers_hooks_when_props_cannot_be_specialized() {
     let output = transform_module(
         r#"
@@ -215,6 +235,131 @@ export function RegionView(props) {
 }
 
 #[test]
+fn keeps_prop_initialized_uncontrolled_state_stable_across_branch_refreshes() {
+    let output = transform_module(
+        r#"
+import { computed, ref } from '@rue-js/rue';
+
+export function RangeLike(props) {
+  const bounds = computed(() => ({ min: props.min ?? 0, max: props.max ?? 100 }));
+  const uncontrolledValue = ref(props.defaultValue ?? bounds.get().min);
+  const currentValue = computed(() => uncontrolledValue.value);
+  if (props.enhanced) return <output>{currentValue.get()}</output>;
+  return <input type="range" value={currentValue.get()} />;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    let setup_end = compact
+        .find("uncontrolledValue:uncontrolledValue")
+        .unwrap_or_else(|| panic!("stable setup bindings\n{output}"));
+    let branch_condition =
+        compact.find("if(_$rueCompiledProp1.get())").expect("compiled branch condition");
+
+    assert!(setup_end < branch_condition, "{output}");
+    assert_eq!(compact.matches("constuncontrolledValue=ref(").count(), 1, "{output}");
+}
+
+#[test]
+fn moves_props_derived_snapshot_dependency_chains_before_compiled_setup() {
+    let output = transform_module(
+        r#"
+import { ref } from '@rue-js/rue';
+
+const resolveTextValue = value => value == null ? '' : String(value);
+
+export function TextareaLike({ value, defaultValue, enhanced }) {
+  const isControlled = value !== undefined;
+  const initialTextValue = resolveTextValue(isControlled ? value : defaultValue);
+  const currentValue = ref(initialTextValue);
+  if (enhanced) return <output>{currentValue.value}</output>;
+  return <textarea value={currentValue.value} />;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    let is_controlled = compact.find("constisControlled=").expect("control snapshot");
+    let initial_value = compact.find("constinitialTextValue=").expect("initial value snapshot");
+    let current_value = compact.find("constcurrentValue=ref(initialTextValue)").expect("state");
+
+    assert!(is_controlled < initial_value, "{output}");
+    assert!(initial_value < current_value, "{output}");
+    assert_eq!(compact.matches("constcurrentValue=ref(").count(), 1, "{output}");
+}
+
+#[test]
+fn preserves_tdz_order_for_immediate_watchers_and_mutable_callback_cells() {
+    let output = transform_module(
+        r#"
+import { ref, watch } from '@rue-js/rue';
+
+export function SelectLike({ value, enhanced }) {
+  const selected = ref(value);
+  let intent = selected.value;
+  const sync = () => { intent = value; };
+  watch(() => value, () => sync(), { immediate: true });
+  if (enhanced) return <output>{selected.value}</output>;
+  return <select value={intent} />;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    let mutable_cell = compact.find("letintent=").expect("mutable cell");
+    let immediate_watch = compact.find("watch(()=>").expect("watch");
+    assert!(mutable_cell < immediate_watch, "{output}");
+}
+
+#[test]
+fn preserves_local_reader_order_for_snapshot_state_setup() {
+    let output = transform_module(
+        r#"
+import { ref } from '@rue-js/rue';
+
+export function ToggleLike({ checked, defaultChecked }) {
+  const readControlled = () => checked;
+  const state = ref(defaultChecked ?? readControlled() ?? false);
+  return <input type="checkbox" checked={readControlled() ?? state.value} />;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+    let reader = compact.find("constreadControlled=").expect("local reader");
+    let state = compact.find("conststate=ref(").expect("snapshot state");
+
+    assert!(reader < state, "{output}");
+    assert_eq!(compact.matches("conststate=ref(").count(), 1, "{output}");
+}
+
+#[test]
+fn compiles_fallthrough_branch_with_setup_conditionals_before_return() {
+    let output = transform_module(
+        r#"
+export const Progress = ({ type = 'line', color, className }) => {
+  if (type === 'native') {
+    let cls = 'progress';
+    if (color) cls += ` progress-${color}`;
+    if (className) cls += ` ${className}`;
+    return <progress className={cls} />;
+  }
+
+  const label = type === 'line' ? 'line' : 'circle';
+  if (type === 'line') return <div data-type="line">{label}</div>;
+  return <svg data-type="circle"><circle /></svg>;
+};
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$compiledBranch("), "{output}");
+    assert!(compact.contains("_$compiledPropsGet(__rue_props,\"type\")"), "{output}");
+    assert!(compact.contains("_$withCompiledPropsUpdater("), "{output}");
+    assert!(!compact.contains("if(type===\"line\")return_$compiledRoot"), "{output}");
+}
+
+#[test]
 fn assigns_static_compiled_hook_slots_without_vapor_helpers() {
     let output = transform_module(
         r#"
@@ -383,6 +528,7 @@ export function Layout(props) {
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
     assert!(compact.contains("__rue_compiled_branch_key:0,create:"), "{output}");
+    assert!(compact.contains("__rue_compiled_branch_key:0,create:"), "{output}");
     for key in [1, 2] {
         assert!(
             compact.contains(&format!(
@@ -391,6 +537,69 @@ export function Layout(props) {
             "{output}"
         );
     }
+}
+
+#[test]
+fn refreshes_a_same_key_branch_that_captures_a_signal_snapshot() {
+    let output = transform_module(
+        r#"
+import { signal } from '@rue-js/rue';
+const rows = signal(['first']);
+export function ResourceList() {
+  const snapshot = rows.get();
+  if (!snapshot.length) return <p>empty</p>;
+  return <ul>{snapshot.map(value => <li>{value}</li>)}</ul>;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("constsnapshot=rows.get()"), "{output}");
+    assert!(
+        compact.contains("__rue_compiled_branch_key:1,__rue_compiled_branch_refresh:true"),
+        "{output}"
+    );
+}
+
+#[test]
+fn does_not_refresh_a_single_terminal_compiled_return() {
+    let output = transform_module(
+        r#"
+import { ref } from '@rue-js/rue';
+
+export function StableInput() {
+  const value = ref('one');
+  const LocalInput = () => <input value={value.value} />;
+  return <><LocalInput /></>;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$compiledRoot("), "{output}");
+    assert!(!compact.contains("__rue_compiled_branch_refresh:true"), "{output}");
+}
+
+#[test]
+fn caches_immediate_watch_at_its_original_selector_position() {
+    let output = transform_module(
+        r#"
+import { ref, watch } from '@rue-js/rue';
+export function WatchedMenu(props) {
+  const open = ref(false);
+  const sync = value => { open.value = value; };
+  watch(() => props.open, value => sync(!!value), { immediate: true });
+  if (props.asSection) return <section data-open={open.value} />;
+  return <div data-open={open.value} />;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert_eq!(compact.matches("watch(()=>").count(), 1, "{output}");
+    assert!(compact.contains("setup-effect:"), "{output}");
+    assert!(compact.contains("_$compiledSetup(\"WatchedMenu:setup-effect:"), "{output}");
+    assert!(!compact.contains("__rue_compiled_branch_refresh:true"), "{output}");
 }
 
 #[test]
@@ -418,8 +627,9 @@ export function LivePropsView(props) {
     assert!(!compact.contains("liveLabel:liveLabel"), "{output}");
     assert!(!compact.contains("snapshotText:snapshotText"), "{output}");
     let branch_start = compact.find("_$compiledBranch(()=>{").expect("compiled branch");
-    let live_label =
-        compact.find("constliveLabel=_$rueCompiledProp").expect("live props derivation");
+    let live_label = compact
+        .find("constliveLabel=computed(()=>_$rueCompiledProp")
+        .unwrap_or_else(|| panic!("missing live props derivation\n{output}"));
     assert!(live_label > branch_start, "{output}");
     assert!(
         compact.find("functionsnapshotText()").expect("live helper") > branch_start,
@@ -428,6 +638,33 @@ export function LivePropsView(props) {
     assert!(compact.contains(".get().toUpperCase()"), "{output}");
     assert!(compact.contains("__rue_compiled_branch_refresh:true"), "{output}");
     assert!(!compact.contains("vapor("), "{output}");
+}
+
+#[test]
+fn preserves_snapshot_dependency_order_with_shadowed_loop_bindings() {
+    let output = transform_module(
+        r#"
+import { ref } from '@rue-js/rue';
+
+export function SnapshotRows(props) {
+  const initial = props.seed + 1;
+  const state = ref(initial);
+  for (const initial of props.rows) consume(initial);
+  if (props.enhanced) return <output>{initial}</output>;
+  return <p>{state.value}</p>;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    let initial = compact.find("constinitial=").expect("snapshot dependency");
+    let state = compact.find("conststate=ref(").expect("snapshot state");
+    let loop_start = compact.find("for(constinitialof").expect("shadowed loop");
+    assert!(initial < state && state < loop_start, "{output}");
+    assert_eq!(compact.matches("conststate=ref(").count(), 1, "{output}");
+    assert!(compact.contains("for(constinitialof_$compiledPropsGet(props,\"rows\"))"), "{output}");
+    assert!(compact.contains("consume(initial)"), "{output}");
+    assert!(!compact.contains("consume(initial.get())"), "{output}");
 }
 
 #[test]
@@ -703,7 +940,47 @@ export function Page() {
 
     assert!(compact.contains("_$compiledComponent(Preview"), "{output}");
     assert!(compact.contains("target==null?__slot"), "{output}");
-    assert!(compact.contains("renderPreview(preview)"), "{output}");
+    assert!(compact.contains("renderPreview(__slot"), "{output}");
+}
+
+#[test]
+fn preserves_destructured_renderable_children_without_value_unwrap() {
+    let output = transform_module(
+        r#"
+export function LegacyContainer(props) {
+  if (props.enhanced) return <button>enhanced</button>;
+  const { children } = props;
+  return <div>{children}</div>;
+}
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$compiledPropsGet("), "{output}");
+    assert!(!compact.contains("\"children\").value"), "{output}");
+}
+
+#[test]
+fn defers_opaque_render_helpers_until_the_slot_is_mounted() {
+    let output = transform_module(
+        r#"
+import { signal } from '@rue-js/rue';
+
+const renderPreview = preview => preview();
+
+function Example({ preview }) {
+  const tab = signal('preview');
+  return <section>{tab.get() === 'preview' ? renderPreview(preview) : 'source'}</section>;
+}
+
+export const Page = () => <Example preview={() => <button>pick</button>} />;
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$compiledValueFactory(renderPreview(__slot"), "{output}");
+    assert!(compact.contains("(_$rueCompiledProp0.get())"), "{output}");
+    assert!(!compact.contains("?_$compiledValueFactory(renderPreview("), "{output}");
 }
 
 #[test]
@@ -770,18 +1047,44 @@ export const SearchResults = props => <VideoList videos={props.videos} />;
 fn compiles_destructured_rest_props_and_native_spread_without_vapor() {
     let output = transform_module(
         r#"
-export const Notice = ({ role, onClick, ...rest }) => {
-  const attrs = { ...rest, role: role ?? 'status' };
-  return <button {...attrs} onClick={onClick}>notice</button>;
+export const makeSection = (defaultAs) => {
+  const Component = ({ as = defaultAs, className, children, ...rest }) => {
+    const Tag = as;
+    return Tag === 'div'
+      ? <div {...rest} className={className}>{children}</div>
+      : <span {...rest} className={className}>{children}</span>;
+  };
+  return Component;
 };
+export const Other = ({ children, ...rest }) => <section {...rest}>{children}</section>;
 "#,
     );
     let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
 
     assert!(compact.contains("_$compiledOmitProps("), "{output}");
     assert!(compact.contains("_$compiledSpreadAttributes("), "{output}");
+    assert!(!compact.contains("()=>rest"), "{output}");
     assert!(!compact.contains("\"@rue-js/rue/internal\""), "{output}");
     assert!(!compact.contains("_$spreadAttributes"), "{output}");
+}
+
+#[test]
+fn leaves_lowercase_scalar_helpers_with_early_returns_uncompiled() {
+    let output = transform_module(
+        r#"
+const readMaxLength = (props) => {
+  if (typeof props.maxLength === 'number') return props.maxLength;
+  if (typeof props.maxlength === 'number') return props.maxlength;
+  return undefined;
+};
+export const Input = (props) => <span>{readMaxLength(props)}</span>;
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("constreadMaxLength=(props)=>{"), "{output}");
+    assert!(!compact.contains("constreadMaxLength=(props,_$rueSlots,_$rueOwner)"), "{output}");
+    assert!(!compact.contains("readMaxLength=(_$rueProps"), "{output}");
 }
 
 #[test]
@@ -844,6 +1147,21 @@ fn compiles_native_spread_with_local_component_child() {
     assert!(!compact.contains("_$createComponent"), "{output}");
     assert!(compact.contains("_$compiledComponent(Child"), "{output}");
     assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
+}
+
+#[test]
+fn preserves_destructured_children_as_renderable_content_in_custom_elements() {
+    let output = transform_module(
+        r#"
+const CustomElementHost = ({ children }) => <calendar-date>{children}</calendar-date>;
+export const Page = () => <CustomElementHost><button>Previous</button><calendar-month /></CustomElementHost>;
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$rueCompiledSlot.get()"), "{output}");
+    assert!(compact.contains("_$mountCompiledSlotAt({parent:"), "{output}");
+    assert!(!compact.contains("_$settextContent"), "{output}");
 }
 
 #[test]
@@ -1027,4 +1345,85 @@ export const View = ({ currentPath }) => {
     );
     assert!(output.contains("()=>currentPath.get()"), "{output}");
     assert!(!output.contains("_$rueCompiledProp0.get().get()"), "{output}");
+}
+
+#[test]
+fn keeps_reactive_empty_early_return_inside_the_compiled_branch() {
+    let output = transform_module(
+        r#"
+import { computed } from '@rue-js/rue';
+export const Modal = ({ open }, slots = {}) => {
+  const shouldMount = computed(() => open);
+  if (!shouldMount.get()) return <></>;
+  return <div role="dialog">{slots.footer ?? 'visible'}</div>;
+};
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$compiledBranch(()=>{"), "{output}");
+    assert!(compact.contains("if(!shouldMount.get())"), "{output}");
+}
+
+#[test]
+fn keeps_structural_props_reads_inside_reactive_component_branches() {
+    let output = transform_module(
+        r#"
+import { computed } from '@rue-js/rue';
+export const SkeletonLike = props => {
+  const { avatar, title, paragraph, ...rest } = props;
+  const hasLoadingProp = computed(() => Object.prototype.hasOwnProperty.call(props, 'loading'));
+  const composite = computed(() => hasLoadingProp.get() || avatar || title || paragraph);
+  if (!composite.get()) return <span {...props}>primitive</span>;
+  if (props.loading === false) return <>{props.children}</>;
+  return <div {...rest}>loading</div>;
+};
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("_$compiledBranch(()=>{"), "{output}");
+    assert!(compact.contains("_$compiledPropsSnapshot(props)"), "{output}");
+    assert!(compact.contains("_$compiledPropsGet(props,\"loading\")"), "{output}");
+}
+
+#[test]
+fn routes_computed_callback_results_through_renderable_children() {
+    let output = transform_module(
+        r#"
+import { computed } from '@rue-js/rue';
+export const Item = ({ renderItem, label }) => {
+  const content = computed(() => renderItem ? renderItem() : label);
+  return <button>{content}</button>;
+};
+"#,
+    );
+
+    assert!(output.contains("_$compiledValueFactory(content)"), "{output}");
+    assert!(!output.contains("_$compiledText"), "{output}");
+}
+
+#[test]
+fn lowers_reactive_branches_in_nested_local_component_factories() {
+    let output = transform_module(
+        r#"
+import { ref, type FC } from '@rue-js/rue';
+export const View: FC<{ spinning?: boolean }> = props => {
+  const visible = ref(props.spinning ?? false);
+  const fullscreen = false;
+  const isNested = true;
+  const Indicator = () => visible.value
+    ? !fullscreen && !isNested ? <span>loading</span> : <div>loading</div>
+    : <></>;
+  return <section><Indicator /></section>;
+};
+"#,
+    );
+    let compact: String = output.chars().filter(|ch| !ch.is_whitespace()).collect();
+
+    assert!(compact.contains("constIndicator=(_$rueProps,_$rueSlots,_$rueOwner)=>"), "{output}");
+    assert!(compact.contains("_$compiledBranch(()=>"), "{output}");
+    assert!(!compact.contains("create:()=>null"), "{output}");
+    assert!(compact.contains("__rue_compiled_branch_key:0"), "{output}");
+    assert!(compact.contains("__rue_compiled_branch_key:1"), "{output}");
 }

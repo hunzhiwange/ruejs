@@ -191,14 +191,14 @@ const Comp: FC<Props> = ({ showSearch }) => {
     println!("{}", normalized);
 
     assert!(normalized.contains(&utils::normalize(
-        r#"const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
+        r#"const _$useSetup = _$compiledSetup("useSetup:0:0", ()=>{
         const searchConfig = normalizeSearchConfig(__rue_props.showSearch);
         const searchValueRef = ref(searchConfig.defaultValue);
         return {
             searchConfig: searchConfig,
             searchValueRef: searchValueRef
         };
-    }));"#,
+    });"#,
     )));
 
     assert!(!normalized.contains("computed(()=>normalizeSearchConfig(__rue_props.showSearch))"));

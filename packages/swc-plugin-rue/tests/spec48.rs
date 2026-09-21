@@ -276,13 +276,9 @@ export default About;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec48.out.js", strip_marker(&out)).ok();
     let output = normalize(&strip_marker(&out));
-    assert_eq!(output.matches("_$compiledBranchAt(").count(), 1, "{output}");
-    assert!(output.contains("if (!!open)"), "{output}");
-    assert!(output.contains("renderAnchor(__slot"), "{output}");
-    assert_eq!(output.matches("RouterLink.__rueHref(").count(), 6, "{output}");
-    assert_eq!(output.matches("RouterLink.__rueOnClick(").count(), 6, "{output}");
-    assert_eq!(output.matches("RouterLink.__rueOnPrefetch(").count(), 24, "{output}");
+    assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
+    assert_eq!(output.matches("_$compiledComponent(RouterLink").count(), 6, "{output}");
     assert_eq!(output.matches("setOpen(false)").count(), 6, "{output}");
     assert!(output.contains("new Date().getFullYear()"), "{output}");
-    assert!(output.contains("const __slot = 1 + 1"), "{output}");
+    assert!(output.contains("_$compiledText(_el26, ()=>1 + 1)"), "{output}");
 }

@@ -9,6 +9,7 @@ export {
 export {
   computed,
   computed as createComputed,
+  customRef,
   ref,
   shallowRef,
   isRef,

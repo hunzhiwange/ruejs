@@ -213,6 +213,36 @@ describe('runtime TypeScript scheduler', () => {
     }
   })
 
+  it('settles cascading frame jobs in the same host flush', () => {
+    vi.useFakeTimers()
+    const rafCallbacks: FrameRequestCallback[] = []
+    const raf = vi.fn((callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback)
+      return rafCallbacks.length
+    })
+    const restoreRaf = replaceWindowMethod('requestAnimationFrame', raf)
+    try {
+      const state = new ReactiveRuntimeState()
+      const scheduler = new ReactiveScheduler(state)
+      const events: string[] = []
+
+      scheduler.schedule(1, () => {
+        events.push('parent')
+        scheduler.schedule(2, () => events.push('child'))
+      })
+
+      expect(raf).toHaveBeenCalledTimes(1)
+      rafCallbacks[0]?.(0)
+
+      expect(events).toEqual(['parent', 'child'])
+      expect(raf).toHaveBeenCalledTimes(1)
+      expect(scheduler.pendingCount).toBe(0)
+      expect(scheduler.isFlushPending).toBe(false)
+    } finally {
+      restoreRaf()
+    }
+  })
+
   it('lets nextTick advance a stalled frame flush independently of host callbacks', async () => {
     vi.useFakeTimers()
     const raf = vi.fn(() => 1)

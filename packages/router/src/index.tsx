@@ -1,5 +1,5 @@
 import type { CompiledSignalHandle as SignalHandle } from '@rue-js/rue/internal/reactive'
-import { onOwnerCleanup } from '@rue-js/rue/internal/reactive'
+import { onOwnerCleanup, untrack } from '@rue-js/rue/internal/reactive'
 import { getCurrentAppTarget } from '@rue-js/rue/internal/app'
 /**
  * Rue Router 入口模块。
@@ -892,9 +892,10 @@ export const createRouter = (options: RouterOptions): Router => {
   ): NavigationFailure => ({ type, to, from })
 
   const runAfterGuards = (to: Route, from: Route, failure?: AfterEachFailure) => {
-    // afterEach 不影响导航结果，因此按注册顺序同步调用。
+    // Router callbacks are imperative boundaries. Keep reactive reads performed by user
+    // callbacks from leaking into the effect that happened to initiate navigation.
     for (let i = 0; i < afterGuards.length; i++) {
-      afterGuards[i](to, from, failure)
+      untrack(() => afterGuards[i](to, from, failure))
     }
   }
 
@@ -1585,7 +1586,13 @@ export const RouterView: FC = () => {
   const persistKeys = __routerPersistKeysByInstance.get(router) ?? []
   const slots = new Map<
     string,
-    { component: FC<any>; params: SignalHandle<RouteParams>; children: BlockFactory<any> }
+    {
+      component: FC<any>
+      record: RouteRecord
+      params: SignalHandle<RouteParams>
+      paramsValue: RouteParams
+      children: BlockFactory<any>
+    }
   >()
   const view = _$keepAlive(() => {
     const data = router.route.get()
@@ -1594,7 +1601,10 @@ export const RouterView: FC = () => {
     const key = record ? resolveRoutePersistKey(record) : undefined
     let entry = key ? slots.get(key) : undefined
     if (component && record && data && key) {
-      const params = resolveRecordParams(record, data.params, null, null)
+      // Keep the previous value outside the reactive signal. Reading params.get() here would
+      // subscribe this KeepAlive effect to the same signal it updates below and create a loop.
+      const previousParams = entry?.paramsValue ?? null
+      const params = resolveRecordParams(record, data.params, entry?.record ?? null, previousParams)
       if (!entry || entry.component !== component) {
         const source = signal(params)
         const children: BlockFactory<any> = (target, _props, owner) =>
@@ -1604,9 +1614,15 @@ export const RouterView: FC = () => {
               params: source.get(),
             }))
           })
-        entry = { component, params: source, children }
+        entry = { component, record, params: source, paramsValue: params, children }
         slots.set(key, entry)
-      } else entry.params.set(params)
+      } else {
+        entry.record = record
+        if (params !== previousParams) {
+          entry.paramsValue = params
+          entry.params.set(params)
+        }
+      }
     }
     return {
       cacheKey: component ? key : undefined,
@@ -1670,11 +1686,13 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
     onTouchStart: userTouchStart,
     ...rest
   } = props as any
-  const r = useRouter()
+  // Server-rendered links only need a stable href. Event handling and prefetching are enabled
+  // once the component is mounted inside an application with an installed router.
+  const r = getCurrentAppTarget() ? useRouter() : __activeRouter
   let clearPrefetchTrigger = () => {}
   let linkElement: Element | null = null
   const runPrefetch = () => {
-    void r.prefetch(to).catch(() => {})
+    if (r) void r.prefetch(to).catch(() => {})
   }
   const setUserRef = (value: Element | null) => {
     if (typeof userRef === 'function') {
@@ -1719,6 +1737,7 @@ const RouterLinkImpl: FC<RouterLinkProps> = props => {
     ) {
       return
     }
+    if (!r) return
     e.preventDefault()
     const nav = replace ? r.replace : r.push
     void nav(to)

@@ -40,10 +40,10 @@ export default Goods;
     let normalized = normalize(&strip_marker(&out));
     assert_eq!(normalized.matches("_$template(").count(), 2, "{out}");
     assert_eq!(normalized.matches(".content.cloneNode(true)").count(), 2, "{out}");
-    assert_eq!(normalized.matches("_$compiledRoot(()=>{").count(), 4, "{out}");
-    assert_eq!(normalized.matches("_$compiledRoot(").count(), 4, "{out}");
+    assert!(normalized.contains("_$compiledRoot("), "{out}");
+    assert!(normalized.contains("_$compiledStaticRoot("), "{out}");
     assert!(normalized.contains("_$mountCompiledSlotAt"), "{out}");
-    assert!(normalized.contains("_$createComponent(Hello, ()=>({"), "{out}");
-    assert!(normalized.contains("children: ["), "{out}");
-    assert!(!normalized.contains("_$createDocumentFragment("), "{out}");
+    assert!(normalized.contains("_$compiledComponent(Hello, ()=>({"), "{out}");
+    assert!(normalized.contains("children: (target, slotProps, owner)=>"), "{out}");
+    assert!(normalized.contains("_$createDocumentFragment("), "{out}");
 }

@@ -19,7 +19,8 @@ type GuardModule = {
 const pluginPath = resolve(process.cwd(), 'packages/swc-plugin-rue/swc-plugin-rue.wasm')
 
 const source = `
-import { type FC, signal } from '@rue-js/rue'
+import { type FC, signal, useRef } from '@rue-js/rue'
+import { renderPreview } from 'preview-helper'
 
 const title = signal('first')
 const rows = signal([
@@ -37,6 +38,15 @@ const ValueSlot: FC = props => <section data-testid="panel">
   <div data-testid="slot">{props.children}</div>
 </section>
 
+const Preview: FC = () => {
+  const value = useRef('preview content')
+  return <aside data-testid="preview">{value.current}</aside>
+}
+
+const ObjectSlot: FC<{ display: { children: any } }> = ({ display }) => (
+  <article data-testid="object-slot">{display.children}</article>
+)
+
 export const update = () => {
   title.set('second')
   rows.set([
@@ -47,6 +57,8 @@ export const update = () => {
 }
 
 export const View: FC = () => <main data-testid="guard-root">
+  {renderPreview(Preview)}
+  <ObjectSlot display={{ children: <em data-testid="object-slot-child">nested object child</em> }} />
   <ValueSlot>
     <strong data-testid="before">before</strong>
     <MultiNode label={title.get()} />
@@ -86,6 +98,7 @@ const evaluate = (): GuardModule => {
       const capability = resolveCompilerCapability(id)
       if (capability) return capability as Record<string, unknown>
       if (id === '@rue-js/rue') return runtimeRoot
+      if (id === 'preview-helper') return { renderPreview: (preview: () => unknown) => preview() }
       throw new Error(`Unexpected generated import: ${id}`)
     },
     module,
@@ -128,6 +141,12 @@ describe('compiled silent blank guard', () => {
     const root = host.querySelector('[data-testid="guard-root"]')
     const slot = host.querySelector('[data-testid="slot"]')
     expect(root).not.toBeNull()
+    expect(host.querySelector('[data-testid="preview"]')?.textContent).toBe('preview content')
+    expect(host.querySelector('[data-testid="object-slot-child"]')?.textContent).toBe(
+      'nested object child',
+    )
+    expect(host.textContent).not.toContain('[object Object]')
+    expect(host.textContent).not.toContain('target, slotProps, owner')
     expect(host.querySelector('[data-testid="title"]')?.textContent).toBe('first')
     expect(slot).not.toBeNull()
     expect(visibleOrder(slot!)).toEqual([

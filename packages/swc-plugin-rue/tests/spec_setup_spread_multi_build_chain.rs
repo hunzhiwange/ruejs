@@ -79,7 +79,7 @@ const Comp: FC = ()=>{
                             'f'
                         ]
                 }));
-            combined.get();
+            untrack(()=>combined.get());
             const __rue_phase2_combined = combined;
             const list = computed(()=>[
                         ...build1().arr,
@@ -91,7 +91,7 @@ const Comp: FC = ()=>{
                             p: 0
                         }
                 ]);
-            list.get();
+            untrack(()=>list.get());
             const __rue_phase2_list = list;
             return {
                 a: a,

@@ -28,9 +28,12 @@ export default Parent;
     let output = utils::strip_marker(&out);
 
     assert!(output.contains("_$compiledRoot"), "{output}");
-    assert!(output.contains("_$compiledText"), "{output}");
-    assert!(output.contains("()=>_$compiledPropsGet(p, \"label\")"), "{output}");
-    assert!(output.contains("_$createComponent(Child"), "{output}");
+    assert!(output.contains("_$compiledValueFactory"), "{output}");
+    assert!(
+        output.contains("()=>_$compiledValueFactory(_$compiledPropsGet(p, \"label\"))"),
+        "{output}"
+    );
+    assert!(output.contains("_$compiledComponent(Child"), "{output}");
     assert!(output.contains("label: count.value"), "{output}");
     assert!(!output.contains("const __slot = (_$compiledPropsGet(p, \"label\"))"), "{output}");
 }

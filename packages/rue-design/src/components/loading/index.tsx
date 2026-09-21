@@ -366,6 +366,17 @@ const LoadingRoot: FC<LoadingProps> = (props, slots: Record<string, any> = {}) =
       <></>
     )
 
+  const resolveIndicatorContent = () => {
+    const source = slots.indicator ?? indicator ?? defaultIndicator
+    if (typeof source !== 'function' || source.length >= 2) return source
+    return source({
+      percent: progressValue,
+      size: normalizedSize,
+      style: resolvedStyle,
+      spinning: readCurrentSpinning(props),
+    })
+  }
+
   const sectionClassName = mergeClassNames(
     fullscreen
       ? 'pointer-events-auto flex min-w-36 flex-col items-center justify-center gap-3 rounded-box border border-base-300 bg-base-100/95 p-6 text-center text-base-content shadow-2xl'
@@ -411,11 +422,7 @@ const LoadingRoot: FC<LoadingProps> = (props, slots: Record<string, any> = {}) =
           )}
           style={styles?.indicator}
         >
-          {slots.indicator ? (
-            slots.indicator
-          ) : (
-            <span>{String(indicator ?? defaultIndicator ?? '')}</span>
-          )}
+          {resolveIndicatorContent()}
         </span>
       ) : (
         <span
@@ -433,52 +440,47 @@ const LoadingRoot: FC<LoadingProps> = (props, slots: Record<string, any> = {}) =
     </>
   )
   const SectionNodeView = () =>
-    visible.value ? (
-      !fullscreen && !isNested ? (
-        <span
-          className={mergeClassNames(
-            sectionClassName,
-            getDelayHiddenClass(
-              readCurrentSpinning(props),
-              readCurrentDelay(props),
-              delayReady.value,
-            ),
-          )}
-          style={styles?.section}
-          data-rue-loading-section="true"
-        >
-          <SectionContentView />
-        </span>
-      ) : (
-        <div
-          className={mergeClassNames(
-            sectionClassName,
-            getDelayHiddenClass(
-              readCurrentSpinning(props),
-              readCurrentDelay(props),
-              delayReady.value,
-            ),
-          )}
-          style={styles?.section}
-          data-rue-loading-section="true"
-        >
-          <SectionContentView />
-        </div>
-      )
+    !fullscreen && !isNested ? (
+      <span
+        className={mergeClassNames(
+          sectionClassName,
+          getDelayHiddenClass(
+            readCurrentSpinning(props),
+            readCurrentDelay(props),
+            delayReady.value,
+          ),
+        )}
+        style={styles?.section}
+        data-rue-loading-section="true"
+      >
+        <SectionContentView />
+      </span>
     ) : (
-      <></>
+      <div
+        className={mergeClassNames(
+          sectionClassName,
+          getDelayHiddenClass(
+            readCurrentSpinning(props),
+            readCurrentDelay(props),
+            delayReady.value,
+          ),
+        )}
+        style={styles?.section}
+        data-rue-loading-section="true"
+      >
+        <SectionContentView />
+      </div>
     )
 
   if (fullscreen) {
-    if (!visible.value) return <></>
     return (
       <div
         {...rest}
-        className={rootClass}
+        className={mergeClassNames(rootClass, visible.value ? undefined : 'hidden')}
         style={rootStyleValue}
         role={rest.role ?? 'status'}
         aria-live={rest['aria-live'] ?? 'polite'}
-        aria-busy="true"
+        aria-busy={visible.value ? 'true' : 'false'}
       >
         <SectionNodeView />
       </div>
@@ -489,7 +491,7 @@ const LoadingRoot: FC<LoadingProps> = (props, slots: Record<string, any> = {}) =
     const rootTag = as ?? 'div'
     const NestedContentView = () => (
       <>
-        <SectionNodeView />
+        {visible.value ? <SectionNodeView /> : null}
         <div
           className={containerClassName}
           style={styles?.container}

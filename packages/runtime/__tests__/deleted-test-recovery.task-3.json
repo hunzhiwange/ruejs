@@ -1,0 +1,53 @@
+{
+  "task": 3,
+  "status": "completed",
+  "focusedCommand": "pnpm exec vitest run --project unit-jsdom packages/runtime/__tests__/attributeBindings.actual.spec.tsx packages/runtime/__tests__/attributesAndProps.actual.spec.tsx packages/runtime/__tests__/basicElements.actual.spec.tsx packages/runtime/__tests__/compiledSelector.codegen.spec.tsx packages/runtime/__tests__/compiledStatePath.codegen.spec.tsx packages/runtime/__tests__/expressions.actual.spec.tsx packages/runtime/__tests__/fragments.actual.spec.tsx packages/runtime/__tests__/staticTemplate.spec.ts packages/runtime/__tests__/svgGraph.actual.spec.tsx packages/runtime/__tests__/svgSharedNamespace.actual.spec.tsx",
+  "result": {
+    "testFiles": 10,
+    "tests": 13,
+    "failed": 0,
+    "skipped": 0
+  },
+  "entries": [
+    {
+      "originalPath": "packages/runtime/__tests__/attributeBindings.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/attributeBindings.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/attributesAndProps.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/attributesAndProps.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/basicElements.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/basicElements.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledSelector.codegen.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/compiledSelector.codegen.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledStatePath.codegen.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/compiledStatePath.codegen.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/expressions.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/expressions.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/fragments.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/fragments.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/staticTemplate.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/staticTemplate.spec.ts"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/svgGraph.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/svgGraph.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/svgSharedNamespace.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/svgSharedNamespace.actual.spec.tsx"
+    }
+  ]
+}

@@ -109,6 +109,24 @@ describe('Modal', () => {
     })
   })
 
+  it('renders a footer function result instead of stringifying the compiled factory', async () => {
+    const c = mountContainer()
+    resetActiveRuntime()
+    mountTestApp(c, () =>
+      render(
+        <Modal open={true} footer={() => <button id="function-footer">Close panel</button>}>
+          {'content'}
+        </Modal>,
+        c,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(c.querySelector('#function-footer')?.textContent).toBe('Close panel')
+      expect(c.querySelector('.modal-action')?.textContent).not.toContain('_$compiled')
+    })
+  })
+
   it('triggers onClose from the default close button', async () => {
     const c = mountContainer()
     resetActiveRuntime()
@@ -481,5 +499,32 @@ describe('Modal', () => {
     await waitForContent(() => {
       expect(document.body.querySelectorAll('[data-rue-modal-api-type]').length).toBe(0)
     })
+  })
+
+  it('coalesces synchronous static modal changes before updating the viewport', async () => {
+    resetActiveRuntime()
+    let mountedApiRoots = 0
+    const observer = new MutationObserver(records => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof Element)) continue
+          if (node.matches('[data-rue-modal-api-type]')) mountedApiRoots += 1
+          mountedApiRoots += node.querySelectorAll('[data-rue-modal-api-type]').length
+        }
+      }
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    Modal.info({ title: 'First' })
+    Modal.success({ title: 'Second' })
+    Modal.warning({ title: 'Third' })
+    Modal.destroyAll()
+
+    await Promise.resolve()
+    await Promise.resolve()
+    observer.disconnect()
+
+    expect(document.body.querySelectorAll('[data-rue-modal-api-type]').length).toBe(0)
+    expect(mountedApiRoots).toBe(0)
   })
 })

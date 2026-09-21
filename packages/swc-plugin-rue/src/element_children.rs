@@ -623,12 +623,8 @@ fn compiled_dynamic_template_to_block(
                 parent.clone(),
                 member_expr(Expr::Ident(anchor.clone()), "parentNode"),
             ));
-            let direct_text = hole.reuse_text
-                && matches!(
-                    &hole.source,
-                    crate::vapor::template::MarkedHoleSource::Expression(container)
-                        if crate::vapor::is_compiled_text_container(vt, container)
-                );
+            let direct_text =
+                hole.reuse_text && crate::vapor::template::marked_hole_is_text(vt, hole);
             let anchor = if hole.reuse_text && !direct_text {
                 crate::element_text::replace_template_text_marker_with_comment(
                     vt,
@@ -656,16 +652,47 @@ fn compiled_dynamic_template_to_block(
             return None;
         }
         if *direct_text {
-            let crate::vapor::template::MarkedHoleSource::Expression(container) = &hole.source
-            else {
+            let crate::vapor::template::MarkedHoleSource::Expression(_) = &hole.source else {
                 return None;
             };
-            crate::vapor::emit_compiled_text_effect(
+            crate::vapor::template::emit_marked_text_effect(
                 vt,
                 anchor.as_ref().expect("direct text keeps its text node"),
-                container,
+                hole,
                 &mut stmts,
             )?;
+            anchor_index += 1;
+            continue;
+        }
+        if matches!(hole.source, crate::vapor::template::MarkedHoleSource::Expression(_))
+            && crate::vapor::template::marked_hole_is_text(vt, hole)
+        {
+            let anchor = anchor.clone().expect("serialized text holes retain their marker");
+            let text = vt.next_el_ident();
+            stmts.push(crate::emit::const_decl(
+                text.clone(),
+                crate::emit::call_ident(
+                    "_$compiledCreateTextNode",
+                    vec![crate::emit::string_expr("")],
+                ),
+            ));
+            stmts.push(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(call_member_expr(
+                    Expr::Ident(parent.clone()),
+                    "insertBefore",
+                    vec![Expr::Ident(text.clone()), Expr::Ident(anchor.clone())],
+                )),
+            }));
+            stmts.push(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(call_member_expr(
+                    Expr::Ident(parent.clone()),
+                    "removeChild",
+                    vec![Expr::Ident(anchor)],
+                )),
+            }));
+            crate::vapor::template::emit_marked_text_effect(vt, &text, hole, &mut stmts)?;
             anchor_index += 1;
             continue;
         }
@@ -723,6 +750,23 @@ fn compiled_dynamic_template_to_block(
         }
         match &hole.source {
             crate::vapor::template::MarkedHoleSource::Expression(container) => {
+                if let JSXExpr::Expr(expr) = &container.expr
+                    && let Some(renderable) =
+                        crate::element_expr::renderable_string_operand(vt, expr.as_ref())
+                {
+                    let anchor = anchor.clone().unwrap_or_else(|| {
+                        materialize_compiled_hole_anchor(vt, parent, before, &mut stmts)
+                    });
+                    crate::element_slot::render_between_for_slot_at(
+                        vt,
+                        parent,
+                        &anchor,
+                        &renderable,
+                        &mut stmts,
+                    );
+                    anchor_index += 1;
+                    continue;
+                }
                 if let JSXExpr::Expr(expr) = &container.expr
                     && !crate::vapor::is_compiled_reactive_scalar_expr(
                         vt,
@@ -868,6 +912,24 @@ pub(crate) fn compiled_fragment_to_block(
 /// Every root setup has one compiler-known return range; no runtime value classification.
 pub(crate) fn close_root_setup(mut setup: Expr) -> Expr {
     let Expr::Arrow(arrow) = &mut setup else { return setup };
+    // Attribute lowering may add delegated events after the root factory was first created.
+    // Keep the mount parent available even for factories that originally needed no parameter;
+    // otherwise the later `_$compiledDelegateEvent(__rue_parent_context, ...)` reference escapes
+    // as an undeclared identifier.
+    struct ParentContextUse(bool);
+    impl Visit for ParentContextUse {
+        fn visit_ident(&mut self, ident: &Ident) {
+            self.0 |= ident.sym == "__rue_parent_context";
+        }
+    }
+    let mut parent_context_use = ParentContextUse(false);
+    arrow.body.visit_with(&mut parent_context_use);
+    if arrow.params.is_empty() && parent_context_use.0 {
+        arrow.params.push(Pat::Ident(BindingIdent {
+            id: crate::emit::ident("__rue_parent_context"),
+            type_ann: None,
+        }));
+    }
     let BlockStmtOrExpr::BlockStmt(block) = arrow.body.as_mut() else { return setup };
     let Some(Stmt::Return(ReturnStmt { arg: Some(host), .. })) = block.stmts.last() else {
         return setup;

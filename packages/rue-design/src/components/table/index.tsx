@@ -5,7 +5,7 @@ Table 组件概述
 - 复合组件：Head/Body/Foot/TR/TH/TD 便于自定义结构；也可直接传 children。
 */
 import type { FC } from '@rue-js/rue'
-import { computed, ref } from '@rue-js/rue'
+import { computed, ref, Slot } from '@rue-js/rue'
 import Dropdown from '../dropdown/index'
 
 type TableSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'small' | 'middle' | 'large'
@@ -176,7 +176,7 @@ interface PaginationConfig {
 
 interface ExpandableConfig {
   expandedRowRender?: (record: any, index: number, indent: number, expanded: boolean) => any
-  expandedRowFormatter?: (record: any, index: number, indent: number, expanded: boolean) => string
+  expandedRowFormatter?: (record: any, index: number, indent: number, expanded: boolean) => any
   expandedRowKeys?: TableKey[]
   defaultExpandedRowKeys?: TableKey[]
   defaultExpandAllRows?: boolean
@@ -222,11 +222,11 @@ interface TableProps {
   pagination?: false | PaginationConfig
   expandable?: ExpandableConfig
   rowClassName?: (record: any, index: number) => string
-  summary?: (currentData: any[], info?: { total: number; page: number; pageSize: number }) => string
+  summary?: (currentData: any[], info?: { total: number; page: number; pageSize: number }) => any
   emptyText?: any
   locale?: TableLocale
-  titleFormatter?: (currentData: any[]) => string
-  footerFormatter?: (currentData: any[]) => string
+  titleFormatter?: (currentData: any[]) => any
+  footerFormatter?: (currentData: any[]) => any
   title?: (currentData: any[]) => any
   footer?: (currentData: any[]) => any
   loading?: boolean | { spinning?: boolean; tip?: any }
@@ -290,6 +290,7 @@ type SortStateInput =
 
 interface FlattenRow {
   key: TableKey
+  renderKey: string
   record: any
   indent: number
   hasTreeChildren: boolean
@@ -624,25 +625,51 @@ const getTreeChildren = (record: any, childrenColumnName: string) => {
 }
 
 /** Render Table Section 的内部工具函数。 */
+const isCompiledRenderFactory = (value: unknown) =>
+  typeof value === 'function' &&
+  ((value as { kind?: unknown }).kind === 'block-factory' || value.length === 3)
+
 const RenderTableSection: FC<{
-  render?: ((currentData: any[]) => string | number) | null
+  render?: ((currentData: any[]) => any) | null
   data: any[]
 }> = ({ render, data }) => {
   if (typeof render !== 'function') return <></>
-  return <>{String(render(data) ?? '')}</>
+  if (isCompiledRenderFactory(render)) {
+    return <Slot source={{ children: render as any }} props={data as any} />
+  }
+  return <>{render(data)}</>
 }
 
 const RenderExpandedRowContent: FC<{
-  render?:
-    | ((record: any, index: number, indent: number, expanded: boolean) => string | number)
-    | null
+  render?: ((record: any, index: number, indent: number, expanded: boolean) => any) | null
   record: any
   index: number
   indent: number
   expanded: boolean
 }> = ({ render, record, index, indent, expanded }) => {
   if (typeof render !== 'function') return <></>
-  return <>{String(render(record, index, indent, expanded) ?? '')}</>
+  if (isCompiledRenderFactory(render)) {
+    return <Slot source={{ children: render as any }} props={record} />
+  }
+  return <>{render(record, index, indent, expanded)}</>
+}
+
+const RenderTableValue: FC<{ value: any }> = ({ value }) => {
+  if (isCompiledRenderFactory(value)) {
+    return <Slot source={{ children: value }} />
+  }
+  return <>{value}</>
+}
+
+const RenderTableSummary: FC<{
+  render: NonNullable<TableProps['summary']>
+  data: any[]
+  info: { total: number; page: number; pageSize: number }
+}> = ({ render, data, info }) => {
+  if (isCompiledRenderFactory(render)) {
+    return <Slot source={{ children: render as any }} props={data as any} />
+  }
+  return <>{render(data, info)}</>
 }
 
 /** 判断 Primitive Node 的内部工具函数。 */
@@ -699,6 +726,7 @@ const Table: FC<TableProps> = props => {
       : { spinning: !!loading, tip: undefined }
   const childrenColumnName = expandable?.childrenColumnName ?? 'children'
   const indentSize = expandable?.indentSize ?? 15
+  const expandedRowRender = expandable?.expandedRowFormatter ?? expandable?.expandedRowRender
 
   const getRecordKey = (record: any, fallback: TableKey): TableKey => {
     const rawKey = typeof rowKey === 'function' ? rowKey(record) : record?.[rowKey]
@@ -815,7 +843,7 @@ const Table: FC<TableProps> = props => {
         ? dataSource.flatMap((record, index) => {
             const key = getRecordKey(record, `row-${index}`)
             const children = getTreeChildren(record, childrenColumnName)
-            if (expandable?.expandedRowFormatter) {
+            if (expandedRowRender) {
               return [key, ...collectExpandedKeys(children, [index])]
             }
             if (children.length > 0) {
@@ -979,7 +1007,7 @@ const Table: FC<TableProps> = props => {
             <tr className={expandedRowClassName}>
               <td colSpan={bodyColSpan}>
                 <RenderExpandedRowContent
-                  render={expandable?.expandedRowFormatter}
+                  render={expandedRowRender}
                   record={row.record}
                   index={rowIndex}
                   indent={row.indent}
@@ -1035,7 +1063,12 @@ const Table: FC<TableProps> = props => {
                 rowSelection?.columnWidth ? { width: rowSelection.columnWidth as any } : undefined,
               )}
             >
-              <div className={rowSelection?.titleClassName}>
+              <div
+                className={mergeClassNames(
+                  'inline-flex items-center gap-2',
+                  rowSelection?.titleClassName,
+                )}
+              >
                 <SelectionHeaderView />
                 {rowSelection?.columnTitle ? <span>{String(rowSelection.columnTitle)}</span> : null}
               </div>
@@ -1058,23 +1091,28 @@ const Table: FC<TableProps> = props => {
       setStateVersion(version => version + 1)
     }
 
-    const hasControlledSort = leafColumns.get().some(leaf => leaf.column.sortOrder !== undefined)
-    const activeSortStates = hasControlledSort
-      ? resolveInitialSort(leafColumns.get())
-      : normalizeSortStates([...sortStateRef.value])
-    const activeSortStateMap = /*#__PURE__*/ new Map(
-      activeSortStates.map(state => [state.key, state] as const),
+    const activeSortStates = computed(() => {
+      const columns = leafColumns.get()
+      const hasControlledSort = columns.some(leaf => leaf.column.sortOrder !== undefined)
+      return hasControlledSort
+        ? resolveInitialSort(columns)
+        : normalizeSortStates([...sortStateRef.value])
+    })
+    const activeSortStateMap = computed(
+      () => /*#__PURE__*/ new Map(activeSortStates.get().map(state => [state.key, state] as const)),
     )
 
-    const currentFilters = leafColumns.get().reduce<Record<string, any[]>>((acc, leaf) => {
-      const controlledValue = leaf.column.filteredValue
-      if (controlledValue !== undefined) {
-        acc[leaf.key] = normalizeFilterValues(controlledValue)
+    const currentFilters = computed(() =>
+      leafColumns.get().reduce<Record<string, any[]>>((acc, leaf) => {
+        const controlledValue = leaf.column.filteredValue
+        if (controlledValue !== undefined) {
+          acc[leaf.key] = normalizeFilterValues(controlledValue)
+          return acc
+        }
+        acc[leaf.key] = normalizeFilterValues(filterStateRef.value[leaf.key])
         return acc
-      }
-      acc[leaf.key] = normalizeFilterValues(filterStateRef.value[leaf.key])
-      return acc
-    }, {})
+      }, {}),
+    )
 
     const buildActiveFilters = (filters: Record<string, any[]>) => {
       const next: Record<string, any[]> = {}
@@ -1084,7 +1122,7 @@ const Table: FC<TableProps> = props => {
       return next
     }
 
-    const activeFilters = buildActiveFilters(currentFilters)
+    const activeFilters = computed(() => buildActiveFilters(currentFilters.get()))
 
     const buildSortComparator = (column: ColumnItem) => {
       if (typeof column.sorter === 'function') return column.sorter
@@ -1154,10 +1192,10 @@ const Table: FC<TableProps> = props => {
       return processRecords(dataSource)
     }
 
-    const expandedRowKeys = expandable?.expandedRowKeys
-      ? [...expandable.expandedRowKeys]
-      : [...expandedRowKeysRef.value]
-    const expandedRowKeySet = /*#__PURE__*/ new Set(expandedRowKeys)
+    const expandedRowKeys = computed(() =>
+      expandable?.expandedRowKeys ? [...expandable.expandedRowKeys] : [...expandedRowKeysRef.value],
+    )
+    const expandedRowKeySet = computed(() => /*#__PURE__*/ new Set(expandedRowKeys.get()))
 
     const flattenRows = (
       records: any[],
@@ -1171,11 +1209,12 @@ const Table: FC<TableProps> = props => {
         const children = getTreeChildren(record, childrenColumnName)
         const row = {
           key,
+          renderKey: `${typeof key}:${String(key)}@${path.join('-')}`,
           record,
           indent,
           hasTreeChildren: children.length > 0,
         }
-        if (children.length > 0 && (forceExpand || expandedRowKeySet.has(key))) {
+        if (children.length > 0 && (forceExpand || expandedRowKeySet.get().has(key))) {
           return [row, ...flattenRows(children, indent + 1, path, forceExpand)]
         }
         return [row]
@@ -1184,30 +1223,37 @@ const Table: FC<TableProps> = props => {
 
     const allRows = flattenRows(dataSource, 0, [], true)
     const hasTreeData = allRows.some(row => row.hasTreeChildren)
-    const processedData = buildProcessedData(currentFilters, activeSortStates)
-    const visibleRows = flattenRows(processedData)
-    const total = visibleRows.length
+    const processedData = computed(() =>
+      buildProcessedData(currentFilters.get(), activeSortStates.get()),
+    )
+    const visibleRows = computed(() => flattenRows(processedData.get()))
     const paginationEnabled = paginationConfig != null
-    const resolvedPageSize = paginationEnabled
-      ? Math.max(1, paginationConfig.pageSize ?? uncontrolledPageSizeRef.value)
-      : Math.max(total, 1)
-    const pageCount = paginationEnabled ? Math.max(1, Math.ceil(total / resolvedPageSize)) : 1
-    const currentPage = paginationEnabled
-      ? clampPage(paginationConfig.current ?? uncontrolledPageRef.value, pageCount)
-      : 1
-    const pageRows = paginationEnabled
-      ? visibleRows.slice((currentPage - 1) * resolvedPageSize, currentPage * resolvedPageSize)
-      : visibleRows
-    const pageData = pageRows.map(row => row.record)
+    const pageState = computed(() => {
+      const rows = visibleRows.get()
+      const total = rows.length
+      const pageSize = paginationEnabled
+        ? Math.max(1, paginationConfig.pageSize ?? uncontrolledPageSizeRef.value)
+        : Math.max(total, 1)
+      const pageCount = paginationEnabled ? Math.max(1, Math.ceil(total / pageSize)) : 1
+      const currentPage = paginationEnabled
+        ? clampPage(paginationConfig.current ?? uncontrolledPageRef.value, pageCount)
+        : 1
+      const pageRows = paginationEnabled
+        ? rows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+        : rows
+      return { total, pageSize, pageCount, currentPage, pageRows }
+    })
 
-    const selectedRowKeys = rowSelection?.selectedRowKeys
-      ? [...rowSelection.selectedRowKeys]
-      : [...selectedRowKeysRef.value]
-    const selectedRowKeySet = /*#__PURE__*/ new Set(selectedRowKeys)
+    const selectedRowKeys = computed(() =>
+      rowSelection?.selectedRowKeys
+        ? [...rowSelection.selectedRowKeys]
+        : [...selectedRowKeysRef.value],
+    )
+    const selectedRowKeySet = computed(() => /*#__PURE__*/ new Set(selectedRowKeys.get()))
 
     const selectionAlign = rowSelection?.align ?? 'center'
     const hasSelection = !!rowSelection
-    const hasExpandedRowRender = !!expandable?.expandedRowFormatter
+    const hasExpandedRowRender = !!expandedRowRender
     const hasExpand = hasExpandedRowRender || hasTreeData
     const expandColumnVisible = hasExpand && expandable?.showExpandColumn !== false
     const extraColumnCount = (hasSelection ? 1 : 0) + (expandColumnVisible ? 1 : 0)
@@ -1261,26 +1307,33 @@ const Table: FC<TableProps> = props => {
       if (root) root.scrollTop = 0
     }
 
-    const sortColumnsContext = normalizeSortStates(activeSortStates)
-      .map(sortState => {
-        const leaf = leafColumnMap.get().get(sortState.key)
-        if (!leaf) return null
-        return {
-          column: leaf.column,
-          columnKey: sortState.key,
-          order: sortState.order,
-        }
-      })
-      .filter(Boolean) as Array<{ column: ColumnItem; columnKey: string; order: SortOrder }>
+    const sortColumnsContext = computed(
+      () =>
+        normalizeSortStates(activeSortStates.get())
+          .map(sortState => {
+            const leaf = leafColumnMap.get().get(sortState.key)
+            if (!leaf) return null
+            return {
+              column: leaf.column,
+              columnKey: sortState.key,
+              order: sortState.order,
+            }
+          })
+          .filter(Boolean) as Array<{
+          column: ColumnItem
+          columnKey: string
+          order: SortOrder
+        }>,
+    )
 
     const getColumnTitleNode = (column: ColumnItem, key: string) => {
       const titleValue = column.title
       if (typeof titleValue === 'function') {
         return titleValue({
-          sortOrder: activeSortStateMap.get(key)?.order ?? null,
-          filteredValue: currentFilters[key] ?? [],
-          sortColumns: sortColumnsContext,
-          filters: activeFilters,
+          sortOrder: activeSortStateMap.get().get(key)?.order ?? null,
+          filteredValue: currentFilters.get()[key] ?? [],
+          sortColumns: sortColumnsContext.get(),
+          filters: activeFilters.get(),
         })
       }
       return titleValue
@@ -1339,6 +1392,7 @@ const Table: FC<TableProps> = props => {
       const nextSortStates = (() => {
         if (multiple != null) {
           const next = activeSortStates
+            .get()
             .filter(state => {
               const stateColumn = leafColumnMap.get().get(state.key)?.column
               return (
@@ -1359,9 +1413,9 @@ const Table: FC<TableProps> = props => {
       scrollToTopIfNeeded()
       emitTableChange(
         'sort',
-        paginationEnabled ? 1 : currentPage,
-        resolvedPageSize,
-        currentFilters,
+        paginationEnabled ? 1 : pageState.get().currentPage,
+        pageState.get().pageSize,
+        currentFilters.get(),
         nextSortStates,
       )
       setTimeout(() => {
@@ -1376,7 +1430,7 @@ const Table: FC<TableProps> = props => {
               row => [row.dataset.rueTableRowKey, row],
             ),
           )
-          flattenRows(buildProcessedData(currentFilters, nextSortStates)).forEach(row => {
+          flattenRows(buildProcessedData(currentFilters.get(), nextSortStates)).forEach(row => {
             const element = rows.get(String(row.key))
             if (element) body.appendChild(element)
           })
@@ -1386,7 +1440,7 @@ const Table: FC<TableProps> = props => {
 
     const updateFilterState = (columnKey: string, values: any[], closeMenu: boolean) => {
       const nextValues = normalizeFilterValues(values)
-      const nextFilters = { ...currentFilters, [columnKey]: nextValues }
+      const nextFilters = { ...currentFilters.get(), [columnKey]: nextValues }
       const column = leafColumns.get().find(leaf => leaf.key === columnKey)?.column
       if (column?.filteredValue === undefined) setFilterStateRef(nextFilters)
       setDraftFilterStateRef(current => ({ ...current, [columnKey]: nextValues }))
@@ -1396,23 +1450,29 @@ const Table: FC<TableProps> = props => {
       scrollToTopIfNeeded()
       emitTableChange(
         'filter',
-        paginationEnabled ? 1 : currentPage,
-        resolvedPageSize,
+        paginationEnabled ? 1 : pageState.get().currentPage,
+        pageState.get().pageSize,
         nextFilters,
-        activeSortStates,
+        activeSortStates.get(),
       )
     }
 
     const updatePage = (nextPage: number) => {
-      const safePage = clampPage(nextPage, pageCount)
+      const safePage = clampPage(nextPage, pageState.get().pageCount)
       if (paginationEnabled && paginationConfig.current === undefined)
         setUncontrolledPageRef(safePage)
       bumpStateVersion()
       if (paginationEnabled && paginationConfig.onChange) {
-        paginationConfig.onChange(safePage, resolvedPageSize)
+        paginationConfig.onChange(safePage, pageState.get().pageSize)
       }
       scrollToTopIfNeeded()
-      emitTableChange('paginate', safePage, resolvedPageSize, currentFilters, activeSortStates)
+      emitTableChange(
+        'paginate',
+        safePage,
+        pageState.get().pageSize,
+        currentFilters.get(),
+        activeSortStates.get(),
+      )
     }
 
     const getSelectableRows = (rows: FlattenRow[]) => {
@@ -1425,12 +1485,18 @@ const Table: FC<TableProps> = props => {
       })
     }
 
-    const selectablePageRows = getSelectableRows(pageRows)
-    const selectablePageKeys = selectablePageRows.map(row => row.key)
-    const allSelectedOnPage =
-      selectablePageKeys.length > 0 && selectablePageKeys.every(key => selectedRowKeySet.has(key))
-    const someSelectedOnPage =
-      selectablePageKeys.some(key => selectedRowKeySet.has(key)) && !allSelectedOnPage
+    const selectablePageRows = computed(() => getSelectableRows(pageState.get().pageRows))
+    const selectablePageKeys = computed(() => selectablePageRows.get().map(row => row.key))
+    const allSelectedOnPage = computed(
+      () =>
+        selectablePageKeys.get().length > 0 &&
+        selectablePageKeys.get().every(key => selectedRowKeySet.get().has(key)),
+    )
+    const someSelectedOnPage = computed(
+      () =>
+        selectablePageKeys.get().some(key => selectedRowKeySet.get().has(key)) &&
+        !allSelectedOnPage.get(),
+    )
 
     const updateSelectedKeys = (
       nextKeys: TableKey[],
@@ -1440,7 +1506,6 @@ const Table: FC<TableProps> = props => {
       nativeEvent?: Event,
     ) => {
       if (rowSelection?.selectedRowKeys === undefined) setSelectedRowKeysRef([...nextKeys])
-      bumpStateVersion()
       const selectedRows = allRows.filter(row => nextKeys.includes(row.key)).map(row => row.record)
       if (record !== undefined && rowSelection?.onSelect && typeof selected === 'boolean') {
         rowSelection.onSelect(record, selected, selectedRows, nativeEvent)
@@ -1450,7 +1515,7 @@ const Table: FC<TableProps> = props => {
 
     const selectAll = (checked: boolean) => {
       if (!rowSelection || rowSelection.type === 'radio') return
-      const pageKeySet = /*#__PURE__*/ new Set(selectablePageKeys)
+      const pageKeySet = /*#__PURE__*/ new Set(selectablePageKeys.get())
       const existingKeys = (rowSelection.selectedRowKeys ?? selectedRowKeysRef.value) as TableKey[]
       const nextKeySet = /*#__PURE__*/ new Set(existingKeys)
       pageKeySet.forEach(key => {
@@ -1467,13 +1532,13 @@ const Table: FC<TableProps> = props => {
 
     const getExpandableState = (row: FlattenRow, rowIndex: number) => {
       const canExpandExtra =
-        !!expandable?.expandedRowFormatter &&
+        !!expandedRowRender &&
         (expandable?.rowExpandable ? expandable.rowExpandable(row.record) : true)
       const enabled = row.hasTreeChildren || canExpandExtra
       return {
         key: row.key,
         enabled,
-        expanded: expandedRowKeySet.has(row.key),
+        expanded: expandedRowKeySet.get().has(row.key),
         hasExpandedRowRender: canExpandExtra,
         indent: row.indent,
         rowIndex,
@@ -1483,7 +1548,7 @@ const Table: FC<TableProps> = props => {
     const toggleExpandedRow = (row: FlattenRow, rowIndex: number) => {
       const state = getExpandableState(row, rowIndex)
       if (!state.enabled) return
-      const nextKeySet = /*#__PURE__*/ new Set(expandedRowKeys)
+      const nextKeySet = /*#__PURE__*/ new Set(expandedRowKeys.get())
       if (state.expanded) nextKeySet.delete(state.key)
       else nextKeySet.add(state.key)
       const nextKeys = Array.from(nextKeySet)
@@ -1520,10 +1585,10 @@ const Table: FC<TableProps> = props => {
         : openFilterMenuKey.value === columnKey
       if (visible || draftFilterStateRef.value[columnKey] !== undefined) {
         return normalizeFilterValues(
-          draftFilterStateRef.value[columnKey] ?? currentFilters[columnKey],
+          draftFilterStateRef.value[columnKey] ?? currentFilters.get()[columnKey],
         )
       }
-      return normalizeFilterValues(currentFilters[columnKey])
+      return normalizeFilterValues(currentFilters.get()[columnKey])
     }
 
     const setDraftFilterValues = (columnKey: string, values: any[]) => {
@@ -1777,8 +1842,8 @@ const Table: FC<TableProps> = props => {
       arg1: ColumnItem
     }) => {
       const titleNode = getColumnTitleNode(column, leafKey)
-      const filtered = column.filtered ?? (currentFilters[leafKey] ?? []).length > 0
-      const sortOrder = activeSortStateMap.get(leafKey)?.order ?? null
+      const filtered = column.filtered ?? (currentFilters.get()[leafKey] ?? []).length > 0
+      const sortOrder = activeSortStateMap.get().get(leafKey)?.order ?? null
       const draftValues = getDraftFilterValues(leafKey, column)
       const filterSearchValue = filterSearchRef.value[leafKey] ?? ''
       const visible = resolveFilterDropdownOpen(column, leafKey)
@@ -1912,7 +1977,7 @@ const Table: FC<TableProps> = props => {
         ? { ...rowSelection.getCheckboxProps(row.record) }
         : {}
       if (rowSelection.disabled) checkboxProps.disabled = true
-      const checked = selectedRowKeySet.has(row.key)
+      const checked = selectedRowKeySet.get().has(row.key)
       const inputClassName = rowSelection.type === 'radio' ? 'radio' : 'checkbox'
       const onChangeHandler = (event: any) => {
         const input = event.target as HTMLInputElement
@@ -1936,6 +2001,7 @@ const Table: FC<TableProps> = props => {
         <label onClick={(event: any) => event.stopPropagation()}>
           <input
             type={rowSelection.type === 'radio' ? 'radio' : 'checkbox'}
+            name={rowSelection.type === 'radio' ? `${tableId.value}-selection` : undefined}
             className={inputClassName}
             checked={checked}
             onChange={onChangeHandler}
@@ -1952,7 +2018,13 @@ const Table: FC<TableProps> = props => {
             rowSelection.columnWidth ? { width: rowSelection.columnWidth as any } : undefined,
           )}
         >
-          <div className={rowSelection.cellClassName} data-checked={String(checked)}>
+          <div
+            className={mergeClassNames(
+              'inline-flex items-center gap-2',
+              rowSelection.cellClassName,
+            )}
+            data-checked={String(checked)}
+          >
             <SelectionControlView />
             {rowSelection.cellLabelFormatter ? (
               <span>{String(rowSelection.cellLabelFormatter(checked, row.record, rowIndex))}</span>
@@ -1967,7 +2039,13 @@ const Table: FC<TableProps> = props => {
             rowSelection.columnWidth ? { width: rowSelection.columnWidth as any } : undefined,
           )}
         >
-          <div className={rowSelection.cellClassName} data-checked={String(checked)}>
+          <div
+            className={mergeClassNames(
+              'inline-flex items-center gap-2',
+              rowSelection.cellClassName,
+            )}
+            data-checked={String(checked)}
+          >
             <SelectionControlView />
             {rowSelection.cellLabelFormatter ? (
               <span>{String(rowSelection.cellLabelFormatter(checked, row.record, rowIndex))}</span>
@@ -2006,13 +2084,24 @@ const Table: FC<TableProps> = props => {
       )
     }
 
-    const summaryInfo = { total, page: currentPage, pageSize: resolvedPageSize }
-    const pageDataWithTotal: any = pageData.slice()
-    ;(pageDataWithTotal as any).total = total
+    const RenderBodyRow = ({ arg0: row, arg1: rowIndex }: { arg0: FlattenRow; arg1: number }) =>
+      renderBodyRow(row, rowIndex)
+
+    const pageData = computed(() => pageState.get().pageRows.map(row => row.record))
+    const summaryInfo = computed(() => ({
+      total: pageState.get().total,
+      page: pageState.get().currentPage,
+      pageSize: pageState.get().pageSize,
+    }))
+    const pageDataWithTotal = computed(() => {
+      const data: any = pageData.get().slice()
+      data.total = pageState.get().total
+      return data
+    })
     const pagerPlacements = resolvePaginationPlacements(paginationConfig)
     const showPager =
       paginationEnabled &&
-      !(paginationConfig?.hideOnSinglePage && pageCount <= 1) &&
+      !(paginationConfig?.hideOnSinglePage && pageState.get().pageCount <= 1) &&
       !(pagerPlacements.length === 1 && pagerPlacements[0] === 'none')
 
     const RenderPager = ({ arg0: placement }: { arg0: PaginationPlacement }) => {
@@ -2029,15 +2118,15 @@ const Table: FC<TableProps> = props => {
         >
           <button
             className="btn btn-ghost btn-xs"
-            disabled={currentPage <= 1}
-            onClick={() => updatePage(currentPage - 1)}
+            disabled={pageState.get().currentPage <= 1}
+            onClick={() => updatePage(pageState.get().currentPage - 1)}
           >
             Prev
           </button>
-          {Array.from({ length: pageCount }).map((_, index) => (
+          {Array.from({ length: pageState.get().pageCount }).map((_, index) => (
             <button
               key={`page-${placement}-${index + 1}`}
-              className={`btn btn-ghost btn-xs${currentPage === index + 1 ? ' btn-active' : ''}`}
+              className={`btn btn-ghost btn-xs${pageState.get().currentPage === index + 1 ? ' btn-active' : ''}`}
               onClick={() => updatePage(index + 1)}
             >
               {index + 1}
@@ -2045,8 +2134,8 @@ const Table: FC<TableProps> = props => {
           ))}
           <button
             className="btn btn-ghost btn-xs"
-            disabled={currentPage >= pageCount}
-            onClick={() => updatePage(currentPage + 1)}
+            disabled={pageState.get().currentPage >= pageState.get().pageCount}
+            onClick={() => updatePage(pageState.get().currentPage + 1)}
           >
             Next
           </button>
@@ -2063,9 +2152,11 @@ const Table: FC<TableProps> = props => {
           <input
             type="checkbox"
             className="checkbox"
-            checked={allSelectedOnPage}
-            aria-checked={someSelectedOnPage ? 'mixed' : allSelectedOnPage ? 'true' : 'false'}
-            disabled={rowSelection?.disabled || selectablePageKeys.length === 0}
+            checked={allSelectedOnPage.get()}
+            aria-checked={
+              someSelectedOnPage.get() ? 'mixed' : allSelectedOnPage.get() ? 'true' : 'false'
+            }
+            disabled={rowSelection?.disabled || selectablePageKeys.get().length === 0}
             onChange={(event: any) => selectAll((event.target as HTMLInputElement).checked)}
             {...headerCheckboxProps}
           />
@@ -2107,7 +2198,7 @@ const Table: FC<TableProps> = props => {
             className={mergeClassNames('p-2', semanticClasses.title)}
             style={semanticStyles.title}
           >
-            <RenderTableSection render={titleRender} data={pageData} />
+            <RenderTableSection render={titleRender} data={pageData.get()} />
           </div>
         ) : null}
         <table className={cls} style={tableStyle} data-rue-table-id={tableId.value}>
@@ -2121,15 +2212,19 @@ const Table: FC<TableProps> = props => {
             className={semanticClasses.tbody}
             style={semanticStyles.tbody}
           >
-            {pageRows.map((row, rowIndex) => renderBodyRow(row, rowIndex))}
-            {pageRows.length === 0 ? (
+            {pageState.get().pageRows.map((row, rowIndex) => (
+              <RenderBodyRow key={row.renderKey} arg0={row} arg1={rowIndex} />
+            ))}
+            {pageState.get().pageRows.length === 0 ? (
               <tr>
                 <td
                   colSpan={bodyColSpan}
                   className={mergeClassNames(semanticClasses.empty, alignClass('center'))}
                   style={semanticStyles.empty}
                 >
-                  {String(typeof emptyText !== 'undefined' ? emptyText : localeText.emptyText)}
+                  <RenderTableValue
+                    value={typeof emptyText !== 'undefined' ? emptyText : localeText.emptyText}
+                  />
                 </td>
               </tr>
             ) : null}
@@ -2139,7 +2234,13 @@ const Table: FC<TableProps> = props => {
             <tfoot className={semanticClasses.tfoot} style={semanticStyles.tfoot}>
               {typeof summary === 'function' ? (
                 <tr className={semanticClasses.summary} style={semanticStyles.summary}>
-                  <td colSpan={bodyColSpan}>{String(summary(pageDataWithTotal, summaryInfo))}</td>
+                  <td colSpan={bodyColSpan}>
+                    <RenderTableSummary
+                      render={summary}
+                      data={pageDataWithTotal.get()}
+                      info={summaryInfo.get()}
+                    />
+                  </td>
                 </tr>
               ) : null}
               {showPager ? (
@@ -2164,7 +2265,7 @@ const Table: FC<TableProps> = props => {
             className={mergeClassNames('p-2', semanticClasses.footer)}
             style={semanticStyles.footer}
           >
-            <RenderTableSection render={footerRender} data={pageData} />
+            <RenderTableSection render={footerRender} data={pageData.get()} />
           </div>
         ) : null}
         {loadingConfig.spinning ? (

@@ -453,7 +453,8 @@ const Button: FC<ButtonProps> = (
   const mergedDisabled = !!disabled || normalizedLoading.active
   const renderAs = as ?? (href ? 'a' : 'button')
   const loadingVisible = normalizedLoading.active
-  const hasIcon = loadingVisible || slots.icon != null
+  const resolvedIcon = slots.icon ?? icon
+  const hasIcon = loadingVisible || resolvedIcon != null
   const hasChildren = children != null
 
   let cls = group ? 'btn join-item' : 'btn'
@@ -512,7 +513,7 @@ const Button: FC<ButtonProps> = (
           hasIcon={hasIcon}
           hasChildren={hasChildren}
         >
-          <Template slot="icon">{slots.icon}</Template>
+          <Template slot="icon">{resolvedIcon}</Template>
           <Template slot="loadingIcon">
             {slots.loadingIcon ? <>{slots.loadingIcon}</> : <DefaultLoadingIcon size={size} />}
           </Template>
@@ -540,7 +541,7 @@ const Button: FC<ButtonProps> = (
           hasIcon={hasIcon}
           hasChildren={hasChildren}
         >
-          <Template slot="icon">{slots.icon}</Template>
+          <Template slot="icon">{resolvedIcon}</Template>
           <Template slot="loadingIcon">
             {slots.loadingIcon ? <>{slots.loadingIcon}</> : <DefaultLoadingIcon size={size} />}
           </Template>
@@ -566,7 +567,7 @@ const Button: FC<ButtonProps> = (
         hasIcon={hasIcon}
         hasChildren={hasChildren}
       >
-        <Template slot="icon">{slots.icon}</Template>
+        <Template slot="icon">{resolvedIcon}</Template>
         <Template slot="loadingIcon">
           {slots.loadingIcon ? <>{slots.loadingIcon}</> : <DefaultLoadingIcon size={size} />}
         </Template>

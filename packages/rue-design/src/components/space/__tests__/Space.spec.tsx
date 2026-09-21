@@ -84,6 +84,51 @@ describe('Space', () => {
     })
   })
 
+  it('renders separator and split props between direct children', async () => {
+    const container = mountContainer()
+    let separatorCalls = 0
+
+    mountTestApp(container, () =>
+      render(
+        <Space
+          data-testid="space-separator-prop"
+          separator={() => {
+            separatorCalls += 1
+            return <strong className="custom-separator">/</strong>
+          }}
+        >
+          <span>Workspace</span>
+          <span>Design</span>
+          <span>Space</span>
+        </Space>,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const root = container.querySelector('[data-testid="space-separator-prop"]') as HTMLElement
+      expect(root.querySelectorAll('.rue-space-separator')).toHaveLength(2)
+      expect(root.querySelectorAll('.custom-separator')).toHaveLength(2)
+      expect(separatorCalls).toBe(1)
+      expect(root.querySelector('[data-rue-space-separator-template]')).toBeFalsy()
+    })
+
+    mountTestApp(container, () =>
+      render(
+        <Space split="·" data-testid="space-split-prop">
+          <span>Key</span>
+          <span>Value</span>
+        </Space>,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const root = container.querySelector('[data-testid="space-split-prop"]') as HTMLElement
+      expect(root.querySelector('.rue-space-separator')?.textContent).toBe('·')
+    })
+  })
+
   it('supports custom tags and block layout', async () => {
     const container = mountContainer()
 

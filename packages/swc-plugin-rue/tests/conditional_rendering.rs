@@ -134,7 +134,7 @@ export default ConditionalRendering;
     let normalized = utils::normalize(&utils::strip_marker(&out));
     assert!(normalized.contains("_$compiledBranchAt"), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
-    assert!(normalized.contains("RouterLink.__rueHref"), "{normalized}");
-    assert!(normalized.contains("effect"), "{normalized}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{normalized}");
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{normalized}");
     assert!(!normalized.contains("watchEffect"), "{normalized}");
 }

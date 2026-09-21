@@ -54,7 +54,7 @@ export default Comp;
     assert!(normalized.contains("_$compiledComponent(Fragment, ()=>({"), "{normalized}");
     assert!(normalized.contains("_$mountCompiledSlotFactory"), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
-    assert!(normalized.contains("effect(()=>{ const __slot = (count.value)"), "{normalized}");
+    assert!(normalized.contains("_$compiledValueFactory(count.value)"), "{normalized}");
     assert!(!normalized.contains("vapor("), "{normalized}");
     assert!(!normalized.contains("watchEffect"), "{normalized}");
 }

@@ -49,9 +49,9 @@ export interface EmptyPresentedImageProps {
 /** EmptyProps 组件属性。 */
 export interface EmptyProps {
   /** image 区域配置。 */
-  image?: string | typeof DefaultPresentedImage | typeof SimplePresentedImage | null | false
+  image?: any
   /** 描述内容。 */
-  description?: string | number | false | null
+  description?: any
   /** imageStyle 内联样式。 */
   imageStyle?: any
   /** imageAlt 配置项。 */
@@ -434,20 +434,6 @@ const Empty = (({
   const imageShellStyle = mergeStyles(styles?.image, imageStyle)
   const descriptionStyle = mergeStyles(styles?.description)
   const footerStyle = mergeStyles(styles?.footer)
-  const ImageContent = () =>
-    typeof mergedImage === 'string' ? (
-      <img
-        src={mergedImage}
-        alt={resolveAltText(mergedDescription, imageAlt)}
-        draggable="false"
-        className="block h-auto w-full object-contain"
-      />
-    ) : mergedImage === SimplePresentedImage ? (
-      <SimplePresentedImage size={normalizedSize} />
-    ) : (
-      <DefaultPresentedImage size={normalizedSize} />
-    )
-
   return (
     <div
       {...rest}
@@ -473,9 +459,20 @@ const Empty = (({
         >
           {hasImage ? (
             <div data-rue-empty-image="true" className={imageShellCls} style={imageShellStyle}>
-              <>
-                <ImageContent />
-              </>
+              {typeof mergedImage === 'string' ? (
+                <img
+                  src={mergedImage}
+                  alt={resolveAltText(mergedDescription, imageAlt)}
+                  draggable="false"
+                  className="block h-auto w-full object-contain"
+                />
+              ) : mergedImage === SimplePresentedImage ? (
+                <SimplePresentedImage size={normalizedSize} />
+              ) : mergedImage === DefaultPresentedImage ? (
+                <DefaultPresentedImage size={normalizedSize} />
+              ) : (
+                mergedImage
+              )}
             </div>
           ) : null}
 
@@ -485,7 +482,7 @@ const Empty = (({
               className={descriptionCls}
               style={descriptionStyle}
             >
-              {String(mergedDescription)}
+              {mergedDescription}
             </div>
           ) : null}
 

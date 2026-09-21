@@ -91,10 +91,9 @@ export default MemoDemo
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/memo_directive_full.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("_$compiledMemo(\"memo:"));
+    assert!(normalized.contains("_$compiledMemo(__slot2, __slot3, __slot4)"));
     assert!(!normalized.contains("useMemo"));
-    assert!(normalized.contains("renderAnchor"));
-    assert!(normalized.contains("effect(()=>{ const __slot = _$compiledMemo"));
+    assert!(normalized.contains("_$mountCompiledSlotAt"));
     assert!(!normalized.contains("effect(()=>{ const __slot = (props.label);"));
     assert!(!normalized.contains("()=><section"));
     assert!(!normalized.contains("v-memo"));
@@ -136,8 +135,7 @@ export default ListMemoDemo
     assert!(normalized.contains(
         "_$compiledListMemo(()=>[ _$rowItem1.id === _$compiledPropsGet(props, \"selectedId\")"
     ));
-    assert!(normalized.contains("_$mountCompiledKeyedSingleRow("));
-    assert!(normalized.contains("_$mountCompiledSlotFactory("));
+    assert!(normalized.contains("_$mountCompiledKeyedSingleRowDirect("));
     assert!(normalized.contains("_$rowItem1.name"));
     assert!(normalized.contains("_$rowPatch, _map1_memo, _$rowTarget"));
     assert!(!normalized.contains("_$mountCompiledKeyedRowSetup("));

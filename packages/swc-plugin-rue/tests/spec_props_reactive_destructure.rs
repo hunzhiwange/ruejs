@@ -291,5 +291,5 @@ const Comp: FC<{ open?: boolean; items: string[] }> = ({ open = false, items }) 
             .contains(&utils::normalize("__rue_props.open === void 0 ? false : __rue_props.open",)),
         "{out}",
     );
-    assert!(normalized.contains(&utils::normalize("if (!visible.get())")), "{out}");
+    assert!(normalized.contains(&utils::normalize("if (!__rue_phase2_visible.get())")), "{out}");
 }

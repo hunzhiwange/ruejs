@@ -16,7 +16,12 @@ export type DOMEventOperations = {
 const isEventPropName = (name: string) =>
   name.length > 2 && name.startsWith('on') && /[A-Z]/.test(name[2] ?? '')
 
-const toEventName = (name: string) => name.slice(2).toLowerCase()
+const toEventName = (name: string) => {
+  const event = name.slice(2).toLowerCase()
+  // JSX focus handlers are expected to observe focus changes from descendants.
+  // Native focus/blur do not bubble, while focusin/focusout preserve that semantic.
+  return event === 'focus' ? 'focusin' : event === 'blur' ? 'focusout' : event
+}
 
 const normalizeAttributeName = (name: string) =>
   name === 'className' ? 'class' : name === 'htmlFor' ? 'for' : name
@@ -51,8 +56,53 @@ export const applyDOMRef = (ref: unknown, value: Element | null): void => {
   }
 }
 
+// HTML pattern values are compiled with the `v` flag by modern browsers. Under
+// those rules a literal hyphen at either edge of a character class must be
+// escaped, even though the same spelling was accepted by the former `u`-flag
+// behavior. Keep ranges such as A-Z intact while accepting legacy edge literals.
+export const normalizeHTMLPattern = (value: string): string => {
+  let normalized = ''
+  let inClass = false
+  let firstClassToken = false
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index]
+    if (character === '\\') {
+      normalized += character
+      if (index + 1 < value.length) normalized += value[++index]
+      firstClassToken = false
+      continue
+    }
+    if (!inClass && character === '[') {
+      inClass = true
+      firstClassToken = true
+      normalized += character
+      continue
+    }
+    if (inClass && character === '^' && firstClassToken) {
+      normalized += character
+      continue
+    }
+    if (inClass && character === ']') {
+      inClass = false
+      firstClassToken = false
+      normalized += character
+      continue
+    }
+    if (inClass && character === '-' && (firstClassToken || value[index + 1] === ']')) {
+      normalized += '\\-'
+    } else {
+      normalized += character
+    }
+    firstClassToken = false
+  }
+
+  return normalized
+}
+
 export const setDOMAttribute = (element: Element, name: string, value: unknown): void => {
-  element.setAttribute(name, String(value))
+  const stringValue = String(value)
+  element.setAttribute(name, name === 'pattern' ? normalizeHTMLPattern(stringValue) : stringValue)
 }
 
 export const setDOMClassName = (element: Element, value: unknown): void => {
@@ -120,6 +170,7 @@ export const setDOMProperty = (element: Element, name: string, value: unknown): 
   if (setFormControlProperty(element, name, value)) return
 
   const target = element as unknown as Record<string, unknown>
+  if (name === 'pattern' && typeof value === 'string') value = normalizeHTMLPattern(value)
   if (isCustomElement(element)) {
     if (value == null || value === false) {
       try {

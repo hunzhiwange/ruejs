@@ -17,7 +17,7 @@ it('runs the actual ComponentEmit demo through closed capability imports', () =>
     readFileSync('app/pages/examples/home-demos/ComponentEmitDemo.tsx', 'utf8'),
     'ComponentEmitDemo.tsx',
   )
-  expect(code).not.toMatch(/renderAnchor|compiledValue|MarkComponentRenderReactive/)
+  expect(code).not.toMatch(/renderAnchor|MarkComponentRenderReactive/)
   const root = _$createComponent(app.default, {})
   try {
     root.__rue_compiled_mount(document.body)

@@ -1,9 +1,8 @@
-/** The compiler calls this only for a select, after its options have been created. */
+import { installFormControlMutationSync } from './dom.browser'
+import { setFormControlValue, syncFormControlAfterMutation } from './form-controls'
+
+/** Keep compiled selects controlled even when dynamic options mount after this binding runs. */
 export const _$compiledSelectValue = (element: HTMLSelectElement, value: unknown): void => {
-  if (element.multiple) {
-    const values = new Set(
-      (Array.isArray(value) ? value : value == null ? [] : [value]).map(String),
-    )
-    for (const option of element.options) option.selected = values.has(option.value)
-  } else element.value = value == null ? '' : String(value)
+  installFormControlMutationSync(syncFormControlAfterMutation)
+  setFormControlValue(element, value)
 }

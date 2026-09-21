@@ -68,7 +68,7 @@ export default Demo;
     assert!(normalized.contains(&utils::normalize(
         r#"_$compiledComponent(TooltipHost, ()=>({ "data-tip": "Home", "aria-label": "导航""#,
     )));
-    assert!(
-        normalized.contains("children: (target, slotProps, owner)=>_$mountCompiledSlotFactory")
-    );
+    assert!(normalized.contains("children: (target, slotProps, owner)=>{"), "{out}");
+    assert!(normalized.contains("_$mountCompiledSlotFactory(target, owner,"), "{out}");
+    assert!(!normalized.contains("_$createComponent(TooltipHost"), "{out}");
 }

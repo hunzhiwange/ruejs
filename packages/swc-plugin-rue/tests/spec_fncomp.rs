@@ -168,9 +168,9 @@ export default PostDetail;"##;
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("function PostDetail()"), "{normalized}");
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
-    assert!(normalized.contains("_$compiledMarkComponentRenderReactive();"), "{normalized}");
+    assert!(!normalized.contains("_$compiledMarkComponentRenderReactive();"), "{normalized}");
     assert!(
-        normalized.contains("_$compiledMarkComponentRenderReactive(PostDetail)"),
+        !normalized.contains("_$compiledMarkComponentRenderReactive(PostDetail)"),
         "{normalized}"
     );
     assert!(normalized.contains("function double()"), "{normalized}");

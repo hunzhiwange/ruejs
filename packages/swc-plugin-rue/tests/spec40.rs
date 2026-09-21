@@ -73,7 +73,7 @@ export default HelloWorld;
     std::fs::write("target/vapor_outputs/spec40.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
-    assert!(normalized.contains("_$compiledMarkComponentRenderReactive"), "{normalized}");
+    assert!(!normalized.contains("_$compiledMarkComponentRenderReactive"), "{normalized}");
     assert!(normalized.contains("x.value = 100"), "{normalized}");
     assert!(normalized.contains("if (x.value > 500)"), "{normalized}");
     assert!(normalized.contains("x.value: {x.value}"), "{normalized}");

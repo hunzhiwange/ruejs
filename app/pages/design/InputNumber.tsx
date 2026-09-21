@@ -147,15 +147,19 @@ const BasicShowcase: FC = () => {
         </Fieldset>
 
         <Fieldset>
-          <Fieldset.Legend>延迟回写</Fieldset.Legend>
+          <Fieldset.Legend>失焦后限制范围</Fieldset.Legend>
           <InputNumber
             className="w-full"
             defaultValue={250}
+            min={100}
+            max={500}
             step={25}
-            changeOnBlur={false}
+            changeOnBlur={true}
             suffix="ms"
           />
-          <Fieldset.Label as="p">关闭 blur 归一化时，区间外值会展示到业务层处理。</Fieldset.Label>
+          <Fieldset.Label as="p">
+            输入时允许暂时超出 100–500；移开焦点后会自动纠正到最接近的边界值。
+          </Fieldset.Label>
         </Fieldset>
 
         <Fieldset>

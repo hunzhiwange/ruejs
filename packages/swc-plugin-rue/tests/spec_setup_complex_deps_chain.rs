@@ -33,10 +33,10 @@ const Comp: FC = ()=>{
     const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = ref(1);
             const b = computed(()=>a.value + 1);
-            b.get();
+            untrack(()=>b.get());
             const __rue_phase2_b = b;
             const c = computed(()=>__rue_phase2_b.get() + a.value);
-            c.get();
+            untrack(()=>c.get());
             const __rue_phase2_c = c;
             function log() {
                 console.log(a.value, __rue_phase2_b.get(), __rue_phase2_c.get());

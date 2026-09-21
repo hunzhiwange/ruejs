@@ -141,6 +141,30 @@ describe('Fab', () => {
     })
   })
 
+  it('mounts JSX icon props instead of stringifying compiled nodes', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Fab
+          trigger="click"
+          icon={<svg data-testid="trigger-icon" />}
+          closeIcon={<svg data-testid="close-icon" />}
+          items={[{ key: 'action', icon: <svg data-testid="action-icon" /> }]}
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(container.textContent).not.toContain('[object Object]')
+      expect(container.querySelector('[data-testid="trigger-icon"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="close-icon"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="action-icon"]')).not.toBeNull()
+    })
+  })
+
   it('uses an internal hover bridge between trigger and panel', async () => {
     const container = mountContainer()
     resetActiveRuntime()

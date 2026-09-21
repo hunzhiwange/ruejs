@@ -365,7 +365,7 @@ describe('InputNumber', () => {
       expect(input.value).toBe('15.678')
     })
 
-    input.dispatchEvent(new FocusEvent('blur', { bubbles: true }))
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
 
     await waitForContent(() => {
       expect(input.value).toBe('15.00%')

@@ -1,4 +1,4 @@
-import { Template } from '@rue-js/rue'
+import { ref, Template } from '@rue-js/rue'
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -63,6 +63,59 @@ describe('Tabs', () => {
       expect(activePanel.classList.contains('hidden')).toBe(false)
       expect(activePanel.getAttribute('aria-hidden')).toBe('false')
       expect(activePanel.textContent).toContain('Metrics panel')
+    })
+  })
+
+  it('keeps each controlled tab click bound to its own item', async () => {
+    const c = mountContainer()
+    resetActiveRuntime()
+    const activeKey = ref('c2')
+
+    mountTestApp(c, () =>
+      render(
+        <Tabs
+          style={'lift'}
+          activeKey={activeKey.value}
+          onChange={key => (activeKey.value = key)}
+          items={[
+            { key: 'c1', label: 'Tab 1' },
+            {
+              key: 'c2',
+              label: 'Tab 2',
+              className: 'text-primary [--tab-bg:orange] [--tab-border-color:red]',
+            },
+            { key: 'c3', label: 'Tab 3' },
+          ]}
+        />,
+        c,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(findTabByLabel(c, 'Tab 2')?.getAttribute('aria-selected')).toBe('true')
+      expect(findTabByLabel(c, 'Tab 2')?.classList).not.toContain(
+        '![--tab-border-color:var(--color-base-300)]',
+      )
+    })
+
+    ;(findTabByLabel(c, 'Tab 1') as HTMLButtonElement).click()
+    await waitForContent(() => {
+      expect(activeKey.value).toBe('c1')
+      expect(findTabByLabel(c, 'Tab 1')?.getAttribute('aria-selected')).toBe('true')
+      expect(findTabByLabel(c, 'Tab 2')?.getAttribute('aria-selected')).toBe('false')
+      expect(findTabByLabel(c, 'Tab 2')?.classList).toContain(
+        '![--tab-border-color:var(--color-base-300)]',
+      )
+    })
+
+    ;(findTabByLabel(c, 'Tab 3') as HTMLButtonElement).click()
+    await waitForContent(() => {
+      expect(activeKey.value).toBe('c3')
+      expect(findTabByLabel(c, 'Tab 3')?.getAttribute('aria-selected')).toBe('true')
+      expect(findTabByLabel(c, 'Tab 1')?.getAttribute('aria-selected')).toBe('false')
+      expect(findTabByLabel(c, 'Tab 2')?.classList).toContain(
+        '![--tab-border-color:var(--color-base-300)]',
+      )
     })
   })
 

@@ -28,6 +28,7 @@ struct TextHolePlan {
     before_path: Option<Vec<usize>>,
     kind: TemplateHoleKind,
     reuse_text: bool,
+    scalar_coercion: Option<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -47,6 +48,7 @@ pub(crate) struct MarkedTextHole<'a> {
     pub(crate) parent_path: Option<Vec<usize>>,
     pub(crate) before_path: Option<Vec<usize>>,
     pub(crate) reuse_text: bool,
+    scalar_coercion: Option<&'static str>,
     pub(crate) source: MarkedHoleSource<'a>,
 }
 
@@ -268,6 +270,48 @@ fn escape_attr(value: &str) -> Option<String> {
     )
 }
 
+fn normalize_html_pattern(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    let mut normalized = String::with_capacity(value.len());
+    let mut in_class = false;
+    let mut first_class_token = false;
+    let mut index = 0;
+
+    while index < chars.len() {
+        let character = chars[index];
+        if character == '\\' {
+            normalized.push(character);
+            if let Some(next) = chars.get(index + 1) {
+                normalized.push(*next);
+                index += 1;
+            }
+            first_class_token = false;
+        } else if !in_class && character == '[' {
+            in_class = true;
+            first_class_token = true;
+            normalized.push(character);
+        } else if in_class && character == '^' && first_class_token {
+            normalized.push(character);
+        } else if in_class && character == ']' {
+            in_class = false;
+            first_class_token = false;
+            normalized.push(character);
+        } else {
+            if in_class
+                && character == '-'
+                && (first_class_token || chars.get(index + 1) == Some(&']'))
+            {
+                normalized.push('\\');
+            }
+            normalized.push(character);
+            first_class_token = false;
+        }
+        index += 1;
+    }
+
+    normalized
+}
+
 fn normalized_attr_name(name: &str) -> &str {
     match name {
         "className" => "class",
@@ -397,9 +441,12 @@ fn serialize_attr(tag: &str, attr: &JSXAttr, out: &mut String) -> Option<bool> {
         _ => return None,
     };
 
-    let Some(value) = value else {
+    let Some(mut value) = value else {
         return Some(false);
     };
+    if name == "pattern" {
+        value = normalize_html_pattern(&value);
+    }
     out.push(' ');
     out.push_str(normalized_attr_name(name));
     out.push_str("=\"");
@@ -482,6 +529,7 @@ fn serialize_children_at(
                         before_path: None,
                         kind: TemplateHoleKind::OpaqueElement,
                         reuse_text: false,
+                        scalar_coercion: None,
                     });
                     out.push_str(&format!("<!--rue:opaque-hole:{hole_index}-->"));
                 }
@@ -551,6 +599,7 @@ fn serialize_children_at(
                     before_path: real_boundary.then_some(next_static_path).flatten(),
                     kind: TemplateHoleKind::Expression,
                     reuse_text: false,
+                    scalar_coercion: scalar_coercion_name(container),
                 });
                 if !real_boundary {
                     out.push_str(&format!("<!--rue:text-hole:{hole_index}-->"));
@@ -743,7 +792,32 @@ fn is_direct_text_candidate(container: &JSXExprContainer) -> bool {
     matches!(&container.expr, JSXExpr::Expr(expr) if candidate(expr.as_ref()))
 }
 
+fn scalar_coercion_name(container: &JSXExprContainer) -> Option<&'static str> {
+    let JSXExpr::Expr(expr) = &container.expr else {
+        return None;
+    };
+    let Expr::Call(CallExpr { callee: Callee::Expr(callee), args, .. }) =
+        crate::utils::unwrap_expr(expr.as_ref())
+    else {
+        return None;
+    };
+    let Expr::Ident(name) = crate::utils::unwrap_expr(callee.as_ref()) else {
+        return None;
+    };
+    let name = match name.sym.as_ref() {
+        "String" => "String",
+        "Number" => "Number",
+        "Boolean" => "Boolean",
+        _ => return None,
+    };
+    (args.len() == 1 && args[0].spread.is_none()).then_some(name)
+}
+
 fn marker_id(element: &JSXElement) -> Option<usize> {
+    marker_value(element)?.split('|').next()?.parse().ok()
+}
+
+fn marker_value(element: &JSXElement) -> Option<&str> {
     element.opening.attrs.iter().find_map(|attr| {
         let JSXAttrOrSpread::JSXAttr(attr) = attr else {
             return None;
@@ -757,8 +831,23 @@ fn marker_id(element: &JSXElement) -> Option<usize> {
         let Some(JSXAttrValue::Str(value)) = &attr.value else {
             return None;
         };
-        value.value.as_str()?.parse().ok()
+        value.value.as_str()
     })
+}
+
+fn marker_scalar_coercions(element: &JSXElement) -> Option<Vec<Option<&'static str>>> {
+    let (_, encoded) = marker_value(element)?.split_once('|')?;
+    Some(
+        encoded
+            .split(',')
+            .map(|name| match name {
+                "S" => Some("String"),
+                "N" => Some("Number"),
+                "B" => Some("Boolean"),
+                _ => None,
+            })
+            .collect(),
+    )
 }
 
 pub(crate) fn marked_static_template(element: &JSXElement) -> Option<(StaticTemplate, usize)> {
@@ -829,10 +918,12 @@ pub(crate) fn marked_dynamic_template(
     if holes.len() != sources.len() {
         return None;
     }
+    let original_scalar_coercions = marker_scalar_coercions(element);
     let marked_holes = holes
         .into_iter()
         .zip(sources)
-        .map(|(plan, source)| {
+        .enumerate()
+        .map(|(position, (plan, source))| {
             let source_kind = match source {
                 MarkedHoleSource::Expression(_) => TemplateHoleKind::Expression,
                 MarkedHoleSource::OpaqueElement(_) => TemplateHoleKind::OpaqueElement,
@@ -843,6 +934,10 @@ pub(crate) fn marked_dynamic_template(
                 parent_path: plan.parent_path,
                 before_path: plan.before_path,
                 reuse_text: plan.reuse_text,
+                scalar_coercion: original_scalar_coercions
+                    .as_ref()
+                    .and_then(|coercions| coercions.get(position).copied().flatten())
+                    .or(plan.scalar_coercion),
                 source,
             })
         })
@@ -938,13 +1033,31 @@ impl VisitMut for StaticTemplateCollector {
         }
 
         if let Some(template) = StaticTemplate::classify(element) {
+            let scalar_coercions = match &template.kind {
+                StaticTemplateKind::Dynamic { holes, .. } => Some(
+                    holes
+                        .iter()
+                        .map(|hole| match hole.scalar_coercion {
+                            Some("String") => "S",
+                            Some("Number") => "N",
+                            Some("Boolean") => "B",
+                            _ => "_",
+                        })
+                        .collect::<Vec<_>>()
+                        .join(","),
+                ),
+                StaticTemplateKind::Pure => None,
+            };
             let id = self.intern(template);
+            let marker = scalar_coercions
+                .map(|coercions| format!("{id}|{coercions}"))
+                .unwrap_or_else(|| id.to_string());
             element.opening.attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
                 span: DUMMY_SP,
                 name: JSXAttrName::Ident(ident(TEMPLATE_MARKER_ATTR).into()),
                 value: Some(JSXAttrValue::Str(Str {
                     span: DUMMY_SP,
-                    value: id.to_string().into(),
+                    value: marker.into(),
                     raw: None,
                 })),
             }));
@@ -1128,8 +1241,7 @@ fn resolve_vapor_hole(
     let direct_text = hole.reuse_text
         && matches!(
             &hole.source,
-            MarkedHoleSource::Expression(container)
-                if super::block::expr_container::is_compiled_text_container(transform, container)
+            MarkedHoleSource::Expression(_) if marked_hole_is_text(transform, hole)
         );
     let anchor = if hole.reuse_text && !direct_text {
         crate::element_text::replace_template_text_marker_with_comment(
@@ -1144,6 +1256,124 @@ fn resolve_vapor_hole(
         anchor
     };
     (hole_parent, anchor, direct_text)
+}
+
+fn emit_marked_target_attrs(
+    transform: &mut super::VaporTransform,
+    stmts: &mut Vec<Stmt>,
+    target: &Ident,
+    opening: &JSXOpeningElement,
+) {
+    let shadows = transform.current_scalar_constructor_shadows();
+    if crate::attrs::attrs_support_compiled_scalar(transform, opening, &shadows) {
+        crate::attrs::emit_compiled_attrs_for(transform, stmts, target, opening);
+    } else {
+        crate::attrs::emit_attrs_for(stmts, target, opening);
+    }
+}
+
+pub(crate) fn marked_hole_is_text(
+    transform: &super::VaporTransform,
+    hole: &MarkedTextHole<'_>,
+) -> bool {
+    let MarkedHoleSource::Expression(container) = &hole.source else {
+        return false;
+    };
+    if super::block::expr_container::is_compiled_text_container(transform, container) {
+        return true;
+    }
+
+    struct StaticPropRead(bool);
+    impl Visit for StaticPropRead {
+        fn visit_call_expr(&mut self, call: &CallExpr) {
+            self.0 |= crate::compiled_component::is_static_prop_get_call(call);
+            call.visit_children_with(self);
+        }
+    }
+    let mut static_prop = StaticPropRead(false);
+    container.visit_with(&mut static_prop);
+
+    hole.scalar_coercion.is_some_and(|name| {
+        !transform.current_scalar_constructor_shadows().contains(name)
+            && (static_prop.0
+                || matches!(
+                    &container.expr,
+                    JSXExpr::Expr(expr)
+                        if crate::element_expr::renderable_string_operand(
+                            transform,
+                            expr.as_ref(),
+                        )
+                        .is_none()
+                ))
+    })
+}
+
+pub(crate) fn emit_marked_text_effect(
+    transform: &mut super::VaporTransform,
+    node: &Ident,
+    hole: &MarkedTextHole<'_>,
+    stmts: &mut Vec<Stmt>,
+) -> Option<()> {
+    let MarkedHoleSource::Expression(container) = &hole.source else {
+        return None;
+    };
+    if super::block::expr_container::emit_compiled_text_effect(transform, node, container, stmts)
+        .is_some()
+    {
+        return Some(());
+    }
+    if !marked_hole_is_text(transform, hole) {
+        return None;
+    }
+    let JSXExpr::Expr(expr) = &container.expr else {
+        return None;
+    };
+    let displayed = super::block::expr_container::display_scalar_expr(
+        transform,
+        crate::utils::unwrap_expr(expr.as_ref()),
+    );
+    let displayed = if let Some(coercion) = hole.scalar_coercion {
+        crate::emit::call_ident(coercion, vec![displayed])
+    } else {
+        displayed
+    };
+    let arrow = Expr::Arrow(ArrowExpr {
+        span: DUMMY_SP,
+        params: vec![],
+        body: Box::new(BlockStmtOrExpr::Expr(Box::new(displayed))),
+        is_async: false,
+        is_generator: false,
+        type_params: None,
+        return_type: None,
+        ctxt: SyntaxContext::empty(),
+    });
+    stmts.push(expr_stmt(call_ident("_$compiledText", vec![Expr::Ident(node.clone()), arrow])));
+    Some(())
+}
+
+fn replace_marked_hole_with_text(
+    transform: &mut super::VaporTransform,
+    hole: &MarkedTextHole<'_>,
+    parent: &Ident,
+    anchor: &Ident,
+    stmts: &mut Vec<Stmt>,
+) -> Option<()> {
+    let text = transform.next_el_ident();
+    stmts.push(crate::emit::const_decl(
+        text.clone(),
+        call_ident("_$compiledCreateTextNode", vec![string_expr("")]),
+    ));
+    stmts.push(expr_stmt(call_member(
+        Expr::Ident(parent.clone()),
+        "insertBefore",
+        vec![Expr::Ident(text.clone()), Expr::Ident(anchor.clone())],
+    )));
+    stmts.push(expr_stmt(call_member(
+        Expr::Ident(parent.clone()),
+        "removeChild",
+        vec![Expr::Ident(anchor.clone())],
+    )));
+    emit_marked_text_effect(transform, &text, hole, stmts)
 }
 
 pub(crate) fn emit_marked_template_child(
@@ -1199,7 +1429,7 @@ pub(crate) fn emit_marked_template_child(
         vec![Expr::Ident(fragment)],
     )));
     for (target, target_ident) in &target_idents {
-        crate::attrs::emit_attrs_for(stmts, target_ident, target.opening);
+        emit_marked_target_attrs(transform, stmts, target_ident, target.opening);
     }
     for (expected_index, (hole, hole_parent, anchor, direct_text)) in
         hole_idents.into_iter().enumerate()
@@ -1209,10 +1439,13 @@ pub(crate) fn emit_marked_template_child(
         }
         match &hole.source {
             MarkedHoleSource::Expression(container) if direct_text => {
-                if super::block::expr_container::emit_compiled_text_effect(
-                    transform, &anchor, container, stmts,
-                )
-                .is_none()
+                if emit_marked_text_effect(transform, &anchor, hole, stmts).is_none() {
+                    return false;
+                }
+            }
+            MarkedHoleSource::Expression(_) if marked_hole_is_text(transform, hole) => {
+                if replace_marked_hole_with_text(transform, hole, &hole_parent, &anchor, stmts)
+                    .is_none()
                 {
                     return false;
                 }
@@ -1266,7 +1499,7 @@ pub(crate) fn dynamic_template_to_vapor_block(
         .collect::<Vec<_>>();
     stmts.append(&mut hole_mutations);
     for (target, target_ident) in &target_idents {
-        crate::attrs::emit_attrs_for(&mut stmts, target_ident, target.opening);
+        emit_marked_target_attrs(transform, &mut stmts, target_ident, target.opening);
     }
     for (expected_index, (hole, hole_parent, anchor, direct_text)) in
         hole_idents.into_iter().enumerate()
@@ -1276,9 +1509,10 @@ pub(crate) fn dynamic_template_to_vapor_block(
         }
         match &hole.source {
             MarkedHoleSource::Expression(container) if direct_text => {
-                super::block::expr_container::emit_compiled_text_effect(
-                    transform, &anchor, container, &mut stmts,
-                )?;
+                emit_marked_text_effect(transform, &anchor, hole, &mut stmts)?;
+            }
+            MarkedHoleSource::Expression(_) if marked_hole_is_text(transform, hole) => {
+                replace_marked_hole_with_text(transform, hole, &hole_parent, &anchor, &mut stmts)?;
             }
             MarkedHoleSource::Expression(container) => {
                 crate::element_expr::emit_element_expr_container_child_at(

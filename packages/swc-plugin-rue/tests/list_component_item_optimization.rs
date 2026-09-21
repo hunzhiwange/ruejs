@@ -22,11 +22,12 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
 
     assert!(
         out.contains(&utils::normalize(
-            "_$compiledPropsGet(props, \"items\").map((item)=>_$createComponent(Row, ()=>({ key: item.id, item: item })))"
+            "_$compiledComponent(Row, ()=>({ item: _$rowItem1.get() }))"
         )),
         "{out}"
     );
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el4, _el3)")), "{out}");
+    assert!(out.contains("_$reconcileKeyed"), "{out}");
+    assert!(out.contains("_$mountCompiledKeyedRow"), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
 }
 
@@ -56,14 +57,14 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
     let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
-    assert!(out.contains(&utils::normalize("const __child1 = _$compiledRoot(()=>")), "{out}");
+    assert!(out.contains(&utils::normalize("children: (target, slotProps, owner)=>")), "{out}");
     assert!(
         out.contains(&utils::normalize(
-            "return _$createComponent(Row, ()=>({ key: item.id, item: item, children: __child1 }));"
+            "_$compiledComponent(Row, ()=>({ item: _$rowItem1.get(), children:"
         )),
         "{out}"
     );
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot, _el4, _el3)")), "{out}");
+    assert!(out.contains("_$mountCompiledKeyedRow"), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
 }
 
@@ -89,7 +90,7 @@ const Page: FC<{ items: number[] }> = props => (
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
     assert!(out.contains("const label = `#${item}`;"), "{out}");
-    assert!(out.contains("_$createComponent(Row, ()=>({ key: item, label: label }))"), "{out}");
-    assert!(out.contains("renderAnchor(__slot, _el4, _el3)"), "{out}");
+    assert!(out.contains("_$compiledComponent(Row, ()=>({ label: label }))"), "{out}");
+    assert!(out.contains("_$mountCompiledKeyedRow"), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
 }

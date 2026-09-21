@@ -574,7 +574,7 @@ const SelectPage: FC = () => {
         <PreviewBlock
           title="Select"
           tab={tabs.basic}
-          preview={
+          preview={() => (
             <div className="card border border-base-200/80 bg-base-100 shadow-sm">
               <div className="card-body gap-3">
                 <Select
@@ -594,14 +594,14 @@ const SelectPage: FC = () => {
                 </span>
               </div>
             </div>
-          }
+          )}
           code={basicCode}
         />
 
         <PreviewBlock
           title="Data source and groups"
           tab={tabs.data}
-          preview={
+          preview={() => (
             <div className="card border border-base-200/80 bg-base-100 shadow-sm">
               <div className="card-body grid gap-4 lg:grid-cols-[minmax(0,20rem),1fr] lg:items-start">
                 <div className="grid gap-3">
@@ -641,14 +641,14 @@ const SelectPage: FC = () => {
                 </ul>
               </div>
             </div>
-          }
+          )}
           code={dataSourceCode}
         />
 
         <PreviewBlock
           title="Prefix, suffix and allowClear"
           tab={tabs.shell}
-          preview={
+          preview={() => (
             <div className="card border border-base-200/80 bg-base-100 shadow-sm">
               <div className="card-body grid gap-3 lg:grid-cols-[minmax(0,22rem),1fr] lg:items-start">
                 <div className="grid gap-3">
@@ -675,14 +675,14 @@ const SelectPage: FC = () => {
                 </div>
               </div>
             </div>
-          }
+          )}
           code={shellCode}
         />
 
         <PreviewBlock
           title="Label in value and semantic callbacks"
           tab={tabs.semantic}
-          preview={
+          preview={() => (
             <div className="card border border-base-200/80 bg-base-100 shadow-sm">
               <div className="card-body grid gap-4 lg:grid-cols-[minmax(0,22rem),1fr] lg:items-start">
                 <div className="grid gap-3">
@@ -728,7 +728,7 @@ const SelectPage: FC = () => {
                 </div>
               </div>
             </div>
-          }
+          )}
           code={semanticCode}
         />
 
@@ -913,7 +913,7 @@ const SelectPage: FC = () => {
         <PreviewBlock
           title="Native multiple listbox via nativeSize"
           tab={tabs.nativeMultiple}
-          preview={
+          preview={() => (
             <div className="card border border-base-200/80 bg-base-100 shadow-sm">
               <div className="card-body grid gap-4 lg:grid-cols-[minmax(0,20rem),1fr] lg:items-start">
                 <div className="grid gap-3">
@@ -944,7 +944,7 @@ const SelectPage: FC = () => {
                 </div>
               </div>
             </div>
-          }
+          )}
           code={nativeMultipleCode}
         />
 

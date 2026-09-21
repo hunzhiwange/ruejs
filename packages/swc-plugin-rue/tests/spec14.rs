@@ -126,9 +126,9 @@ export default FetchingData;
         normalized
             .contains("if (_$rowItem2.get().author && _$rowItem2.get().author.html_url) return")
     );
-    assert!(normalized.contains("_$compiledText(_el19, ()=>_$rowItem2.get().commit.author.name)"));
+    assert!(normalized.contains("_$compiledValueFactory(_$rowItem2.get().commit.author.name)"));
     assert!(normalized.contains("_$compiledText(_el10, ()=>currentBranch.value)"));
-    assert!(normalized.contains("const __slot = _$rowItem2.get().sha.slice(0, 7);"));
-    assert!(normalized.contains("const __slot = truncate(_$rowItem2.get().commit.message);"));
-    assert!(normalized.contains("const __slot = formatDate(_$rowItem2.get().commit.author.date);"));
+    assert!(normalized.contains("_$compiledValueFactory(_$rowItem2.get().sha.slice(0, 7))"));
+    assert!(normalized.contains("_$compiledValueFactory(truncate(__slot3))"));
+    assert!(normalized.contains("_$compiledValueFactory(formatDate(__slot4))"));
 }

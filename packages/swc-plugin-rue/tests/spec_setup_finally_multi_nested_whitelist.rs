@@ -47,7 +47,7 @@ function Comp(): JSX.Element {
                             }
                         ]
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             watchEffect(()=>{
                     onBeforeUnmount(()=>console.log('phase1', a.value));

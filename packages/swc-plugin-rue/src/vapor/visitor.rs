@@ -213,7 +213,8 @@ impl VisitMut for VaporTransform {
         for param in &arrow.params {
             collect_scalar_names_from_pat(param, &mut scalar_scope);
         }
-        scalar_scope.extend(if self.is_component_function(arrow.span) {
+        let is_component = self.is_component_function(arrow.span);
+        scalar_scope.extend(if is_component {
             crate::reactive_provenance::collect_component_parameter_scope(arrow.params.iter())
         } else {
             crate::reactive_provenance::collect_parameter_scope(arrow.params.iter())
@@ -308,7 +309,8 @@ impl VisitMut for VaporTransform {
         for param in &function.params {
             collect_scalar_names_from_pat(&param.pat, &mut scalar_scope);
         }
-        scalar_scope.extend(if self.is_component_function(function.span) {
+        let is_component = self.is_component_function(function.span);
+        scalar_scope.extend(if is_component {
             crate::reactive_provenance::collect_component_parameter_scope(
                 function.params.iter().map(|param| &param.pat),
             )

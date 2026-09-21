@@ -281,6 +281,7 @@ const buildControlClassName = ({
     control === 'none' ? undefined : resolveVariantClassName(base, variant, ghost)
 
   let cls = base
+  if (control === 'textarea') cls += ' [&>textarea]:w-full'
   if (control !== 'none' && resolvedTone) cls += ` ${base}-${resolvedTone}`
   if (control !== 'none' && resolvedSize) cls += ` ${base}-${resolvedSize}`
   if (variantClassName) cls += ` ${variantClassName}`

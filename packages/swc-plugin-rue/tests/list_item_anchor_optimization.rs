@@ -23,7 +23,7 @@ const Page: FC<{ items: Array<{ id: string; title: string }> }> = props => (
     assert!(out.contains(&utils::normalize("_$reconcileKeyed")));
     assert!(out.contains("_$template("), "{out}");
     assert!(out.contains("_$mountCompiledKeyedSingleRow"), "{out}");
-    assert!(out.contains("_$mountCompiledSlotFactory"), "{out}");
+    assert!(out.contains("_$mountCompiledKeyedSingleRowDirect"), "{out}");
     assert!(!out.contains(&utils::normalize("singleRoot:")));
     assert!(!out.contains(&utils::normalize(concat!("direct", "Root:"))));
     assert!(!out.contains(&utils::normalize("renderAnchor(__slot, parent, start)")));

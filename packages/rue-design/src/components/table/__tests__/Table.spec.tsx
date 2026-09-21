@@ -131,6 +131,27 @@ describe('Table', () => {
     expect(tds).toEqual(['A', 'Dev', 'Blue', 'B', 'Ops', 'Red'])
   })
 
+  it('renders duplicate business row keys without keyed-list collisions', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[
+            { key: 'member', name: 'First' },
+            { key: 'member', name: 'Second' },
+          ]}
+        />,
+        c,
+      ),
+    )
+    await waitTableRender()
+
+    expect(
+      Array.from(c.querySelectorAll('tbody td')).map(cell => cell.textContent?.trim()),
+    ).toEqual(['First', 'Second'])
+  })
+
   it('renders selection column with header checkbox', async () => {
     const c = document.createElement('div')
     const dataSource = [
@@ -155,6 +176,118 @@ describe('Table', () => {
     const rowCheckboxes = c.querySelectorAll('tbody input[type="checkbox"].checkbox')
     expect(headerCheckbox).toBeTruthy()
     expect(rowCheckboxes.length).toBe(2)
+  })
+
+  it('spaces selection controls from header and cell labels', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[{ key: '1', name: 'A' }]}
+          rowSelection={{
+            columnTitle: 'Members',
+            cellLabelFormatter: () => 'Select member',
+          }}
+        />,
+        c,
+      ),
+    )
+    await waitTableRender()
+
+    const headerLayout = c.querySelector('thead th:first-child > div') as HTMLElement
+    const cellLayout = c.querySelector('tbody td:first-child > div') as HTMLElement
+    expect(headerLayout.classList.contains('gap-2')).toBe(true)
+    expect(cellLayout.classList.contains('gap-2')).toBe(true)
+  })
+
+  it('keeps controlled select-all state and selected keys in sync', async () => {
+    const c = document.createElement('div')
+    const selected = ref<string[]>([])
+    const changes: string[][] = []
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[
+            { key: '1', name: 'A' },
+            { key: '2', name: 'B', disabled: true },
+            { key: '3', name: 'C' },
+          ]}
+          rowSelection={{
+            selectedRowKeys: selected.value,
+            getCheckboxProps: record => ({ disabled: record.disabled }),
+            onChange: keys => {
+              selected.value = [...keys] as string[]
+              changes.push([...keys] as string[])
+            },
+          }}
+        />,
+        c,
+      ),
+    )
+    await waitTableRender()
+
+    const selectAll = c.querySelector('thead input[type="checkbox"]') as HTMLInputElement
+    selectAll.checked = true
+    selectAll.dispatchEvent(new Event('change', { bubbles: true }))
+    await waitTableRender()
+
+    let rowInputs = Array.from(c.querySelectorAll<HTMLInputElement>('tbody input[type="checkbox"]'))
+    expect(changes.at(-1)).toEqual(['1', '3'])
+    expect(selectAll.checked).toBe(true)
+    expect(rowInputs.map(input => input.checked)).toEqual([true, false, true])
+
+    rowInputs = Array.from(c.querySelectorAll<HTMLInputElement>('tbody input[type="checkbox"]'))
+    rowInputs[0].checked = false
+    rowInputs[0].dispatchEvent(new Event('change', { bubbles: true }))
+    await waitTableRender()
+    expect(changes.at(-1)).toEqual(['3'])
+    expect((c.querySelector('thead input[type="checkbox"]') as HTMLInputElement).checked).toBe(
+      false,
+    )
+  })
+
+  it('keeps radio selection exclusive and reports only the latest key', async () => {
+    const c = document.createElement('div')
+    const selected = ref<string[]>([])
+    const changes: string[][] = []
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[
+            { key: '1', name: 'A' },
+            { key: '2', name: 'B' },
+          ]}
+          rowSelection={{
+            type: 'radio',
+            selectedRowKeys: selected.value,
+            onChange: keys => {
+              selected.value = [...keys] as string[]
+              changes.push([...keys] as string[])
+            },
+          }}
+        />,
+        c,
+      ),
+    )
+    await waitTableRender()
+
+    let radios = Array.from(c.querySelectorAll<HTMLInputElement>('tbody input[type="radio"]'))
+    radios[0].checked = true
+    radios[0].dispatchEvent(new Event('change', { bubbles: true }))
+    radios = Array.from(c.querySelectorAll<HTMLInputElement>('tbody input[type="radio"]'))
+    radios[1].checked = true
+    radios[1].dispatchEvent(new Event('change', { bubbles: true }))
+    await waitTableRender()
+
+    expect(changes).toEqual([['1'], ['2']])
+    expect(
+      Array.from(c.querySelectorAll<HTMLInputElement>('tbody input[type="radio"]')).map(
+        input => input.checked,
+      ),
+    ).toEqual([false, true])
   })
 
   it('paginates data when pagination provided', async () => {
@@ -322,6 +455,37 @@ describe('Table', () => {
     expect(extras.join(' ')).toContain('extra-B')
   })
 
+  it('expands and collapses rows from the control and row click', async () => {
+    const c = document.createElement('div')
+    const expandedChanges: Array<Array<string | number>> = []
+    mountTestApp(c, () =>
+      render(
+        <Table
+          columns={[{ title: 'Name', dataIndex: 'name' }]}
+          dataSource={[{ key: '1', name: 'A' }]}
+          expandable={{
+            expandRowByClick: true,
+            expandedRowRender: record => <span data-testid="detail">detail-{record.name}</span>,
+            onExpandedRowsChange: keys => expandedChanges.push([...keys]),
+          }}
+        />,
+        c,
+      ),
+    )
+    await waitTableRender()
+
+    const expandButton = c.querySelector('tbody button') as HTMLButtonElement
+    expandButton.click()
+    await waitTableRender()
+    expect(c.querySelector('[data-testid="detail"]')?.textContent).toBe('detail-A')
+    expect(expandedChanges.at(-1)).toEqual(['1'])
+
+    ;(c.querySelector('tbody tr[data-rue-table-row-key="1"]') as HTMLTableRowElement).click()
+    await waitTableRender()
+    expect(c.querySelector('[data-testid="detail"]')).toBeNull()
+    expect(expandedChanges.at(-1)).toEqual([])
+  })
+
   it('filters data via filteredValue', async () => {
     const c = document.createElement('div')
     const dataSource = [
@@ -336,6 +500,62 @@ describe('Table', () => {
     await waitTableRender()
     const tds = Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())
     expect(tds).toEqual(['A', 'Dev'])
+  })
+
+  it('updates rows when controlled filteredValue changes externally', async () => {
+    const c = mountContainer()
+    const dataSource = [
+      { key: '1', name: 'Jim' },
+      { key: '2', name: 'Joe' },
+      { key: '3', name: 'John' },
+    ]
+
+    const Demo = () => {
+      const filteredValue = ref<any[]>(['Jim'])
+      const buildColumns = () => [
+        {
+          title: 'Name',
+          dataIndex: 'name',
+          filteredValue: filteredValue.value,
+          onFilter: (value: any, record: any) => record.name === value,
+        },
+      ]
+      const columns = ref(buildColumns())
+
+      return (
+        <>
+          <button
+            data-testid="clear-filter"
+            onClick={() => {
+              filteredValue.value = []
+              columns.value = buildColumns()
+            }}
+          >
+            Clear
+          </button>
+          <Table columns={columns.value} dataSource={dataSource} />
+        </>
+      )
+    }
+
+    resetActiveRuntime()
+    mountTestApp(c, () => render(<Demo />, c))
+
+    await waitForContent(() => {
+      expect(Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())).toEqual([
+        'Jim',
+      ])
+    })
+
+    await click(c.querySelector('[data-testid="clear-filter"]'))
+
+    await waitForContent(() => {
+      expect(Array.from(c.querySelectorAll('tbody td')).map(el => el.textContent?.trim())).toEqual([
+        'Jim',
+        'Joe',
+        'John',
+      ])
+    })
   })
 
   it('normalizes scalar filteredValue without crashing', async () => {
@@ -552,6 +772,63 @@ describe('Table', () => {
     })
   })
 
+  it('updates controlled multiple sorter combinations from external controls', async () => {
+    const c = mountContainer()
+    const dataSource = [
+      { key: '1', name: 'A', chinese: 98, math: 90 },
+      { key: '2', name: 'B', chinese: 98, math: 60 },
+      { key: '3', name: 'C', chinese: 88, math: 99 },
+    ]
+
+    const Demo = () => {
+      const orders = ref<Record<'chinese' | 'math', 'ascend' | 'descend'>>({
+        chinese: 'descend',
+        math: 'descend',
+      })
+      const buildColumns = () => [
+        { title: 'Name', dataIndex: 'name' },
+        {
+          title: 'Chinese',
+          dataIndex: 'chinese',
+          sortOrder: orders.value.chinese,
+          sorter: { compare: (a: any, b: any) => a.chinese - b.chinese, multiple: 2 },
+        },
+        {
+          title: 'Math',
+          dataIndex: 'math',
+          sortOrder: orders.value.math,
+          sorter: { compare: (a: any, b: any) => a.math - b.math, multiple: 1 },
+        },
+      ]
+      const columns = ref(buildColumns())
+
+      return (
+        <>
+          <button
+            data-testid="change-multiple-sort"
+            onClick={() => {
+              orders.value = { chinese: 'ascend', math: 'descend' }
+              columns.value = buildColumns()
+            }}
+          >
+            Change sorter combination
+          </button>
+          <Table columns={columns.value} dataSource={dataSource} />
+        </>
+      )
+    }
+
+    resetActiveRuntime()
+    mountTestApp(c, () => render(<Demo />, c))
+
+    const readNames = () =>
+      Array.from(c.querySelectorAll('tbody tr td:first-child')).map(el => el.textContent?.trim())
+
+    await waitForContent(() => expect(readNames()).toEqual(['A', 'B', 'C']))
+    await click(c.querySelector('[data-testid="change-multiple-sort"]'))
+    await waitForContent(() => expect(readNames()).toEqual(['C', 'A', 'B']))
+  })
+
   it('supports hidden columns', async () => {
     const c = document.createElement('div')
     const dataSource = [{ key: '1', name: 'A', job: 'Dev' }]
@@ -714,6 +991,40 @@ describe('Table', () => {
     await waitTableRender()
     const tbody = c.querySelector('tbody') as HTMLElement
     expect(tbody.textContent || '').toContain('Empty')
+  })
+
+  it('renders JSX summary, expanded rows, and empty content as nodes', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <div>
+          <Table
+            columns={[{ title: 'Name', dataIndex: 'name' }]}
+            dataSource={[{ key: '1', name: 'A' }]}
+            expandable={{
+              defaultExpandedRowKeys: ['1'],
+              expandedRowRender: record => (
+                <strong data-testid="expanded">Team {record.name}</strong>
+              ),
+            }}
+            summary={rows => <span data-testid="summary">Total {rows.length}</span>}
+          />
+          <Table
+            columns={[{ title: 'Name', dataIndex: 'name' }]}
+            dataSource={[]}
+            emptyText={<span data-testid="empty">No members</span>}
+          />
+        </div>,
+        c,
+      ),
+    )
+    await waitTableRender()
+
+    expect(c.querySelector('[data-testid="expanded"]')?.textContent).toBe('Team A')
+    expect(c.querySelector('[data-testid="summary"]')?.textContent).toBe('Total 1')
+    expect(c.querySelector('[data-testid="empty"]')?.textContent).toBe('No members')
+    expect(c.textContent).not.toContain('[object Object]')
+    expect(c.textContent).not.toContain('target, slotProps, owner')
   })
 
   it('fires onRow event handlers', async () => {

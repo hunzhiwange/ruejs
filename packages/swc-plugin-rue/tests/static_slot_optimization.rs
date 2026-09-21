@@ -21,7 +21,7 @@ export default Page;
 
     let out = utils::normalize(&transform(src));
 
-    assert!(out.contains(&utils::normalize("_$createComponent(Hello, ()=>({}))")), "{out}");
+    assert!(out.contains(&utils::normalize("_$compiledComponent(Hello, ()=>({}))")), "{out}");
     assert!(!out.contains("rue:component:anchor"));
     assert!(!out.contains(&utils::normalize("renderAnchor(__slot")));
     assert!(!out.contains("rue:component:start"));
@@ -47,7 +47,7 @@ export default Page;
     let out = utils::normalize(&transform(src));
 
     assert!(out.contains("rue:opaque-hole:0"));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt")));
     assert!(!out.contains("rue:component:start"));
     assert!(!out.contains("renderBetween("));
     assert!(!out.contains("watchEffect("));
@@ -67,7 +67,7 @@ export default Page;
     let out = utils::normalize(&transform(src));
 
     assert!(out.contains("rue:text-hole:0"));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
-    assert!(out.contains("effect(()=>"), "{out}");
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt")));
+    assert!(!out.contains("effect(()=>"), "{out}");
     assert!(!out.contains("renderBetween("));
 }

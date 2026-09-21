@@ -209,6 +209,7 @@ const RUNTIME_CAPABILITIES: &[RuntimeCapability] = &[
     capability("Teleport", RuntimeImportEntry::Builtin, false),
     capability("Template", RuntimeImportEntry::Builtin, true),
     capability("_$createComponent", RuntimeImportEntry::Component, true),
+    capability("_$createDynamicElement", RuntimeImportEntry::Component, true),
     capability("_$compiledComponent", RuntimeImportEntry::Component, true),
     capability("_$compiledWithHookId", RuntimeImportEntry::Reactive, true),
     capability("_$createElement", RuntimeImportEntry::Dom, true),
@@ -267,6 +268,7 @@ pub(crate) fn requires_component_context(helper: &str) -> bool {
             | "onError"
             | "Hydration"
             | "_$createComponent"
+            | "_$createDynamicElement"
             | "_$compiledMarkComponentRenderReactive"
     )
 }

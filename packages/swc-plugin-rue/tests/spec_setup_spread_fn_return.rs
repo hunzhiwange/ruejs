@@ -44,13 +44,13 @@ const Comp: FC = ()=>{
                         ...build(),
                         y: a.value
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             const arr = computed(()=>[
                         ...build().nested,
                         a.value
                 ]);
-            arr.get();
+            untrack(()=>arr.get());
             const __rue_phase2_arr = arr;
             return {
                 a: a,

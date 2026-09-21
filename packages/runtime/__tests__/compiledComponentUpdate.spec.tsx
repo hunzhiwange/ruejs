@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { compileComponent, evaluateComponent } from './compiled-component-test-utils'
 import { _$createComponent } from '../src/compiled-component-call'
 import {
@@ -117,6 +117,91 @@ describe('closed component factory', () => {
       expect(document.body.childNodes.length).toBe(0)
     },
   )
+
+  it('propagates ref-backed props into child watchers and conditional DOM', async () => {
+    setReactiveScheduling('sync')
+    const { exports: app } = evaluateComponent(`
+      import { ref, watch } from '@rue-js/rue';
+      export const spinning = ref(false);
+      const Child = props => {
+        const visible = ref(props.spinning);
+        watch(() => props.spinning, value => (visible.value = value), { immediate: true });
+        const Indicator = () => visible.value ? <b>loading</b> : null;
+        return <section><Indicator /></section>;
+      };
+      export const View = () => <Child spinning={spinning.value} />;
+    `)
+    const root = _$createComponent(app.View, {})
+    disposals.push(() => {
+      root.dispose()
+      app.spinning.dispose()
+    })
+    root.__rue_compiled_mount(document.body)
+
+    expect(document.querySelector('b')).toBeNull()
+    app.spinning.value = true
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(document.querySelector('b')?.textContent).toBe('loading')
+  })
+
+  it('settles controlled child DOM bindings in the parent frame', () => {
+    vi.useFakeTimers()
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'requestAnimationFrame')
+    const rafCallbacks: FrameRequestCallback[] = []
+    const raf = vi.fn((callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback)
+      return rafCallbacks.length
+    })
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      value: raf,
+      writable: true,
+    })
+    setReactiveScheduling('frame')
+    const { exports: app } = evaluateComponent(`
+      import { computed, ref, watch } from '@rue-js/rue';
+      export const selected = ref('amber');
+      export const observed = [];
+      const Child = ({ value }) => {
+        const mirrored = ref(value);
+        const normalized = computed(() => String(value));
+        watch(() => value, next => {
+          observed.push(next);
+          mirrored.value = next;
+        }, { immediate: true });
+        const SelectNode = () => (
+          <select value={normalized.value} data-mirrored={mirrored.value}>
+            <option value="amber">Amber</option>
+            <option value="crimson">Crimson</option>
+          </select>
+        );
+        return <SelectNode/>;
+      };
+      export const View = () => <main><Child value={selected.value}/><span>{selected.value}</span></main>;
+    `)
+    const root = _$createComponent(app.View, {})
+    disposals.push(() => {
+      root.dispose()
+      app.selected.dispose()
+      if (descriptor === undefined) Reflect.deleteProperty(window, 'requestAnimationFrame')
+      else Object.defineProperty(window, 'requestAnimationFrame', descriptor)
+      vi.useRealTimers()
+    })
+    root.__rue_compiled_mount(document.body)
+    const select = document.querySelector('select')!
+
+    for (const [index, value] of ['crimson', 'amber', 'crimson'].entries()) {
+      app.selected.value = value
+      expect(raf).toHaveBeenCalledTimes(index + 1)
+      rafCallbacks[index]?.(index)
+
+      expect(document.querySelector('span')?.textContent).toBe(value)
+      expect(select.value).toBe(value)
+      expect(select.dataset.mirrored).toBe(value)
+      expect(raf).toHaveBeenCalledTimes(index + 1)
+    }
+    expect(app.observed).toEqual(['amber', 'crimson', 'amber', 'crimson'])
+  })
 
   it('compiles multiple children to one slot factory', () => {
     const { code, exports: app } = evaluateComponent(`

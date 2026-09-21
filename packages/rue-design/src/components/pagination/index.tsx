@@ -4,7 +4,7 @@ Pagination 组件概述
 - 同时支持静态组合模式（`Pagination.Item`）与数据驱动模式（`total/current/pageSize`）。
 */
 import type { FC } from '@rue-js/rue'
-import { ref } from '@rue-js/rue'
+import { effect, ref } from '@rue-js/rue'
 
 /** PaginationDirection 位置或方向类型。 */
 export type PaginationDirection = 'horizontal' | 'vertical'
@@ -199,7 +199,7 @@ const buildButtonClassName = (
   const resolvedSize = resolveSizeToken(size)
   let cls = 'join-item btn'
   if (resolvedSize) cls += ` btn-${resolvedSize}`
-  if (active) cls += ' btn-active'
+  if (active) cls += ' btn-active bg-base-300'
   if (disabled) cls += ' btn-disabled'
   if (className) cls += ` ${className}`
   return cls
@@ -358,33 +358,37 @@ const Item: FC<PaginationItemProps> = ({
   ...rest
 }) => {
   const Tag = tag as any
-  const props: Record<string, any> = {
-    ...rest,
-    className: buildButtonClassName(size, active, disabled, className),
-  }
-
-  if (active) {
-    props['aria-current'] = rest['aria-current'] ?? 'page'
-  }
-
-  if (disabled) {
-    props['aria-disabled'] = rest['aria-disabled'] ?? true
-    if (tag === 'button' || tag === 'input') {
-      props.disabled = rest.disabled ?? true
-    } else {
-      props.role = rest.role ?? 'button'
-      props.tabIndex = rest.tabIndex ?? -1
+  const readProps = () => {
+    const props: Record<string, any> = {
+      ...rest,
+      className: buildButtonClassName(size, active, disabled, className),
     }
+
+    if (active) {
+      props['aria-current'] = rest['aria-current'] ?? 'page'
+    }
+
+    if (disabled) {
+      props['aria-disabled'] = rest['aria-disabled'] ?? true
+      if (tag === 'button' || tag === 'input') {
+        props.disabled = rest.disabled ?? true
+      } else {
+        props.role = rest.role ?? 'button'
+        props.tabIndex = rest.tabIndex ?? -1
+      }
+    }
+
+    return props
   }
 
   return Tag === 'div' ? (
-    <div {...props}>{children}</div>
+    <div {...readProps()}>{children}</div>
   ) : Tag === 'span' ? (
-    <span {...props}>{children}</span>
+    <span {...readProps()}>{children}</span>
   ) : Tag === 'button' ? (
-    <button {...props}>{children}</button>
+    <button {...readProps()}>{children}</button>
   ) : Tag === 'a' ? (
-    <a {...props}>{children}</a>
+    <a {...readProps()}>{children}</a>
   ) : (
     <></>
   )
@@ -506,12 +510,14 @@ const Root: FC<PaginationProps> = ({
   const simpleInputValue = ref(String(mergedCurrent))
   const quickInputValue = ref(String(mergedCurrent))
 
-  if (inputDraftPage.value !== mergedCurrent) {
-    const syncedValue = String(mergedCurrent)
-    inputDraftPage.value = mergedCurrent
-    simpleInputValue.value = syncedValue
-    quickInputValue.value = syncedValue
-  }
+  effect(() => {
+    if (inputDraftPage.value !== mergedCurrent) {
+      const syncedValue = String(mergedCurrent)
+      inputDraftPage.value = mergedCurrent
+      simpleInputValue.value = syncedValue
+      quickInputValue.value = syncedValue
+    }
+  })
 
   const labels: Required<PaginationLocale> = {
     prev: locale?.prev ?? '‹',

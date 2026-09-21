@@ -1,6 +1,6 @@
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Template, render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, ref, render, setReactiveScheduling } from '@rue-js/rue'
 import Select from '../index'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -16,6 +16,57 @@ afterEach(() => {
 })
 
 describe('Select', () => {
+  it('keeps a controlled native selection aligned across frame-scheduled updates', () => {
+    vi.useFakeTimers()
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'requestAnimationFrame')
+    const rafCallbacks: FrameRequestCallback[] = []
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      value: (callback: FrameRequestCallback) => {
+        rafCallbacks.push(callback)
+        return rafCallbacks.length
+      },
+      writable: true,
+    })
+    setReactiveScheduling('frame')
+    const container = mountContainer()
+    const selected = ref('amber')
+    const ControlledSelect = () => (
+      <>
+        <Select value={selected.value} data-testid="select-controlled-frame">
+          <option value="amber">Amber</option>
+          <option value="crimson">Crimson</option>
+        </Select>
+        <span data-testid="select-controlled-value">{selected.value}</span>
+      </>
+    )
+    resetActiveRuntime()
+
+    try {
+      mountTestApp(container, () => render(<ControlledSelect />, container))
+      const element = container.querySelector(
+        '[data-testid="select-controlled-frame"]',
+      ) as HTMLSelectElement
+
+      for (const [index, value] of ['crimson', 'amber', 'crimson'].entries()) {
+        selected.value = value
+        rafCallbacks[index]?.(index)
+        expect({
+          state: selected.value,
+          text: container.querySelector('[data-testid="select-controlled-value"]')?.textContent,
+          value: element.value,
+        }).toEqual({ state: value, text: value, value })
+        expect(rafCallbacks).toHaveLength(index + 1)
+      }
+    } finally {
+      selected.dispose()
+      setReactiveScheduling('sync')
+      if (descriptor === undefined) Reflect.deleteProperty(window, 'requestAnimationFrame')
+      else Object.defineProperty(window, 'requestAnimationFrame', descriptor)
+      vi.useRealTimers()
+    }
+  })
+
   it('renders the base select element and forwards className', async () => {
     const container = mountContainer()
     resetActiveRuntime()
@@ -76,6 +127,62 @@ describe('Select', () => {
       expect(element.classList.contains('select-lg')).toBe(true)
       expect(aliasElement.classList.contains('select-lg')).toBe(true)
       expect(nativeSizeElement.getAttribute('size')).toBe('4')
+    })
+  })
+
+  it('maps every semantic color to native select and shell classes', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <div data-testid="select-colors">
+          <Select color="neutral">
+            <option>Neutral</option>
+          </Select>
+          <Select color="primary">
+            <option>Primary</option>
+          </Select>
+          <Select color="secondary">
+            <option>Secondary</option>
+          </Select>
+          <Select color="accent">
+            <option>Accent</option>
+          </Select>
+          <Select color="info">
+            <option>Info</option>
+          </Select>
+          <Select color="success">
+            <option>Success</option>
+          </Select>
+          <Select color="warning">
+            <option>Warning</option>
+          </Select>
+          <Select color="error" prefix="Status">
+            <option>Error</option>
+          </Select>
+        </div>,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const selectClasses = Array.from(
+        container.querySelectorAll('[data-testid="select-colors"] select'),
+      ).map(element => element.className)
+      const shell = container.querySelector('[data-rue-select-root="true"]') as HTMLElement
+
+      expect(selectClasses).toEqual([
+        'select select-neutral',
+        'select select-primary',
+        'select select-secondary',
+        'select select-accent',
+        'select select-info',
+        'select select-success',
+        'select select-warning',
+        'min-w-0 grow appearance-none border-none bg-transparent pr-1 text-base-content outline-none',
+      ])
+      expect(shell.classList.contains('input-error')).toBe(true)
     })
   })
 
@@ -534,6 +641,64 @@ describe('Select', () => {
       expect(element.multiple).toBe(true)
       expect(element.getAttribute('size')).toBe('6')
       expect(trigger).toBeNull()
+    })
+  })
+
+  it('keeps controlled native listbox selections across ordinary clicks', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const selected = ref<string[]>(['release', 'labs'])
+
+    mountTestApp(container, () =>
+      render(
+        <Select
+          mode="multiple"
+          nativeSize={6}
+          value={selected.value}
+          options={[
+            { label: 'Release digest', value: 'release' },
+            { label: 'Design review', value: 'design' },
+            { label: 'Labs rollout', value: 'labs' },
+          ]}
+          onChange={(event: Event) => {
+            selected.value = Array.from(
+              (event.target as HTMLSelectElement).selectedOptions,
+              option => option.value,
+            )
+          }}
+          data-testid="select-controlled-native-listbox"
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const element = container.querySelector(
+        '[data-testid="select-controlled-native-listbox"]',
+      ) as HTMLSelectElement
+      expect(Array.from(element.selectedOptions, option => option.value)).toEqual([
+        'release',
+        'labs',
+      ])
+    })
+
+    const element = container.querySelector(
+      '[data-testid="select-controlled-native-listbox"]',
+    ) as HTMLSelectElement
+    const design = Array.from(element.options).find(option => option.value === 'design')!
+    design.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    design.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }))
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true })
+    design.dispatchEvent(clickEvent)
+
+    await waitForContent(() => {
+      expect(clickEvent.defaultPrevented).toBe(true)
+      expect(selected.value).toEqual(['release', 'design', 'labs'])
+      expect(Array.from(element.selectedOptions, option => option.value)).toEqual([
+        'release',
+        'design',
+        'labs',
+      ])
     })
   })
 

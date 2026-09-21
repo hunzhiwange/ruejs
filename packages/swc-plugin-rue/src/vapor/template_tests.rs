@@ -48,6 +48,17 @@ fn without_imports(src: &str) -> String {
 }
 
 #[test]
+fn escapes_legacy_edge_hyphens_in_static_html_patterns() {
+    let output = transform_module(
+        r#"const Demo = () => <><input pattern="[A-Za-z0-9-]+" /><input pattern={'[-A-Z]+'} /></>;"#,
+    );
+
+    assert!(output.contains(r#"[A-Za-z0-9\\-]+"#), "{output}");
+    assert!(!output.contains(r#"[A-Za-z0-9-]+"#), "{output}");
+    assert!(output.contains(r#"[\\-A-Z]+"#), "{output}");
+}
+
+#[test]
 fn once_directives_do_not_install_scalar_subscriptions() {
     for directive in ["v-once", "r-once"] {
         let output = transform_module(&format!(
@@ -454,7 +465,8 @@ const Body = content => <body>{content}</body>;
     assert_eq!(compact.matches("_$createElement(").count(), 1, "{output}");
     assert!(compact.contains("_$compiledCreateElement(\"textarea\""), "{output}");
     assert!(compact.contains("_root.value=\"hello\""), "{output}");
-    assert!(compact.contains("_$setValue(_el1,\"a\")"), "{output}");
+    assert!(compact.contains("_el1.value=\"a\""), "{output}");
+    assert!(!compact.contains("_$setValue("), "{output}");
     assert!(compact.contains("_$createElement(\"body\""), "{output}");
     assert!(!compact.contains("_$createElement(\"option\""), "{output}");
     assert!(compact.contains("<optionvalue=\"a\"><!--rue:text-hole:0--></option>"), "{output}");
@@ -830,13 +842,28 @@ const View = props => {
     assert_eq!(compact.matches("rue:row-text").count(), 1, "{output}");
     assert!(!compact.contains("_$createElement(\"section\""), "{output}");
     assert!(!compact.contains("_$createElement(\"i\""), "{output}");
-    assert!(compact.contains("_$compiledText("), "{output}");
+    assert!(
+        compact.contains("_$compiledValueFactory(_$compiledPropsGet(props,\"value\")??''"),
+        "{output}"
+    );
     assert!(compact.contains("_$compiledBranchAt("), "{output}");
     assert!(compact.contains("_$reconcileKeyed("), "{output}");
+    for index in 0..5 {
+        assert_eq!(
+            compact.matches(&format!("<!--rue:text-hole:{index}-->")).count(),
+            1,
+            "hole {index} must have exactly one serialized source\n{output}"
+        );
+    }
+    assert_eq!(compact.matches("_$compiledText(").count(), 0, "{output}");
+    assert_eq!(compact.matches("_$compiledBranchAt(").count(), 1, "{output}");
+    assert_eq!(compact.matches("_$mountCompiledSlotAt({").count(), 2, "{output}");
+    assert_eq!(compact.matches("_$reconcileKeyedSingle(").count(), 1, "{output}");
+    assert_eq!(compact.matches("_$reconcileKeyed(").count(), 1, "{output}");
     assert_eq!(compact.matches(".content.cloneNode(true)").count(), 2, "{output}");
     assert!(!compact.contains("_$compiledKeyedList({"), "{output}");
 
-    let first_mount = ["_$compiledText(", "_$compiledBranchAt(", "_$reconcileKeyed("]
+    let first_mount = ["_$mountCompiledSlotAt(", "_$compiledBranchAt(", "_$reconcileKeyed("]
         .into_iter()
         .filter_map(|needle| compact.find(needle))
         .min()
@@ -891,6 +918,7 @@ const vapor = setup => ({{
 const _$compiledPropsGet = (props, key) => props[key];
 const _$compiledPropsSnapshot = props => props;
 const _$compiledPropsCall = (fn, receiver, args) => Reflect.apply(fn, receiver, args);
+const _$compiledValueFactory = value => value;
 const _$compiledRoot = setup => ({{
   __rue_compiled_mount: parent => {{
     const result = setup(parent);
@@ -1061,7 +1089,10 @@ const after = root.querySelector('[data-static="after"]');
 const holes = Array.from(root.childNodes).filter(node => node.nodeType === 8 && node.data.startsWith("rue:text-hole:"));
 const [rowA, rowB] = root.querySelectorAll("em");
 if (root.textContent !== "beforeoneshownlocalABxyafter") throw new Error(`initial DOM: ${{root.innerHTML}}`);
-if (holes.length !== 3) throw new Error(`initial holes: ${{root.innerHTML}}`);
+// The branch, opaque props-derived local, and both lists retain stable anchors;
+// Unknown props remain renderable even under an explicit String wrapper, so
+// both the value and opaque local retain stable anchors.
+if (holes.length !== 5) throw new Error(`initial holes: ${{root.innerHTML}}`);
 
 props.className = "updated";
 props.value = null;

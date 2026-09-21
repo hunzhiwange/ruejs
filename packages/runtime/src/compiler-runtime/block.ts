@@ -11,12 +11,12 @@ import {
 } from '../runtime-core/compiled'
 import {
   createComment,
+  createDocumentFragment,
   createTextNode,
   insertBefore,
   removeChild,
   withDOMHostOperations,
 } from './dom.browser'
-
 /** A compiler-declared inclusive range. Empty output is always [null, null]. */
 export type BlockRange = readonly [Node | null, Node | null]
 export type BlockSetup = (parent: ParentNode | null) => BlockRange
@@ -26,6 +26,29 @@ export interface BlockRecord {
   __rue_cleanup_bucket: Array<() => void>
   __rue_compiled_mount(parent: ParentNode | null, before?: Node | null): Node | null
   dispose(): void
+}
+type FocusableBlockRange = Pick<BlockRecord, 'first' | 'last'>
+
+type PortableRootRecord = { recreate: () => BlockRecord; claimed: boolean }
+const portableRoots = new WeakMap<BlockRecord, PortableRootRecord>()
+
+/** Registers a one-shot JSX root so opaque value boundaries can recreate it on reuse. */
+export const _$registerPortableCompiledRoot = (
+  root: BlockRecord,
+  recreate: () => BlockRecord,
+): void => {
+  portableRoots.set(root, { recreate, claimed: false })
+}
+
+/** Claim a JSX value for mounting, recreating its one-shot handle when reused. */
+export const _$claimCompiledRoot = (root: BlockRecord): BlockRecord => {
+  const record = portableRoots.get(root)
+  if (record == null) return root
+  if (!record.claimed) {
+    record.claimed = true
+    return root
+  }
+  return record.recreate()
 }
 
 export const moveBlockRange = (
@@ -70,7 +93,7 @@ export const _$compiledRoot = (setup: BlockSetup): BlockRecord => {
       first = last = null
     }
   }
-  return {
+  const root: BlockRecord = {
     get first() {
       return first
     },
@@ -79,6 +102,7 @@ export const _$compiledRoot = (setup: BlockSetup): BlockRecord => {
     },
     __rue_cleanup_bucket: cleanups,
     __rue_compiled_mount(parent, before = null) {
+      portableRoots.get(root)!.claimed = true
       if (disposed) throw new Error('disposed')
       if (mounted) throw new Error('mounted')
       mounted = true
@@ -89,8 +113,12 @@ export const _$compiledRoot = (setup: BlockSetup): BlockRecord => {
       try {
         runOwnerLifecycle(owner, 'beforeMount')
         withDOMHostOperations(parent, () => {
-          ;[first, last] = runWithOwner(owner, () => untrack(() => setup(parent)))!
-          if (parent != null) moveBlockRange(first, last, parent, before)
+          const staging = parent == null ? null : createDocumentFragment(parent)
+          ;[first, last] = runWithOwner(owner, () => untrack(() => setup(staging ?? parent)))!
+          if (staging != null) {
+            moveBlockRange(first, last, staging, null)
+            insertBefore(parent!, staging, before)
+          }
           return first
         })
         runWithOwner(owner, () => onOwnerCleanup(dispose))
@@ -115,6 +143,8 @@ export const _$compiledRoot = (setup: BlockSetup): BlockRecord => {
     },
     dispose,
   }
+  _$registerPortableCompiledRoot(root, () => _$compiledRoot(setup))
+  return root
 }
 
 export interface CompiledBranchCase {
@@ -130,20 +160,18 @@ type FocusState = {
   end: number | null
   direction: 'forward' | 'backward' | 'none' | null
 }
-export const captureBlockFocus = (block: BlockRecord | undefined): FocusState | undefined => {
-  const active = block?.first?.ownerDocument?.activeElement
-  if (!active || !block) return
+const captureBlockPath = (block: FocusableBlockRange, target: Node): number[] | undefined => {
   let root: Node | null = block.first
   let index = 0
   while (root) {
-    if (root === active || root.contains(active)) break
+    if (root === target || root.contains(target)) break
     if (root === block.last) return
     root = root.nextSibling
     index++
   }
   if (!root) return
   const path: number[] = []
-  let node: Node = active
+  let node = target
   while (node !== root) {
     let sibling = node.previousSibling
     let offset = 0
@@ -156,6 +184,16 @@ export const captureBlockFocus = (block: BlockRecord | undefined): FocusState | 
     node = node.parentNode
   }
   path.unshift(index)
+  return path
+}
+export const captureBlockFocus = (
+  block: FocusableBlockRange | undefined,
+): FocusState | undefined => {
+  if (!block) return
+  const active = block.first?.ownerDocument?.activeElement ?? null
+  if (!active) return
+  const path = captureBlockPath(block, active)
+  if (!path) return
   const input = active as HTMLInputElement
   return {
     path,
@@ -164,7 +202,7 @@ export const captureBlockFocus = (block: BlockRecord | undefined): FocusState | 
     direction: input.selectionDirection ?? null,
   }
 }
-export const restoreBlockFocus = (block: BlockRecord, focus: FocusState | undefined) => {
+export const restoreBlockFocus = (block: FocusableBlockRange, focus: FocusState | undefined) => {
   if (!focus) return
   let node = block.first
   for (let depth = 0; depth < focus.path.length; depth++) {

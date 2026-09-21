@@ -25,9 +25,8 @@ const Page: FC<{ active: boolean }> = props => (
     let program = apply(program);
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
 
-    assert!(out.contains(&utils::normalize("RouterLink.__rueHref")));
-    assert!(out.contains(&utils::normalize("RouterLink.__rueOnClick")));
-    assert!(out.contains(&utils::normalize("_$createElement(\"a\"")));
+    assert!(out.contains(&utils::normalize("_$compiledComponent(RouterLink")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotFactory")));
     assert!(!out.contains("rue:component:start"));
     assert!(!out.contains("renderBetween("));
 }

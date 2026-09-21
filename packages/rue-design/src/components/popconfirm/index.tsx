@@ -633,30 +633,11 @@ const Popconfirm: FC<PopconfirmProps> = ({
 
   const requestOpenChange = (nextOpen: boolean) => {
     clearHoverCloseTimer()
-    if (disabled) return
-    const currentPanel = (rootElement?.parentElement ?? document).querySelector(
-      '[role="alertdialog"]',
-    ) as HTMLElement | null
-    const actualOpen = currentPanel?.getAttribute('data-rue-popconfirm-panel') === 'true'
-    if (nextOpen === actualOpen) return
+    if (disabled || nextOpen === currentOpenRef.value) return
     if (!isControlled) uncontrolledOpen.value = nextOpen
     currentOpenRef.value = nextOpen
     if (!nextOpen) confirmLoading.value = false
     onOpenChange?.(nextOpen)
-    const syncPanel = () => {
-      const scope = rootElement?.parentElement ?? document
-      const overlay = scope.querySelector(
-        '[data-rue-popconfirm-overlay="true"]',
-      ) as HTMLElement | null
-      const panel = overlay?.querySelector('[role="alertdialog"]') as HTMLElement | null
-      overlay?.setAttribute('aria-hidden', nextOpen ? 'false' : 'true')
-      if (panel) {
-        if (nextOpen) panel.setAttribute('data-rue-popconfirm-panel', 'true')
-        else panel.removeAttribute('data-rue-popconfirm-panel')
-      }
-    }
-    syncPanel()
-    queueMicrotask(syncPanel)
   }
 
   const scheduleHoverClose = () => {
@@ -809,148 +790,151 @@ const Popconfirm: FC<PopconfirmProps> = ({
         {children}
       </div>
 
-      <div
-        data-rue-popconfirm-overlay="true"
-        className={overlayClass}
-        style={serializeStyle(mergeStyles(styles?.overlay, overlayStyle))}
-        aria-hidden={currentOpenRef.value ? 'false' : 'true'}
-      >
-        {showArrow ? (
-          <span className={arrowClassName} style={serializeStyle(styles?.arrow)} />
-        ) : null}
+      {currentOpenRef.value ? (
         <div
-          data-rue-popconfirm-panel={currentOpenRef.value ? 'true' : undefined}
-          role="alertdialog"
-          aria-modal="false"
-          aria-labelledby={isRenderable(resolvedTitle) ? titleId.value : undefined}
-          aria-describedby={isRenderable(resolvedDescription) ? descriptionId.value : undefined}
-          className={mergeClassNames(
-            'space-y-4 rounded-[1.15rem] border border-base-300/80 bg-base-100/95 p-4 shadow-[0_20px_48px_-28px_rgba(15,23,42,0.55)] backdrop-blur',
-            classNames?.panel,
-          )}
-          style={serializeStyle(styles?.panel)}
-          onClick={(event: MouseEvent) => {
-            onPopupClick?.(event)
-          }}
+          className={overlayClass}
+          style={serializeStyle(mergeStyles(styles?.overlay, overlayStyle))}
+          aria-hidden="false"
         >
+          {showArrow ? (
+            <span className={arrowClassName} style={serializeStyle(styles?.arrow)} />
+          ) : null}
           <div
-            className={mergeClassNames('flex items-start gap-3', classNames?.body)}
-            style={serializeStyle(styles?.body)}
-          >
-            {isRenderable(resolvedIcon) ? (
-              <div
-                className={mergeClassNames('mt-0.5 shrink-0', classNames?.icon)}
-                style={serializeStyle(styles?.icon)}
-              >
-                {String(resolvedIcon)}
-              </div>
-            ) : icon === undefined ? (
-              <div
-                className={mergeClassNames('mt-0.5 shrink-0', classNames?.icon)}
-                style={serializeStyle(styles?.icon)}
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-warning/12 text-warning ring-1 ring-inset ring-warning/25"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.5v4.75" />
-                    <circle cx="12" cy="16.3" r="0.75" fill="currentColor" stroke="none" />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M10.04 3.77 3.9 14.08A2 2 0 0 0 5.63 17h12.74a2 2 0 0 0 1.72-2.92L13.96 3.77a2.25 2.25 0 0 0-3.92 0Z"
-                    />
-                  </svg>
-                </span>
-              </div>
-            ) : null}
-            <div className="min-w-0 flex-1 space-y-1.5">
-              {isRenderable(resolvedTitle) ? (
-                <div
-                  id={titleId.value}
-                  className={mergeClassNames(
-                    'text-sm font-semibold leading-5 text-base-content',
-                    classNames?.title,
-                  )}
-                  style={serializeStyle(styles?.title)}
-                >
-                  {String(resolvedTitle)}
-                </div>
-              ) : null}
-              {isRenderable(resolvedDescription) ? (
-                <div
-                  id={descriptionId.value}
-                  className={mergeClassNames(
-                    'text-xs leading-5 text-base-content/70',
-                    classNames?.description,
-                  )}
-                  style={serializeStyle(styles?.description)}
-                >
-                  {String(resolvedDescription)}
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div
+            data-rue-popconfirm-panel="true"
+            role="alertdialog"
+            aria-modal="false"
+            aria-labelledby={isRenderable(resolvedTitle) ? titleId.value : undefined}
+            aria-describedby={isRenderable(resolvedDescription) ? descriptionId.value : undefined}
             className={mergeClassNames(
-              'flex items-center justify-end gap-2 border-t border-base-200/80 pt-3',
-              classNames?.footer,
+              'space-y-4 rounded-[1.15rem] border border-base-300/80 bg-base-100/95 p-4 shadow-[0_20px_48px_-28px_rgba(15,23,42,0.55)] backdrop-blur',
+              classNames?.panel,
             )}
-            style={serializeStyle(styles?.footer)}
+            style={serializeStyle(styles?.panel)}
+            onClick={(event: MouseEvent) => {
+              onPopupClick?.(event)
+            }}
           >
-            {showCancel ? (
+            <div
+              className={mergeClassNames('flex items-start gap-3', classNames?.body)}
+              style={serializeStyle(styles?.body)}
+            >
+              {isRenderable(resolvedIcon) ? (
+                <div
+                  className={mergeClassNames('mt-0.5 shrink-0', classNames?.icon)}
+                  style={serializeStyle(styles?.icon)}
+                >
+                  {String(resolvedIcon)}
+                </div>
+              ) : icon === undefined ? (
+                <div
+                  className={mergeClassNames('mt-0.5 shrink-0', classNames?.icon)}
+                  style={serializeStyle(styles?.icon)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-warning/12 text-warning ring-1 ring-inset ring-warning/25"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.5v4.75" />
+                      <circle cx="12" cy="16.3" r="0.75" fill="currentColor" stroke="none" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M10.04 3.77 3.9 14.08A2 2 0 0 0 5.63 17h12.74a2 2 0 0 0 1.72-2.92L13.96 3.77a2.25 2.25 0 0 0-3.92 0Z"
+                      />
+                    </svg>
+                  </span>
+                </div>
+              ) : null}
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {isRenderable(resolvedTitle) ? (
+                  <div
+                    id={titleId.value}
+                    className={mergeClassNames(
+                      'text-sm font-semibold leading-5 text-base-content',
+                      classNames?.title,
+                    )}
+                    style={serializeStyle(styles?.title)}
+                  >
+                    {String(resolvedTitle)}
+                  </div>
+                ) : null}
+                {isRenderable(resolvedDescription) ? (
+                  <div
+                    id={descriptionId.value}
+                    className={mergeClassNames(
+                      'text-xs leading-5 text-base-content/70',
+                      classNames?.description,
+                    )}
+                    style={serializeStyle(styles?.description)}
+                  >
+                    {String(resolvedDescription)}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div
+              className={mergeClassNames(
+                'flex items-center justify-end gap-2 border-t border-base-200/80 pt-3',
+                classNames?.footer,
+              )}
+              style={serializeStyle(styles?.footer)}
+            >
+              {showCancel ? (
+                <button
+                  data-rue-popconfirm-action="cancel"
+                  type={cancelButtonProps?.htmlType ?? 'button'}
+                  className={resolveActionButtonClassName(
+                    {
+                      ...cancelButtonProps,
+                      type: cancelButtonProps?.type ?? 'text',
+                      size: cancelButtonProps?.size ?? 'small',
+                    },
+                    '',
+                    classNames?.cancelButton,
+                  )}
+                  style={serializeStyle(
+                    mergeStyles(styles?.cancelButton, cancelButtonProps?.style),
+                  )}
+                  disabled={cancelButtonProps?.disabled}
+                  aria-disabled={String(!!cancelButtonProps?.disabled)}
+                  onClick={handleCancel}
+                >
+                  <RenderButtonContent arg0={cancelButtonProps} arg1={cancelText} />
+                </button>
+              ) : null}
+
               <button
-                data-rue-popconfirm-action="cancel"
-                type={cancelButtonProps?.htmlType ?? 'button'}
+                data-rue-popconfirm-action="ok"
+                type={okButtonProps?.htmlType ?? 'button'}
                 className={resolveActionButtonClassName(
                   {
-                    ...cancelButtonProps,
-                    type: cancelButtonProps?.type ?? 'text',
-                    size: cancelButtonProps?.size ?? 'small',
+                    ...okPreset,
+                    ...okButtonProps,
+                    size: okButtonProps?.size ?? 'small',
                   },
-                  '',
-                  classNames?.cancelButton,
+                  okType === 'default' ? '' : 'btn-primary',
+                  classNames?.okButton,
                 )}
-                style={serializeStyle(mergeStyles(styles?.cancelButton, cancelButtonProps?.style))}
-                disabled={cancelButtonProps?.disabled}
-                aria-disabled={String(!!cancelButtonProps?.disabled)}
-                onClick={handleCancel}
+                style={serializeStyle(mergeStyles(styles?.okButton, okButtonProps?.style))}
+                disabled={!!okButtonProps?.disabled || isOkLoading()}
+                aria-disabled={String(!!okButtonProps?.disabled || isOkLoading())}
+                aria-busy={String(isOkLoading())}
+                onClick={handleConfirm}
               >
-                <RenderButtonContent arg0={cancelButtonProps} arg1={cancelText} />
+                <RenderButtonContent arg0={okButtonProps} arg1={okText} arg2={isOkLoading()} />
               </button>
-            ) : null}
-
-            <button
-              data-rue-popconfirm-action="ok"
-              type={okButtonProps?.htmlType ?? 'button'}
-              className={resolveActionButtonClassName(
-                {
-                  ...okPreset,
-                  ...okButtonProps,
-                  size: okButtonProps?.size ?? 'small',
-                },
-                okType === 'default' ? '' : 'btn-primary',
-                classNames?.okButton,
-              )}
-              style={serializeStyle(mergeStyles(styles?.okButton, okButtonProps?.style))}
-              disabled={!!okButtonProps?.disabled || isOkLoading()}
-              aria-disabled={String(!!okButtonProps?.disabled || isOkLoading())}
-              aria-busy={String(isOkLoading())}
-              onClick={handleConfirm}
-            >
-              <RenderButtonContent arg0={okButtonProps} arg1={okText} arg2={isOkLoading()} />
-            </button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }

@@ -115,10 +115,10 @@ export default Demo;
 
     assert!(!out.contains("v-model"));
     assert!(!out.contains("__rue_model__"));
-    assert!(out.contains("_$setValue"));
-    assert!(out.contains("_$setChecked"));
+    assert!(out.contains(".value ="));
+    assert!(out.contains(".checked ="));
     assert!(out.contains(".addEventListener("));
-    assert!(out.contains("onScopeDispose"));
+    assert!(out.contains("onOwnerCleanup"));
     assert!(out.contains(&utils::normalize("\"change\"")));
     assert!(out.contains("onUpdateUserName"));
     assert!(out.contains("userNameModifiers"));

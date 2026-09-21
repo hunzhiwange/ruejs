@@ -68,6 +68,39 @@ describe('Descriptions', () => {
     })
   })
 
+  it('uses item children as content while preserving explicit content precedence', async () => {
+    const container = mountTestContainer()
+
+    mountTestApp(container, () =>
+      render(
+        <Descriptions
+          items={[
+            { key: 'product', label: 'Product', children: 'Nebula Desk' },
+            {
+              key: 'stage',
+              label: 'Stage',
+              children: <strong data-stage="beta">Beta</strong>,
+            },
+            {
+              key: 'owner',
+              label: 'Owner',
+              content: 'Ariel Chen',
+              children: 'Ignored fallback',
+            },
+          ]}
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(container.textContent).toContain('Nebula Desk')
+      expect(container.querySelector('[data-stage="beta"]')?.textContent).toBe('Beta')
+      expect(container.textContent).toContain('Ariel Chen')
+      expect(container.textContent).not.toContain('Ignored fallback')
+    })
+  })
+
   it('supports explicit items and an extra slot in vertical mode', async () => {
     const container = mountTestContainer()
 

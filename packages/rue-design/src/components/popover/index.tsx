@@ -483,7 +483,7 @@ const Root: FC<PopoverProps> = (props, slots: Record<string, any> = {}) => {
 
   const resolvedTitle = title
   const resolvedContent = content
-  const resolvedOverlay = slots.overlay
+  const resolvedOverlay = overlay ?? slots.overlay
   const hasStructuredOverlay = isRenderable(resolvedTitle) || isRenderable(resolvedContent)
   const hasOverlay = isRenderable(resolvedOverlay) || hasStructuredOverlay
   const allowHover = currentTriggers.value.includes('hover')
@@ -552,8 +552,8 @@ const Root: FC<PopoverProps> = (props, slots: Record<string, any> = {}) => {
 
   const OverlayContentView = () => (
     <>
-      {slots.overlay ? (
-        slots.overlay
+      {resolvedOverlay ? (
+        resolvedOverlay
       ) : (
         <div className={panelClassName} style={panelStyleValue} role="dialog" aria-modal="false">
           {isRenderable(resolvedTitle) ? (
@@ -565,7 +565,7 @@ const Root: FC<PopoverProps> = (props, slots: Record<string, any> = {}) => {
           ) : null}
           {isRenderable(resolvedContent) ? (
             <div className={contentClassName} style={contentStyleValue}>
-              {String(resolvedContent)}
+              {resolvedContent}
             </div>
           ) : null}
         </div>

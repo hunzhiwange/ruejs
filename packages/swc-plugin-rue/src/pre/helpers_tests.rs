@@ -306,6 +306,22 @@ fn primes_non_call_phase2_values_for_component_render_tracking() {
 }
 
 #[test]
+fn primes_local_reactive_phase2_values_without_tracking_the_parent_render() {
+    let mut fn_decl = parse_fn_decl(
+        "function Comp() { const value = ref(''); const filled = value.value.length > 0; return <input className={filled ? 'filled' : 'empty'} />; }",
+    );
+    assert!(lower_props_derived_consts_in_function(&mut fn_decl.function));
+
+    let rendered = compact(&emit_stmts(vec![Stmt::Decl(Decl::Fn(fn_decl))]));
+    assert!(
+        rendered.contains(
+            "constfilled=computed(()=>value.value.length>0);untrack(()=>filled.get());const__rue_phase2_filled=filled;"
+        ),
+        "{rendered}"
+    );
+}
+
+#[test]
 fn keeps_use_emit_initializer_eager_and_outside_phase2_computed() {
     let mut fn_decl = parse_fn_decl(
         "function Comp(props) { const emit = useEmit(props); return <button onClick={() => emit('change')} />; }",
@@ -726,6 +742,24 @@ fn lowers_phase2_through_function_expression_helpers() {
 }
 
 #[test]
+fn lowers_phase2_values_captured_by_local_jsx_components() {
+    let mut fn_decl = parse_fn_decl(
+        "function Comp(props) { const openRef = useRef(ref(false)); const open = openRef.current; const classes = open.value ? 'visible' : 'invisible'; const Overlay = () => <div className={classes} />; return <section><Overlay /></section>; }",
+    );
+
+    assert!(lower_props_derived_consts_in_function(&mut fn_decl.function));
+    let rendered = normalize(&emit_stmts(vec![Stmt::Decl(Decl::Fn(fn_decl))]));
+
+    assert!(
+        rendered.contains(&normalize(
+            "const classes = computed(()=>open.value ? 'visible' : 'invisible');",
+        )),
+        "{rendered}"
+    );
+    assert!(rendered.contains("__rue_phase2_classes.get()"));
+}
+
+#[test]
 fn lowers_phase2_through_parameterized_and_recursive_helpers() {
     let mut fn_decl = parse_fn_decl(
         "function Comp(props) { const total = props.count * 2; function read({ value }) { read({ value }); return { total, value }; } const reader = function ({ value }) { return { total, value }; }; return <div data={{ total }}>{read({ value: total }).total}{reader({ value: total }).value}</div>; }",
@@ -818,6 +852,58 @@ fn collects_setup_from_nested_destructuring_and_mutable_decls() {
     let len_before = block.stmts.len();
     inject_setup(&mut block, ret_idx, Vec::new(), Vec::new(), Vec::new());
     assert_eq!(block.stmts.len(), len_before);
+}
+
+#[test]
+fn keeps_mutable_null_cells_shared_with_nested_callbacks() {
+    let fn_decl = parse_fn_decl(
+        "function Comp() { let root = null; const setRoot = value => { root = value; }; onMounted(() => root?.focus()); return <input ref={setRoot} />; }",
+    );
+    let block = fn_decl.function.body.clone().expect("body");
+    let ret_idx = find_first_return_index(&block).expect("return index");
+    let fci = first_control_idx(&block, ret_idx);
+    let (collected, _, names_let, _) = collect_setup(&block, ret_idx, fci, false, &HashSet::new());
+    let rendered = normalize(&emit_stmts(collected));
+
+    assert!(!rendered.contains("let root = null"));
+    assert!(!names_let.contains(&"root".to_string()));
+}
+
+#[test]
+fn keeps_immediate_watchers_after_mutable_cells_their_callbacks_capture() {
+    let fn_decl = parse_fn_decl(
+        "function Comp() { let intent = initial.slice(); const sync = () => { intent = next.slice(); }; watch(() => value, () => sync(), { immediate: true }); return <div />; }",
+    );
+    let block = fn_decl.function.body.clone().expect("body");
+    let ret_idx = find_first_return_index(&block).expect("return index");
+    let fci = first_control_idx(&block, ret_idx);
+    let (collected, names_const, names_let, _) =
+        collect_setup(&block, ret_idx, fci, false, &HashSet::new());
+    let rendered = normalize(&emit_stmts(collected));
+
+    assert!(rendered.is_empty(), "{rendered}");
+    assert!(names_const.is_empty());
+    assert!(names_let.is_empty());
+}
+
+#[test]
+fn inserts_setup_after_unavailable_prefix_needed_by_snapshot_initializers() {
+    let fn_decl = parse_fn_decl(
+        "function Comp() { let seed = null; const readSeed = () => seed; const state = ref(readSeed()); return <div>{state.value}</div>; }",
+    );
+    let mut block = fn_decl.function.body.clone().expect("body");
+    let ret_idx = find_first_return_index(&block).expect("return index");
+    let collected = vec![block.stmts[2].clone()];
+
+    inject_setup(&mut block, ret_idx, vec!["state".to_string()], Vec::new(), collected);
+    let rendered = normalize(&emit_stmts(block.stmts));
+    let seed_decl = rendered.find(&normalize("let seed = null;")).expect("seed declaration");
+    let helper_decl = rendered.find("readSeed").expect("helper declaration");
+    let setup_decl = rendered.find("_$compiledSetup").expect("compiled setup declaration");
+
+    assert!(seed_decl < helper_decl, "{rendered}");
+    assert!(helper_decl < setup_decl, "{rendered}");
+    assert!(rendered.contains(&normalize("const state = ref(readSeed());")), "{rendered}");
 }
 
 #[test]
@@ -1121,14 +1207,14 @@ fn covers_collect_setup_wrapper_false_edges_await_and_entry_bails() {
         collect_setup(&block, ret_idx, ret_idx, false, &initial_locals);
     let collected_rendered = compact(&emit_stmts(collected));
 
-    assert!(names_const.contains(&"id".to_string()));
-    assert!(names_const.contains(&"rest".to_string()));
+    assert!(!names_const.contains(&"id".to_string()));
+    assert!(!names_const.contains(&"rest".to_string()));
     assert!(names_const.contains(&"boxed".to_string()));
     assert!(names_const.contains(&"nonHook".to_string()));
     assert!(names_let.is_empty());
-    assert!(available.contains("id"));
+    assert!(!available.contains("id"));
     assert!(!available.contains("later"));
-    assert!(collected_rendered.contains("const{id=fallback,...rest}=props;"));
+    assert!(!collected_rendered.contains("const{id=fallback,...rest}=props;"));
     assert!(collected_rendered.contains("constboxed={id};"));
     assert!(collected_rendered.contains("constnonHook="));
     assert!(collected_rendered.contains("tools.computed"));
@@ -1603,13 +1689,17 @@ fn hardens_props_alias_prepare_and_rewriter_bodyless_edges() {
 
     let assign_rest_pat = parse_arrow_param("({ foo, ...rest } = fallback) => foo");
     let (assign_aliases, rewritten_pat, prologue) =
-        prepare_component_props_param_rewrite(&assign_rest_pat).expect("assign rest rewrite");
+        prepare_component_props_param_rewrite_with_ident(&assign_rest_pat, REACTIVE_PROPS_IDENT)
+            .expect("assign rest rewrite");
     assert!(assign_aliases.contains_key("foo"));
     assert_eq!(prologue.len(), 1);
     assert!(matches!(rewritten_pat, Pat::Assign(_)));
 
     let non_object_assign = parse_arrow_param("(value = fallback) => value");
-    assert!(prepare_component_props_param_rewrite(&non_object_assign).is_none());
+    assert!(
+        prepare_component_props_param_rewrite_with_ident(&non_object_assign, REACTIVE_PROPS_IDENT)
+            .is_none()
+    );
 
     let mut fn_expr = match parse_expr("function helper(total) {}", true) {
         Expr::Fn(fn_expr) => fn_expr,
@@ -1677,7 +1767,9 @@ fn hardens_phase2_collector_and_setup_unavailable_edges() {
     let Pat::Object(no_rest_object) = no_rest_pat else {
         panic!("expected object pattern");
     };
-    assert!(build_rest_destructure_prologue(&no_rest_object).is_none());
+    assert!(
+        build_rest_destructure_prologue_with_ident(&no_rest_object, REACTIVE_PROPS_IDENT).is_none()
+    );
 
     let rest_param = parse_arrow_param("(...rest) => rest");
     let param_names = collect_param_idents(&[rest_param]);
@@ -2882,4 +2974,18 @@ fn hardens_setup_hoistable_wrapped_watch_and_synthetic_jsx_return_type() {
         definite: false,
     };
     assert!(is_untyped_arrow_component_decl(&synthetic_decl));
+}
+
+#[test]
+fn lowers_props_derived_consts_declared_after_an_early_render_return() {
+    let mut fn_decl = parse_fn_decl(
+        "function Comp(props) { if (props.static) return <i>static</i>; const page = props.current ?? 1; const label = page + 1; return <b>{page}{label}</b>; }",
+    );
+
+    assert!(lower_props_derived_consts_in_function(&mut fn_decl.function));
+    let out = compact(&emit_stmts(vec![Stmt::Decl(Decl::Fn(fn_decl))]));
+
+    assert!(out.contains("constpage=computed(()=>props.current??1);"), "{out}");
+    assert!(out.contains("constlabel=computed(()=>__rue_phase2_page.get()+1);"), "{out}");
+    assert!(out.contains("return<b>{page.get()}{label.get()}</b>;"), "{out}");
 }

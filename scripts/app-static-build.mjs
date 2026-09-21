@@ -44,6 +44,7 @@ const containerDirectiveMarkerRe = /^([ ]{0,3}:{3,})[ \t]+(tip|info|warning|dang
 const allowedLangs = new Set(['html', 'css', 'ts', 'tsx', 'rust', 'js', 'javascript', 'typescript'])
 const docContainerDirectives = new Set(['tip', 'info', 'warning', 'danger'])
 const staticDocHtmlByRouteKey = '__RUE_STATIC_DOC_HTML_BY_ROUTE__'
+const staticRenderRouteKey = '__RUE_STATIC_RENDER_ROUTE__'
 let highlightContext = null
 let highlightContextPromise = null
 
@@ -648,6 +649,7 @@ export const createAppStaticRouteRenderers = ({
     renderStaticDoc(route, routeIndex, docHtml) {
       return pool.render({
         extraGlobals: {
+          [staticRenderRouteKey]: normalizeRoute(route),
           [staticDocHtmlByRouteKey]: {
             [normalizeRoute(route)]: docHtml,
           },

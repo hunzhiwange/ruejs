@@ -19,4 +19,13 @@ describe('display value', () => {
     expect(unwrapDisplayRef(plainValueObject)).toBe(plainValueObject)
     expect(unwrapDisplayRef(bareSignal)).toBe(bareSignal)
   })
+
+  it('coerces signal-backed scalar values instead of exposing the handle object', () => {
+    const text = ref('viewer')
+    const count = computed(() => 21 * 2)
+
+    expect(String(text)).toBe('viewer')
+    expect(`${text}`).toBe('viewer')
+    expect(Number(count)).toBe(42)
+  })
 })

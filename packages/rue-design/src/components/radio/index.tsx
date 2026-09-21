@@ -28,6 +28,17 @@ export type RadioButtonStyle = 'outline' | 'solid'
 /** RadioOrientation 类型。 */
 export type RadioOrientation = 'horizontal' | 'vertical'
 
+const RADIO_COLOR_CLASS_NAMES: Record<RadioColor, string> = {
+  neutral: 'radio-neutral',
+  primary: 'radio-primary',
+  secondary: 'radio-secondary',
+  accent: 'radio-accent',
+  success: 'radio-success',
+  warning: 'radio-warning',
+  info: 'radio-info',
+  error: 'radio-error',
+}
+
 /** RadioChangeMeta 接口。 */
 export interface RadioChangeMeta {
   /** 受控选中状态。 */
@@ -201,7 +212,7 @@ const buildInputClassName = (color?: RadioColor, size?: RadioSize, className?: s
   let cls = 'radio'
   const resolvedSize = resolveSizeToken(size)
 
-  if (color) cls += ` radio-${color}`
+  if (color) cls += ` ${RADIO_COLOR_CLASS_NAMES[color]}`
   if (resolvedSize) cls += ` radio-${resolvedSize}`
   if (className) cls += ` ${className}`
 

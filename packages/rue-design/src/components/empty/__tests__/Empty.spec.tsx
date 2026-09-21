@@ -101,6 +101,35 @@ describe('Empty', () => {
     })
   })
 
+  it('renders custom JSX image and description props without stringifying slot factories', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Empty
+          data-testid="empty-custom-content"
+          image={<svg data-testid="custom-empty-image" />}
+          description={
+            <div data-testid="custom-empty-description">
+              <strong>同步队列还是空的</strong>
+              <span>添加素材后会自动生成批次。</span>
+            </div>
+          }
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const element = container.querySelector('[data-testid="empty-custom-content"]') as HTMLElement
+      expect(element.querySelector('[data-testid="custom-empty-image"]')).toBeTruthy()
+      expect(element.querySelector('[data-testid="custom-empty-description"]')).toBeTruthy()
+      expect(element.textContent).toContain('同步队列还是空的')
+      expect(element.textContent).not.toContain('_$mountCompiledSlotFactory')
+    })
+  })
+
   it('skips wrappers for empty image, description, and footer payloads', async () => {
     const container = mountContainer()
     resetActiveRuntime()

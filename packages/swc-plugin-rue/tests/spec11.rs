@@ -401,8 +401,8 @@ export default FormBindings;
     assert!(normalized.contains("_$reconcileKeyed"), "{normalized}");
     assert!(normalized.contains("_$mountCompiledKeyedRow"), "{normalized}");
     assert!(normalized.contains("_$compiledText"), "{normalized}");
-    assert!(normalized.contains("_$setValue"), "{normalized}");
-    assert!(normalized.contains("_$setChecked"), "{normalized}");
+    assert!(normalized.contains(".value ="), "{normalized}");
+    assert!(normalized.contains(".checked ="), "{normalized}");
     assert!(normalized.contains("checkedNames.value.includes(_$rowItem1.get())"), "{normalized}");
     assert_eq!(
         normalized.matches(".addEventListener(").count(),

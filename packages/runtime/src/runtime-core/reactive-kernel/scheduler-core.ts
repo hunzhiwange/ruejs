@@ -118,7 +118,10 @@ export function schedulerLeaveOutermostBatch(storage: ReactiveSchedulerStorage):
   else schedulerScheduleDefaultDrain(storage)
 }
 export function schedulerScheduleDefaultDrain(storage: ReactiveSchedulerStorage): void {
-  if (storage.drainScheduled) return
+  // A running drain owns all jobs produced by that flush. Let it consume the
+  // follow-up round instead of deferring derived component/DOM effects to a
+  // second animation frame.
+  if (storage.flushing || storage.drainScheduled) return
   if (storage.state.schedulingMode === 'frame') schedulerScheduleFrameDrain(storage)
   else schedulerScheduleMicrotaskDrain(storage)
 }
@@ -155,19 +158,20 @@ export function schedulerDrain(storage: ReactiveSchedulerStorage): void {
   }
 
   storage.flushing = true
-  const jobs = [...storage.pending]
-  storage.pending.clear()
   let firstError: unknown
-  for (const [id, run] of jobs) {
-    try {
-      schedulerRunJob(storage, id, run)
-    } catch (error) {
-      firstError ??= error
+  while (storage.pending.size > 0) {
+    const jobs = [...storage.pending]
+    storage.pending.clear()
+    for (const [id, run] of jobs) {
+      try {
+        schedulerRunJob(storage, id, run)
+      } catch (error) {
+        firstError ??= error
+      }
     }
   }
 
-  if (storage.pending.size > 0) schedulerScheduleDefaultDrain(storage)
-  else schedulerFinishFlush(storage)
+  schedulerFinishFlush(storage)
 
   if (firstError !== undefined) throw firstError
 }

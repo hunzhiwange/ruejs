@@ -143,7 +143,7 @@ const buildRootClassName = (disabled?: boolean, rootClassName?: string) => {
 
 /** 构建 Content Class Name 的内部工具函数。 */
 const buildContentClassName = (contentClassName?: string) => {
-  return appendClassName('min-w-0 flex-1', contentClassName)
+  return appendClassName('min-w-0 flex-1 pt-0.5', contentClassName)
 }
 
 /** serialize Value 的内部工具函数。 */
@@ -301,7 +301,7 @@ const Checkbox: FC<CheckboxProps> = ({
       style={rootStyle}
       data-rue-checkbox-root="true"
     >
-      <span className="shrink-0 pt-0.5">
+      <span className="shrink-0">
         <input
           {...rest}
           ref={bindInput}

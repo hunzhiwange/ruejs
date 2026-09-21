@@ -1,6 +1,10 @@
 import { resolve } from 'node:path'
 import swc from '@swc/core'
-import { resolveCompilerCapability } from './compiler-capability-test-runtime'
+import {
+  compilerCapabilities,
+  createMountedCompiledTestComponent,
+  resolveCompilerCapability,
+} from './compiler-capability-test-runtime'
 
 export const compileComponent = (source: string, filename = 'closed-component.tsx') =>
   swc.transformSync(source, {
@@ -26,4 +30,41 @@ export const evaluateComponent = (source: string, filename?: string) => {
     module.exports,
   )
   return { code, exports: module.exports }
+}
+
+type CompiledFixtureOptions = {
+  exportName?: string
+  filename?: string
+  host?: HTMLElement
+  props?: Record<string, unknown>
+  scheduling?: 'sync' | 'microtask'
+}
+
+export const mountCompiledFixture = (source: string, options: CompiledFixtureOptions = {}) => {
+  const {
+    exportName = 'View',
+    filename,
+    host = document.body,
+    props = {},
+    scheduling = 'sync',
+  } = options
+  compilerCapabilities.reactive.setReactiveScheduling(scheduling)
+
+  const evaluated = evaluateComponent(source, filename)
+  const componentFactory = evaluated.exports[exportName]
+  if (typeof componentFactory !== 'function') {
+    throw new Error(`Compiled fixture export is not a component factory: ${exportName}`)
+  }
+  const mounted = createMountedCompiledTestComponent(componentFactory, host, props)
+
+  return {
+    ...evaluated,
+    host,
+    root: mounted.root,
+    flush: async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    },
+    dispose: mounted.dispose,
+  }
 }

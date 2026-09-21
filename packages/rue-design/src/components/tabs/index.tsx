@@ -225,8 +225,10 @@ const Tabs: FC<TabsProps> = (
     resolveInitialActiveKey(normalizedItems, defaultActiveKey ?? activeKey),
   )
   const readPanelSlot = (key: string) => slots[key]
+  const readPanelContent = (item: TabItem) =>
+    item.content != null ? item.content : (item.children ?? readPanelSlot(item.key))
   const readExtraSlot = (side: string) => slots[side]
-  const hasPanels = normalizedItems.some(item => item.content != null || slots[item.key])
+  const hasPanels = normalizedItems.some(item => readPanelContent(item) != null)
   const extraContent = { left: slots.left, right: slots.right }
   const isVertical = resolvedPlacement === 'start' || resolvedPlacement === 'end'
   const replaceDefaultIndicator = !!indicator && resolvedStyle === 'border'
@@ -323,7 +325,12 @@ const Tabs: FC<TabsProps> = (
                 ),
                 closable ? 'gap-2 pr-2' : undefined,
               ),
-              item.className,
+              appendClassName(
+                item.className,
+                resolvedStyle === 'lift' && getEffectiveActiveKey() !== item.key
+                  ? '![--tab-border-color:var(--color-base-300)]'
+                  : undefined,
+              ),
             )}
             disabled={item.disabled}
             onClick={() => {
@@ -391,7 +398,7 @@ const Tabs: FC<TabsProps> = (
   const readVisiblePanels = () =>
     normalizedItems.filter(
       item =>
-        (item.content != null || readPanelSlot(item.key)) &&
+        readPanelContent(item) != null &&
         (!destroyOnHidden || item.key === getEffectiveActiveKey()),
     )
   const RenderPanelsNode = () => {
@@ -410,7 +417,11 @@ const Tabs: FC<TabsProps> = (
             item.key === getEffectiveActiveKey(),
           )}
         >
-          {item.content != null ? <span>{String(item.content)}</span> : <>{slots[item.key]}</>}
+          {item.content != null ? (
+            <span>{String(item.content)}</span>
+          ) : (
+            <>{readPanelContent(item)}</>
+          )}
         </div>
       )
     }

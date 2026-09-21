@@ -38,13 +38,13 @@ const Comp: FC = ()=>{
                         ...extra,
                         x: a.value
                     }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             const arr = computed(()=>[
                         ...arr0,
                         a.value
                     ]);
-            arr.get();
+            untrack(()=>arr.get());
             const __rue_phase2_arr = arr;
             return {
                 extra: extra,

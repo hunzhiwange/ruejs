@@ -69,7 +69,10 @@ export default Comp;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec6.out.js", strip_marker(&out)).ok();
     let output = normalize(&strip_marker(&out));
-    assert!(output.contains("const Comp: FC = ()=>_$compiledRoot"), "{output}");
+    assert!(
+        output.contains("const Comp: FC = (_$rueProps, _$rueSlots, _$rueOwner)=>_$compiledRoot"),
+        "{output}"
+    );
     assert_eq!(output.matches("_$compiledBranchAt(").count(), 1, "{output}");
     assert!(
         output.contains("if (count.value === 0) return { __rue_compiled_branch_key: true"),

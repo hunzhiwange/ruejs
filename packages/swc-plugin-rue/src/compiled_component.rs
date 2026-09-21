@@ -553,10 +553,15 @@ fn object_param_bindings(object: &ObjectPat) -> Option<DestructuredProps> {
 }
 
 fn component_param(params: &[Pat]) -> Option<(String, Option<DestructuredProps>)> {
-    match params {
-        [] => Some(("__rue_props".to_string(), Some(DestructuredProps::default()))),
-        [Pat::Ident(binding)] => Some((binding.id.sym.to_string(), None)),
-        [Pat::Object(object)] => {
+    let props = match params {
+        [] => return Some(("__rue_props".to_string(), Some(DestructuredProps::default()))),
+        [props] => props,
+        [props, Pat::Ident(_) | Pat::Assign(_)] => props,
+        _ => return None,
+    };
+    match props {
+        Pat::Ident(binding) => Some((binding.id.sym.to_string(), None)),
+        Pat::Object(object) => {
             Some(("__rue_props".to_string(), Some(object_param_bindings(object)?)))
         }
         _ => None,
@@ -608,9 +613,34 @@ fn render_expr_is_safe(expr: &Expr) -> bool {
         Expr::Bin(binary) if binary.op == BinaryOp::LogicalAnd => {
             render_expr_is_safe(binary.right.as_ref())
         }
-        Expr::Call(call) => compiled_map_render_is_safe(call),
+        Expr::Call(call) => {
+            compiled_map_render_is_safe(call)
+                || matches!(
+                    &call.callee,
+                    Callee::Expr(callee)
+                        if matches!(
+                            crate::utils::unwrap_expr(callee),
+                            Expr::Ident(ident)
+                                if matches!(
+                                    ident.sym.as_ref(),
+                                    "_$compiledRoot"
+                                        | "_$compiledStaticRoot"
+                                        | "_$compiledScalarRoot"
+                                        | "_$compiledBranch"
+                                        | "_$compiledComponent"
+                                )
+                        )
+                )
+        }
         _ => false,
     }
+}
+
+fn render_expr_requires_branch(expr: &Expr) -> bool {
+    matches!(
+        crate::utils::unwrap_expr(expr),
+        Expr::Cond(_) | Expr::Bin(BinExpr { op: BinaryOp::LogicalAnd, .. })
+    )
 }
 
 fn compiled_map_render_is_safe(call: &CallExpr) -> bool {
@@ -663,7 +693,17 @@ fn branch_block_render_expr(block: &BlockStmt) -> Option<Expr> {
                 return Some(crate::utils::unwrap_expr(expr).clone());
             }
             Stmt::If(if_stmt) => {
-                let cons = terminal_render_expr(if_stmt.cons.as_ref())?;
+                let Some(cons) = terminal_render_expr(if_stmt.cons.as_ref()) else {
+                    // An early render branch may contain ordinary setup conditionals before its
+                    // terminal return (for example, incrementally building a class name). Those
+                    // conditionals do not select the component's rendered shape, so keep scanning
+                    // the enclosing block for the actual return instead of rejecting the whole
+                    // component from compiled branch lowering.
+                    if if_stmt.alt.is_none() {
+                        continue;
+                    }
+                    return None;
+                };
                 if let Some(alt) = &if_stmt.alt {
                     let alt = terminal_render_expr(alt.as_ref())?;
                     return Some(Expr::Cond(CondExpr {
@@ -754,6 +794,22 @@ fn fallthrough_branch_render_expr(block: &BlockStmt) -> Option<Expr> {
 struct KeyCompiledBranchReturns {
     next_key: usize,
     selector_bindings: HashSet<String>,
+    allow_same_key_refresh: bool,
+}
+
+#[derive(Default)]
+struct ComponentReturnCounter {
+    count: usize,
+}
+
+impl Visit for ComponentReturnCounter {
+    fn visit_return_stmt(&mut self, return_stmt: &ReturnStmt) {
+        self.count += 1;
+        return_stmt.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, _: &Function) {}
+    fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
 }
 
 #[derive(Default)]
@@ -781,9 +837,17 @@ impl VisitMut for KeyCompiledBranchReturns {
     fn visit_mut_arrow_expr(&mut self, _: &mut ArrowExpr) {}
 
     fn visit_mut_return_stmt(&mut self, return_stmt: &mut ReturnStmt) {
-        let Some(result) = return_stmt.arg.take() else {
+        let Some(mut result) = return_stmt.arg.take() else {
             return;
         };
+        if crate::utils::is_static_empty_like(result.as_ref()) {
+            result = Box::new(Expr::JSXFragment(JSXFragment {
+                span: DUMMY_SP,
+                opening: JSXOpeningFragment { span: DUMMY_SP },
+                closing: JSXClosingFragment { span: DUMMY_SP },
+                children: vec![],
+            }));
+        }
         let key =
             Expr::Lit(Lit::Num(Number { span: DUMMY_SP, value: self.next_key as f64, raw: None }));
         self.next_key += 1;
@@ -792,7 +856,7 @@ impl VisitMut for KeyCompiledBranchReturns {
         let mut captures =
             UnavailableReferenceDetector { unavailable: &self.selector_bindings, found: false };
         result.visit_with(&mut captures);
-        return_stmt.arg = Some(Box::new(if captures.found {
+        return_stmt.arg = Some(Box::new(if captures.found && self.allow_same_key_refresh {
             crate::element_expr::refreshing_compiled_branch_case(key, *result)
         } else {
             crate::element_expr::compiled_branch_case(key, *result)
@@ -885,6 +949,35 @@ impl PropsUsageAnalyzer {
 }
 
 impl Visit for PropsUsageAnalyzer {
+    fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
+        if matches!(&declarator.name, Pat::Object(_))
+            && declarator.init.as_deref().is_some_and(|init| {
+                matches!(
+                    crate::utils::unwrap_expr(init),
+                    Expr::Ident(props) if props.sym.as_ref() == self.props_name
+                )
+            })
+        {
+            declarator.name.visit_with(self);
+            return;
+        }
+        declarator.visit_children_with(self);
+    }
+
+    fn visit_spread_element(&mut self, spread: &SpreadElement) {
+        if matches!(
+            crate::utils::unwrap_expr(spread.expr.as_ref()),
+            Expr::Ident(props) if props.sym.as_ref() == self.props_name
+        ) {
+            let previous = self.consuming_props_object;
+            self.consuming_props_object = true;
+            spread.expr.visit_with(self);
+            self.consuming_props_object = previous;
+            return;
+        }
+        spread.visit_children_with(self);
+    }
+
     fn visit_binding_ident(&mut self, binding: &BindingIdent) {
         if binding.id.sym.as_ref() == self.props_name {
             self.shadowed = true;
@@ -892,10 +985,71 @@ impl Visit for PropsUsageAnalyzer {
     }
 
     fn visit_call_expr(&mut self, call: &CallExpr) {
+        let is_has_own_property_call = matches!(
+            &call.callee,
+            Callee::Expr(callee)
+                if matches!(
+                    crate::utils::unwrap_expr(callee.as_ref()),
+                    Expr::Member(MemberExpr {
+                        obj,
+                        prop: MemberProp::Ident(method),
+                        ..
+                    }) if method.sym == *"call"
+                        && matches!(
+                            crate::utils::unwrap_expr(obj.as_ref()),
+                            Expr::Member(MemberExpr {
+                                prop: MemberProp::Ident(method),
+                                ..
+                            }) if method.sym == *"hasOwnProperty"
+                        )
+                )
+        );
+        if is_has_own_property_call {
+            call.callee.visit_with(self);
+            for argument in &call.args {
+                let consumes_props = matches!(
+                    crate::utils::unwrap_expr(argument.expr.as_ref()),
+                    Expr::Ident(props) if props.sym.as_ref() == self.props_name
+                );
+                let previous = self.consuming_props_object;
+                self.consuming_props_object |= consumes_props;
+                argument.visit_with(self);
+                self.consuming_props_object = previous;
+            }
+            return;
+        }
         if let Callee::Expr(callee) = &call.callee
             && let Expr::Ident(ident) = crate::utils::unwrap_expr(callee.as_ref())
         {
             let name = ident.sym.as_ref();
+            if matches!(
+                name,
+                "_$compiledPropsGet"
+                    | "_$compiledPropsHas"
+                    | "_$compiledPropsKeys"
+                    | "_$compiledPropsSnapshot"
+            ) && let Some(first) = call.args.first()
+                && matches!(
+                    crate::utils::unwrap_expr(first.expr.as_ref()),
+                    Expr::Ident(props) if props.sym.as_ref() == self.props_name
+                )
+            {
+                if name == "_$compiledPropsGet"
+                    && let Some(key) = call.args.get(1)
+                    && let Expr::Lit(Lit::Str(key)) = crate::utils::unwrap_expr(key.expr.as_ref())
+                {
+                    self.keys.insert(key.value.to_string_lossy().into_owned());
+                }
+
+                let previous = self.consuming_props_object;
+                self.consuming_props_object = true;
+                first.expr.visit_with(self);
+                self.consuming_props_object = previous;
+                for argument in call.args.iter().skip(1) {
+                    argument.visit_with(self);
+                }
+                return;
+            }
             let is_regional_helper =
                 is_regional_setup_helper(name) || self.hook_names.contains_key(name);
             if is_regional_helper && (self.control_depth > 0 || self.nested_function_depth > 0) {
@@ -1157,6 +1311,7 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
     let mut candidates = HashMap::new();
     let mut imported = HashSet::new();
     let hook_names = imported_hook_names(module);
+    let component_names = function_component_names(&Program::Module(module.clone()));
     for item in &module.body {
         if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
             for specifier in &import.specifiers {
@@ -1182,14 +1337,24 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
                 {
                     continue;
                 }
+                if !component_names.contains(&name) {
+                    continue;
+                }
                 let Some((props_name, destructured_props)) = function_param(&decl.function) else {
                     continue;
                 };
+                if destructured_props
+                    .as_ref()
+                    .is_some_and(|props| !props.bindings.is_empty() || props.rest.is_some())
+                    && !component_names.contains(&name)
+                {
+                    continue;
+                }
                 let Some(body) = decl.function.body.as_ref() else {
                     continue;
                 };
                 let render = function_render_expr(&decl.function)
-                    .map(|render| (render.clone(), false))
+                    .map(|render| (render.clone(), render_expr_requires_branch(render)))
                     .or_else(|| fallthrough_branch_render_expr(body).map(|render| (render, true)));
                 let Some((render, branching)) = render else {
                     continue;
@@ -1216,17 +1381,28 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
                 let Pat::Ident(binding) = &declarator.name else {
                     continue;
                 };
+                let name = binding.id.sym.to_string();
                 let Some(Expr::Arrow(arrow)) = declarator.init.as_deref() else {
                     continue;
                 };
                 if arrow.is_async || arrow.is_generator {
                     continue;
                 }
+                if !component_names.contains(&name) {
+                    continue;
+                }
                 let Some((props_name, destructured_props)) = component_param(&arrow.params) else {
                     continue;
                 };
+                if destructured_props
+                    .as_ref()
+                    .is_some_and(|props| !props.bindings.is_empty() || props.rest.is_some())
+                    && !component_names.contains(&name)
+                {
+                    continue;
+                }
                 let render = arrow_render_expr(arrow)
-                    .map(|render| (render.clone(), false))
+                    .map(|render| (render.clone(), render_expr_requires_branch(render)))
                     .or_else(|| match arrow.body.as_ref() {
                         BlockStmtOrExpr::BlockStmt(block) => {
                             fallthrough_branch_render_expr(block).map(|render| (render, true))
@@ -1236,7 +1412,6 @@ pub(crate) fn analyze_module(module: &Module) -> CompiledComponentCandidates {
                 let Some((render, branching)) = render else {
                     continue;
                 };
-                let name = binding.id.sym.to_string();
                 let render_reactive = matches!(
                     arrow.body.as_ref(),
                     BlockStmtOrExpr::BlockStmt(block)
@@ -1700,6 +1875,112 @@ fn binding_kinds(stmts: &[Stmt]) -> (Vec<String>, Vec<String>) {
     (names_const, names_let)
 }
 
+fn declares_object_rest(stmt: &Stmt) -> bool {
+    fn pattern_has_object_rest(pattern: &Pat) -> bool {
+        match pattern {
+            Pat::Object(object) => object.props.iter().any(|property| match property {
+                ObjectPatProp::Rest(_) => true,
+                ObjectPatProp::KeyValue(property) => pattern_has_object_rest(&property.value),
+                ObjectPatProp::Assign(_) => false,
+            }),
+            Pat::Array(array) => {
+                array.elems.iter().flatten().any(|element| pattern_has_object_rest(element))
+            }
+            Pat::Assign(assign) => pattern_has_object_rest(&assign.left),
+            Pat::Rest(rest) => pattern_has_object_rest(&rest.arg),
+            _ => false,
+        }
+    }
+
+    matches!(stmt, Stmt::Decl(Decl::Var(var)) if var.decls.iter().any(|declarator| pattern_has_object_rest(&declarator.name)))
+}
+
+fn stable_setup_effect_expr(stmt: &Stmt) -> Option<&ExprStmt> {
+    let Stmt::Expr(expression) = stmt else {
+        return None;
+    };
+    let Expr::Call(call) = crate::utils::unwrap_expr(expression.expr.as_ref()) else {
+        return None;
+    };
+    let Callee::Expr(callee) = &call.callee else {
+        return None;
+    };
+    let Expr::Ident(ident) = crate::utils::unwrap_expr(callee.as_ref()) else {
+        return None;
+    };
+    is_regional_setup_helper(ident.sym.as_ref()).then_some(expression).filter(|_| {
+        matches!(
+            ident.sym.as_ref(),
+            "watch"
+                | "watchEffect"
+                | "watchSignal"
+                | "watchFn"
+                | "watchPath"
+                | "watchDeepSignal"
+                | "onMounted"
+                | "onUnmounted"
+                | "onBeforeMount"
+                | "onBeforeUnmount"
+                | "onServerPrefetch"
+                | "onUpdated"
+                | "onBeforeUpdate"
+                | "onActivated"
+                | "onDeactivated"
+        )
+    })
+}
+
+fn cache_stable_setup_effects(
+    stmts: &mut [Stmt],
+    component_name: &str,
+    region_index: usize,
+) -> bool {
+    let mut wrapped = 0usize;
+    for stmt in stmts {
+        let Some(expression) = stable_setup_effect_expr(stmt).cloned() else {
+            continue;
+        };
+        let slot = format!("{component_name}:setup-effect:{region_index}:{wrapped}");
+        wrapped += 1;
+        *stmt = Stmt::Expr(ExprStmt {
+            span: expression.span,
+            expr: Box::new(Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
+                callee: Callee::Expr(Box::new(Expr::Ident(Ident::new_no_ctxt(
+                    "_$compiledSetup".into(),
+                    DUMMY_SP,
+                )))),
+                args: vec![
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Lit(Lit::Str(Str {
+                            span: DUMMY_SP,
+                            value: slot.into(),
+                            raw: None,
+                        }))),
+                    },
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Arrow(ArrowExpr {
+                            span: DUMMY_SP,
+                            ctxt: SyntaxContext::empty(),
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::Expr(expression.expr)),
+                            is_async: false,
+                            is_generator: false,
+                            type_params: None,
+                            return_type: None,
+                        })),
+                    },
+                ],
+                type_args: None,
+            })),
+        });
+    }
+    wrapped > 0
+}
+
 struct StableSetupValueInliner<'a> {
     values: &'a HashMap<String, Expr>,
 }
@@ -1716,6 +1997,32 @@ impl VisitMut for StableSetupValueInliner<'_> {
     }
 }
 
+fn is_reactive_snapshot_declaration(stmt: &Stmt) -> bool {
+    let Stmt::Decl(Decl::Var(var)) = stmt else {
+        return false;
+    };
+    var.decls.iter().any(|declarator| {
+        let Some(init) = declarator.init.as_deref() else {
+            return false;
+        };
+        matches!(
+            crate::utils::unwrap_expr(init),
+            Expr::Call(CallExpr {
+                callee: Callee::Expr(callee),
+                args,
+                ..
+            }) if args.is_empty()
+                && matches!(
+                    crate::utils::unwrap_expr(callee),
+                    Expr::Member(MemberExpr {
+                        prop: MemberProp::Ident(property),
+                        ..
+                    }) if property.sym == *"get"
+                )
+        )
+    })
+}
+
 fn record_stable_setup_values(stmts: &[Stmt], values: &mut HashMap<String, Expr>) {
     let shadows = HashSet::new();
     for stmt in stmts {
@@ -1730,7 +2037,9 @@ fn record_stable_setup_values(stmts: &[Stmt], values: &mut HashMap<String, Expr>
             else {
                 continue;
             };
-            if crate::vapor::is_compiled_scalar_expr_with_shadows(init, &shadows) {
+            if !is_reactive_snapshot_declaration(stmt)
+                && crate::vapor::is_compiled_scalar_expr_with_shadows(init, &shadows)
+            {
                 values.insert(binding.id.sym.to_string(), init.clone());
             }
         }
@@ -1746,11 +2055,58 @@ fn lower_setup_region(
     unavailable: &mut HashSet<String>,
     stable_values: &mut HashMap<String, Expr>,
     has_setup_regions: &mut bool,
+    has_stable_setup_effects: &mut bool,
 ) -> Vec<Stmt> {
     let region_block =
         BlockStmt { span: DUMMY_SP, ctxt: SyntaxContext::empty(), stmts: region.clone() };
     let (mut collected, _, _, _) =
         crate::pre::collect_setup_region(&region_block, available, unavailable);
+    collected.retain(|stmt| !is_reactive_snapshot_declaration(stmt));
+    // Rest bindings carry the source resolver context used by JSX spread references. The setup
+    // binder currently reconstructs collected names from strings, which can detach that context
+    // when another component in the same module uses the same rest name. Keep the destructure in
+    // its original branch scope so hygiene renames the declaration and every reference together.
+    collected.retain(|stmt| !declares_object_rest(stmt));
+
+    // Snapshot state must be created once even when its initializer reads live inputs. Keep the
+    // already-hoistable declaration chain it depends on (for example computed bounds feeding a
+    // default-value ref), while leaving unrelated props-derived render values in the branch.
+    let mut setup_once = collected
+        .iter()
+        .filter(|stmt| crate::pre::stmt_is_snapshot_initializer(stmt))
+        .cloned()
+        .collect::<Vec<_>>();
+    loop {
+        let mut added = false;
+        for stmt in &region {
+            if setup_once.contains(stmt) {
+                continue;
+            }
+            let names = declared_names(stmt).into_iter().collect::<HashSet<_>>();
+            if !names.is_empty()
+                && setup_once.iter().any(|consumer| references_unavailable(consumer, &names))
+            {
+                setup_once.push(stmt.clone());
+                added = true;
+            }
+        }
+        if !added {
+            break;
+        }
+    }
+    // Snapshot dependencies can be excluded by the general collector when they read live props.
+    // They still belong to the same one-time initialization chain: leaving them in the branch
+    // would move the setup call ahead of their declarations and enter the temporal dead zone.
+    // Merge the complete dependency closure back in source order before applying the live-local
+    // filtering below.
+    for stmt in &region {
+        if setup_once.contains(stmt) && !collected.contains(stmt) {
+            collected.push(stmt.clone());
+        }
+    }
+    collected.sort_by_key(|stmt| {
+        region.iter().position(|candidate| candidate == stmt).unwrap_or(region.len())
+    });
 
     // The shared collector intentionally permits helper closures. For compiled regions, reject
     // any candidate that closes over a live prop-derived local, including transitive closures,
@@ -1762,13 +2118,18 @@ fn lower_setup_region(
             live_names.extend(declared_names(stmt));
         }
         let before = collected.len();
-        collected.retain(|stmt| !references_unavailable(stmt, &live_names));
+        collected
+            .retain(|stmt| setup_once.contains(stmt) || !references_unavailable(stmt, &live_names));
         if collected.len() == before {
             break;
         }
     }
 
-    let remaining = remove_collected(region, &collected);
+    let mut remaining = remove_collected(region, &collected);
+    if cache_stable_setup_effects(&mut remaining, component_name, region_index) {
+        *has_setup_regions = true;
+        *has_stable_setup_effects = true;
+    }
     for stmt in &collected {
         available.extend(declared_names(stmt));
     }
@@ -2105,13 +2466,53 @@ fn lower_branch_render(
         return None;
     }
 
-    let source = std::mem::take(&mut block.stmts);
+    fn empty_render_expr() -> Expr {
+        Expr::JSXFragment(JSXFragment {
+            span: DUMMY_SP,
+            opening: JSXOpeningFragment { span: DUMMY_SP },
+            closing: JSXClosingFragment { span: DUMMY_SP },
+            children: vec![],
+        })
+    }
+
+    fn expand_render_return(stmt: Stmt) -> Vec<Stmt> {
+        let Stmt::Return(ReturnStmt { span, arg: Some(arg) }) = stmt else {
+            return vec![stmt];
+        };
+        match *arg {
+            Expr::Cond(cond) => vec![
+                Stmt::If(IfStmt {
+                    span: DUMMY_SP,
+                    test: cond.test,
+                    cons: Box::new(Stmt::Return(ReturnStmt { span, arg: Some(cond.cons) })),
+                    alt: None,
+                }),
+                Stmt::Return(ReturnStmt { span, arg: Some(cond.alt) }),
+            ],
+            Expr::Bin(binary) if binary.op == BinaryOp::LogicalAnd => vec![
+                Stmt::If(IfStmt {
+                    span: DUMMY_SP,
+                    test: binary.left,
+                    cons: Box::new(Stmt::Return(ReturnStmt { span, arg: Some(binary.right) })),
+                    alt: None,
+                }),
+                Stmt::Return(ReturnStmt { span, arg: Some(Box::new(empty_render_expr())) }),
+            ],
+            other => vec![Stmt::Return(ReturnStmt { span, arg: Some(Box::new(other)) })],
+        }
+    }
+
+    let source = std::mem::take(&mut block.stmts)
+        .into_iter()
+        .flat_map(expand_render_return)
+        .collect::<Vec<_>>();
     let mut branch_stmts = Vec::with_capacity(source.len());
     let mut region = Vec::new();
     let mut region_index = 0;
     let mut available = HashSet::new();
     let mut stable_values = HashMap::new();
     let mut has_setup_regions = false;
+    let mut has_stable_setup_effects = false;
     let mut unavailable =
         prop_slots.values().map(|ident| ident.sym.to_string()).collect::<HashSet<_>>();
 
@@ -2133,6 +2534,7 @@ fn lower_branch_render(
             &mut unavailable,
             &mut stable_values,
             &mut has_setup_regions,
+            &mut has_stable_setup_effects,
         ));
         region_index += 1;
         stmt.visit_mut_with(&mut StableSetupValueInliner { values: &stable_values });
@@ -2141,9 +2543,18 @@ fn lower_branch_render(
 
     let mut bindings = SelectorBindingCollector::default();
     branch_stmts.visit_with(&mut bindings);
+    let mut returns = ComponentReturnCounter::default();
+    for stmt in &branch_stmts {
+        stmt.visit_with(&mut returns);
+    }
     branch_stmts.visit_mut_with(&mut KeyCompiledBranchReturns {
         next_key: 0,
         selector_bindings: bindings.names,
+        // A selector with one terminal return cannot change branch identity. Its returned
+        // compiled block already owns fine-grained bindings, so refreshing it merely replaces
+        // stable DOM (and drops input focus/composition state) whenever setup reads invalidate
+        // the selector.
+        allow_same_key_refresh: returns.count > 1 && !has_stable_setup_effects,
     });
 
     let factory = Expr::Arrow(ArrowExpr {
@@ -2286,10 +2697,15 @@ fn rewrite_block(block: &mut BlockStmt, candidate: &CompiledComponentCandidate) 
 
 fn rewrite_arrow(arrow: &mut ArrowExpr, candidate: &CompiledComponentCandidate) {
     if !candidate.destructured_props.is_empty() {
-        arrow.params = vec![Pat::Ident(BindingIdent {
+        let props = Pat::Ident(BindingIdent {
             id: crate::emit::ident(&candidate.props_name),
             type_ann: None,
-        })];
+        });
+        if arrow.params.is_empty() {
+            arrow.params.push(props);
+        } else {
+            arrow.params[0] = props;
+        }
     }
     if let BlockStmtOrExpr::Expr(render) = arrow.body.as_ref() {
         arrow.body = Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
@@ -2305,14 +2721,19 @@ fn rewrite_arrow(arrow: &mut ArrowExpr, candidate: &CompiledComponentCandidate) 
 
 fn rewrite_function(function: &mut Function, candidate: &CompiledComponentCandidate) {
     if !candidate.destructured_props.is_empty() {
-        function.params = vec![Param {
+        let props = Param {
             span: DUMMY_SP,
             decorators: vec![],
             pat: Pat::Ident(BindingIdent {
                 id: crate::emit::ident(&candidate.props_name),
                 type_ann: None,
             }),
-        }];
+        };
+        if function.params.is_empty() {
+            function.params.push(props);
+        } else {
+            function.params[0] = props;
+        }
     }
     if let Some(block) = &mut function.body {
         rewrite_block(block, candidate);
@@ -2354,6 +2775,96 @@ pub(crate) fn transform_module(module: &mut Module, candidates: &CompiledCompone
             _ => {}
         }
     }
+
+    // Top-level candidates can declare local component factories that close over reactive
+    // setup state. Those factories still need the closed-component branch lowering; otherwise
+    // a concise conditional such as `const Indicator = () => visible.value ? <b /> : null`
+    // is evaluated only once when mounted. Keep this pass scoped to nested, PascalCase variable
+    // factories so ordinary JSX callbacks (map renderers, event callbacks, etc.) are untouched.
+    struct NestedComponentTransformer<'a> {
+        depth: usize,
+        hook_names: &'a HashMap<String, String>,
+    }
+
+    impl VisitMut for NestedComponentTransformer<'_> {
+        fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
+            self.depth += 1;
+            arrow.visit_mut_children_with(self);
+            self.depth -= 1;
+        }
+
+        fn visit_mut_var_declarator(&mut self, declarator: &mut VarDeclarator) {
+            declarator.visit_mut_children_with(self);
+            if self.depth == 0 {
+                return;
+            }
+            let Pat::Ident(binding) = &declarator.name else {
+                return;
+            };
+            let name = binding.id.sym.to_string();
+            if !name.chars().next().is_some_and(char::is_uppercase) {
+                return;
+            }
+            let Some(Expr::Arrow(arrow)) = declarator.init.as_deref_mut() else {
+                return;
+            };
+            if arrow.is_async || arrow.is_generator {
+                return;
+            }
+            let Some((props_name, destructured_props)) = component_param(&arrow.params) else {
+                return;
+            };
+            let render = arrow_render_expr(arrow)
+                .map(|render| (render.clone(), render_expr_requires_branch(render)))
+                .or_else(|| match arrow.body.as_ref() {
+                    BlockStmtOrExpr::BlockStmt(block) => {
+                        fallthrough_branch_render_expr(block).map(|render| (render, true))
+                    }
+                    BlockStmtOrExpr::Expr(_) => None,
+                });
+            let Some((render, branching)) = render else {
+                return;
+            };
+            let render_reactive = matches!(
+                arrow.body.as_ref(),
+                BlockStmtOrExpr::BlockStmt(block)
+                    if crate::pre::block_requires_custom_composable_render_effect(block)
+            );
+            let zero_props = arrow.params.is_empty();
+            let candidate = analyze_candidate(
+                name.clone(),
+                props_name.clone(),
+                destructured_props,
+                arrow.body.as_ref(),
+                &render,
+                branching,
+                render_reactive,
+                self.hook_names,
+            )
+            .or_else(|| {
+                // A zero-prop local factory can freely close over its parent's setup state.
+                // Props analysis may reject those outer references after setup extraction, but
+                // there is no child-props object to specialize in this shape.
+                zero_props.then(|| CompiledComponentCandidate {
+                    name,
+                    props_name,
+                    prop_keys: Vec::new(),
+                    rest_prop: None,
+                    destructured_props: HashMap::new(),
+                    branching,
+                    hook_aware: false,
+                    hook_names: self.hook_names.clone(),
+                })
+            });
+            let Some(candidate) = candidate else {
+                return;
+            };
+            rewrite_arrow(arrow, &candidate);
+        }
+    }
+
+    let hook_names = imported_hook_names(module);
+    module.visit_mut_with(&mut NestedComponentTransformer { depth: 0, hook_names: &hook_names });
 }
 
 #[derive(Default)]

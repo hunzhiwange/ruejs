@@ -1220,6 +1220,7 @@ impl VisitMut for GateListMemoReads<'_> {
         let index = match call_callee_ident_name(call) {
             Some("effect") => 0,
             Some("_$compiledText") => 1,
+            Some("_$mountCompiledSlotAt") => 1,
             _ => return,
         };
         let Some(arg) = call.args.get_mut(index) else { return };
@@ -1506,8 +1507,8 @@ fn try_build_list_from_map_with_anchor(
                 && render_item_direct_expr.as_ref().is_some_and(|expr| {
                     crate::element_list_patch::accepts_simple_native_row(expr, &item_ident)
                 });
-            let ownerless_simple_native_row = memo_dependencies.is_none()
-                && render_item_direct_expr.as_ref().is_some_and(|expr| {
+            let ownerless_simple_native_row =
+                render_item_direct_expr.as_ref().is_some_and(|expr| {
                     crate::element_list_patch::accepts_ownerless_simple_native_row(
                         expr,
                         &item_ident,
@@ -1576,9 +1577,13 @@ fn try_build_list_from_map_with_anchor(
                         memo_setup = Some(const_decl(memo_ident.clone(), call_ident("_$compiledListMemo", vec![list_reader(deps)])));
 
                     }
-                    let mut row_signal_markers = std::collections::HashSet::from([
-                        crate::reactive_provenance::signal_value_marker(item_signal.sym.as_ref()),
-                    ]);
+                    let item_marker = if direct_item_slot {
+                        crate::reactive_provenance::computed_value_marker(item_signal.sym.as_ref())
+                    } else {
+                        crate::reactive_provenance::signal_value_marker(item_signal.sym.as_ref())
+                    };
+                    let mut row_signal_markers =
+                        std::collections::HashSet::from([item_marker]);
                     if row_uses_index {
                         row_signal_markers.insert(crate::reactive_provenance::signal_value_marker(
                             index_signal.sym.as_ref(),
@@ -1710,6 +1715,7 @@ fn try_build_list_from_map_with_anchor(
                 let mut patch_names = render_prefix_local_names.clone();
                 patch_names.insert(next_item.sym.to_string());
                 let next_index = fresh_ident_avoiding("_$rowNextIndex", &patch_names);
+                let memo_changed = fresh_ident_avoiding("_$rowMemoChanged", &patch_names);
                 row_mount_target =
                     direct_item_slot.then(|| fresh_ident_avoiding("_$rowTarget", &patch_names));
                 let mut patch = Expr::Arrow(ArrowExpr {
@@ -1767,6 +1773,15 @@ fn try_build_list_from_map_with_anchor(
                     return_type: None,
                     ctxt: SyntaxContext::empty(),
                 });
+                if direct_patch
+                    && memo_dependencies.is_some()
+                    && let Expr::Arrow(patch_arrow) = &mut patch
+                {
+                    patch_arrow.params.push(Pat::Ident(BindingIdent {
+                        id: memo_changed.clone(),
+                        type_ann: None,
+                    }));
+                }
                 if render_item_direct_expr.is_some() {
                     render_item_stmts.extend(render_item_prefix_stmts.iter().cloned());
                 }
@@ -1818,10 +1833,29 @@ fn try_build_list_from_map_with_anchor(
                     if let Expr::Arrow(patch_arrow) = &mut patch
                         && let BlockStmtOrExpr::BlockStmt(body) = patch_arrow.body.as_mut()
                     {
-                        body.stmts.push(Stmt::Expr(ExprStmt {
+                        let patch_call = Stmt::Expr(ExprStmt {
                             span: DUMMY_SP,
                             expr: Box::new(call_ident(patch_impl.sym.as_ref(), vec![])),
-                        }));
+                        });
+                        if memo_dependencies.is_some() {
+                            body.stmts.push(Stmt::If(IfStmt {
+                                span: DUMMY_SP,
+                                test: Box::new(Expr::Bin(BinExpr {
+                                    span: DUMMY_SP,
+                                    op: BinaryOp::LogicalOr,
+                                    left: Box::new(Expr::Ident(memo_changed)),
+                                    right: Box::new(call_member(
+                                        memo_ident.clone(),
+                                        "refresh",
+                                        vec![],
+                                    )),
+                                })),
+                                cons: Box::new(patch_call),
+                                alt: None,
+                            }));
+                        } else {
+                            body.stmts.push(patch_call);
+                        }
                     }
                 }
                 let patch_arg = if direct_patch {

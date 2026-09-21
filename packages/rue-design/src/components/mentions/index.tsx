@@ -519,11 +519,13 @@ const LoadingOption: FC = () => {
   )
 }
 
+const MentionsContent: FC<{ render: () => any }> = ({ render }) => <>{render()}</>
+
 /** Empty Option 的内部工具函数。 */
 const EmptyOption: FC<{ content: any; className?: string }> = ({ content, className }) => {
   return (
     <div className={appendClassName('px-3 py-2 text-sm text-base-content/55', className)}>
-      {String(content)}
+      <MentionsContent render={() => content} />
     </div>
   )
 }
@@ -610,7 +612,9 @@ const MentionsRoot: FC<MentionsProps> = ({
           selectMentionOption(option)
         }}
       >
-        <span className="min-w-0 flex-1 truncate">{String(option.label ?? option.value)}</span>
+        <span className="min-w-0 flex-1 truncate">
+          <MentionsContent render={() => option.label ?? option.value} />
+        </span>
         <span className={selected ? 'text-primary/55' : 'text-base-content/35'}>
           {String(activeTrigger.value?.prefix ?? '')}
         </span>
@@ -618,62 +622,35 @@ const MentionsRoot: FC<MentionsProps> = ({
     )
   }
 
-  const componentState = {
-    textareaRef: createCell<HTMLTextAreaElement>(),
-    rootRef: createCell<HTMLDivElement>(),
-    resizeObserverRef: createCell<ResizeObserver>(),
-    triggerSyncTimerRef: createCell<ReturnType<typeof setTimeout>>(),
-    lastResizeRef: createCell<{ width: number; height: number }>(),
-    currentValue: ref(resolveTextValue(value !== undefined ? value : defaultValue)),
-    focused: ref(false),
-    composing: ref(false),
-    selectionStart: ref(0),
-    selectionEnd: ref(0),
-    highlightedIndex: ref(-1),
-    dismissedTriggerKey: ref(''),
-    activeTrigger: ref<MentionTriggerState | null>(null),
-    lastSearchKey: ref(''),
-    optionSource: ref(createOptionView(options)),
-    visibleOptions: ref<MentionsOption[]>([]),
-    lastCompositionCommittedValue: createCell<string | null>(null),
-    lastNativeInputValue: createCell(''),
-    lastNativeTrigger: createCell<MentionTriggerState | null>(null),
-    lastNativeOptions: createCell<MentionsOption[]>([]),
-    suppressNextNativeInput: createCell(false),
-    instanceId: ref(''),
-    didInitOptionsWatch: createCell(false),
-    lastOptionsSourceRef: createCell<MentionsOption[] | undefined>(undefined),
-    didInitConfigWatch: createCell(false),
-    lastConfigSignatureRef: createCell(''),
-  }
-  const {
-    textareaRef,
-    rootRef,
-    resizeObserverRef,
-    triggerSyncTimerRef,
-    lastResizeRef,
-    currentValue,
-    focused,
-    composing,
-    selectionStart,
-    selectionEnd,
-    highlightedIndex,
-    dismissedTriggerKey,
-    activeTrigger,
-    lastSearchKey,
-    optionSource,
-    visibleOptions,
-    lastCompositionCommittedValue,
-    lastNativeInputValue,
-    lastNativeTrigger,
-    lastNativeOptions,
-    suppressNextNativeInput,
-    instanceId,
-    didInitOptionsWatch,
-    lastOptionsSourceRef,
-    didInitConfigWatch,
-    lastConfigSignatureRef,
-  } = componentState
+  // Keep each identity-bearing value visible to the compiler's setup analysis. Grouping refs in
+  // an object makes the whole literal look props-derived and can recreate observers/state during
+  // reactive branch refreshes.
+  const textareaRef = createCell<HTMLTextAreaElement>()
+  const rootRef = createCell<HTMLDivElement>()
+  const resizeObserverRef = createCell<ResizeObserver>()
+  const triggerSyncTimerRef = createCell<ReturnType<typeof setTimeout>>()
+  const lastResizeRef = createCell<{ width: number; height: number }>()
+  const currentValue = ref(resolveTextValue(value !== undefined ? value : defaultValue))
+  const focused = ref(false)
+  const composing = ref(false)
+  const selectionStart = ref(0)
+  const selectionEnd = ref(0)
+  const highlightedIndex = ref(-1)
+  const dismissedTriggerKey = ref('')
+  const activeTrigger = ref<MentionTriggerState | null>(null)
+  const lastSearchKey = ref('')
+  const optionSource = ref(createOptionView(options))
+  const visibleOptions = ref<MentionsOption[]>([])
+  const lastCompositionCommittedValue = createCell<string | null>(null)
+  const lastNativeInputValue = createCell('')
+  const lastNativeTrigger = createCell<MentionTriggerState | null>(null)
+  const lastNativeOptions = createCell<MentionsOption[]>([])
+  const suppressNextNativeInput = createCell(false)
+  const instanceId = ref('')
+  const didInitOptionsWatch = createCell(false)
+  const lastOptionsSourceRef = createCell<MentionsOption[] | undefined>(undefined)
+  const didInitConfigWatch = createCell(false)
+  const lastConfigSignatureRef = createCell('')
   const forwardedRef = rest.ref
   const isControlled = value !== undefined
   const clearConfig = allowClear && typeof allowClear === 'object' ? allowClear : undefined
@@ -1495,7 +1472,9 @@ const MentionsRoot: FC<MentionsProps> = ({
           >
             <>
               {clearConfig?.clearIcon ? (
-                <span>{String(clearConfig.clearIcon)}</span>
+                <span>
+                  <MentionsContent render={() => clearConfig.clearIcon} />
+                </span>
               ) : (
                 <DefaultClearIcon />
               )}

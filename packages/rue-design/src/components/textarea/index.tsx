@@ -120,6 +120,30 @@ const resolveTextValue = (value?: string | number) => {
   return String(value)
 }
 
+/** 解析 Color Class，并让样式构建器能够静态发现所有主题色。 */
+const resolveColorClass = (color?: TextareaTone) => {
+  switch (color) {
+    case 'neutral':
+      return 'textarea-neutral'
+    case 'primary':
+      return 'textarea-primary'
+    case 'secondary':
+      return 'textarea-secondary'
+    case 'accent':
+      return 'textarea-accent'
+    case 'info':
+      return 'textarea-info'
+    case 'success':
+      return 'textarea-success'
+    case 'warning':
+      return 'textarea-warning'
+    case 'error':
+      return 'textarea-error'
+    default:
+      return ''
+  }
+}
+
 /** 解析 Size Class 的内部工具函数。 */
 const resolveSizeClass = (size?: TextareaSize) => {
   switch (size) {
@@ -181,7 +205,8 @@ const buildTextareaClassName = ({
   const resolvedSize = resolveSizeClass(size)
   const isGhost = ghost || variant === 'ghost'
 
-  if (resolvedColor) cls += ` textarea-${resolvedColor}`
+  const colorClass = resolveColorClass(resolvedColor)
+  if (colorClass) cls += ` ${colorClass}`
   if (resolvedSize) cls += ` textarea-${resolvedSize}`
   if (isGhost) cls += ' textarea-ghost'
   if (variant === 'filled') cls += ' border-transparent bg-base-200/70 focus:bg-base-100'

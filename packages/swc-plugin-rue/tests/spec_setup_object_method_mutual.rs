@@ -42,7 +42,7 @@ const Comp: FC = ()=>{
                             return local2() + local3();
                         }
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             return {
                 a: a,

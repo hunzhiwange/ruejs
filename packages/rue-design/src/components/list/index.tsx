@@ -149,6 +149,8 @@ export interface ListProps<T = any> {
   /** pagination 配置项。 */
   pagination?: boolean | ListPaginationConfig | false
   /** renderItem 配置项。 */
+  renderItem?: (item: T, index: number) => any
+  /** 将数据项格式化为文本；未提供 renderItem 时使用。 */
   itemFormatter?: (item: T, index: number) => string | number
   itemClassName?: string
   /** rowKey 标识键。 */
@@ -453,7 +455,7 @@ const RenderEmpty = ({ arg0: emptyText }: { arg0: any }) => {
 /** 渲染 Section 的内部工具函数。 */
 const RenderSection = ({ arg0: content, arg1: className }: { arg0: any; arg1: string }) => {
   if (isEmptyNode(content)) return <></>
-  return <li className={className}>{String(content)}</li>
+  return <li className={className}>{content}</li>
 }
 
 const ListDivHost: FC<any> = ({ children, ...rest }) => <div {...rest}>{children}</div>
@@ -592,6 +594,7 @@ const List: FC<ListProps> = ({
   loadMore,
   locale,
   pagination,
+  renderItem,
   itemFormatter,
   itemClassName,
   rowKey,
@@ -631,7 +634,9 @@ const List: FC<ListProps> = ({
     pager: NormalizedPaginationConfig | null
   }) => {
     const absoluteIndex = pager ? (pager.current - 1) * pager.pageSize + index : index
-    return isLegacyListDataItem(item) ? (
+    return renderItem ? (
+      renderItem(item, absoluteIndex)
+    ) : isLegacyListDataItem(item) ? (
       <RenderLegacyItem arg0={item} arg1={absoluteIndex} />
     ) : (
       <li className={readItemClass()}>{String(formatItem(item, absoluteIndex))}</li>
@@ -867,6 +872,14 @@ const Meta: FC<ListItemMetaProps> = ({
 
 /** Action 渲染组件。 */
 const ListActionItem: FC<{ action: any }> = ({ action }) => {
+  const isActionConfig =
+    action &&
+    typeof action === 'object' &&
+    !Array.isArray(action) &&
+    ('label' in action || 'onClick' in action)
+  if (!isActionConfig) {
+    return <li>{action}</li>
+  }
   return (
     <li>
       <button type="button" onClick={action.onClick}>

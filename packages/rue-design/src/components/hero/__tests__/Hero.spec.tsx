@@ -45,6 +45,27 @@ describe('Hero', () => {
     })
   })
 
+  it('renders arbitrary native tags through the as prop', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Hero as="section" overlay data-testid="hero-section">
+          section content
+        </Hero>,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      const root = container.querySelector('[data-testid="hero-section"]') as HTMLElement
+      expect(root.tagName).toBe('SECTION')
+      expect(root.textContent).toContain('section content')
+      expect(root.querySelector('.hero-overlay')).not.toBeNull()
+    })
+  })
+
   it('renders content, overlay and semantic layout props', async () => {
     const container = mountContainer()
     resetActiveRuntime()

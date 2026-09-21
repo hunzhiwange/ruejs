@@ -26,6 +26,7 @@ mod transform;
 pub(crate) use helpers::{
     block_requires_custom_composable_render_effect, collect_setup_region,
     has_component_render_return_in_block, is_fc_pat, is_untyped_arrow_component_decl,
+    stmt_is_snapshot_initializer,
 };
 pub(crate) use on_setup::build_compiled_setup_with_binds;
 

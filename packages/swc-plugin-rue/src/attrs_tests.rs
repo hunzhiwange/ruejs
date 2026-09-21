@@ -126,7 +126,8 @@ export const View = () => {
     assert!(out.contains("_el1.setAttribute(\"class\""), "{output}");
     assert!(out.contains("_el1.style.cssText"), "{output}");
     assert!(out.contains("_el1.removeAttribute(\"title\")"), "{output}");
-    assert!(out.contains("_el2.value"), "{output}");
+    assert!(out.contains("_el2.value ="), "{output}");
+    assert!(!out.contains("_$setValue"), "{output}");
     assert!(out.contains(".checked ="), "{output}");
     assert!(out.contains(".disabled ="), "{output}");
     assert!(out.contains(".multiple ="), "{output}");
@@ -134,7 +135,6 @@ export const View = () => {
     assert!(!out.contains("_$setClassName"), "{output}");
     assert!(!out.contains("_$setStyle"), "{output}");
     assert!(!out.contains("_$setAttribute"), "{output}");
-    assert!(!out.contains("_$setValue"), "{output}");
     assert!(!out.contains("_$setChecked"), "{output}");
     assert!(!out.contains("_$setDisabled"), "{output}");
 }
@@ -293,6 +293,38 @@ export const View = (props) => (
     assert!(!out.contains("_$addEventListener"), "{output}");
     assert!(!out.contains("_$compiledBindUseRef"), "{output}");
     assert!(!out.contains("from \"@rue-js/rue/internal\""), "{output}");
+}
+
+#[test]
+fn compiles_focus_and_blur_events_with_native_capture_semantics() {
+    let output = transform_module(
+        r#"
+export const View = (props) => (
+  <section
+    onFocus={props.onFocus}
+    onBlur={props.onBlur}
+    onFocusCaptureOncePassive={props.onFocusCapture}
+    onBlurPassiveOnceCapture={props.onBlurCapture}
+  />
+);
+"#,
+    );
+    let out = normalize(&output);
+
+    assert!(out.contains(".addEventListener(\"focusin\""), "{output}");
+    assert!(out.contains(".removeEventListener(\"focusin\""), "{output}");
+    assert!(out.contains(".addEventListener(\"focusout\""), "{output}");
+    assert!(out.contains(".removeEventListener(\"focusout\""), "{output}");
+    assert!(out.contains(".addEventListener(\"focus\", __event3, __event3_options)"), "{output}");
+    assert!(
+        out.contains(".removeEventListener(\"focus\", __event3, __event3_options)"),
+        "{output}"
+    );
+    assert!(out.contains(".addEventListener(\"blur\", __event4, __event4_options)"), "{output}");
+    assert!(out.contains(".removeEventListener(\"blur\", __event4, __event4_options)"), "{output}");
+    assert_eq!(out.matches("capture: true").count(), 2, "{output}");
+    assert_eq!(out.matches("once: true").count(), 2, "{output}");
+    assert_eq!(out.matches("passive: true").count(), 2, "{output}");
 }
 
 #[test]
@@ -650,7 +682,7 @@ fn native_key_is_structural_metadata_only() {
 }
 
 #[test]
-fn task3_native_fields_do_not_import_legacy_setters() {
+fn native_fields_only_import_the_value_control_adapter() {
     let output = transform_module(
         r#"
 import { signal } from '@rue-js/rue';
@@ -661,11 +693,12 @@ export const View = () => <section style={String(state.get())}>
 </section>;
 "#,
     );
-    for token in ["_$setStyle", "_$setValue", "_$setAttribute", "patchStyle", "patchChildren"] {
+    for token in ["_$setStyle", "_$setAttribute", "patchStyle", "patchChildren"] {
         assert!(!output.contains(token), "unexpected {token}: {output}");
     }
     assert!(output.contains(".cssText ="), "{output}");
     assert!(output.contains(".value ="), "{output}");
+    assert!(!output.contains("_$setValue"), "{output}");
     assert!(output.contains(".required ="), "{output}");
     assert!(output.contains("setAttribute(\"class\""), "{output}");
 }

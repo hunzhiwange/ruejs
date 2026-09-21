@@ -283,9 +283,12 @@ fn lowers_safe_native_component_children_without_vapor_wrappers() {
     assert!(output.contains("_$template(\"<h1>Demo</h1>\")"), "{output}");
     assert!(output.contains(".content.cloneNode(true)"), "{output}");
     assert!(output.contains("effect(()=>{"), "{output}");
-    assert!(output.contains(".addEventListener(\"click\""), "{output}");
-    assert!(output.contains(".removeEventListener(\"click\""), "{output}");
-    assert!(output.contains("\"click\""), "{output}");
+    assert!(
+        output.contains("onOwnerCleanup(_$compiledDelegateEvent(__rue_parent_context,"),
+        "{output}"
+    );
+    assert!(output.contains(",\"click\",()=>()=>active.value=true)"), "{output}");
+    assert!(!output.contains(".addEventListener("), "{output}");
     assert!(
         !output.contains("const__child1=_$compiledRoot(")
             && !output.contains("children:_$compiledRoot("),
@@ -495,11 +498,15 @@ fn component_jsx_uses_the_compiled_component_helper_without_h() {
 }
 
 #[test]
-#[should_panic(expected = "literal factory registry")]
-fn rejects_non_enumerable_dynamic_component_shape() {
+fn compiles_dynamic_native_component_without_a_registry() {
     let element = parse_jsx_element("<Component is={resolveComponent()} />");
     let mut vt = new_vt();
-    build_compiled_dynamic_component_expr(&mut vt, &element);
+    let output = compact(&emit_expr(
+        build_compiled_dynamic_component_expr(&mut vt, &element).expect("dynamic component"),
+    ));
+
+    assert!(output.contains("_$createDynamicElement(resolveComponent(),"), "{output}");
+    assert!(output.contains("__rue_compiled_branch_key:resolveComponent()"), "{output}");
 }
 
 #[test]
@@ -595,7 +602,10 @@ fn rewrites_named_slot_expression_branches_and_default_function_slot_bag() {
     let mixed_child = parse_jsx_element("<Box>{ready ? value : <span>Fallback</span>}</Box>");
     let mixed_lowered =
         lower_slot_value(&mut mixed_child_vt, &mixed_child.children).expect("mixed child");
-    assert!(compact(&emit_stmts(mixed_lowered.stmts)).contains("_$compiledRoot(()=>{"));
+    assert!(
+        compact(&emit_stmts(mixed_lowered.stmts))
+            .contains("_$compiledRoot((__rue_parent_context)=>{")
+    );
     assert!(!mixed_lowered.is_function);
 }
 
@@ -689,7 +699,10 @@ fn lowers_component_and_expression_slot_values_recursively() {
     let cond_cons = parse_expr("ok ? <span /> : null", true);
     let lowered_cond_cons =
         lower_expr_slot_value(&mut expr_vt, &cond_cons).expect("conditional cons slot");
-    assert!(compact(&emit_stmts(lowered_cond_cons.stmts)).contains("_$compiledRoot(()=>{"));
+    assert!(
+        compact(&emit_stmts(lowered_cond_cons.stmts))
+            .contains("_$compiledRoot((__rue_parent_context)=>{")
+    );
     let cond_cons_out = compact(&emit_expr(lowered_cond_cons.expr));
     assert!(cond_cons_out.contains("ok?__child"));
     assert!(cond_cons_out.contains(":undefined"));
@@ -697,12 +710,18 @@ fn lowers_component_and_expression_slot_values_recursively() {
     let cond_alt = parse_expr("ok ? null : <span />", true);
     let lowered_cond_alt =
         lower_expr_slot_value(&mut expr_vt, &cond_alt).expect("conditional alt slot");
-    assert!(compact(&emit_stmts(lowered_cond_alt.stmts)).contains("_$compiledRoot(()=>{"));
+    assert!(
+        compact(&emit_stmts(lowered_cond_alt.stmts))
+            .contains("_$compiledRoot((__rue_parent_context)=>{")
+    );
     assert!(compact(&emit_expr(lowered_cond_alt.expr)).contains("ok?undefined:__child"));
 
     let logical = parse_expr("ready && <span />", true);
     let lowered_logical = lower_expr_slot_value(&mut expr_vt, &logical).expect("logical slot");
-    assert!(compact(&emit_stmts(lowered_logical.stmts)).contains("_$compiledRoot(()=>{"));
+    assert!(
+        compact(&emit_stmts(lowered_logical.stmts))
+            .contains("_$compiledRoot((__rue_parent_context)=>{")
+    );
     assert!(compact(&emit_expr(lowered_logical.expr)).contains("ready?__child"));
 
     assert!(lower_expr_slot_value(&mut expr_vt, &parse_expr("ok ? <A /> : <B />", true)).is_none());
@@ -1191,7 +1210,7 @@ fn hardens_complex_slot_fallbacks_and_transition_statement_noops() {
         lower_slot_value(&mut vt, &both_branch_expr.children).expect("complex conditional slot");
     let lowered_stmts = compact(&emit_stmts(lowered.stmts));
     assert!(lowered_stmts.contains("const__child"));
-    assert!(lowered_stmts.contains("_$compiledRoot(()=>{"));
+    assert!(lowered_stmts.contains("_$compiledRoot((__rue_parent_context)=>{"));
     assert!(!lowered.is_function);
 
     let mut named_vt = new_vt();
@@ -1225,8 +1244,8 @@ fn hardens_slot_empty_alt_array_fallback_and_empty_named_slots() {
     let alt_lowered = lower_slot_value(&mut alt_vt, &alt_child.children).expect("alt slot");
     let alt_stmts = compact(&emit_stmts(alt_lowered.stmts));
     let alt_out = compact(&emit_expr(alt_lowered.expr));
-    assert!(alt_stmts.contains("_$compiledRoot(()=>{"));
-    assert!(alt_stmts.contains("_$createElement(\"span\",_root)"));
+    assert!(alt_stmts.contains("_$compiledRoot((__rue_parent_context)=>{"), "{alt_stmts}");
+    assert!(alt_stmts.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
     assert!(alt_out.contains("empty?undefined:__child"));
 
     let mut array_vt = new_vt();
@@ -1280,7 +1299,7 @@ fn hardens_logical_slot_and_transition_empty_child_edges() {
         lower_slot_value(&mut logical_vt, &logical_child.children).expect("logical slot");
     let logical_stmts = compact(&emit_stmts(logical_lowered.stmts));
     let logical_expr = compact(&emit_expr(logical_lowered.expr));
-    assert!(logical_stmts.contains("_$createElement(\"span\",_root)"));
+    assert!(logical_stmts.contains("_$compiledCreateElement(\"span\",__rue_parent_context)"));
     assert!(logical_expr.contains("ok?__child"));
     assert!(logical_expr.contains(":undefined"));
 
@@ -1649,6 +1668,27 @@ fn hardens_slot_lowering_static_empty_conditional_and_text_misses() {
     assert!(complex_out.contains("condition?"), "{complex_out}");
     assert!(complex_out.contains("_$createComponent(A"), "{complex_out}");
     assert!(complex_out.contains("_$createComponent(B"), "{complex_out}");
+}
+
+#[test]
+fn deep_compiles_multi_child_component_slots_with_runtime_value_fallbacks() {
+    let mut vt = new_vt();
+    let host = parse_jsx_element(
+        r#"<Display>
+          {image ? <img src={image.src} /> : image.children}
+          {hasContent ? <div ref={(node) => assign(node)}>{image.children}</div> : fallback}
+        </Display>"#,
+    );
+    let lowered = lower_slot_value(&mut vt, &host.children).expect("closed mixed-value slots");
+    let stmts_out = compact(&emit_stmts(lowered.stmts));
+    let expr_out = compact(&emit_expr(lowered.expr));
+
+    assert!(expr_out.starts_with("["), "{expr_out}");
+    assert!(stmts_out.contains("_$compiledCreateElement(\"img\""), "{stmts_out}");
+    assert!(stmts_out.contains("_$compiledCreateElement(\"div\""), "{stmts_out}");
+    assert!(stmts_out.contains("onOwnerCleanup"), "{stmts_out}");
+    assert!(!stmts_out.contains("_$createElement("), "{stmts_out}");
+    assert!(!stmts_out.contains("_$compiledBindUseRef"), "{stmts_out}");
 }
 
 #[test]

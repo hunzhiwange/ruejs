@@ -1,5 +1,4 @@
 import { Template } from '@rue-js/rue'
-import { ToastHolder } from '../index'
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref, render, setReactiveScheduling } from '@rue-js/rue'
@@ -267,7 +266,7 @@ describe('Toast', () => {
 
       return (
         <div>
-          <ToastHolder state={contextHolder} />
+          {contextHolder}
           <button
             type="button"
             data-testid="open"
@@ -351,7 +350,7 @@ describe('Toast', () => {
 
       return (
         <div>
-          {showHolder.value ? <ToastHolder state={contextHolder} /> : null}
+          {showHolder.value ? contextHolder : null}
           <button
             type="button"
             data-testid="toggle-holder"
@@ -415,7 +414,7 @@ describe('Toast', () => {
 
       return (
         <div data-testid="box" className="relative overflow-hidden">
-          <ToastHolder state={contextHolder} />
+          {contextHolder}
           <button
             type="button"
             data-testid="open-local"
@@ -439,7 +438,17 @@ describe('Toast', () => {
 
     await waitForContent(() => {
       const box = container.querySelector('[data-testid="box"]') as HTMLElement
-      expect(box.querySelector('.toast')).toBeTruthy()
+      const viewport = box.querySelector('.toast') as HTMLElement
+      const item = box.querySelector('[data-rue-toast-item="true"]') as HTMLElement
+      expect(viewport).toBeTruthy()
+      expect(viewport.classList.contains('absolute')).toBe(true)
+      expect(viewport.classList.contains('toast-start')).toBe(true)
+      expect(viewport.classList.contains('toast-bottom')).toBe(true)
+      expect(item).toBeTruthy()
+      expect(item.classList.contains('absolute')).toBe(false)
+      expect(item.hasAttribute('placement')).toBe(false)
+      expect(item.hasAttribute('inset')).toBe(false)
+      expect(item.hasAttribute('maxcount')).toBe(false)
       expect(box.textContent).toContain('Local toast')
     })
   })

@@ -216,7 +216,7 @@ export interface FormItemProps {
   /** 组件子内容。 */
   children?: any
   /** render 配置项。 */
-  render?: (control: Record<string, any>, meta?: unknown) => any
+  render?: (control: Record<string, any>, meta?: unknown, form?: FormInstance) => any
 
   /** 表单 name 属性或分组名称。 */
   name?: NamePath
@@ -1305,8 +1305,80 @@ const FormItem: FC<FormItemProps> = props => {
       void form.__INTERNAL__.validateFieldByPath(name, 'onBlur')
     }
   }
+  const valuePropName = props.valuePropName ?? 'value'
+  const triggerName = props.trigger ?? 'onChange'
+  const initialValueProps = props.render
+    ? (props.getValueProps?.(value.value) ?? { [valuePropName]: value.value })
+    : {}
+  const controlProps: Record<string, any> = {
+    id,
+    [triggerName]: update,
+    onBlur: validateBlur,
+  }
+  // Rue text controls expose the native input event separately from change. A rendered
+  // Form.Item is controlled by the form store, so it must write each edit back before
+  // the controlled value is applied again. Keep onChange for components such as Select,
+  // while also covering text-like controls through onInput.
+  if (triggerName === 'onChange' && valuePropName === 'value') {
+    controlProps.onInput = update
+  }
+  Object.keys(initialValueProps).forEach(key => {
+    Object.defineProperty(controlProps, key, {
+      enumerable: true,
+      configurable: true,
+      get: () =>
+        props.getValueProps?.(value.value)?.[key] ??
+        (key === valuePropName ? value.value : initialValueProps[key]),
+    })
+  })
+  if (!(valuePropName in controlProps)) {
+    Object.defineProperty(controlProps, valuePropName, {
+      enumerable: true,
+      configurable: true,
+      get: () => value.value,
+    })
+  }
+  const renderMeta = {
+    get errors() {
+      return meta.value.errors
+    },
+    get warnings() {
+      return meta.value.warnings
+    },
+    get validating() {
+      return meta.value.validating
+    },
+  }
+  let previousConsumerValues: Record<string, any> = {}
+  let currentConsumerContent: any
+  let consumerRendered = false
+  const consumerContent =
+    !name && form && props.render
+      ? computed(() => {
+          void form.__INTERNAL__.version.value
+          const nextValues = form.getFieldsValue(true)
+          const shouldRender =
+            !consumerRendered ||
+            props.shouldUpdate === true ||
+            props.shouldUpdate == null ||
+            (typeof props.shouldUpdate === 'function' &&
+              props.shouldUpdate(previousConsumerValues, nextValues))
+          if (shouldRender) {
+            currentConsumerContent = props.render!(nextValues, renderMeta, form)
+            consumerRendered = true
+          }
+          previousConsumerValues = nextValues
+          return currentConsumerContent
+        })
+      : undefined
+  const renderedControl =
+    name && props.render ? props.render(controlProps, renderMeta, form) : undefined
   const Control = () =>
-    props.control === 'checkbox' ? (
+    consumerContent ? (
+      <>{consumerContent.value}</>
+    ) : props.render ? (
+      <>{renderedControl}</>
+    ) : props.control === 'checkbox' ? (
       <input
         {...props.controlProps}
         id={id}
@@ -1343,7 +1415,7 @@ const FormItem: FC<FormItemProps> = props => {
   return (
     <div
       className={mergeClassName(
-        'rue-form-item grid gap-3',
+        'rue-form-item grid content-start self-start gap-3',
         props.hidden ? 'hidden' : undefined,
         props.className,
       )}
@@ -1358,14 +1430,25 @@ const FormItem: FC<FormItemProps> = props => {
           ) : null}
         </label>
       ) : null}
-      <div className="min-w-0 flex-1">
-        <Control />
+      <div
+        className={mergeClassName(
+          'min-w-0 flex-1',
+          props.hasFeedback ? 'flex items-center gap-2' : undefined,
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <Control />
+        </div>
+        {props.hasFeedback ? (
+          <span
+            data-rue-form-feedback="true"
+            aria-hidden="true"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center leading-none"
+          >
+            {meta.value.validating ? '…' : meta.value.errors.length ? '×' : '✓'}
+          </span>
+        ) : null}
       </div>
-      {props.hasFeedback ? (
-        <span data-rue-form-feedback="true">
-          {meta.value.validating ? '…' : meta.value.errors.length ? '×' : '✓'}
-        </span>
-      ) : null}
       {props.help != null ? (
         <div>{props.help}</div>
       ) : (
@@ -1443,11 +1526,29 @@ const FormList: FC<FormListProps> = props => {
     const list = form.getFieldValue(name)
     return Array.isArray(list) ? list : []
   })
+  const operation = createFormList(form, name)
+  const renderContent = props.render
+    ? computed(() => {
+        void form.__INTERNAL__.version.value
+        const fields = rows.value.map((_row, index) => ({
+          key: index,
+          name: index,
+          fieldKey: index,
+        }))
+        const meta = form.__INTERNAL__.getMeta(name)
+        return props.render!(fields, operation, {
+          errors: [...meta.errors],
+          warnings: [...meta.warnings],
+        })
+      })
+    : undefined
   return (
     <div data-rue-form-list-shell="true">
-      {rows.value.map((rowArg0: any, rowArg1: number) => (
-        <CompiledRow101 rowArg0={rowArg0} rowArg1={rowArg1} />
-      ))}
+      {renderContent
+        ? renderContent.value
+        : rows.value.map((rowArg0: any, rowArg1: number) => (
+            <CompiledRow101 rowArg0={rowArg0} rowArg1={rowArg1} />
+          ))}
     </div>
   )
 }
@@ -1471,15 +1572,16 @@ const FormRoot: FC<FormProps> = props => {
     }),
   )
   onMounted(() => {
-    if (initialized) form.__INTERNAL__.emitUpdate()
+    if (initialized) queueMicrotask(() => form.__INTERNAL__.emitUpdate())
   })
   const rootRef = (element: HTMLElement | null) => form.__INTERNAL__.setRootElement(element)
+  const renderedContent = props.render?.(form)
   const submit = (event: Event) => {
     event.preventDefault()
     props.onSubmit?.(event)
     form.submit()
   }
-  if (props.component === false) return <>{props.children}</>
+  if (props.component === false) return <>{props.render ? renderedContent : props.children}</>
   if (props.component === 'div')
     return (
       <div
@@ -1488,7 +1590,7 @@ const FormRoot: FC<FormProps> = props => {
         style={props.style}
         data-rue-form="true"
       >
-        {props.children}
+        {props.render ? renderedContent : props.children}
       </div>
     )
   if (props.component === 'section')
@@ -1499,7 +1601,7 @@ const FormRoot: FC<FormProps> = props => {
         style={props.style}
         data-rue-form="true"
       >
-        {props.children}
+        {props.render ? renderedContent : props.children}
       </section>
     )
   return (
@@ -1510,7 +1612,7 @@ const FormRoot: FC<FormProps> = props => {
       style={props.style}
       data-rue-form="true"
     >
-      {props.children}
+      {props.render ? renderedContent : props.children}
     </form>
   )
 }

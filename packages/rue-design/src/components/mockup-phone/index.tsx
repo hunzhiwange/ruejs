@@ -150,25 +150,25 @@ const Root: FC<MockupPhoneRootProps> = ({
   const showCamera = camera !== false
   const cameraProps = typeof camera === 'object' ? camera : undefined
   const displayAlt = display?.alt ?? 'mockup phone wallpaper'
-  const hasDisplayChildren = display?.text != null
+  const hasDisplayChildren = display?.children != null
 
   return (
     <div {...rest} className={cls}>
       {display ? (
         <>
           {showCamera ? <Camera {...cameraProps} /> : null}
-          <div className={mergeClassName('mockup-phone-display', display.className)}>
+          <Display className={display.className}>
             {display.src ? (
               <img alt={displayAlt} src={display.src} className={display.imgClassName} />
             ) : null}
             {hasDisplayChildren ? (
               display.contentClassName ? (
-                <div className={display.contentClassName}>{String(display.text ?? '')}</div>
+                <div className={display.contentClassName}>{display.children}</div>
               ) : (
-                <span>{String(display.text ?? '')}</span>
+                display.children
               )
             ) : null}
-          </div>
+          </Display>
         </>
       ) : (
         children

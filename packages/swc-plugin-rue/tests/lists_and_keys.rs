@@ -127,8 +127,8 @@ export default ListsAndKeys;
     assert!(normalized.contains("(item, idx)=>item"), "{normalized}");
     assert!(normalized.contains("_$mountCompiledKeyedRow"), "{normalized}");
     assert!(normalized.contains("_$compiledText"), "{normalized}");
-    assert_eq!(normalized.matches(".addEventListener(").count(), 5, "{normalized}");
-    assert_eq!(normalized.matches(".removeEventListener(").count(), 5, "{normalized}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{normalized}");
+    assert!(normalized.contains("_$mountCompiledSlotFactory"), "{normalized}");
     assert!(!normalized.contains("_$compiledKeyedList"), "{normalized}");
     assert!(!normalized.contains("vapor("), "{normalized}");
 }

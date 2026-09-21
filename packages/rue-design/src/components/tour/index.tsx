@@ -308,6 +308,23 @@ const mergeStyle = (...values: Array<Record<string, any> | undefined>) => {
 /** 转换为 Px 的内部工具函数。 */
 const toPx = (value: number) => `${value}px`
 
+const isShallowEqualRecord = (
+  previous: Record<string, any> | null,
+  next: Record<string, any> | null,
+) => {
+  if (previous === next) return true
+  if (previous == null || next == null) return false
+  const previousKeys = Object.keys(previous)
+  const nextKeys = Object.keys(next)
+  return (
+    previousKeys.length === nextKeys.length &&
+    previousKeys.every(key => Object.is(previous[key], next[key]))
+  )
+}
+
+const isSameSpotlight = (previous: SpotlightRect | null, next: SpotlightRect | null) =>
+  isShallowEqualRecord(previous, next)
+
 /** merge Semantic Class Names 的内部工具函数。 */
 const mergeSemanticClassNames = (
   base?: TourClassNames,
@@ -758,10 +775,17 @@ const Tour: FC<TourProps> = props => {
       const mergedOpen = getMergedOpen()
 
       if (!mergedOpen || !panelElement || !step) {
-        panelStyleRef.value = { visibility: 'hidden', opacity: 0 }
-        spotlightRef.value = null
-        arrowStyleRef.value = null
-        requestRender()
+        const hiddenStyle = { visibility: 'hidden', opacity: 0 }
+        const changed =
+          !isShallowEqualRecord(panelStyleRef.value, hiddenStyle) ||
+          spotlightRef.value !== null ||
+          arrowStyleRef.value !== null
+        if (changed) {
+          panelStyleRef.value = hiddenStyle
+          spotlightRef.value = null
+          arrowStyleRef.value = null
+          requestRender()
+        }
         return
       }
 
@@ -778,15 +802,13 @@ const Tour: FC<TourProps> = props => {
       const arrowEnabled = resolveArrowEnabled(step.arrow ?? arrow)
       const pointAtCenter = resolveArrowPointAtCenter(step.arrow ?? arrow)
 
-      spotlightRef.value = spotlight
-      placementRef.value = resolvedPanel.placement
-      panelStyleRef.value = {
+      const nextPanelStyle = {
         left: toPx(resolvedPanel.left),
         top: toPx(resolvedPanel.top),
         opacity: 1,
         visibility: 'visible',
       }
-      arrowStyleRef.value = arrowEnabled
+      const nextArrowStyle = arrowEnabled
         ? resolveArrowStyle(
             resolvedPanel.placement,
             spotlight,
@@ -797,7 +819,18 @@ const Tour: FC<TourProps> = props => {
             pointAtCenter,
           )
         : null
-      requestRender()
+      const changed =
+        !isSameSpotlight(spotlightRef.value, spotlight) ||
+        placementRef.value !== resolvedPanel.placement ||
+        !isShallowEqualRecord(panelStyleRef.value, nextPanelStyle) ||
+        !isShallowEqualRecord(arrowStyleRef.value, nextArrowStyle)
+      if (changed) {
+        spotlightRef.value = spotlight
+        placementRef.value = resolvedPanel.placement
+        panelStyleRef.value = nextPanelStyle
+        arrowStyleRef.value = nextArrowStyle
+        requestRender()
+      }
     })
   }
 

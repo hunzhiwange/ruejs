@@ -179,6 +179,7 @@ describe('Label', () => {
       const shell = control.parentElement as HTMLDivElement
       expect(control.classList.contains('textarea')).toBe(true)
       expect(control.classList.contains('textarea-error')).toBe(true)
+      expect(control.classList.contains('[&>textarea]:w-full')).toBe(true)
       expect(control.getAttribute('aria-invalid')).toBe('true')
       expect(shell.classList.contains('w-full')).toBe(true)
       expect(shell.textContent).toContain('Release notes are required.')

@@ -12,6 +12,8 @@ import * as events from '../src/compiler-runtime/entries/events'
 import * as builtin from '../src/compiler-runtime/entries/builtin'
 import * as hydrate from '../src/compiler-runtime/entries/hydrate'
 import * as ssr from '../src/compiler-runtime/entries/ssr'
+import { _$createComponent } from '../src/compiler-runtime/component-call'
+import type { BlockRecord } from '../src/compiler-runtime/block'
 
 export const compilerCapabilities = {
   teleport,
@@ -51,5 +53,26 @@ export const mountCompiledTestComponent = (
   return () => {
     root.dispose()
     reactive.disposeOwner(owner)
+  }
+}
+
+export const createMountedCompiledTestComponent = (
+  componentFactory: (props: Record<string, unknown>) => BlockRecord,
+  host: HTMLElement,
+  props: Record<string, unknown> = {},
+) => {
+  const owner = reactive.createOwner()
+  const root = reactive.runWithOwner(owner, () => _$createComponent(componentFactory, props))!
+  reactive.runWithOwner(owner, () => root.__rue_compiled_mount(host))
+
+  let disposed = false
+  return {
+    root,
+    dispose: () => {
+      if (disposed) return
+      disposed = true
+      root.dispose()
+      reactive.disposeOwner(owner)
+    },
   }
 }

@@ -75,6 +75,27 @@ describe('Grid', () => {
     )
   })
 
+  it('applies a single gutter value to both axes for wrapped rows', async () => {
+    const container = document.createElement('div')
+    mountTestApp(container, () =>
+      render(
+        <Grid gutter={16}>
+          <Grid.Col flex={'280px'}>{'Fixed'}</Grid.Col>
+          <Grid.Col flex={'auto'}>{'Fluid'}</Grid.Col>
+        </Grid>,
+        container,
+      ),
+    )
+    await waitGridRender()
+
+    const row = container.querySelector('[data-rue-grid-row]') as HTMLElement
+
+    expect(row.style.marginLeft).toBe('-8px')
+    expect(row.style.marginTop).toBe('-8px')
+    expect(row.style.getPropertyValue('--rue-grid-gutter-x')).toBe('16px')
+    expect(row.style.getPropertyValue('--rue-grid-gutter-y')).toBe('16px')
+  })
+
   it('applies span, offset, order, and flex values on col', async () => {
     const container = document.createElement('div')
     mountTestApp(container, () =>

@@ -1,0 +1,248 @@
+{
+  "task": 5,
+  "status": "completed",
+  "baseline": {
+    "command": "pnpm exec vitest run --project unit-jsdom packages/runtime/__tests__/vIfAndRIf.actual.spec.tsx packages/runtime/__tests__/vModelAndRModel.actual.spec.tsx packages/runtime/__tests__/vOnAndROn.actual.spec.tsx packages/runtime/__tests__/vShowAndRShow.actual.spec.tsx packages/runtime/__tests__/event-directives.spec.ts",
+    "exitCode": 1,
+    "result": "5 failed files; legacy-test-render import missing, render export missing, and v-model compile panic reproduced"
+  },
+  "verification": {
+    "command": "pnpm exec vitest run --project unit-jsdom $(jq -r '.entries[] | select(.targetTask == 5) | .originalPath' packages/runtime/__tests__/deleted-test-recovery.manifest.json)",
+    "exitCode": 0,
+    "testFiles": "22 passed (22)",
+    "tests": "11 passed | 19 expected fail (30)",
+    "skippedTests": 0
+  },
+  "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json",
+  "entries": [
+    {
+      "originalPath": "packages/runtime/__tests__/compiledControlFlowSetup.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledReactiveBranches.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/componentVModel.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/conditionalRendering.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/conditionalsAndLoops.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/controlledInputs.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/event-directives.spec.ts",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/events.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/file-input.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/formBindings.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/handlingInput.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/namedVModel.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rue.event.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vHtmlAndRHtml.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vIfAndRIf.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vMemoAndRMemo.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vModelAndRModel.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vOnAndROn.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vOnceAndROnce.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vPreAndRPre.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vShowAndRShow.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vTextAndRText.actual.spec.tsx",
+      "classification": "migrate",
+      "status": "recovered",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-5.json"
+    }
+  ],
+  "expectedRegressions": [
+    {
+      "path": "packages/runtime/__tests__/formBindings.actual.spec.tsx",
+      "line": 34,
+      "name": "keeps text, checkbox, radio, and select bindings in sync on the preview tab"
+    },
+    {
+      "path": "packages/runtime/__tests__/vShowAndRShow.actual.spec.tsx",
+      "line": 39,
+      "name": "toggles display while keeping both show-controlled nodes mounted in preview mode"
+    },
+    {
+      "path": "packages/runtime/__tests__/events.actual.spec.tsx",
+      "line": 41,
+      "name": "updates the native event counters for click, prevent/default, enter, and self checks"
+    },
+    {
+      "path": "packages/runtime/__tests__/controlledInputs.actual.spec.tsx",
+      "line": 25,
+      "name": "switches between code and preview while keeping controlled input state reactive"
+    },
+    {
+      "path": "packages/runtime/__tests__/vTextAndRText.actual.spec.tsx",
+      "line": 39,
+      "name": "updates directive-rendered text content after input and explicit sync action"
+    },
+    {
+      "path": "packages/runtime/__tests__/vOnceAndROnce.actual.spec.tsx",
+      "line": 42,
+      "name": "keeps once-rendered badges frozen while adjacent live summaries continue updating"
+    },
+    {
+      "path": "packages/runtime/__tests__/conditionalsAndLoops.actual.spec.tsx",
+      "line": 42,
+      "name": "toggles list visibility and updates the sequence through push, pop, and reverse"
+    },
+    {
+      "path": "packages/runtime/__tests__/conditionalRendering.actual.spec.tsx",
+      "line": 36,
+      "name": "renders only truthy expression output on the preview tab"
+    },
+    {
+      "path": "packages/runtime/__tests__/vPreAndRPre.actual.spec.tsx",
+      "line": 49,
+      "name": "preserves literal directive markup inside pre blocks while the comparison panel still rues"
+    },
+    {
+      "path": "packages/runtime/__tests__/vModelAndRModel.actual.spec.tsx",
+      "line": 9,
+      "name": "synchronizes text and checkbox models but currently ignores model DOM events"
+    },
+    {
+      "path": "packages/runtime/__tests__/vMemoAndRMemo.actual.spec.tsx",
+      "line": 49,
+      "name": "keeps memoized refresh text stable until the selected dependency actually changes"
+    },
+    {
+      "path": "packages/runtime/__tests__/vIfAndRIf.actual.spec.tsx",
+      "line": 39,
+      "name": "switches both v-if and r-if branches so only the active branch content remains mounted"
+    },
+    {
+      "path": "packages/runtime/__tests__/compiledReactiveBranches.spec.tsx",
+      "line": 320,
+      "name": "updates all Rue reactive sources but currently emits the split internal entry points"
+    },
+    {
+      "path": "packages/runtime/__tests__/compiledReactiveBranches.spec.tsx",
+      "line": 400,
+      "name": "updates a props conditional index-key list but currently mounts an empty region"
+    },
+    {
+      "path": "packages/runtime/__tests__/compiledReactiveBranches.spec.tsx",
+      "line": 480,
+      "name": "refreshes a same-path component branch but currently retains the stale snapshot"
+    },
+    {
+      "path": "packages/runtime/__tests__/vHtmlAndRHtml.actual.spec.tsx",
+      "line": 39,
+      "name": "renders raw html into both block content and badge content after update"
+    },
+    {
+      "path": "packages/runtime/__tests__/handlingInput.actual.spec.tsx",
+      "line": 40,
+      "name": "reverses and appends the preview message, then prevents link navigation"
+    },
+    {
+      "path": "packages/runtime/__tests__/compiledControlFlowSetup.spec.tsx",
+      "line": 117,
+      "name": "tracks setup once but currently performs six initial boundary insertions"
+    },
+    {
+      "path": "packages/runtime/__tests__/vOnAndROn.actual.spec.tsx",
+      "line": 44,
+      "name": "handles click, input, stop/prevent, enter, self, and meta.exact interactions in preview mode"
+    }
+  ]
+}

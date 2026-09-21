@@ -77,6 +77,75 @@ pub(crate) fn closed_slot_value(vt: &mut VaporTransform, expr: &Expr) -> Expr {
                 return_type: None,
             })
         }
+        Expr::Call(call)
+            if matches!(&call.callee, Callee::Expr(callee) if matches!(crate::utils::unwrap_expr(callee.as_ref()), Expr::Ident(_)))
+                && call.args.iter().all(|arg| arg.spread.is_none())
+                && crate::element_expr::is_opaque_renderable_call_expr(vt, call) =>
+        {
+            let mut deferred_call = call.clone();
+            let mut capture_params = Vec::with_capacity(call.args.len());
+            let mut capture_args = Vec::with_capacity(call.args.len());
+            for arg in &call.args {
+                let captured = vt.next_slot_ident();
+                capture_params
+                    .push(Pat::Ident(BindingIdent { id: captured.clone(), type_ann: None }));
+                capture_args.push(arg.clone());
+                deferred_call.args[capture_params.len() - 1] =
+                    ExprOrSpread { spread: None, expr: Box::new(Expr::Ident(captured)) };
+            }
+
+            let value_factory =
+                call_ident("_$compiledValueFactory", vec![Expr::Call(deferred_call)]);
+            let deferred_factory = Expr::Arrow(ArrowExpr {
+                span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
+                params: ["target", "slotProps", "owner"]
+                    .iter()
+                    .map(|name| Pat::Ident(BindingIdent { id: ident(name), type_ann: None }))
+                    .collect(),
+                body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(CallExpr {
+                    span: DUMMY_SP,
+                    ctxt: SyntaxContext::empty(),
+                    callee: Callee::Expr(Box::new(value_factory)),
+                    args: ["target", "slotProps", "owner"]
+                        .iter()
+                        .map(|name| ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Ident(ident(name))),
+                        })
+                        .collect(),
+                    type_args: None,
+                })))),
+                is_async: false,
+                is_generator: false,
+                type_params: None,
+                return_type: None,
+            });
+
+            if capture_params.is_empty() {
+                deferred_factory
+            } else {
+                Expr::Call(CallExpr {
+                    span: DUMMY_SP,
+                    ctxt: SyntaxContext::empty(),
+                    callee: Callee::Expr(Box::new(Expr::Paren(ParenExpr {
+                        span: DUMMY_SP,
+                        expr: Box::new(Expr::Arrow(ArrowExpr {
+                            span: DUMMY_SP,
+                            ctxt: SyntaxContext::empty(),
+                            params: capture_params,
+                            body: Box::new(BlockStmtOrExpr::Expr(Box::new(deferred_factory))),
+                            is_async: false,
+                            is_generator: false,
+                            type_params: None,
+                            return_type: None,
+                        })),
+                    }))),
+                    args: capture_args,
+                    type_args: None,
+                })
+            }
+        }
         Expr::Cond(cond) => {
             let mut cond = cond.clone();
             cond.cons = Box::new(closed_slot_value(vt, &cond.cons));
@@ -85,7 +154,15 @@ pub(crate) fn closed_slot_value(vt: &mut VaporTransform, expr: &Expr) -> Expr {
         }
         Expr::Lit(_) => crate::element_expr::compiled_slot_factory_expr(vt, expr)
             .unwrap_or_else(|| panic!("Rue slot literal requires a compiled factory")),
-        _ => call_ident("_$compiledValueFactory", vec![expr.clone()]),
+        _ => {
+            let displayed = crate::vapor::display_scalar_expr(vt, expr);
+            let value = if crate::vapor::is_compiled_text_value(vt, expr) {
+                expr.clone()
+            } else {
+                crate::element_expr::string_call_operand(&displayed).unwrap_or(displayed)
+            };
+            call_ident("_$compiledValueFactory", vec![value])
+        }
     }
 }
 

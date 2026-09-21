@@ -36,15 +36,15 @@ export default Children;
 
     assert!(output.contains("@rue-js/rue/internal"), "{output}");
     assert!(output.contains("_$compiledRoot"), "{output}");
-    assert!(output.contains("_$compiledText("), "{output}");
+    assert!(output.contains("_$compiledValueFactory"), "{output}");
     assert!(output.contains("const __rue_first = _$compiledCreateTextNode(\"\")"), "{output}");
     assert!(output.contains("_$compiledComponent(Box"), "{output}");
     assert!(output.contains("<div><span>hello</span><span>嵌套子元素</span></div>"), "{output}");
     assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
-    assert!(output.contains("()=>_$compiledPropsGet(props, \"title\")"), "{output}");
     assert!(
-        output.contains("()=>_$compiledValueFactory(_$compiledPropsGet(props, \"children\"))"),
+        output.contains("()=>_$compiledValueFactory(_$compiledPropsGet(props, \"title\"))"),
         "{output}"
     );
+    assert!(output.contains("()=>_$compiledPropsGet(props, \"children\")"), "{output}");
     assert!(!output.contains("renderAnchor"), "{output}");
 }

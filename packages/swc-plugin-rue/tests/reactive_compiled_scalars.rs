@@ -95,7 +95,8 @@ export const View: FC = () => {
     }
     assert!(output.contains("_$compiledRoot("), "{output}");
     assert!(!output.contains("vapor("), "{output}");
-    assert!(output.contains("_$compiledText"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotAt"), "{output}");
+    assert!(output.contains("_$compiledValueFactory"), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");
 }
 

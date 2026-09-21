@@ -106,8 +106,8 @@ export default ControlledInputs;
     std::fs::write("target/vapor_outputs/controlled_inputs.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$compiledSetup"), "{normalized}");
-    assert!(normalized.contains("_$setValue"), "{normalized}");
-    assert!(normalized.contains("renderAnchor"), "{normalized}");
-    assert!(normalized.contains("RouterLink.__rueHref"), "{normalized}");
+    assert!(normalized.contains("_el1.value = __child1_next"), "{normalized}");
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{normalized}");
+    assert!(normalized.contains("_$compiledComponent(RouterLink"), "{normalized}");
     assert!(!normalized.contains("watchEffect"), "{normalized}");
 }

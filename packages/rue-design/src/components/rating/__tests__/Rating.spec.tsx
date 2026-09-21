@@ -89,6 +89,77 @@ describe('Rating', () => {
     })
   })
 
+  it('manages input and custom-host items from the composition root', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const score = ref(2)
+    const handleChange = vi.fn((next: number) => {
+      score.value = next
+    })
+
+    const Demo = () => (
+      <>
+        <Rating value={score.value} onChange={handleChange}>
+          <Rating.Item value="1" aria-label="1 star" />
+          <Rating.Item value="2" aria-label="2 star" />
+          <Rating.Item as="div" value="3" aria-label="3 star" />
+          <Rating.Item as="div" value="4" aria-label="4 star" />
+        </Rating>
+        <span data-testid="score">{score.value}</span>
+      </>
+    )
+
+    mountTestApp(container, () => render(<Demo />, container))
+
+    await waitForContent(() => {
+      const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"]'))
+      const customItem = container.querySelector('[aria-label="4 star"]') as HTMLElement
+      expect(inputs.map(item => item.checked)).toEqual([false, true])
+      expect(inputs.map(item => item.dataset.ratingActive)).toEqual(['true', 'true'])
+      expect(inputs[0].name).toBe(inputs[1].name)
+      expect(customItem.getAttribute('role')).toBe('radio')
+      expect(customItem.getAttribute('aria-checked')).toBe('false')
+      expect(customItem.dataset.ratingActive).toBe('false')
+      expect(
+        Array.from(container.querySelectorAll<HTMLElement>('[data-rating-item]')).map(
+          item => item.dataset.ratingActive,
+        ),
+      ).toEqual(['true', 'true', 'false', 'false'])
+    })
+
+    const firstInput = container.querySelector('input[value="1"]') as HTMLInputElement
+    firstInput.click()
+
+    await waitForContent(() => {
+      expect(handleChange).toHaveBeenLastCalledWith(1)
+      expect(container.querySelector('[data-testid="score"]')?.textContent).toBe('1')
+    })
+
+    ;(container.querySelector('input[value="1"]') as HTMLInputElement).click()
+
+    await waitForContent(() => {
+      expect(handleChange).toHaveBeenLastCalledWith(0)
+      expect(container.querySelector('[data-testid="score"]')?.textContent).toBe('0')
+    })
+
+    const customItem = container.querySelector('[aria-label="4 star"]') as HTMLElement
+    customItem.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+    await waitForContent(() => {
+      expect(handleChange).toHaveBeenCalledWith(4)
+      expect(container.querySelector('[data-testid="score"]')?.textContent).toBe('4')
+      expect(container.querySelector('[aria-label="4 star"]')?.getAttribute('aria-checked')).toBe(
+        'true',
+      )
+      expect(container.querySelector('[aria-label="4 star"]')).toBe(customItem)
+      expect(
+        Array.from(container.querySelectorAll<HTMLElement>('[data-rating-item]')).map(
+          item => item.dataset.ratingActive,
+        ),
+      ).toEqual(['true', 'true', 'true', 'true'])
+    })
+  })
+
   it('renders auto items from count and allows clearing the current value', async () => {
     const container = mountContainer()
     resetActiveRuntime()

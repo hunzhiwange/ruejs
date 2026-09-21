@@ -57,6 +57,14 @@ const sameKeys = (
 
 const samePropValue = (key: CompiledPropKey, previous: unknown, next: unknown): boolean =>
   sameCompiledValue(previous, next) ||
+  // Compiled default slots close over their reactive reads. Re-evaluating a component's props
+  // creates a fresh wrapper function, but replacing the mounted slot would throw away keyed
+  // children, focus, and local state even though the slot's reactive shape has not changed.
+  (key === 'children' &&
+    typeof previous === 'function' &&
+    typeof next === 'function' &&
+    previous.length === 3 &&
+    next.length === 3) ||
   (key === 'children' &&
     Array.isArray(previous) &&
     Array.isArray(next) &&

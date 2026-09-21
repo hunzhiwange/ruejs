@@ -95,6 +95,10 @@ describe('Checkbox', () => {
       expect(root).toBeTruthy()
       expect(root.classList.contains('rounded-box')).toBe(true)
       expect(root.textContent).toContain('部分选择')
+      expect(input.parentElement?.classList.contains('pt-0.5')).toBe(false)
+      expect(
+        container.querySelector('[data-rue-checkbox-content="true"]')?.classList.contains('pt-0.5'),
+      ).toBe(true)
       expect(input.indeterminate).toBe(true)
       expect(input.getAttribute('aria-checked')).toBe('mixed')
       expect(input.dataset.rueCheckboxValue).toBe('string:partial')

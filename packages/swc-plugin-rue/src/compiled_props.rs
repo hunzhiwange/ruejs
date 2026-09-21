@@ -1,7 +1,7 @@
 //! Close component props reads over explicit key and snapshot operations after JSX lowering.
 use crate::reactive_provenance::{self as provenance, ReactiveKind};
-use std::collections::HashSet;
-use swc_core::common::Span;
+use std::collections::{HashMap, HashSet};
+use swc_core::common::{DUMMY_SP, Span};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::visit::{Visit, VisitMut, VisitMutWith, VisitWith};
 
@@ -96,6 +96,7 @@ pub(crate) fn lower(module: &mut Module, components: Vec<Span>) {
         components,
         emit_names,
         scopes: Vec::new(),
+        component_props: Vec::new(),
         snapshot_only: false,
     });
 }
@@ -103,7 +104,220 @@ struct PropsReads {
     components: Vec<Span>,
     emit_names: HashSet<Id>,
     scopes: Vec<HashSet<String>>,
+    component_props: Vec<Ident>,
     snapshot_only: bool,
+}
+
+struct BodyDestructureRewriter {
+    props: Ident,
+    bindings: HashMap<String, (String, Option<Expr>)>,
+    rest: Option<(String, Vec<String>)>,
+    shadowed: HashSet<String>,
+    is_root_block: bool,
+}
+
+impl BodyDestructureRewriter {
+    fn read(&self, name: &str) -> Option<Expr> {
+        if let Some((key, default)) = self.bindings.get(name) {
+            let read = crate::emit::call_ident(
+                "_$compiledPropsGet",
+                vec![
+                    Expr::Ident(self.props.clone()),
+                    Expr::Lit(Lit::Str(crate::emit::str_lit(key))),
+                ],
+            );
+            return Some(if let Some(default) = default {
+                Expr::Bin(BinExpr {
+                    span: DUMMY_SP,
+                    op: BinaryOp::NullishCoalescing,
+                    left: Box::new(read),
+                    right: Box::new(default.clone()),
+                })
+            } else {
+                read
+            });
+        }
+        if self.rest.as_ref().is_some_and(|(rest, _)| rest == name) {
+            let keys = self
+                .rest
+                .as_ref()
+                .unwrap()
+                .1
+                .iter()
+                .map(|key| {
+                    Some(ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Lit(Lit::Str(crate::emit::str_lit(key)))),
+                    })
+                })
+                .collect();
+            return Some(crate::emit::call_ident(
+                "_$compiledOmitProps",
+                vec![
+                    Expr::Ident(self.props.clone()),
+                    Expr::Array(ArrayLit { span: DUMMY_SP, elems: keys }),
+                ],
+            ));
+        }
+        None
+    }
+}
+
+impl VisitMut for BodyDestructureRewriter {
+    fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
+        if self.is_root_block {
+            self.is_root_block = false;
+            block.visit_mut_children_with(self);
+            self.is_root_block = true;
+            return;
+        }
+        let previous = self.shadowed.clone();
+        for stmt in &block.stmts {
+            match stmt {
+                Stmt::Decl(Decl::Var(var)) => {
+                    for declarator in &var.decls {
+                        collect_pat_names(&declarator.name, &mut self.shadowed);
+                    }
+                }
+                Stmt::Decl(Decl::Fn(function)) => {
+                    self.shadowed.insert(function.ident.sym.to_string());
+                }
+                Stmt::Decl(Decl::Class(class)) => {
+                    self.shadowed.insert(class.ident.sym.to_string());
+                }
+                _ => {}
+            }
+        }
+        block.visit_mut_children_with(self);
+        self.shadowed = previous;
+    }
+
+    fn visit_mut_function(&mut self, function: &mut Function) {
+        let previous = self.shadowed.clone();
+        for parameter in &function.params {
+            collect_pat_names(&parameter.pat, &mut self.shadowed);
+        }
+        function.visit_mut_children_with(self);
+        self.shadowed = previous;
+    }
+
+    fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
+        let previous = self.shadowed.clone();
+        for parameter in &arrow.params {
+            collect_pat_names(parameter, &mut self.shadowed);
+        }
+        arrow.visit_mut_children_with(self);
+        self.shadowed = previous;
+    }
+
+    fn visit_mut_expr(&mut self, expr: &mut Expr) {
+        if let Expr::Ident(id) = expr
+            && !self.shadowed.contains(id.sym.as_ref())
+            && let Some(read) = self.read(id.sym.as_ref())
+        {
+            *expr = read;
+            return;
+        }
+        expr.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_prop(&mut self, prop: &mut Prop) {
+        if let Prop::Shorthand(id) = prop
+            && !self.shadowed.contains(id.sym.as_ref())
+            && let Some(read) = self.read(id.sym.as_ref())
+        {
+            *prop = Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(id.clone().into()),
+                value: Box::new(read),
+            });
+            return;
+        }
+        prop.visit_mut_children_with(self);
+    }
+}
+
+fn collect_pat_names(pat: &Pat, names: &mut HashSet<String>) {
+    match pat {
+        Pat::Ident(binding) => {
+            names.insert(binding.id.sym.to_string());
+        }
+        Pat::Assign(assign) => collect_pat_names(assign.left.as_ref(), names),
+        Pat::Rest(rest) => collect_pat_names(rest.arg.as_ref(), names),
+        Pat::Array(array) => {
+            for pat in array.elems.iter().flatten() {
+                collect_pat_names(pat, names);
+            }
+        }
+        Pat::Object(object) => {
+            for prop in &object.props {
+                match prop {
+                    ObjectPatProp::Assign(assign) => {
+                        names.insert(assign.key.sym.to_string());
+                    }
+                    ObjectPatProp::KeyValue(prop) => collect_pat_names(prop.value.as_ref(), names),
+                    ObjectPatProp::Rest(rest) => collect_pat_names(rest.arg.as_ref(), names),
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+pub(crate) fn lower_body_props_destructure(body: &mut BlockStmt, props: &Ident) {
+    let mut bindings = HashMap::new();
+    let mut rest = None;
+    let mut removed = false;
+    for stmt in &mut body.stmts {
+        let Stmt::Decl(Decl::Var(var)) = stmt else { continue };
+        var.decls.retain(|decl| {
+            let Pat::Object(object) = &decl.name else { return true };
+            let Some(init) = decl.init.as_deref() else { return true };
+            let reads_props = matches!(crate::utils::unwrap_expr(init), Expr::Ident(id) if id.sym == props.sym)
+                || matches!(crate::utils::unwrap_expr(init), Expr::Call(CallExpr {
+                    callee: Callee::Expr(callee), args, ..
+                }) if matches!(crate::utils::unwrap_expr(callee), Expr::Ident(id)
+                    if id.sym == *"_$compiledPropsSnapshot")
+                    && matches!(args.as_slice(), [arg]
+                        if matches!(crate::utils::unwrap_expr(arg.expr.as_ref()), Expr::Ident(id)
+                            if id.sym == props.sym)));
+            if !reads_props {
+                return true;
+            }
+            let mut keys = Vec::new();
+            for prop in &object.props {
+                match prop {
+                    ObjectPatProp::Assign(assign) => {
+                        let key = assign.key.sym.to_string();
+                        keys.push(key.clone());
+                        bindings.insert(key.clone(), (key, assign.value.as_deref().cloned()));
+                    }
+                    ObjectPatProp::KeyValue(prop) => {
+                        let key = match &prop.key { PropName::Ident(id) => id.sym.to_string(), PropName::Str(s) => s.value.to_string_lossy().into_owned(), _ => return true };
+                        let (name, default) = match prop.value.as_ref() {
+                            Pat::Ident(id) => (id.id.sym.to_string(), None),
+                            Pat::Assign(assign) => match assign.left.as_ref() { Pat::Ident(id) => (id.id.sym.to_string(), Some(assign.right.as_ref().clone())), _ => return true },
+                            _ => return true,
+                        };
+                        keys.push(key.clone());
+                        bindings.insert(name, (key, default));
+                    }
+                    ObjectPatProp::Rest(prop) => if let Pat::Ident(id) = prop.arg.as_ref() { rest = Some((id.id.sym.to_string(), keys.clone())); },
+                }
+            }
+            removed = true;
+            false
+        });
+    }
+    body.stmts.retain(|stmt| !matches!(stmt, Stmt::Decl(Decl::Var(var)) if var.decls.is_empty()));
+    if removed {
+        body.visit_mut_with(&mut BodyDestructureRewriter {
+            props: props.clone(),
+            bindings,
+            rest,
+            shadowed: HashSet::new(),
+            is_root_block: true,
+        });
+    }
 }
 impl PropsReads {
     fn is_props(&self, expr: &Expr) -> bool {
@@ -173,6 +387,21 @@ impl VisitMut for PropsReads {
         self.scopes.pop();
     }
     fn visit_mut_function(&mut self, function: &mut Function) {
+        let component_props = if self.components.contains(&function.span)
+            && let Some(Pat::Ident(props)) = function.params.first().map(|param| &param.pat)
+        {
+            Some(props.id.clone())
+        } else {
+            None
+        };
+        if let Some(props) = &component_props
+            && let Some(body) = &mut function.body
+        {
+            lower_body_props_destructure(body, props);
+        }
+        if let Some(props) = component_props {
+            self.component_props.push(props);
+        }
         self.parameters(function.span, function.params.iter().map(|p| &p.pat));
         function.visit_mut_children_with(self);
         if self.components.contains(&function.span) {
@@ -198,8 +427,26 @@ impl VisitMut for PropsReads {
             }
         }
         self.scopes.pop();
+        if self.components.contains(&function.span) && !self.component_props.is_empty() {
+            self.component_props.pop();
+        }
     }
     fn visit_mut_arrow_expr(&mut self, arrow: &mut ArrowExpr) {
+        let component_props = if self.components.contains(&arrow.span)
+            && let Some(Pat::Ident(props)) = arrow.params.first()
+        {
+            Some(props.id.clone())
+        } else {
+            None
+        };
+        if let Some(props) = &component_props
+            && let BlockStmtOrExpr::BlockStmt(body) = arrow.body.as_mut()
+        {
+            lower_body_props_destructure(body, props);
+        }
+        if let Some(props) = component_props {
+            self.component_props.push(props);
+        }
         self.parameters(arrow.span, arrow.params.iter());
         arrow.visit_mut_children_with(self);
         if self.components.contains(&arrow.span) {
@@ -224,8 +471,14 @@ impl VisitMut for PropsReads {
             }
         }
         self.scopes.pop();
+        if self.components.contains(&arrow.span) && !self.component_props.is_empty() {
+            self.component_props.pop();
+        }
     }
     fn visit_mut_block_stmt(&mut self, block: &mut BlockStmt) {
+        if let Some(props) = self.component_props.last().cloned() {
+            lower_body_props_destructure(block, &props);
+        }
         self.scopes.push(provenance::collect_stmt_scope(block.stmts.iter(), &self.scopes));
         block.visit_mut_children_with(self);
         self.scopes.pop();

@@ -1,0 +1,67 @@
+{
+  "task": 6,
+  "status": "completed",
+  "focusedCommand": "pnpm exec vitest run --project unit-jsdom packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx packages/runtime/__tests__/keyedRetention.full.spec.ts packages/runtime/__tests__/listsAndKeys.actual.spec.tsx packages/runtime/__tests__/mapListRendering.actual.spec.tsx packages/runtime/__tests__/sortFilterGrid.actual.spec.tsx packages/runtime/__tests__/vForAndRFor.actual.spec.tsx",
+  "transitions": ["insert", "remove", "reverse/reorder", "sort", "filter", "same-key update"],
+  "identityAssertions": [
+    "DOM node reuse",
+    "focus preservation",
+    "uncontrolled input state preservation",
+    "row cleanup exactly once"
+  ],
+  "expectedFailure": "listsAndKeys.actual.spec.tsx documents that a connected keyed row move reuses the li/input and preserves input.value, but loses document.activeElement focus",
+  "entries": [
+    {
+      "originalPath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/keyedRetention.full.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/keyedRetention.full.spec.ts"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/listTransition.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/compiledKeyedList.spec.ts"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/localTodoList.microtask.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mapListRendering.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/mapListRendering.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/patchChildren.anchor.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/compiledKeyedList.spec.ts"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/sortFilterGrid.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/sortFilterGrid.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.app.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.page.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.plus.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/keyedRetention.full.spec.ts"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vForAndRFor.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/vForAndRFor.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vaporKeyedList.proxyDrift.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx"
+    }
+  ]
+}

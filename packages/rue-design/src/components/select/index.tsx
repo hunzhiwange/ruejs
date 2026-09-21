@@ -23,6 +23,29 @@ export type SelectStatus = 'success' | 'warning' | 'error'
 /** SelectVariant 视觉或语义变体类型。 */
 export type SelectVariant = 'outlined' | 'filled' | 'ghost' | 'borderless'
 
+// 保持完整类名为静态字符串，确保 Tailwind 能从组件库源码中发现所有颜色变体。
+const selectColorClassMap: Record<SelectColor, string> = {
+  neutral: 'select-neutral',
+  primary: 'select-primary',
+  secondary: 'select-secondary',
+  accent: 'select-accent',
+  info: 'select-info',
+  success: 'select-success',
+  warning: 'select-warning',
+  error: 'select-error',
+}
+
+const shellColorClassMap: Record<SelectColor, string> = {
+  neutral: 'input-neutral',
+  primary: 'input-primary',
+  secondary: 'input-secondary',
+  accent: 'input-accent',
+  info: 'input-info',
+  success: 'input-success',
+  warning: 'input-warning',
+  error: 'input-error',
+}
+
 const selectSizeMap = {
   xs: 'xs',
   sm: 'sm',
@@ -363,7 +386,7 @@ const buildSelectClassName = (
   const resolvedSize = resolveVisualSize(size, uiSize)
   const variantClassName = resolveSelectVariantClassName(variant, ghost)
 
-  if (resolvedColor) cls += ` select-${resolvedColor}`
+  if (resolvedColor) cls += ` ${selectColorClassMap[resolvedColor]}`
   if (resolvedSize) cls += ` select-${resolvedSize}`
   if (variantClassName) cls += ` ${variantClassName}`
   if (className) cls += ` ${className}`
@@ -385,7 +408,7 @@ const buildShellClassName = (
   const resolvedSize = resolveVisualSize(size, uiSize)
   const variantClassName = resolveShellVariantClassName(variant, ghost)
 
-  if (resolvedColor) cls += ` input-${resolvedColor}`
+  if (resolvedColor) cls += ` ${shellColorClassMap[resolvedColor]}`
   if (resolvedSize) cls += ` input-${resolvedSize}`
   if (variantClassName) cls += ` ${variantClassName}`
   cls += ' flex items-center gap-2'

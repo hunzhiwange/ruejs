@@ -254,6 +254,18 @@ fn is_substantive_slot_child(child: &JSXElementChild) -> bool {
 fn lower_expr_slot_value(vt: &mut VaporTransform, expr: &Expr) -> Option<LoweredSlotValue> {
     match crate::utils::unwrap_expr(expr) {
         Expr::JSXElement(jsx_el) => {
+            if crate::element_children::is_compiled_safe_element(vt, jsx_el) {
+                let block = crate::element_children::compiled_scalar_element_to_block(vt, jsx_el);
+                let child_ident = vt.next_child_ident();
+                return Some(LoweredSlotValue {
+                    stmts: vec![const_decl(
+                        child_ident.clone(),
+                        crate::element_children::compiled_block_to_root_expr(block),
+                    )],
+                    expr: Expr::Ident(child_ident),
+                    is_function: false,
+                });
+            }
             // 表达式本身就是 JSX：把它临时当成一个 child 交给统一 slot lowering。
             let wrapped = vec![JSXElementChild::JSXElement(jsx_el.clone())];
             lower_slot_value(vt, &wrapped)
@@ -700,17 +712,55 @@ pub(crate) fn build_compiled_dynamic_component_expr(
     }
     let key = dynamic_attr_expr(element, "is")
         .unwrap_or_else(|| panic!("Rue dynamic component requires an explicit is key"));
-    let registry = dynamic_attr_expr(element, "registry")
-        .unwrap_or_else(|| panic!("Rue dynamic component requires a literal factory registry"));
-    let Expr::Object(registry) = registry else {
-        panic!("Rue dynamic component registry must be a literal, finite factory map");
-    };
+    let registry = dynamic_attr_expr(element, "registry");
     let mut normalized = element.clone();
     normalized.opening.name = JSXElementName::Ident(ident("__rueDynamicSelected"));
     normalized.opening.attrs.retain(|attr| {
         !matches!(attr, JSXAttrOrSpread::JSXAttr(JSXAttr { name: JSXAttrName::Ident(name), .. }) if matches!(name.sym.as_ref(), "is" | "registry"))
     });
     let read_props = build_compiled_component_read_props(vt, &normalized)?;
+    let Some(registry) = registry else {
+        let create = Expr::Arrow(ArrowExpr {
+            span: DUMMY_SP,
+            ctxt: SyntaxContext::empty(),
+            params: vec![],
+            body: Box::new(BlockStmtOrExpr::Expr(Box::new(call_ident(
+                "_$createDynamicElement",
+                vec![key.clone(), read_props],
+            )))),
+            is_async: false,
+            is_generator: false,
+            type_params: None,
+            return_type: None,
+        });
+        let selected = Expr::Object(ObjectLit {
+            span: DUMMY_SP,
+            props: vec![
+                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(ident_name("__rue_compiled_branch_key")),
+                    value: Box::new(key),
+                }))),
+                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(ident_name("create")),
+                    value: Box::new(create),
+                }))),
+            ],
+        });
+        let select = Expr::Arrow(ArrowExpr {
+            span: DUMMY_SP,
+            ctxt: SyntaxContext::empty(),
+            params: vec![],
+            body: Box::new(BlockStmtOrExpr::Expr(Box::new(selected))),
+            is_async: false,
+            is_generator: false,
+            type_params: None,
+            return_type: None,
+        });
+        return Some(call_ident("_$compiledBranch", vec![select]));
+    };
+    let Expr::Object(registry) = registry else {
+        panic!("Rue dynamic component registry must be a literal, finite factory map");
+    };
     let mut cases = Vec::new();
     for entry in registry.props {
         let PropOrSpread::Prop(entry) = entry else {
@@ -838,6 +888,21 @@ pub(crate) fn is_compiled_opaque_component_element(element: &JSXElement) -> bool
     crate::utils::is_component(&element.opening.name)
         && crate::router_link::rewrite_router_link_fast_path(element).is_none()
         && crate::utils::component_has_no_dynamic_props_excluding_children(element)
+        && element.opening.attrs.iter().all(|attr| match attr {
+            JSXAttrOrSpread::JSXAttr(JSXAttr {
+                value: Some(JSXAttrValue::JSXElement(_) | JSXAttrValue::JSXFragment(_)),
+                ..
+            }) => false,
+            JSXAttrOrSpread::JSXAttr(JSXAttr {
+                value:
+                    Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                        expr: JSXExpr::Expr(expr),
+                        ..
+                    })),
+                ..
+            }) => !crate::element_expr::contains_jsx_in_expr(expr.as_ref()),
+            _ => true,
+        })
         && element.children.iter().all(
             |child| matches!(child, JSXElementChild::JSXText(text) if text.value.trim().is_empty()),
         )
@@ -934,6 +999,16 @@ pub(crate) fn build_compiled_component_read_props(
                     crate::element_expr::compiled_slot_factory_expr(vt, &expr)?
                 }
                 Some(JSXAttrValue::JSXExprContainer(container))
+                    if matches!(
+                        &container.expr,
+                        JSXExpr::Expr(expr)
+                            if matches!(crate::utils::unwrap_expr(expr.as_ref()), Expr::JSXElement(_) | Expr::JSXFragment(_))
+                    ) =>
+                {
+                    let JSXExpr::Expr(expr) = &container.expr else { unreachable!() };
+                    crate::element_expr::compiled_slot_factory_expr(vt, expr)?
+                }
+                Some(JSXAttrValue::JSXExprContainer(container))
                     if matches!(&attr.name, JSXAttrName::Ident(name) if name.sym == "children" || (is_suspense && name.sym == "fallback")) => {
                     let JSXExpr::Expr(expr) = &container.expr else { return None };
                     if crate::element_expr::is_compiled_slot_expr(vt, expr) {
@@ -999,6 +1074,28 @@ pub(crate) fn build_compiled_component_read_props(
         }))));
     }
     if !substantive_children.is_empty() {
+        let nullish_conditional = if substantive_children.len() == 1 {
+            match &substantive_children[0] {
+                JSXElementChild::JSXExprContainer(JSXExprContainer {
+                    expr: JSXExpr::Expr(expr),
+                    ..
+                }) => match crate::utils::unwrap_expr(expr.as_ref()) {
+                    Expr::Cond(CondExpr { cons, alt, .. })
+                        if crate::utils::is_static_empty_like(crate::utils::unwrap_expr(
+                            cons.as_ref(),
+                        )) || crate::utils::is_static_empty_like(crate::utils::unwrap_expr(
+                            alt.as_ref(),
+                        )) =>
+                    {
+                        lower_expr_slot_value(vt, expr.as_ref())
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }
+        } else {
+            None
+        };
         let compile_children = |vt: &mut VaporTransform, children: Vec<JSXElementChild>| {
             let fragment = Expr::JSXFragment(JSXFragment {
                 span: DUMMY_SP,
@@ -1008,7 +1105,38 @@ pub(crate) fn build_compiled_component_read_props(
             });
             crate::element_expr::compiled_slot_factory_expr(vt, &fragment)
         };
-        let children = compile_children(vt, substantive_children)?;
+        let children = if let Some(lowered) = nullish_conditional {
+            let mut body = lowered.stmts;
+            body.push(Stmt::Return(ReturnStmt {
+                span: DUMMY_SP,
+                arg: Some(Box::new(lowered.expr)),
+            }));
+            Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                callee: Callee::Expr(Box::new(Expr::Paren(ParenExpr {
+                    span: DUMMY_SP,
+                    expr: Box::new(Expr::Arrow(ArrowExpr {
+                        span: DUMMY_SP,
+                        params: vec![],
+                        body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                            span: DUMMY_SP,
+                            ctxt: SyntaxContext::empty(),
+                            stmts: body,
+                        })),
+                        is_async: false,
+                        is_generator: false,
+                        type_params: None,
+                        return_type: None,
+                        ctxt: SyntaxContext::empty(),
+                    })),
+                }))),
+                args: vec![],
+                type_args: None,
+                ctxt: SyntaxContext::empty(),
+            })
+        } else {
+            compile_children(vt, substantive_children)?
+        };
         props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(ident_name("children")),
             value: Box::new(children),

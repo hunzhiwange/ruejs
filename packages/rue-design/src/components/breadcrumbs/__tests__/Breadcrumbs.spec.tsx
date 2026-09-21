@@ -229,10 +229,19 @@ describe('Breadcrumbs', () => {
       expect(librarySeparator).toBeTruthy()
       expect(librarySeparator.textContent).toBe('•')
 
-      const menu = c.querySelector('.dropdown-content.menu') as HTMLElement
+      const overlay = document.body.querySelector('.dropdown-content') as HTMLElement
+      const menu = overlay.querySelector('.menu') as HTMLElement
       expect(menu).toBeTruthy()
       expect(menu.querySelectorAll('li').length).toBe(2)
+      expect(overlay.classList.contains('z-30')).toBe(true)
       expect(c.querySelector('[data-rue-breadcrumb-dropdown-icon="true"]')?.textContent).toBe('v')
+
+      const trigger = c.querySelector('[aria-haspopup="dialog"]') as HTMLElement
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      expect(c.querySelector('.dropdown')?.classList.contains('dropdown-open')).toBe(true)
+      expect(overlay.style.position).toBe('fixed')
+      expect(overlay.style.margin).toBe('0px')
+      expect(overlay.style.getPropertyValue('translate')).toBe('0 0')
 
       const buttonSeparator = listItems[2].firstElementChild as HTMLElement
       expect(buttonSeparator.textContent).toBe('/')

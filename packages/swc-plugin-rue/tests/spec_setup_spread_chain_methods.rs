@@ -35,7 +35,7 @@ const Comp: FC = ()=>{
     const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = ref(1);
             const b = computed(()=>a.value + 2);
-            b.get();
+            untrack(()=>b.get());
             const __rue_phase2_b = b;
             const base = {
                 k: 'v'
@@ -43,13 +43,13 @@ const Comp: FC = ()=>{
             const extra = computed(()=>({
                         z: ()=>a.value + __rue_phase2_b.get()
                 }));
-            extra.get();
+            untrack(()=>extra.get());
             const __rue_phase2_extra = extra;
             const arr0 = computed(()=>[
                         a.value,
                         __rue_phase2_b.get()
                 ]);
-            arr0.get();
+            untrack(()=>arr0.get());
             const __rue_phase2_arr0 = arr0;
             const obj = computed(()=>({
                         ...base,
@@ -62,7 +62,7 @@ const Comp: FC = ()=>{
                             return a.value + __rue_phase2_b.get();
                         }
                 }));
-            obj.get();
+            untrack(()=>obj.get());
             const __rue_phase2_obj = obj;
             return {
                 a: a,

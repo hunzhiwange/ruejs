@@ -375,59 +375,65 @@ const BasicRadioPreview: FC = () => {
   )
 }
 
-const createLabeledRadioOptions = (selectedValue: string) => {
-  return [
-    {
-      value: 'solo',
-      className: `items-start rounded-box border px-4 py-3 transition ${selectedValue === 'solo' ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}`,
-      label: (
-        <span className="flex flex-col gap-1">
-          <span className="font-medium">Solo</span>
-          <span className="text-xs text-base-content/60">适合个人实验、脚本工具和快速验证。</span>
-        </span>
-      ),
-    },
-    {
-      value: 'team',
-      className: `items-start rounded-box border px-4 py-3 transition ${selectedValue === 'team' ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}`,
-      label: (
-        <span className="flex flex-col gap-1">
-          <span className="font-medium">Team</span>
-          <span className="text-xs text-base-content/60">
-            适合共享组件库和多成员维护的前台项目。
-          </span>
-        </span>
-      ),
-    },
-    {
-      value: 'enterprise',
-      className: `items-start rounded-box border px-4 py-3 transition ${selectedValue === 'enterprise' ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}`,
-      label: (
-        <span className="flex flex-col gap-1">
-          <span className="font-medium">Enterprise</span>
-          <span className="text-xs text-base-content/60">适合多环境发布、权限隔离和审计场景。</span>
-        </span>
-      ),
-    },
-  ]
-}
+const resolveLabeledRadioClassName = (checked: boolean) =>
+  `items-start rounded-box border px-4 py-3 transition ${checked ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}`
 
 const LabeledRadioPreview: FC = () => {
   const selected = ref('team')
 
   return (
     <div className="space-y-4">
-      <Radio.Group
-        value={selected.value}
-        onChange={value => {
-          if (value !== undefined) {
-            selected.value = String(value)
-          }
-        }}
-        className="grid gap-3 md:grid-cols-3"
-        block={true}
-        options={createLabeledRadioOptions(selected.value)}
-      />
+      <div className="grid gap-3 md:grid-cols-3">
+        <Radio
+          name="workspace-plan"
+          value="solo"
+          checked={selected.value === 'solo'}
+          rootClassName={resolveLabeledRadioClassName(selected.value === 'solo')}
+          block={true}
+          onChange={() => {
+            selected.value = 'solo'
+          }}
+        >
+          <span className="flex flex-col gap-1">
+            <span className="font-medium">Solo</span>
+            <span className="text-xs text-base-content/60">适合个人实验、脚本工具和快速验证。</span>
+          </span>
+        </Radio>
+        <Radio
+          name="workspace-plan"
+          value="team"
+          checked={selected.value === 'team'}
+          rootClassName={resolveLabeledRadioClassName(selected.value === 'team')}
+          block={true}
+          onChange={() => {
+            selected.value = 'team'
+          }}
+        >
+          <span className="flex flex-col gap-1">
+            <span className="font-medium">Team</span>
+            <span className="text-xs text-base-content/60">
+              适合共享组件库和多成员维护的前台项目。
+            </span>
+          </span>
+        </Radio>
+        <Radio
+          name="workspace-plan"
+          value="enterprise"
+          checked={selected.value === 'enterprise'}
+          rootClassName={resolveLabeledRadioClassName(selected.value === 'enterprise')}
+          block={true}
+          onChange={() => {
+            selected.value = 'enterprise'
+          }}
+        >
+          <span className="flex flex-col gap-1">
+            <span className="font-medium">Enterprise</span>
+            <span className="text-xs text-base-content/60">
+              适合多环境发布、权限隔离和审计场景。
+            </span>
+          </span>
+        </Radio>
+      </div>
 
       <p className="m-0 text-sm text-base-content/70">当前选择：{selected.value}</p>
     </div>
@@ -450,34 +456,17 @@ const OptionsPreview: FC = () => {
         }}
         options={[
           {
-            label: (
-              <span className="flex flex-col gap-1">
-                <span className="font-medium">Monthly</span>
-                <span className="text-xs text-base-content/60">适合高频调整预算和快速试错。</span>
-              </span>
-            ),
+            label: 'Monthly',
             value: 'monthly',
             className: 'items-start rounded-box border border-base-300 bg-base-100 px-4 py-3',
           },
           {
-            label: (
-              <span className="flex flex-col gap-1">
-                <span className="font-medium">Quarterly</span>
-                <span className="text-xs text-base-content/60">
-                  适合稳定迭代节奏和季度采购流程。
-                </span>
-              </span>
-            ),
+            label: 'Quarterly',
             value: 'quarterly',
             className: 'items-start rounded-box border border-base-300 bg-base-100 px-4 py-3',
           },
           {
-            label: (
-              <span className="flex flex-col gap-1">
-                <span className="font-medium">Yearly</span>
-                <span className="text-xs text-base-content/60">当前方案暂未开放企业年付折扣。</span>
-              </span>
-            ),
+            label: 'Yearly',
             value: 'yearly',
             disabled: true,
             className:
@@ -669,52 +658,24 @@ const RadioPage: FC = () => {
           summary="给 children 加一层描述结构，就可以把 Radio 组织成卡片式选项。"
           tab={tabLabeled}
           preview={() => <LabeledRadioPreview />}
-          code={`const createLabeledOptions = (selectedValue: string) => [
-  {
-    value: 'solo',
-    className: \`items-start rounded-box border px-4 py-3 transition \${selectedValue === 'solo' ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}\`,
-    label: (
-      <span className="flex flex-col gap-1">
-        <span className="font-medium">Solo</span>
-        <span className="text-xs text-base-content/60">适合个人实验、脚本工具和快速验证。</span>
-      </span>
-    ),
-  },
-  {
-    value: 'team',
-    className: \`items-start rounded-box border px-4 py-3 transition \${selectedValue === 'team' ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}\`,
-    label: (
-      <span className="flex flex-col gap-1">
-        <span className="font-medium">Team</span>
-        <span className="text-xs text-base-content/60">适合共享组件库和多成员维护的前台项目。</span>
-      </span>
-    ),
-  },
-  {
-    value: 'enterprise',
-    className: \`items-start rounded-box border px-4 py-3 transition \${selectedValue === 'enterprise' ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-base-content/20'}\`,
-    label: (
-      <span className="flex flex-col gap-1">
-        <span className="font-medium">Enterprise</span>
-        <span className="text-xs text-base-content/60">适合多环境发布、权限隔离和审计场景。</span>
-      </span>
-    ),
-  },
-]
+          code={`const selected = ref('team')
 
-const selected = ref('team')
-
-<Radio.Group
-  value={selected.value}
-  onChange={value => {
-    if (value !== undefined) {
-      selected.value = String(value)
-    }
+<Radio
+  name="workspace-plan"
+  value="team"
+  checked={selected.value === 'team'}
+  rootClassName="items-start rounded-box border px-4 py-3"
+  onChange={() => {
+    selected.value = 'team'
   }}
-  className="grid gap-3 md:grid-cols-3"
-  block={true}
-  options={createLabeledOptions(selected.value)}
-/>`}
+>
+  <span className="flex flex-col gap-1">
+    <span className="font-medium">Team</span>
+    <span className="text-xs text-base-content/60">
+      适合共享组件库和多成员维护的前台项目。
+    </span>
+  </span>
+</Radio>`}
         />
 
         <ExampleBlock

@@ -446,13 +446,14 @@ const InputRoot: FC<InputProps> = (
 
   const handleInput = (event: Event) => {
     const target = event.target as HTMLInputElement | null
-    currentValue.value = target?.value ?? ''
+    const nextValue = target?.value ?? ''
     if (onInput) onInput(event)
+    if (!isControlled) currentValue.value = nextValue
   }
 
   const handleChange = (event: Event) => {
     const target = event.target as HTMLInputElement | null
-    currentValue.value = target?.value ?? ''
+    if (!isControlled) currentValue.value = target?.value ?? ''
     if (onChange) onChange(event)
   }
 

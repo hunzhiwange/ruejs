@@ -119,9 +119,13 @@ export default HelloWorld;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec43.out.js", strip_marker(&out)).ok();
     let output = normalize(&strip_marker(&out));
-    assert_eq!(output.matches("_$compiledRoot(").count(), 3, "{output}");
-    assert_eq!(output.matches("_$compiledText(").count(), 2, "{output}");
-    assert_eq!(output.matches("_$createComponent(").count(), 2, "{output}");
+    assert_eq!(
+        output.matches("_$compiledRoot(").count() + output.matches("_$compiledScalarRoot(").count(),
+        3,
+        "{output}"
+    );
+    assert_eq!(output.matches("_$compiledScalarText(").count(), 2, "{output}");
+    assert_eq!(output.matches("_$compiledComponent(").count(), 2, "{output}");
     assert_eq!(output.matches("return [").count(), 3, "{output}");
     assert!(!output.contains("return vapor("), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");

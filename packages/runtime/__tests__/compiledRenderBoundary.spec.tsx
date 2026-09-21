@@ -41,6 +41,8 @@ type DirectComponentModule = {
   trace: {
     mounted: number
     renders: number
+    slotMounted: number
+    slotUnmounted: number
     unmounted: number
   }
 }
@@ -112,6 +114,8 @@ const label = signal('one')
 export const trace = {
   mounted: 0,
   renders: 0,
+  slotMounted: 0,
+  slotUnmounted: 0,
   unmounted: 0,
 }
 
@@ -122,8 +126,23 @@ const DirectLeaf: FC<{ label: string }> = props => {
   return <span data-testid="direct-leaf">{props.label}</span>
 }
 
+const SlottedLeaf: FC = () => {
+  onMounted(() => trace.slotMounted += 1)
+  onUnmounted(() => trace.slotUnmounted += 1)
+  return <input data-testid="slotted-leaf" value="owned" />
+}
+
+const SlotShell: FC<{ label: string; children?: any }> = props => (
+  <section data-testid="slot-shell" data-label={props.label}>{props.children}</section>
+)
+
 export const setLabel = (value) => label.set(value)
-export const View: FC = () => <main><DirectLeaf label={label.get()} /></main>
+export const View: FC = () => (
+  <main>
+    <DirectLeaf label={label.get()} />
+    <SlotShell label={label.get()}><SlottedLeaf /></SlotShell>
+  </main>
+)
 `
 
 const compile = (moduleType: 'es6' | 'commonjs'): string => {
@@ -280,23 +299,39 @@ describe('compiled component render boundary', () => {
     await flush()
 
     const leaf = host.querySelector('[data-testid="direct-leaf"]')
+    const slottedLeaf = host.querySelector('[data-testid="slotted-leaf"]')
     const comments = Array.from(host.querySelectorAll('main')[0].childNodes).filter(
       node => node.nodeType === Node.COMMENT_NODE,
     )
     expect(leaf?.textContent).toBe('one')
-    expect(comments).toHaveLength(2)
-    expect(compiled.trace).toEqual({ mounted: 1, renders: 1, unmounted: 0 })
+    expect(comments).toHaveLength(4)
+    expect(compiled.trace).toEqual({
+      mounted: 1,
+      renders: 1,
+      slotMounted: 1,
+      slotUnmounted: 0,
+      unmounted: 0,
+    })
 
     compiled.setLabel('two')
     await flush()
 
     expect(host.querySelector('[data-testid="direct-leaf"]')).toBe(leaf)
+    expect(host.querySelector('[data-testid="slotted-leaf"]')).toBe(slottedLeaf)
+    expect(host.querySelector('[data-testid="slot-shell"]')?.getAttribute('data-label')).toBe('two')
     expect(leaf?.textContent).toBe('two')
-    expect(compiled.trace).toEqual({ mounted: 1, renders: 1, unmounted: 0 })
+    expect(compiled.trace).toEqual({
+      mounted: 1,
+      renders: 1,
+      slotMounted: 1,
+      slotUnmounted: 0,
+      unmounted: 0,
+    })
 
     app.unmount()
     await flush()
     expect(compiled.trace.unmounted).toBe(1)
+    expect(compiled.trace.slotUnmounted).toBe(1)
     expect(host.childNodes).toHaveLength(0)
   })
 

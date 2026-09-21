@@ -13,6 +13,11 @@ import {
 
 export type CompactRef<T> = CompiledSignalHandle<T> & { readonly __rue_ref__: true }
 
+export type CustomRefFactory<T> = (
+  track: () => void,
+  trigger: () => void,
+) => { get: () => T; set: (value: T) => void }
+
 type SetStateAction<T> = T | ((previous: T) => T)
 type Dispatch<T> = (value: T) => void
 type StateOptions<T> = SignalOptions<T>
@@ -41,7 +46,43 @@ export const ref = <T>(value: T, options?: SignalOptions<T>): CompactRef<T> => {
     get: () => state.get(),
     set: (next: T) => state.set(next),
   })
+  Object.defineProperty(state, Symbol.toPrimitive, {
+    configurable: true,
+    value: (hint: string) => {
+      const current = state.get()
+      if (current == null || (typeof current !== 'object' && typeof current !== 'function')) {
+        return current
+      }
+      if (hint === 'number') return Number(current)
+      try {
+        return JSON.stringify(current) ?? String(current)
+      } catch {
+        return String(current)
+      }
+    },
+  })
   return state as CompactRef<T>
+}
+
+export const customRef = <T>(factory: CustomRefFactory<T>): CompactRef<T> => {
+  const dependency = signal<T>(undefined as T)
+  const track = dependency.get.bind(dependency)
+  const trigger = dependency.trigger.bind(dependency)
+  const access = factory(() => {
+    track()
+  }, trigger)
+
+  dependency.get = access.get
+  dependency.peek = () => untrack(access.get)
+  dependency.set = access.set
+  Object.defineProperty(dependency, '__rue_ref__', { value: true })
+  Object.defineProperty(dependency, 'value', {
+    configurable: true,
+    enumerable: true,
+    get: access.get,
+    set: access.set,
+  })
+  return dependency as CompactRef<T>
 }
 
 export const computed = <T>(read: () => T): CompactRef<T> => {

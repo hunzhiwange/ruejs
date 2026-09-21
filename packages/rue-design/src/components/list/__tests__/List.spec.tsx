@@ -171,8 +171,11 @@ describe('List', () => {
         <List
           dataSource={[{ id: 'a', name: 'Alpha' }]}
           rowKey={'id'}
-          itemClassName="p-2"
-          itemFormatter={(item: any) => item.name}
+          renderItem={(item: any) => (
+            <List.Item className="p-2">
+              <List.Item.Meta title={item.name} description="Rendered item" />
+            </List.Item>
+          )}
         />,
         c,
       ),
@@ -181,6 +184,24 @@ describe('List', () => {
     const item = c.querySelector('ul.list > li.p-2') as HTMLElement
     expect(item).toBeTruthy()
     expect(item.textContent).toContain('Alpha')
+    expect(item.textContent).toContain('Rendered item')
+  })
+
+  it('uses itemFormatter as the text fallback when renderItem is absent', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <List
+          dataSource={[{ id: 'a', name: 'Alpha' }]}
+          rowKey={'id'}
+          itemClassName="p-2"
+          itemFormatter={(item: any) => item.name}
+        />,
+        c,
+      ),
+    )
+    await waitListRender()
+    expect(c.querySelector('ul.list > li.p-2')?.textContent).toContain('Alpha')
   })
 
   it('renders object dataSource items without renderItem using a safe fallback', async () => {
@@ -213,6 +234,29 @@ describe('List', () => {
     expect(row.textContent).toContain('Description')
     expect(row.textContent).toContain('Open')
     expect(row.querySelector('.badge')?.textContent).toContain('New')
+  })
+
+  it('renders JSX actions without treating them as action config objects', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <List>
+          <List.Item
+            actions={[
+              <button type="button">Review</button>,
+              <button type="button">Publish</button>,
+            ]}
+          >
+            Track
+          </List.Item>
+        </List>,
+        c,
+      ),
+    )
+    await waitListRender()
+    expect(c.textContent).toContain('Review')
+    expect(c.textContent).toContain('Publish')
+    expect(c.textContent).not.toContain('undefined')
   })
 
   it('renders loading and empty states', async () => {
@@ -257,6 +301,24 @@ describe('List', () => {
     expect(root.textContent).toContain('Footer')
   })
 
+  it('renders JSX header and footer content', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(
+        <List
+          header={<span>Release queue</span>}
+          footer={<span>Synced recently</span>}
+          dataSource={['One']}
+        />,
+        c,
+      ),
+    )
+    await waitListRender()
+    expect(c.textContent).toContain('Release queue')
+    expect(c.textContent).toContain('Synced recently')
+    expect(c.textContent).not.toContain('=>')
+  })
+
   it('renders pagination controls and page content', async () => {
     const c = mountContainer()
     const onChange = vi.fn()
@@ -264,7 +326,17 @@ describe('List', () => {
     mountTestApp(c, () =>
       render(
         <List
-          dataSource={['One', 'Two', 'Three']}
+          dataSource={[
+            { id: 'one', name: 'One' },
+            { id: 'two', name: 'Two' },
+            { id: 'three', name: 'Low Tide Letters' },
+          ]}
+          rowKey="id"
+          renderItem={(item: any) => (
+            <List.Item className="px-4 py-3">
+              <List.Item.Meta title={item.name} description="Rendered page item" />
+            </List.Item>
+          )}
           pagination={{ pageSize: 2, align: 'center', onChange }}
         />,
         c,
@@ -273,7 +345,7 @@ describe('List', () => {
     await waitForContent(() => {
       expect(c.textContent).toContain('One')
       expect(c.textContent).toContain('Two')
-      expect(c.textContent).not.toContain('Three')
+      expect(c.textContent).not.toContain('Low Tide Letters')
       expect(c.querySelector('.join .btn-active')?.textContent).toContain('1')
       expect(c.querySelectorAll('.join button').length).toBe(4)
     })
@@ -284,7 +356,8 @@ describe('List', () => {
     pageTwo.click()
     await waitForContent(() => {
       expect(onChange).toHaveBeenCalledWith(2, 2)
-      expect(c.textContent).toContain('Three')
+      expect(c.textContent).toContain('Low Tide Letters')
+      expect(c.querySelector('ul.list > li.px-4.py-3')).toBeTruthy()
       expect(c.querySelector('.join .btn-active')?.textContent).toContain('2')
     })
   })

@@ -467,14 +467,14 @@ const LoadingPage: FC = () => {
                   Show fullscreen
                 </button>
                 <p className="m-0 text-sm opacity-70">打开后点击遮罩关闭，避免示例页被永久盖住。</p>
-                <Loading
-                  key={fullscreenSpinning.value ? 'fullscreen-loading' : 'fullscreen-idle'}
-                  fullscreen
-                  spinning={fullscreenSpinning.value}
-                  percent={72}
-                  description="同步全局配置"
-                  onClick={() => (fullscreenSpinning.value = false)}
-                />
+                {fullscreenSpinning.value ? (
+                  <Loading
+                    fullscreen
+                    percent={72}
+                    description="同步全局配置"
+                    onClick={() => (fullscreenSpinning.value = false)}
+                  />
+                ) : null}
               </div>
             </div>
           )}

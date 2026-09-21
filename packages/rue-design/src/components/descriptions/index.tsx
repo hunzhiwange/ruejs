@@ -354,7 +354,7 @@ const normalizeItems = (
     return {
       ...item,
       keyText: createKeyText(item.key, index),
-      content: item.content,
+      content: item.content ?? item.children,
       span: span.span,
       filled: span.filled,
     }

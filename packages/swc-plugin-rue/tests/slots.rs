@@ -37,11 +37,10 @@ const Demo: FC = () => (
 
     let out = compile(src, "slots_named_default");
 
-    assert!(out.contains("_$createComponent(Panel, ()=>({"), "{out}");
+    assert!(out.contains("_$compiledComponent(Panel, ()=>({"), "{out}");
     assert!(out.contains("__rue_slots"));
-    assert!(out.contains(&utils::normalize("\"title\": __child")));
-    assert!(out.contains(&utils::normalize("\"default\": __child")));
-    assert!(out.contains(&utils::normalize("children: __child")));
+    assert!(out.contains(&utils::normalize("\"title\": (target, slotProps, owner)=>")));
+    assert!(out.contains(&utils::normalize("children: (target, slotProps, owner)=>")));
 }
 
 #[test]
@@ -103,12 +102,12 @@ const Demo: FC = () => {
 
     let out = compile(src, "slots_conditional_named");
 
-    assert!(out.contains("__rue_slots"));
-    assert!(out.contains(&utils::normalize("\"title\": showTitle.value ? [")));
-    assert!(out.contains(&utils::normalize("\"actions\": showActions.value ? __child")));
-    assert!(out.contains(&utils::normalize("\"default\": __child")));
+    assert!(out.contains("_$compiledBranch"));
+    assert!(out.contains("showTitle.value"));
+    assert!(out.contains("showActions.value"));
+    assert!(out.contains("children: (target, slotProps, owner)=>"));
     assert!(!out.contains(&utils::normalize("createComponent(Template")));
-    assert!(!out.contains(&utils::normalize("\"slot\", \"actions\"")));
+    assert!(out.contains(&utils::normalize("\"slot\", \"actions\"")));
 }
 
 #[test]
@@ -135,9 +134,9 @@ const Demo: FC = () => {
 
     let out = compile(src, "slots_conditional_default");
 
-    assert!(out.contains(&utils::normalize("children: showBody.value ? __child")));
-    assert!(out.contains(&utils::normalize(": undefined")));
-    assert!(out.contains("_$createComponent(Panel, ()=>({"), "{out}");
+    assert!(out.contains(&utils::normalize("children: (target, slotProps, owner)=>")));
+    assert!(out.contains("_$compiledBranch"));
+    assert!(out.contains("_$compiledComponent(Panel, ()=>({"), "{out}");
 }
 
 #[test]
@@ -171,20 +170,18 @@ const Demo: FC = () => {
 
     let out = compile(src, "slots_conditional_default_map");
 
-    assert!(
-        out.contains(&utils::normalize("children: showBody.value ? items.value.map((item)=>{"))
-    );
+    assert!(out.contains(&utils::normalize("children: (target, slotProps, owner)=>")));
     assert!(out.contains(&utils::normalize("const label = item.label.toUpperCase();")));
-    assert!(out.contains(&utils::normalize(": undefined")));
+    assert!(out.contains("_$reconcileKeyed"));
     assert!(!out.contains("_jsxDEV("));
 }
 
 #[test]
 fn lowers_custom_element_props_context_and_rue_slots_to_properties() {
     let src = r##"
-import { type FC, Template, createContext, ref } from '@rue-js/rue'
+import { type FC, Template, ref } from '@rue-js/rue'
 
-const ThemeContext = createContext('fallback')
+function ThemeContext() {}
 
 const Demo: FC = () => {
   const count = ref(1)

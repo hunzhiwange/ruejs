@@ -65,6 +65,39 @@ describe('Textarea', () => {
     })
   })
 
+  it('maps every theme color to a statically discoverable class', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const colors = [
+      'neutral',
+      'primary',
+      'secondary',
+      'accent',
+      'info',
+      'success',
+      'warning',
+      'error',
+    ] as const
+
+    mountTestApp(container, () =>
+      render(
+        <div>
+          {colors.map(color => (
+            <Textarea data-color={color} color={color} />
+          ))}
+        </div>,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      for (const color of colors) {
+        const textarea = container.querySelector(`[data-color="${color}"]`) as HTMLTextAreaElement
+        expect(textarea.classList.contains(`textarea-${color}`)).toBe(true)
+      }
+    })
+  })
+
   it('forwards input and change events', async () => {
     const container = mountContainer()
     resetActiveRuntime()

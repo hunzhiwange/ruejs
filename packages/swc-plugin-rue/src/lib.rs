@@ -22,7 +22,6 @@ mod compiled_props;
 mod custom_element;
 mod diagnostics;
 mod element_builtin;
-mod transition_identity;
 mod element_children;
 mod element_component;
 mod element_expr;
@@ -44,6 +43,7 @@ mod state_path;
 #[cfg(test)]
 mod state_path_tests;
 mod text;
+mod transition_identity;
 mod utils;
 
 #[cfg(test)]
@@ -158,6 +158,7 @@ pub(crate) fn run_node_plan_transform(program: Program, hydrate: bool) -> Progra
     if let Program::Module(module) = &mut program {
         compiled_component::flatten_provider_child_plans(module);
         compiled_props::lower(module, props_components);
+        element_expr::normalize_renderable_string_factories(module);
         compiled_component::finalize_hooks(module);
         server::route_context_imports(module, hydrate);
         imports::ensure_runtime_imports(module);
@@ -258,6 +259,7 @@ fn run_full_transform_with_options(
         compiled_component::flatten_provider_child_plans(module);
         compiled_component::rewrite_static_roots(module);
         compiled_props::lower(module, props_components);
+        element_expr::normalize_renderable_string_factories(module);
         state_path::hoist(module);
         compiled_component::finalize_hooks(module);
         element_list::erase_key_metadata(module);

@@ -36,7 +36,7 @@ const DemoGrid: FC<{
   return (
     <div>
       {resolveRows().length ? (
-        <table className="min-w-full border-2 border-emerald-500 rounded-md bg-white">
+        <table className="min-w-full border-2 border-emerald-500 rounded-md bg-base-100">
           <thead>
             <tr>
               {props.columns.map(key => (
@@ -61,7 +61,7 @@ const DemoGrid: FC<{
             {resolveRows().map((entry: Row, idx: number) => (
               <tr key={idx}>
                 {props.columns.map(key => (
-                  <td key={key} className="bg-gray-50 min-w-[120px] px-5 py-2">
+                  <td key={key} className="bg-base-200 text-base-content min-w-[120px] px-5 py-2">
                     {String(entry[key])}
                   </td>
                 ))}
@@ -70,7 +70,7 @@ const DemoGrid: FC<{
           </tbody>
         </table>
       ) : (
-        <p className="text-gray-700">No matches found.</p>
+        <p className="text-base-content">No matches found.</p>
       )}
     </div>
   )
@@ -171,7 +171,7 @@ const DemoGrid: FC<{ data: Row[]; columns: string[]; filterKey: string }> = (pro
   return (
     <div>
       {filteredData.value.length ? (
-        <table className="min-w-full border-2 border-emerald-500 rounded-md bg-white">
+        <table className="min-w-full border-2 border-emerald-500 rounded-md bg-base-100">
           <thead>
             <tr>
               {props.columns.map((key) => (
@@ -190,14 +190,14 @@ const DemoGrid: FC<{ data: Row[]; columns: string[]; filterKey: string }> = (pro
             {filteredData.value.map((entry, idx) => (
               <tr key={idx}>
                 {props.columns.map((key) => (
-                  <td key={key} className="bg-gray-50 min-w-[120px] px-5 py-2">{String(entry[key])}</td>
+                  <td key={key} className="bg-base-200 text-base-content min-w-[120px] px-5 py-2">{String(entry[key])}</td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p className="text-gray-700">No matches found.</p>
+        <p className="text-base-content">No matches found.</p>
       )}
     </div>
   );

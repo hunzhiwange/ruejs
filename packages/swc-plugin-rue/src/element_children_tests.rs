@@ -249,6 +249,7 @@ fn reports_closed_ranges_for_compiler_proven_element_and_fragment_blocks() {
     )));
 
     assert!(element_out.contains("return[_root,_root]"), "{element_out}");
+    assert!(element_out.contains("_$compiledRoot((__rue_parent_context)=>"), "{element_out}");
     assert!(!element_out.contains("__rue_compiled_host"), "{element_out}");
     assert!(element_out.contains("return[_root,_root]"), "{element_out}");
 
@@ -262,6 +263,7 @@ fn reports_closed_ranges_for_compiler_proven_element_and_fragment_blocks() {
     )));
 
     assert!(fragment_out.contains("return[_root.firstChild,_root.lastChild]"), "{fragment_out}");
+    assert!(fragment_out.contains("_$compiledRoot((__rue_parent_context)=>"), "{fragment_out}");
     assert!(!fragment_out.contains("Array.from"), "{fragment_out}");
     assert!(fragment_out.contains("return[_root.firstChild,_root.lastChild]"), "{fragment_out}");
 }

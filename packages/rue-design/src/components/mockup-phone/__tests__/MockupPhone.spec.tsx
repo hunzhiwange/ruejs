@@ -75,7 +75,12 @@ describe('MockupPhone', () => {
           display={{
             className: 'bg-neutral text-white',
             contentClassName: 'overlay-shell',
-            text: 'Dashboard',
+            children: (
+              <div>
+                <strong>Dashboard</strong>
+                <span data-testid="nested-display-child"> ready</span>
+              </div>
+            ),
           }}
           data-testid="phone-short"
         />,
@@ -94,6 +99,7 @@ describe('MockupPhone', () => {
       expect(camera).toBeTruthy()
       expect(display.classList.contains('bg-neutral')).toBe(true)
       expect(overlay.textContent).toContain('Dashboard')
+      expect(root.querySelector('[data-testid="nested-display-child"]')?.textContent).toBe('ready')
     })
   })
 

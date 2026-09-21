@@ -3,6 +3,7 @@ import {
   disposeOwner,
   renderEffect as effect,
   onOwnerCleanup,
+  runOwnerLifecycle,
   untrack,
   runWithOwner,
   type CompiledOwner,
@@ -10,6 +11,7 @@ import {
 import { createComment, createTextNode, insertBefore, removeChild } from './dom.browser'
 import type { CompiledBlock, CompiledTarget } from './types'
 import type { CompactCompiledRootHandle } from './compact-root'
+import { _$claimCompiledRoot, captureBlockFocus, restoreBlockFocus } from './block'
 
 export type BlockFactory<Props extends object = Record<string, never>> = (
   target: CompiledTarget,
@@ -25,6 +27,13 @@ const isCompactRoot = (value: unknown): value is CompactCompiledRootHandle =>
 
 const isNode = (value: unknown): value is Node =>
   typeof value === 'object' && value !== null && typeof (value as Node).nodeType === 'number'
+
+const isChildrenValueWrapper = (value: unknown): value is { children: unknown } =>
+  typeof value === 'object' &&
+  value !== null &&
+  Object.getPrototypeOf(value) === Object.prototype &&
+  Object.keys(value).length === 1 &&
+  Object.prototype.hasOwnProperty.call(value, 'children')
 
 const compiledObjectValueFactories = new WeakMap<object, BlockFactory<object>>()
 
@@ -45,6 +54,7 @@ export const _$compiledValueFactory = <Props extends object>(
 
   const factory: BlockFactory<Props> = (target, _props, owner) => {
     const roots: CompactCompiledRootHandle[] = []
+    const blocks: CompiledBlock[] = []
     const nodes: Node[] = []
     let rangeFirst: Node | null = null
     let rangeLast: Node | null = null
@@ -59,10 +69,30 @@ export const _$compiledValueFactory = <Props extends object>(
         return
       }
       if (current == null || typeof current === 'boolean') return
+      if (isChildrenValueWrapper(current)) {
+        mount(current.children)
+        return
+      }
+      if (typeof current === 'function') {
+        const childOwner = createOwner()
+        try {
+          const block = runWithOwner(childOwner, () =>
+            (current as BlockFactory<Props>)(target, _props, childOwner),
+          )
+          if (!block) throw new TypeError('Rue compiled slot factory did not return a block')
+          blocks.push(block)
+          includeRange(block.first, block.last)
+        } catch (error) {
+          disposeOwner(childOwner)
+          throw error
+        }
+        return
+      }
       if (isCompactRoot(current)) {
-        current.__rue_compiled_mount(target.parent, target.before)
-        roots.push(current)
-        includeRange(current.first, current.last)
+        const root = _$claimCompiledRoot(current)
+        root.__rue_compiled_mount(target.parent, target.before)
+        roots.push(root)
+        includeRange(root.first, root.last)
         return
       }
       const node = isNode(current) ? current : createTextNode(String(current))
@@ -74,13 +104,14 @@ export const _$compiledValueFactory = <Props extends object>(
     try {
       mount(value)
     } catch (error) {
+      blocks.reverse().forEach(block => block.dispose())
       roots.reverse().forEach(root => root.dispose())
       nodes.forEach(node => node.parentNode && removeChild(node.parentNode, node))
       disposeOwner(owner)
       throw error
     }
 
-    if (roots.length === 0 && nodes.length === 0) {
+    if (blocks.length === 0 && roots.length === 0 && nodes.length === 0) {
       const empty = createComment('rue:empty-slot')
       insertBefore(target.parent, empty, target.before)
       nodes.push(empty)
@@ -95,6 +126,7 @@ export const _$compiledValueFactory = <Props extends object>(
         if (disposed) return
         disposed = true
         try {
+          blocks.reverse().forEach(block => block.dispose())
           roots.reverse().forEach(root => root.dispose())
           nodes.forEach(node => node.parentNode && removeChild(node.parentNode, node))
         } finally {
@@ -170,7 +202,14 @@ export const _$mountCompiledSlotAt = <Props extends object>(
       )
     )
       return
+    // Commit the slot identity before mounting. Mount hooks and ref callbacks may
+    // synchronously invalidate a dependency read above; a re-entrant effect must
+    // see the in-flight factory as already current instead of disposing the root
+    // and attempting to mount that same one-shot handle again.
+    mountedFactory = factory
+    mountedProps = { ...props }
     untrack(() => {
+      const focus = captureBlockFocus(mounted)
       cleanup()
       if (factory != null) {
         const owner = createOwner()
@@ -182,13 +221,18 @@ export const _$mountCompiledSlotAt = <Props extends object>(
               owner,
             ),
           )
+          runOwnerLifecycle(owner, 'mounted')
         } catch (error) {
-          disposeOwner(owner)
+          if (mounted?.owner === owner) cleanup()
+          else disposeOwner(owner)
+          if (mountedFactory === factory) {
+            mountedFactory = undefined
+            mountedProps = undefined
+          }
           throw error
         }
       }
+      if (mounted) restoreBlockFocus(mounted, focus)
     })
-    mountedFactory = factory
-    mountedProps = { ...props }
   })
 }

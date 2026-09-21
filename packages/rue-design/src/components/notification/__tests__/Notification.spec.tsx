@@ -1,5 +1,4 @@
 import { Template } from '@rue-js/rue'
-import { NotificationHolder } from '../index'
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, setReactiveScheduling } from '@rue-js/rue'
@@ -148,7 +147,7 @@ describe('Notification', () => {
           data-testid="box"
           className="relative min-h-64 overflow-hidden rounded-2xl border border-base-300"
         >
-          <NotificationHolder state={holder} />
+          <>{holder}</>
           <button
             type="button"
             data-testid="open-local"

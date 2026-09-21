@@ -251,6 +251,7 @@ interface ModalRecord {
 
 interface ModalStore {
   revision?: { value: number }
+  syncQueued?: boolean
   viewportApp?: { dispose(): void }
   api?: ModalInstance
   records: ModalRecord[]
@@ -842,8 +843,25 @@ const Modal: FC<ModalProps> = (
               >
                 {slots.footer ? (
                   <>{slots.footer}</>
+                ) : typeof footer === 'function' ? (
+                  <>
+                    {footer(
+                      <ModalActionButtons
+                        showCancel={showCancelButton}
+                        showOk={showOkButton}
+                        cancelText={defaultCancelText}
+                        okText={okText}
+                        okType={okType as ButtonType}
+                        confirmLoading={confirmLoading}
+                        cancelButtonProps={cancelButtonProps}
+                        okButtonProps={okButtonProps}
+                        onCancel={notifyCancel}
+                        onOk={handleOk}
+                      />,
+                    )}
+                  </>
                 ) : footer != null ? (
-                  <>{String(footer)}</>
+                  <>{footer}</>
                 ) : (
                   <ModalActionButtons
                     showCancel={showCancelButton}
@@ -1100,11 +1118,16 @@ const syncModalStore = (store: ModalStore) => {
 
 /** notify Modal Store Change 的内部工具函数。 */
 const notifyModalStoreChange = (store: ModalStore) => {
-  if (store.syncViewport) {
-    store.syncViewport()
-    return
-  }
-  syncModalStore(store)
+  if (store.syncQueued) return
+  store.syncQueued = true
+  queueMicrotask(() => {
+    store.syncQueued = false
+    if (store.syncViewport) {
+      store.syncViewport()
+      return
+    }
+    syncModalStore(store)
+  })
 }
 
 /** destroy Modal Record 的内部工具函数。 */

@@ -102,7 +102,46 @@ const ProviderControlledInputCase: FC = () => {
   )
 }
 
+const StableDerivedBranchInputCase: FC = () => {
+  const enabled = signal(true)
+  const text = signal('')
+  const inputClassName = text.get().length > 0 ? 'filled' : 'empty'
+
+  if (enabled.get()) {
+    return (
+      <input
+        data-testid="stable-derived-branch-input"
+        className={inputClassName}
+        onInput={(event: Event) => text.set((event.target as HTMLInputElement).value)}
+      />
+    )
+  }
+  return null
+}
+
 describe('native controlled input through renderable children shell', () => {
+  it('does not rebuild a stable structural branch for local input state', async () => {
+    const container = mountContainer()
+    render(<StableDerivedBranchInputCase />, container)
+
+    const initialInput = container.querySelector(
+      '[data-testid="stable-derived-branch-input"]',
+    ) as HTMLInputElement
+    expect(initialInput.className).toBe('empty')
+
+    initialInput.value = 'Rue'
+    initialInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+
+    await waitForContent(() => {
+      const currentInput = container.querySelector(
+        '[data-testid="stable-derived-branch-input"]',
+      ) as HTMLInputElement
+      expect(currentInput).toBe(initialInput)
+      expect(currentInput.value).toBe('Rue')
+      expect(currentInput.className).toBe('filled')
+    })
+  })
+
   it('preserves the active input element while typing ASCII', async () => {
     const container = mountContainer()
     render(<ControlledInputCase />, container)

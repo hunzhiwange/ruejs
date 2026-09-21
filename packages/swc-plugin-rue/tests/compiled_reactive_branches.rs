@@ -93,8 +93,9 @@ export const VideoList: FC<Props> = p => (
 "#,
     );
 
-    assert!(output.contains("_$compiledBranchAt("), "{output}");
-    assert!(output.contains("if (_$compiledPropsGet(p, \"videos\").length === 0)"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotAt("), "{output}");
+    assert!(output.contains("()=>_$compiledPropsGet(p, \"videos\").length === 0 ?"), "{output}");
+    assert!(output.contains("_$mountCompiledSlotFactory("), "{output}");
     assert!(output.contains("_$reconcileKeyedSingle("), "{output}");
     assert!(!output.contains("watchEffect"), "{output}");
     assert!(!output.contains("untrack(()=>renderAnchor"), "{output}");

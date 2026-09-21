@@ -1,5 +1,5 @@
 import type { FC } from '@rue-js/rue'
-import { ref } from '@rue-js/rue'
+import { computed, ref } from '@rue-js/rue'
 import SidebarPlayground from '../site/SidebarPlaygroundDesign'
 import PreviewBlock, { type PreviewTabMode } from './PreviewBlock'
 import { Button, Checkbox, Form, Input } from '@rue-js/design'
@@ -198,9 +198,9 @@ const BasicSubmitShowcase: FC = () => {
 
 const InstanceMethodsShowcase: FC = () => {
   const [form] = Form.useForm()
-  const role = Form.useWatch('role', form) ?? 'viewer'
-  const region = Form.useWatch('region', form) ?? 'cn-hz'
-  const notes = Form.useWatch('notes', form) ?? ''
+  const role = Form.useWatch('role', form)
+  const region = Form.useWatch('region', form)
+  const notes = Form.useWatch('notes', form)
   const activity = ref('等待实例方法操作。')
 
   return (
@@ -362,16 +362,20 @@ const InstanceMethodsShowcase: FC = () => {
         <div className="mt-4 grid gap-3">
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
             <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">role</div>
-            <div className="mt-2 text-lg font-semibold text-base-content">{String(role)}</div>
+            <div className="mt-2 text-lg font-semibold text-base-content">
+              {String(role.value ?? 'viewer')}
+            </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
             <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">region</div>
-            <div className="mt-2 text-lg font-semibold text-base-content">{String(region)}</div>
+            <div className="mt-2 text-lg font-semibold text-base-content">
+              {String(region.value ?? 'cn-hz')}
+            </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
             <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">notes</div>
             <div className="mt-2 text-sm leading-6 text-base-content/80">
-              {String(notes) || '未填写'}
+              {String(notes.value ?? '') || '未填写'}
             </div>
           </div>
         </div>
@@ -385,9 +389,9 @@ const InstanceMethodsShowcase: FC = () => {
 
 const ValidationDependenciesShowcase: FC = () => {
   const [form] = Form.useForm()
-  const password = Form.useWatch('password', form) ?? ''
-  const confirm = Form.useWatch('confirm', form) ?? ''
-  const website = Form.useWatch('website', form) ?? ''
+  const password = Form.useWatch('password', form)
+  const confirm = Form.useWatch('confirm', form)
+  const website = Form.useWatch('website', form)
   const status = ref('试试先输入密码，再修改确认密码，观察依赖字段的重新校验。')
 
   return (
@@ -503,7 +507,11 @@ const ValidationDependenciesShowcase: FC = () => {
               Password match
             </div>
             <div className="mt-2 text-base font-semibold text-base-content">
-              {password && confirm ? (password === confirm ? '已匹配' : '未匹配') : '等待输入'}
+              {password.value && confirm.value
+                ? password.value === confirm.value
+                  ? '已匹配'
+                  : '未匹配'
+                : '等待输入'}
             </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
@@ -511,8 +519,8 @@ const ValidationDependenciesShowcase: FC = () => {
               Website warning
             </div>
             <div className="mt-2 text-base font-semibold text-base-content">
-              {website
-                ? String(website).startsWith('https://')
+              {website.value
+                ? String(website.value).startsWith('https://')
                   ? '格式建议通过'
                   : '建议补上 https://'
                 : '未填写'}
@@ -534,9 +542,9 @@ const NormalizeValueShowcase: FC = () => {
     slug: 'release-planning',
     branch: 'main',
   }
-  const issueId = Form.useWatch('issueId', form) ?? ''
-  const slug = Form.useWatch('slug', form) ?? ''
-  const branch = Form.useWatch('branch', form) ?? ''
+  const issueId = Form.useWatch('issueId', form)
+  const slug = Form.useWatch('slug', form)
+  const branch = Form.useWatch('branch', form)
   const snapshot = ref(formatJson(initialValues))
 
   return (
@@ -634,19 +642,19 @@ const NormalizeValueShowcase: FC = () => {
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
             <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">issueId</div>
             <div className="mt-2 text-lg font-semibold text-base-content">
-              {String(issueId) || '空'}
+              {String(issueId.value ?? '') || '空'}
             </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
             <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">slug</div>
             <div className="mt-2 text-lg font-semibold text-base-content">
-              {String(slug) || '空'}
+              {String(slug.value ?? '') || '空'}
             </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
             <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">branch</div>
             <div className="mt-2 text-lg font-semibold text-base-content">
-              {String(branch) || '空'}
+              {String(branch.value ?? '') || '空'}
             </div>
           </div>
         </div>
@@ -660,10 +668,10 @@ const NormalizeValueShowcase: FC = () => {
 
 const ConditionalFieldsShowcase: FC = () => {
   const [form] = Form.useForm()
-  const enableCanary = !!Form.useWatch('enableCanary', form)
-  const publishMode = Form.useWatch('publishMode', form) ?? 'manual'
-  const batchSize = Form.useWatch('batchSize', form) ?? ''
-  const approveBy = Form.useWatch('approveBy', form) ?? ''
+  const enableCanary = Form.useWatch('enableCanary', form)
+  const publishMode = Form.useWatch('publishMode', form)
+  const batchSize = Form.useWatch('batchSize', form)
+  const approveBy = Form.useWatch('approveBy', form)
   const result = ref('开启灰度发布后，额外字段会由 shouldUpdate 动态挂载。')
 
   return (
@@ -786,7 +794,7 @@ const ConditionalFieldsShowcase: FC = () => {
               enableCanary
             </div>
             <div className="mt-2 text-lg font-semibold text-base-content">
-              {enableCanary ? 'true' : 'false'}
+              {enableCanary.value ? 'true' : 'false'}
             </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
@@ -794,7 +802,7 @@ const ConditionalFieldsShowcase: FC = () => {
               publishMode
             </div>
             <div className="mt-2 text-lg font-semibold text-base-content">
-              {String(publishMode)}
+              {String(publishMode.value ?? 'manual')}
             </div>
           </div>
           <div className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm">
@@ -802,9 +810,9 @@ const ConditionalFieldsShowcase: FC = () => {
               Conditional fields
             </div>
             <div className="mt-2 text-sm leading-6 text-base-content/80">
-              batchSize: {String(batchSize) || '未挂载'}
+              batchSize: {String(batchSize.value ?? '') || '未挂载'}
               <br />
-              approveBy: {String(approveBy) || '未挂载'}
+              approveBy: {String(approveBy.value ?? '') || '未挂载'}
             </div>
           </div>
         </div>
@@ -818,12 +826,15 @@ const ConditionalFieldsShowcase: FC = () => {
 
 const CompositeNoStyleShowcase: FC = () => {
   const [form] = Form.useForm()
-  const host = String(Form.useWatch('host', form) ?? 'api.rue.dev')
-  const path = String(Form.useWatch('path', form) ?? 'release-hooks')
+  const host = Form.useWatch('host', form)
+  const path = Form.useWatch('path', form)
   const saveLog = ref('noStyle 更适合把字段绑定嵌进自定义布局，而不是单独承担一整行表单结构。')
 
-  const normalizedPath = path ? path.replace(/^\/+/, '') : ''
-  const previewUrl = `https://${host}:443/hooks/${normalizedPath}`
+  const previewUrl = computed(() => {
+    const resolvedHost = String(host.value ?? 'api.rue.dev')
+    const resolvedPath = String(path.value ?? 'release-hooks').replace(/^\/+/, '')
+    return `https://${resolvedHost}:443/hooks/${resolvedPath}`
+  })
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
@@ -933,7 +944,9 @@ const CompositeNoStyleShowcase: FC = () => {
           <div className="text-xs uppercase tracking-[0.22em] text-base-content/45">
             Resolved URL
           </div>
-          <div className="mt-3 break-all text-lg font-semibold text-base-content">{previewUrl}</div>
+          <div className="mt-3 break-all text-lg font-semibold text-base-content">
+            {previewUrl.value}
+          </div>
         </div>
         <div className="mt-4 grid gap-3 text-sm text-base-content/75">
           <div className="rounded-[1.25rem] bg-base-200/70 p-4">
@@ -1227,8 +1240,7 @@ const LongFormScrollShowcase: FC = () => {
 
 const DynamicListShowcase: FC = () => {
   const [form] = Form.useForm()
-  const members =
-    (Form.useWatch('members', form) as Array<{ name?: string; role?: string }> | undefined) ?? []
+  const members = Form.useWatch('members', form)
 
   return (
     <div className="grid gap-6">
@@ -1367,11 +1379,12 @@ const DynamicListShowcase: FC = () => {
             List snapshot
           </div>
           <div className="mt-3 inline-flex rounded-full bg-base-200 px-3 py-1 text-xs font-medium text-base-content/65">
-            {members.length} members
+            {(members.value as Array<{ name?: string; role?: string }> | undefined)?.length ?? 0}{' '}
+            members
           </div>
           <div className="mt-4 grid gap-3">
-            {members.length > 0 ? (
-              members.map((member, index) => (
+            {Array.isArray(members.value) && members.value.length > 0 ? (
+              (members.value as Array<{ name?: string; role?: string }>).map((member, index) => (
                 <div
                   key={String(index)}
                   className="rounded-[1.25rem] bg-base-200/70 p-4 text-sm text-base-content/80"
@@ -1427,11 +1440,11 @@ const DynamicListShowcase: FC = () => {
 
 const InlineFiltersShowcase: FC = () => {
   const [form] = Form.useForm()
-  const keyword = Form.useWatch('keyword', form) ?? ''
-  const assignee = Form.useWatch('assignee', form) ?? ''
-  const repository = Form.useWatch('repository', form) ?? ''
-  const reviewer = Form.useWatch('reviewer', form) ?? ''
-  const includeDrafts = !!Form.useWatch('includeDrafts', form)
+  const keyword = Form.useWatch('keyword', form)
+  const assignee = Form.useWatch('assignee', form)
+  const repository = Form.useWatch('repository', form)
+  const reviewer = Form.useWatch('reviewer', form)
+  const includeDrafts = Form.useWatch('includeDrafts', form)
   const submitted = ref('尚未执行检索。')
 
   return (
@@ -1526,25 +1539,26 @@ const InlineFiltersShowcase: FC = () => {
           </p>
           <pre className="mt-4 whitespace-pre-wrap break-words rounded-[1.25rem] bg-base-200/70 p-4 text-xs leading-6 text-base-content/80">
             {buildQueryString({
-              keyword: String(keyword),
-              repository: String(repository),
-              assignee: String(assignee),
-              reviewer: String(reviewer),
-              includeDrafts,
+              keyword: String(keyword.value ?? ''),
+              repository: String(repository.value ?? ''),
+              assignee: String(assignee.value ?? ''),
+              reviewer: String(reviewer.value ?? ''),
+              includeDrafts: !!includeDrafts.value,
             }) || '暂无 query string'}
           </pre>
           <div className="mt-4 grid gap-3 text-sm text-base-content/80">
             <div className="rounded-[1.25rem] bg-base-200/70 p-4">
-              关键词：{String(keyword) || '未填写'}
+              关键词：{String(keyword.value ?? '') || '未填写'}
             </div>
             <div className="rounded-[1.25rem] bg-base-200/70 p-4">
-              仓库：{String(repository) || '未填写'}
+              仓库：{String(repository.value ?? '') || '未填写'}
             </div>
             <div className="rounded-[1.25rem] bg-base-200/70 p-4">
-              负责人 / 评审人：{String(assignee) || '未填写'} / {String(reviewer) || '未填写'}
+              负责人 / 评审人：{String(assignee.value ?? '') || '未填写'} /{' '}
+              {String(reviewer.value ?? '') || '未填写'}
             </div>
             <div className="rounded-[1.25rem] bg-base-200/70 p-4">
-              包含草稿：{includeDrafts ? '是' : '否'}
+              包含草稿：{includeDrafts.value ? '是' : '否'}
             </div>
           </div>
         </div>

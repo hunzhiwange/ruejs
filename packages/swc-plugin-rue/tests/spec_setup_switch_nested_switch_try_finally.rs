@@ -63,7 +63,7 @@ const Comp: FC = ()=>{
                             a.value > 0 ? 'X' : 'Y'
                         ]
                 }));
-            pre.get();
+            untrack(()=>pre.get());
             const __rue_phase2_pre = pre;
             watchEffect(()=>console.log('setup', __rue_phase2_pre.get().t));
             switch(a.value % 2){

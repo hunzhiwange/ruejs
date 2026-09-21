@@ -5,7 +5,8 @@ Rating 组件概述
 - 自动模式使用字符双层填充实现分数显示，既能保留 Rue 当前轻量视觉，也能承载自定义字符。
 */
 import type { FC } from '@rue-js/rue'
-import { computed, ref } from '@rue-js/rue'
+import { computed, createContext, ref, useContext, useSetup } from '@rue-js/rue'
+import { provideContext } from '@rue-js/rue/internal/app'
 
 let ratingSeed = 0
 
@@ -117,6 +118,17 @@ export interface RatingItemProps {
   /** 允许透传原生属性或扩展字段。 */
   [key: string]: any
 }
+
+interface RatingCompositionContextValue {
+  managed: boolean
+  disabled: boolean
+  readOnly: boolean
+  name: string
+  readValue: () => number
+  commitValue: (value: number) => void
+}
+
+const RatingCompositionContext = createContext<RatingCompositionContextValue | null>(null)
 
 /** append Class Name 的内部工具函数。 */
 const appendClassName = (base?: string, className?: string) => {
@@ -302,76 +314,191 @@ const Item: FC<RatingItemProps> = ({
   type,
   className,
   children,
+  value,
+  name,
+  disabled,
+  onChange,
+  onClick,
+  onKeyDown,
   ...rest
 }) => {
-  const Component = as as any
-  const resolvedClassName = () =>
-    appendClassName(hidden ? 'rating-hidden' : undefined, className).trim() || undefined
+  // Keep the host branch keyed only by `as`. Reactive rating state lives in setup so
+  // a value update patches the existing item instead of recreating the branch node.
+  const instance = useSetup(() => {
+    const composition = useContext(RatingCompositionContext)
+    const Component = computed(() => as as any)
+    const numericValue = computed(() => (typeof value === 'number' ? value : Number(value)))
+    const managed = computed(() => !!composition?.managed && Number.isFinite(numericValue.get()))
+    const mergedDisabled = computed(() => !!disabled || !!composition?.disabled)
+    const mergedChecked = computed(() =>
+      managed.get() ? composition?.readValue() === numericValue.get() : checked,
+    )
+    const mergedActive = computed(
+      () =>
+        managed.get() &&
+        numericValue.get() > 0 &&
+        (composition?.readValue() ?? 0) >= numericValue.get(),
+    )
+    const mergedName = computed(() => name ?? (managed.get() ? composition?.name : undefined))
+    const resolvedClassName = () => {
+      let resolved = appendClassName(hidden ? 'rating-hidden' : undefined, className)
+      if (managed.get()) {
+        resolved = appendClassName(resolved, mergedActive.get() ? 'opacity-100' : 'opacity-[0.35]')
+      }
+      return resolved.trim() || undefined
+    }
 
-  if (Component === 'input') {
+    const commitManagedValue = () => {
+      if (!managed.get() || mergedDisabled.get() || composition?.readOnly) return
+      composition?.commitValue(numericValue.get())
+    }
+
+    const handleChange = (event: Event) => {
+      if (onChange) onChange(event)
+    }
+
+    const handleClick = (event: MouseEvent) => {
+      if (managed.get() && (mergedDisabled.get() || composition?.readOnly)) {
+        event.preventDefault?.()
+      } else {
+        commitManagedValue()
+      }
+      if (onClick) onClick(event)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (managed.get() && !mergedDisabled.get() && !composition?.readOnly) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault?.()
+          composition?.commitValue(numericValue.get())
+        }
+      }
+      if (onKeyDown) onKeyDown(event)
+    }
+
+    const interactiveProps = computed(() =>
+      managed.get()
+        ? {
+            role: rest.role ?? 'radio',
+            tabIndex: rest.tabIndex ?? (mergedDisabled.get() || composition?.readOnly ? -1 : 0),
+            'aria-checked': mergedChecked.get() ? 'true' : 'false',
+            'aria-disabled': mergedDisabled.get() ? 'true' : undefined,
+            'data-rating-item': 'true',
+            'data-rating-item-value': String(numericValue.get()),
+            'data-rating-active': mergedActive.get() ? 'true' : 'false',
+            onClick: handleClick,
+            onKeyDown: handleKeyDown,
+          }
+        : {
+            'data-rating-item': 'true',
+            onClick,
+            onKeyDown,
+          },
+    )
+
+    return {
+      Component,
+      numericValue,
+      managed,
+      mergedDisabled,
+      mergedChecked,
+      mergedActive,
+      mergedName,
+      resolvedClassName,
+      handleChange,
+      handleClick,
+      interactiveProps,
+    }
+  })
+
+  if (instance.Component.get() === 'input') {
     return (
-      <input {...rest} type={type ?? 'radio'} checked={checked} className={resolvedClassName()} />
+      <input
+        {...rest}
+        type={type ?? 'radio'}
+        value={value}
+        name={instance.mergedName.get()}
+        checked={instance.mergedChecked.get()}
+        disabled={instance.mergedDisabled.get()}
+        className={instance.resolvedClassName()}
+        data-rating-item="true"
+        data-rating-active={
+          instance.managed.get() ? (instance.mergedActive.get() ? 'true' : 'false') : undefined
+        }
+        onChange={instance.handleChange}
+        onClick={instance.handleClick}
+      />
     )
   }
 
-  if (Component === 'div') {
+  if (instance.Component.get() === 'div') {
     return (
-      <div {...rest} className={resolvedClassName()}>
+      <div {...rest} {...instance.interactiveProps.get()} className={instance.resolvedClassName()}>
         {children}
       </div>
     )
   }
 
-  if (Component === 'span') {
+  if (instance.Component.get() === 'span') {
     return (
-      <span {...rest} className={resolvedClassName()}>
+      <span {...rest} {...instance.interactiveProps.get()} className={instance.resolvedClassName()}>
         {children}
       </span>
     )
   }
 
-  if (Component === 'button') {
+  if (instance.Component.get() === 'button') {
     return (
-      <button {...rest} type={type ?? 'button'} className={resolvedClassName()}>
+      <button
+        {...rest}
+        {...instance.interactiveProps.get()}
+        type={type ?? 'button'}
+        disabled={instance.mergedDisabled.get()}
+        className={instance.resolvedClassName()}
+      >
         {children}
       </button>
     )
   }
 
-  if (Component === 'label') {
+  if (instance.Component.get() === 'label') {
     return (
-      <label {...rest} className={resolvedClassName()}>
+      <label
+        {...rest}
+        {...instance.interactiveProps.get()}
+        className={instance.resolvedClassName()}
+      >
         {children}
       </label>
     )
   }
 
-  if (Component === 'a') {
+  if (instance.Component.get() === 'a') {
     return (
-      <a {...rest} className={resolvedClassName()}>
+      <a {...rest} {...instance.interactiveProps.get()} className={instance.resolvedClassName()}>
         {children}
       </a>
     )
   }
 
-  return Component === 'div' ? (
-    <div {...rest} className={resolvedClassName()}>
+  return instance.Component.get() === 'div' ? (
+    <div {...rest} className={instance.resolvedClassName()}>
       {children}
     </div>
-  ) : Component === 'span' ? (
-    <span {...rest} className={resolvedClassName()}>
+  ) : instance.Component.get() === 'span' ? (
+    <span {...rest} className={instance.resolvedClassName()}>
       {children}
     </span>
-  ) : Component === 'button' ? (
-    <button {...rest} className={resolvedClassName()}>
+  ) : instance.Component.get() === 'button' ? (
+    <button {...rest} className={instance.resolvedClassName()}>
       {children}
     </button>
-  ) : Component === 'label' ? (
-    <label {...rest} className={resolvedClassName()}>
+  ) : instance.Component.get() === 'label' ? (
+    <label {...rest} className={instance.resolvedClassName()}>
       {children}
     </label>
-  ) : Component === 'a' ? (
-    <a {...rest} className={resolvedClassName()}>
+  ) : instance.Component.get() === 'a' ? (
+    <a {...rest} className={instance.resolvedClassName()}>
       {children}
     </a>
   ) : (
@@ -597,6 +724,15 @@ const RatingRoot: FC<RatingProps> = ({
     if (onChange) onChange(nextValue)
   }
 
+  provideContext(RatingCompositionContext, () => ({
+    managed: typeof value === 'number' || typeof defaultValue === 'number' || !!onChange,
+    disabled: !!disabled,
+    readOnly: !!readOnly,
+    name: renderedName.get(),
+    readValue: () => mergedValue.get(),
+    commitValue,
+  }))
+
   const step = computed(() => (mergedAllowHalf.get() ? 0.5 : 1))
 
   const handleKeyCommit = (event: Event, index: number) => {
@@ -646,51 +782,55 @@ const RatingRoot: FC<RatingProps> = ({
     if (onKeyDown) onKeyDown(event)
   }
 
-  if (hasRenderableChildren(children)) {
-    return (
-      <div
-        {...restProps}
-        style={style}
-        className={buildManualRootClassName(size, mergedAllowHalf.get(), className)}
-      >
-        {children}
-      </div>
-    )
-  }
+  const compositionMode = hasRenderableChildren(children)
 
   return (
     <div
       {...restProps}
       style={style}
-      className={buildAutoRootClassName(
-        size,
-        !!disabled,
-        !!readOnly,
-        useLegacyMaskDefault.get(),
-        className,
-      )}
-      data-rating-mode="auto"
+      className={
+        compositionMode
+          ? buildManualRootClassName(size, mergedAllowHalf.get(), className)
+          : buildAutoRootClassName(
+              size,
+              !!disabled,
+              !!readOnly,
+              useLegacyMaskDefault.get(),
+              className,
+            )
+      }
+      data-rating-mode={compositionMode ? 'composition' : 'auto'}
       data-rating-value={String(mergedValue.get())}
-      data-rating-hover={hoveredValue.value == null ? '' : String(hoveredValue.value)}
+      data-rating-hover={
+        compositionMode ? undefined : hoveredValue.value == null ? '' : String(hoveredValue.value)
+      }
       data-rating-name={renderedName.get()}
       onMouseLeave={(event: MouseEvent) => {
-        clearHover()
-        ;(event.currentTarget as HTMLElement | null)?.setAttribute('data-rating-hover', '')
+        if (!compositionMode) {
+          clearHover()
+          ;(event.currentTarget as HTMLElement | null)?.setAttribute('data-rating-hover', '')
+        }
         if (externalMouseLeave) externalMouseLeave(event as any)
       }}
     >
-      {name ? (
-        <input
-          type="hidden"
-          name={name}
-          value={mergedValue.get()}
-          disabled={disabled}
-          data-rating-hidden="true"
-        />
-      ) : null}
-      {buttonIndexes.get().map((rowArg0: any, rowIndex: number) => (
-        <CompiledRow1 rowArg0={rowArg0} />
-      ))}
+      {compositionMode ? (
+        children
+      ) : (
+        <>
+          {name ? (
+            <input
+              type="hidden"
+              name={name}
+              value={mergedValue.get()}
+              disabled={disabled}
+              data-rating-hidden="true"
+            />
+          ) : null}
+          {buttonIndexes.get().map((rowArg0: any, rowIndex: number) => (
+            <CompiledRow1 rowArg0={rowArg0} />
+          ))}
+        </>
+      )}
     </div>
   )
 }

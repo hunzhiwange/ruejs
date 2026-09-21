@@ -500,6 +500,19 @@ fn rewrites_textarea_single_select_radio_default_checkbox_and_default_input_mode
 }
 
 #[test]
+fn rewrites_signal_get_models_with_signal_set_handlers() {
+    let mut text_input = parse_jsx_opening("<input v-model={text.get()} />");
+    transform_opening(&mut text_input);
+    assert_eq!(attr_src(&text_input, "value"), normalize("text.get()"));
+    assert!(attr_src(&text_input, "onInput").contains("text.set(value)"));
+
+    let mut checkbox = parse_jsx_opening("<input type=\"checkbox\" r-model={accepted.get()} />");
+    transform_opening(&mut checkbox);
+    assert!(attr_src(&checkbox, "checked").contains("accepted.get()"));
+    assert!(attr_src(&checkbox, "onChange").contains("accepted.set(checked ? true : false)"));
+}
+
+#[test]
 fn handles_missing_directive_values_as_undefined_model_expr() {
     let mut opening = parse_jsx_opening("<input v-model />");
     transform_opening(&mut opening);

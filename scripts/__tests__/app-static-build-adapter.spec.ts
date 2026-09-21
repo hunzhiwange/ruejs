@@ -98,6 +98,7 @@ describe('app static build adapter', () => {
       2,
       expect.objectContaining({
         extraGlobals: {
+          __RUE_STATIC_RENDER_ROUTE__: '/docs',
           __RUE_STATIC_DOC_HTML_BY_ROUTE__: {
             '/docs': '<article>docs</article>',
           },

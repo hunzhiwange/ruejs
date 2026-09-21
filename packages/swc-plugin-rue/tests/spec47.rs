@@ -203,9 +203,18 @@ export default About;
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("AA BB CC"), "{normalized}");
     assert!(normalized.contains("<span>Foo</span> <span>Bar</span>"), "{normalized}");
-    assert!(normalized.contains("_$setStyle(_el1, { whiteSpace: 'normal' })"), "{normalized}");
-    assert!(normalized.contains("_$setStyle(_el2, { whiteSpace: 'pre' })"), "{normalized}");
-    assert!(normalized.contains("_$setStyle(_el3, { whiteSpace: 'pre-wrap' })"), "{normalized}");
-    assert!(normalized.contains("effect(()=>"), "{normalized}");
+    assert!(
+        normalized.contains("Object.assign(_el1.style, { whiteSpace: 'normal' })"),
+        "{normalized}"
+    );
+    assert!(
+        normalized.contains("Object.assign(_el2.style, { whiteSpace: 'pre' })"),
+        "{normalized}"
+    );
+    assert!(
+        normalized.contains("Object.assign(_el3.style, { whiteSpace: 'pre-wrap' })"),
+        "{normalized}"
+    );
+    assert!(normalized.contains("_$mountCompiledSlotAt"), "{normalized}");
     assert!(normalized.contains("new Date().getFullYear()"), "{normalized}");
 }

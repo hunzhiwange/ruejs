@@ -36,7 +36,21 @@ export const createRueSiteApp = (history?: HistoryLike) => {
   return { app, router }
 }
 
+export const mountRueSiteApp = (history?: HistoryLike) => {
+  const target = document.querySelector('#app')
+  if (!target) {
+    throw new Error('[rue] site app target #app was not found')
+  }
+
+  // Static snapshots contain the build-time DOM. Rue currently mounts rather than hydrates,
+  // so remove that snapshot before the client app takes ownership of the container.
+  target.replaceChildren()
+  const site = createRueSiteApp(history)
+  site.app.mount(target)
+  return site
+}
+
 // 创建并挂载应用，安装路由
 if (!import.meta.env.SSR) {
-  createRueSiteApp().app.mount('#app')
+  mountRueSiteApp()
 }

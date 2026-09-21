@@ -28,13 +28,13 @@ const Comp: FC = ()=>{
     const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             const a = ref(1);
             const b = computed(()=>a.value + 2);
-            b.get();
+            untrack(()=>b.get());
             const __rue_phase2_b = b;
             const c = computed(()=>__rue_phase2_b.get() * 3);
-            c.get();
+            untrack(()=>c.get());
             const __rue_phase2_c = c;
             const t = computed(()=>`a=${a.value}-${a.value > 0 ? `b=${__rue_phase2_b.get()}-${__rue_phase2_b.get() > 3 ? `c=${__rue_phase2_c.get()}` : 'lo'}` : 'none'}`);
-            t.get();
+            untrack(()=>t.get());
             const __rue_phase2_t = t;
             return {
                 a: a,

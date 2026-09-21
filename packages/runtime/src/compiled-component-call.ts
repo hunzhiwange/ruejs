@@ -1,1 +1,5 @@
-export { _$createComponent, _$compiledRootFactory } from './compiler-runtime/component-call'
+export {
+  _$createComponent,
+  _$createDynamicElement,
+  _$compiledRootFactory,
+} from './compiler-runtime/component-call'

@@ -23,7 +23,7 @@ fn real_transfer_component_gets_top_level_use_setup() {
     let transfer_slice = &out[transfer_start..];
 
     let top_level_setup_idx = transfer_slice
-        .find("const _$useSetup = _$compiledWithHookId(\"useSetup:")
+        .find("const _$useSetup = _$compiledSetup(\"useSetup:")
         .expect("expected top-level useSetup inside Transfer");
 
     let merged_locale_idx =

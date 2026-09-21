@@ -256,6 +256,9 @@ fn drain_routed_root_value_imports(m: &mut Module) -> Vec<NamedImportSpec> {
                     match spec {
                         ImportSpecifier::Named(named) => {
                             let mut named_spec = named_import_to_spec(&named);
+                            if named_spec.export_name() == "_$compiledWithKey" {
+                                continue;
+                            }
                             let can_route =
                                 runtime_import_entry(named_spec.export_name()).is_some();
                             assert!(

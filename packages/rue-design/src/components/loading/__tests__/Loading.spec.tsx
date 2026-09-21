@@ -1,6 +1,6 @@
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Template, render, setReactiveScheduling } from '@rue-js/rue'
+import { Template, ref, render, setReactiveScheduling } from '@rue-js/rue'
 
 import Loading from '../index'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
@@ -133,6 +133,53 @@ describe('Loading', () => {
     })
   })
 
+  it('renders an indicator JSX prop without stringifying its compiled factory', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Loading
+          indicator={<span data-testid="indicator-node">Spark</span>}
+          description="Mapping"
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(container.querySelector('[data-testid="indicator-node"]')?.textContent).toBe('Spark')
+      expect(container.textContent).not.toContain('_$compiledComponent')
+    })
+  })
+
+  it('invokes an indicator render prop with loading state', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Loading
+          percent={64}
+          size="large"
+          indicatorStyle="ring"
+          indicator={({ percent, size, style, spinning }) => (
+            <span data-testid="indicator-render">
+              {`${percent}-${size}-${style}-${String(spinning)}`}
+            </span>
+          )}
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(container.querySelector('[data-testid="indicator-render"]')?.textContent).toBe(
+        '64-lg-ring-true',
+      )
+    })
+  })
+
   it('supports a global default indicator', async () => {
     const container = mountContainer()
     resetActiveRuntime()
@@ -165,6 +212,68 @@ describe('Loading', () => {
       expect(
         container.querySelector('[data-testid="delayed-loading"]')?.classList.contains('opacity-0'),
       ).toBe(false)
+    })
+  })
+
+  it('shows delayed nested loading after a controlled prop turns on', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const spinning = ref(false)
+
+    mountTestApp(container, () =>
+      render(
+        <Loading spinning={spinning.value} delay={40} description="Fetching">
+          <span>Content</span>
+        </Loading>,
+        container,
+      ),
+    )
+
+    expect(container.querySelector('[data-rue-loading-section="true"]')).toBeNull()
+    spinning.value = true
+    await new Promise(resolve => setTimeout(resolve, 60))
+
+    await waitForContent(() => {
+      expect(container.querySelector('[data-rue-loading-section="true"]')?.textContent).toContain(
+        'Fetching',
+      )
+    })
+  })
+
+  it('opens and closes fullscreen loading from a controlled prop', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const spinning = ref(false)
+
+    mountTestApp(container, () =>
+      render(
+        <Loading
+          fullscreen
+          spinning={spinning.value}
+          description="Syncing"
+          data-testid="fullscreen-loading"
+          onClick={() => (spinning.value = false)}
+        />,
+        container,
+      ),
+    )
+
+    const fullscreen = container.querySelector('[data-testid="fullscreen-loading"]') as HTMLElement
+    expect(fullscreen.classList.contains('hidden')).toBe(true)
+    expect(fullscreen.getAttribute('aria-busy')).toBe('false')
+    spinning.value = true
+
+    await waitForContent(() => {
+      expect(fullscreen.classList.contains('hidden')).toBe(false)
+      expect(fullscreen.getAttribute('aria-busy')).toBe('true')
+      expect(fullscreen.textContent).toContain('Syncing')
+    })
+
+    fullscreen.click()
+
+    await waitForContent(() => {
+      expect(fullscreen.classList.contains('hidden')).toBe(true)
+      expect(fullscreen.getAttribute('aria-busy')).toBe('false')
     })
   })
 })

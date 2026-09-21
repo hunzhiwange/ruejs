@@ -102,6 +102,26 @@ fn uses_a_direct_item_slot_for_simple_native_rows() {
 }
 
 #[test]
+fn gates_direct_and_slot_row_updates_through_list_memo() {
+    let direct = compile_list(
+        "items.map(item => _$compiledMemo(null, () => <li key={item.id}>{item.name}</li>, [item.name]))",
+    )
+    .expect("compiled direct memo row");
+    assert!(direct.contains("_$mountCompiledKeyedSingleRowDirect("), "{direct}");
+    assert!(direct.contains("(_$rowNextItem,_$rowNextIndex,_$rowMemoChanged)=>"), "{direct}");
+    assert!(direct.contains("_$rowMemoChanged||_map1_memo.refresh()"), "{direct}");
+
+    let slot = compile_list(
+        "items.map(item => _$compiledMemo(null, () => <tr key={item.id} className={item.active ? 'active' : ''}><td>{item.name}</td></tr>, []))",
+    )
+    .expect("compiled slot memo row");
+    assert!(
+        slot.contains("()=>_map1_memo.read(()=>_$compiledValueFactory(_$rowItem1.get().name))"),
+        "{slot}"
+    );
+}
+
+#[test]
 fn emits_ownerless_factory_for_resource_free_simple_native_rows() {
     let resource_free = compile_list(
         "items.map(item => <li key={item.id} className={item.className}>{item.name}</li>)",
@@ -203,10 +223,17 @@ fn emits_the_existing_index_proof_into_the_reconcile_abi() {
         "items.map((item, index) => <li key={item.id} onClick={() => select(index)}>{item.name}</li>)",
     )
     .expect("compiled list");
+    let multiple_roots = compile_list(
+        "items.map(item => <><span key={item.id}>{item.name}</span><em>{item.meta}</em></>)",
+    )
+    .expect("compiled list");
 
     assert!(without_index.contains("},false,true)"), "{without_index}");
     assert!(text_index.contains("},true,false)"), "{text_index}");
     assert!(event_index.contains("},true,false)"), "{event_index}");
+    assert!(multiple_roots.contains("_$reconcileKeyed("), "{multiple_roots}");
+    assert!(!multiple_roots.contains("_$reconcileKeyedSingle("), "{multiple_roots}");
+    assert!(multiple_roots.contains("},false,false)"), "{multiple_roots}");
 }
 
 #[test]
@@ -279,13 +306,17 @@ fn adapts_call_rows_and_diagnoses_other_rows_without_a_closed_factory() {
 
         let handled = try_build_list_from_map(&mut vt, &ident("root"), &call, &mut stmts);
         assert_eq!(handled, !source.contains("async row"), "{source}");
-        if source.contains("opaqueRow") {
-            let out = emit_stmts(stmts);
-            assert!(out.contains("_$reconcileKeyed"), "{source}: {out}");
-            assert!(out.contains("_$compiledValueFactory"), "{source}: {out}");
-            assert!(!out.contains("renderAnchor"), "{source}: {out}");
+        let out = emit_stmts(stmts);
+        if source.contains("async row") {
+            assert!(out.is_empty(), "{source}: {out}");
         } else {
-            assert!(stmts.is_empty(), "{source}: {}", emit_stmts(stmts));
+            assert!(out.contains("_$reconcileKeyed"), "{source}: {out}");
+            assert!(!out.contains("renderAnchor"), "{source}: {out}");
+            if source.contains("opaqueRow") {
+                assert!(out.contains("_$compiledValueFactory"), "{source}: {out}");
+            } else {
+                assert!(out.contains("_$mountCompiledKeyedRow"), "{source}: {out}");
+            }
         }
     }
 }

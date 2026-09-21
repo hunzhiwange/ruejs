@@ -74,7 +74,7 @@ export default PostDetail;
     std::fs::write("target/vapor_outputs/spec30.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
-    assert!(normalized.contains("_$compiledMarkComponentRenderReactive"), "{normalized}");
+    assert!(!normalized.contains("_$compiledMarkComponentRenderReactive"), "{normalized}");
     assert_eq!(normalized.matches("if (count.value > 10)").count(), 2);
     assert!(normalized.contains("onClick={()=>count.value++}"), "{normalized}");
     assert!(normalized.contains("{count.value}"), "{normalized}");

@@ -37,6 +37,7 @@ describe('Timeline', () => {
       const element = container.querySelector('ul.timeline') as HTMLElement
       expect(element).toBeTruthy()
       expect(element.classList.contains('timeline')).toBe(true)
+      expect(element.classList.contains('overflow-x-auto')).toBe(true)
       expect(container.querySelector('#m')?.textContent).toBe('M')
     })
   })
@@ -52,6 +53,7 @@ describe('Timeline', () => {
     await waitForContent(() => {
       const element = container.querySelector('ul.timeline') as HTMLElement
       expect(element.classList.contains('timeline-vertical')).toBe(true)
+      expect(element.classList.contains('overflow-x-auto')).toBe(false)
       expect(element.classList.contains('timeline-snap-icon')).toBe(true)
       expect(element.classList.contains('timeline-compact')).toBe(true)
       expect(element.classList.contains('w-64')).toBe(true)

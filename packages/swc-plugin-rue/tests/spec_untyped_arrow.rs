@@ -91,7 +91,7 @@ export default PostDetail
     let out = utils::emit(program, cm);
 
     let expected_fragment = r##"import { ref, _$compiledWithHookId, _$compiledMarkComponentRenderReactive, useSetup } from "@rue-js/rue/internal";
-const PostDetail = _$compiledMarkComponentRenderReactive(()=>{
+const PostDetail = ()=>{
     const _$useSetup = _$compiledWithHookId("useSetup:0:0", ()=>useSetup(()=>{
             console.log('我是setup');
             const count = ref(0);
@@ -157,7 +157,7 @@ const PostDetail = _$compiledMarkComponentRenderReactive(()=>{
         开始消息：{msg}
       </div>
     </div>);
-});
+};
 export default PostDetail;"##;
 
     use utils::{normalize_setup_snapshot, strip_marker};

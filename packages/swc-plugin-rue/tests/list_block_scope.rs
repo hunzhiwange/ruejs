@@ -86,9 +86,9 @@ const Demo: FC = () => (
 
     let out = compile(src, "list_block_scope_destructure");
 
-    assert!(out.contains("rows.map(({ id, value })=>{"), "{out}");
-    assert!(out.contains("const rowKey = id;"), "{out}");
-    assert!(out.contains("const label = value * 2;"), "{out}");
+    assert!(out.contains("(item, idx)=>item.id"), "{out}");
+    assert!(out.contains("const rowKey = item.id;"), "{out}");
+    assert!(out.contains("const label = item.value * 2;"), "{out}");
     assert!(!out.contains("_$compiledKeyedList"), "{out}");
     let removed_factory = ["_$compiledCreate", "V", "Node", "(__slot)"];
     assert!(!out.contains(&removed_factory.concat()));
@@ -247,7 +247,7 @@ const Demo: FC = () => {
         "safe getter reads should run through the list-level patch effect: {out}"
     );
     assert!(out.contains("_$mountCompiledKeyedRow"), "{out}");
-    assert!(out.contains("_$compiledText("), "{out}");
+    assert!(out.contains("_$mountCompiledSlotAt("), "{out}");
     assert!(out.contains("selectedId.get() === _$rowItem1.get().id"), "{out}");
     assert!(!out.contains("renderAnchor("), "{out}");
     assert!(!out.contains("vapor("), "{out}");

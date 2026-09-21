@@ -1452,28 +1452,30 @@ const InputNumber: FC<InputNumberProps> = ({
     )
   }
 
-  if (!showCount && !rootClassName) {
-    return <RenderGroupedControlNode />
-  }
-
   return (
-    <div
-      className={mergeClassName(showCount ? 'flex flex-col gap-2' : undefined, rootClassName)}
-      data-rue-input-root="true"
-    >
-      <RenderGroupedControlNode />
-      {showCount ? (
+    <>
+      {!showCount && !rootClassName ? (
+        <RenderGroupedControlNode />
+      ) : (
         <div
-          className={mergeClassName(
-            'flex justify-end text-xs leading-5 text-base-content/60',
-            countClassName,
-          )}
-          data-rue-input-count="true"
+          className={mergeClassName(showCount ? 'flex flex-col gap-2' : undefined, rootClassName)}
+          data-rue-input-root="true"
         >
-          {countContent}
+          <RenderGroupedControlNode />
+          {showCount ? (
+            <div
+              className={mergeClassName(
+                'flex justify-end text-xs leading-5 text-base-content/60',
+                countClassName,
+              )}
+              data-rue-input-count="true"
+            >
+              {countContent}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </div>
+      )}
+    </>
   )
 }
 

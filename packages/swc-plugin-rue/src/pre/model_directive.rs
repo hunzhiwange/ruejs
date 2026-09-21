@@ -130,6 +130,14 @@ fn parsed_expr_or_noop(src: String, filename: &str) -> Expr {
     parse_expr(&src, filename).unwrap_or_else(build_noop_handler)
 }
 
+fn model_write_expr(model_src: &str, value_src: &str) -> String {
+    if let Some(signal_src) = model_src.strip_suffix(".get()") {
+        format!("{}.set({})", signal_src, value_src)
+    } else {
+        format!("{} = {}", model_src, value_src)
+    }
+}
+
 fn get_attr_value_expr(attr: &JSXAttr) -> Option<Expr> {
     match &attr.value {
         Some(JSXAttrValue::JSXExprContainer(ec)) => match &ec.expr {
@@ -389,7 +397,7 @@ fn modifiers_object_expr(modifiers: &[String]) -> Expr {
 
 fn build_component_update_handler(model_src: &str) -> Expr {
     parsed_expr_or_noop(
-        format!("(value) => ({} = value)", model_src),
+        format!("(value) => ({})", model_write_expr(model_src, "value")),
         "v-model-component-handler.tsx",
     )
 }
@@ -408,7 +416,7 @@ fn build_text_model_handler(model_src: &str, value_src: &str, trim: bool, number
             "const parsed = parseFloat(value);value = Number.isNaN(parsed) ? value : parsed;",
         );
     }
-    body.push_str(&format!("{} = value;", model_src));
+    body.push_str(&format!("{};", model_write_expr(model_src, "value")));
     parsed_expr_or_noop(format!("($event) => {{ {} }}", body), "v-model-text-handler.tsx")
 }
 
@@ -439,13 +447,19 @@ fn build_checkbox_handler(
     true_value_src: &str,
     false_value_src: &str,
 ) -> Expr {
+    let array_value = format!(
+        "checked ? ({model_src}.includes(value) ? {model_src} : {model_src}.concat([value])) : {model_src}.filter(item => item !== value)"
+    );
+    let set_value = format!(
+        "checked ? new Set([...{model_src}, value]) : new Set(Array.from({model_src}).filter(item => item !== value))"
+    );
+    let scalar_value = format!("checked ? {true_value_src} : {false_value_src}");
     parsed_expr_or_noop(
         format!(
-            "($event) => {{ const checked = ($event.target).checked; const value = {value_src}; if (Array.isArray({model_src})) {{ {model_src} = checked ? ({model_src}.includes(value) ? {model_src} : {model_src}.concat([value])) : {model_src}.filter(item => item !== value); return; }} if ({model_src} instanceof Set) {{ {model_src} = checked ? new Set([...{model_src}, value]) : new Set(Array.from({model_src}).filter(item => item !== value)); return; }} {model_src} = checked ? {true_value_src} : {false_value_src}; }}",
-            model_src = model_src,
-            value_src = value_src,
-            true_value_src = true_value_src,
-            false_value_src = false_value_src,
+            "($event) => {{ const checked = ($event.target).checked; const value = {value_src}; if (Array.isArray({model_src})) {{ {array_write}; return; }} if ({model_src} instanceof Set) {{ {set_write}; return; }} {scalar_write}; }}",
+            array_write = model_write_expr(model_src, &array_value),
+            set_write = model_write_expr(model_src, &set_value),
+            scalar_write = model_write_expr(model_src, &scalar_value),
         ),
         "v-model-checkbox-handler.tsx",
     )
@@ -458,8 +472,8 @@ fn build_radio_checked_expr(model_src: &str, value_src: &str) -> Expr {
 fn build_radio_handler(model_src: &str, value_src: &str) -> Expr {
     parsed_expr_or_noop(
         format!(
-            "($event) => {{ if (($event.target).checked) {{ {} = {}; }} }}",
-            model_src, value_src,
+            "($event) => {{ if (($event.target).checked) {{ {}; }} }}",
+            model_write_expr(model_src, value_src),
         ),
         "v-model-radio-handler.tsx",
     )
@@ -485,7 +499,7 @@ fn build_select_multiple_handler(model_src: &str, trim: bool, number: bool) -> E
     };
 
     parsed_expr_or_noop(
-        format!("($event) => {{ {} = {}; }}", model_src, mapper),
+        format!("($event) => {{ {}; }}", model_write_expr(model_src, &mapper)),
         "v-model-select-multiple-handler.tsx",
     )
 }

@@ -17,7 +17,9 @@ use super::helpers::{
     is_fc_pat, is_untyped_arrow_component_decl, lower_props_derived_consts_in_arrow_with_inputs,
     lower_props_derived_consts_in_function_with_inputs, process_fn_decl, process_function,
     process_var_decl, rewrite_component_props_destructure_in_arrow,
-    rewrite_component_props_destructure_in_function, should_transform_fn_decl,
+    rewrite_component_props_destructure_in_arrow_with_ident,
+    rewrite_component_props_destructure_in_function,
+    rewrite_component_props_destructure_in_function_with_ident, should_transform_fn_decl,
 };
 use super::if_directive;
 use super::model_directive;
@@ -239,7 +241,48 @@ impl VisitMut for PreTransform {
             let params: Vec<Pat> =
                 f.function.params.iter().map(|param| param.pat.clone()).collect();
             let reactive_prop_aliases = collect_param_idents(&params);
-            rewrite_component_props_destructure_in_function(&mut f.function);
+            if let (Some(props), Some(body)) = (
+                f.function.params.first().and_then(|param| match &param.pat {
+                    Pat::Ident(binding) => Some(binding.id.clone()),
+                    _ => None,
+                }),
+                f.function.body.as_mut(),
+            ) {
+                crate::compiled_props::lower_body_props_destructure(body, &props);
+            }
+            if self.in_component {
+                let nested_props_ident = format!("__rue_nested_props_{}", self.next_scope);
+                rewrite_component_props_destructure_in_function_with_ident(
+                    &mut f.function,
+                    &nested_props_ident,
+                );
+            } else {
+                rewrite_component_props_destructure_in_function(&mut f.function);
+            }
+            lower_props_derived_consts_in_function_with_inputs(
+                &mut f.function,
+                reactive_prop_aliases,
+            );
+        } else if is_comp && is_compiled {
+            let reactive_prop_aliases: HashSet<String> = f
+                .function
+                .params
+                .first()
+                .and_then(|param| match &param.pat {
+                    Pat::Ident(binding) => Some(binding.id.sym.to_string()),
+                    _ => None,
+                })
+                .into_iter()
+                .collect();
+            if let (Some(props), Some(body)) = (
+                f.function.params.first().and_then(|param| match &param.pat {
+                    Pat::Ident(binding) => Some(binding.id.clone()),
+                    _ => None,
+                }),
+                f.function.body.as_mut(),
+            ) {
+                crate::compiled_props::lower_body_props_destructure(body, &props);
+            }
             lower_props_derived_consts_in_function_with_inputs(
                 &mut f.function,
                 reactive_prop_aliases,
@@ -284,7 +327,20 @@ impl VisitMut for PreTransform {
                 }
                 if let Some(Expr::Arrow(arrow)) = decl.init.as_mut().map(|expr| expr.as_mut()) {
                     let reactive_prop_aliases = collect_param_idents(&arrow.params);
-                    rewrite_component_props_destructure_in_arrow(arrow);
+                    if let (Some(Pat::Ident(binding)), BlockStmtOrExpr::BlockStmt(body)) =
+                        (arrow.params.first(), arrow.body.as_mut())
+                    {
+                        crate::compiled_props::lower_body_props_destructure(body, &binding.id);
+                    }
+                    if self.in_component {
+                        let nested_props_ident = format!("__rue_nested_props_{}", self.next_scope);
+                        rewrite_component_props_destructure_in_arrow_with_ident(
+                            arrow,
+                            &nested_props_ident,
+                        );
+                    } else {
+                        rewrite_component_props_destructure_in_arrow(arrow);
+                    }
                     lower_props_derived_consts_in_arrow_with_inputs(arrow, reactive_prop_aliases);
                 }
             }
@@ -296,6 +352,11 @@ impl VisitMut for PreTransform {
                     continue;
                 };
                 let reactive_prop_aliases = collect_param_idents(&arrow.params);
+                if let (Some(Pat::Ident(binding)), BlockStmtOrExpr::BlockStmt(body)) =
+                    (arrow.params.first(), arrow.body.as_mut())
+                {
+                    crate::compiled_props::lower_body_props_destructure(body, &binding.id);
+                }
                 lower_props_derived_consts_in_arrow_with_inputs(arrow, reactive_prop_aliases);
             }
         }

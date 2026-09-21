@@ -340,6 +340,33 @@ describe('Menu', () => {
     })
   })
 
+  it('renders JSX icon and extra nodes from item data without stringifying them', async () => {
+    const c = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(c, () =>
+      render(
+        <Menu
+          items={[
+            {
+              key: 'live',
+              label: 'Live item',
+              icon: <span data-testid="menu-rich-icon">I</span>,
+              extra: <span data-testid="menu-rich-extra">Live</span>,
+            },
+          ]}
+        />,
+        c,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(c.querySelector('[data-testid="menu-rich-icon"]')?.textContent).toBe('I')
+      expect(c.querySelector('[data-testid="menu-rich-extra"]')?.textContent).toBe('Live')
+      expect(c.textContent).not.toContain('[object Object]')
+    })
+  })
+
   it('toggles initially open submenu data and emits title clicks', async () => {
     const c = mountContainer()
     resetActiveRuntime()
@@ -421,6 +448,44 @@ describe('Menu', () => {
       const submenu = c.querySelector('.menu li ul') as HTMLElement
       expect(button.getAttribute('aria-expanded')).toBe('false')
       expect(submenu.classList.contains('hidden')).toBe(true)
+    })
+  })
+
+  it('uses click as the default submenu trigger', async () => {
+    const c = mountContainer()
+    resetActiveRuntime()
+    mountTestApp(c, () =>
+      render(
+        <Menu
+          items={[
+            {
+              type: 'submenu',
+              key: 'settings',
+              label: 'Settings',
+              children: [{ key: 'security', label: 'Security' }],
+            },
+          ]}
+        />,
+        c,
+      ),
+    )
+
+    await waitForContent(() => {
+      const button = c.querySelector('.menu li button') as HTMLButtonElement
+      expect(button.getAttribute('aria-expanded')).toBe('false')
+    })
+
+    const submenu = c.querySelector('.menu li') as HTMLElement
+    submenu.dispatchEvent(new MouseEvent('mouseenter'))
+    expect(
+      (c.querySelector('.menu li button') as HTMLButtonElement).getAttribute('aria-expanded'),
+    ).toBe('false')
+
+    ;(c.querySelector('.menu li button') as HTMLButtonElement).click()
+    await waitForContent(() => {
+      expect(
+        (c.querySelector('.menu li button') as HTMLButtonElement).getAttribute('aria-expanded'),
+      ).toBe('true')
     })
   })
 

@@ -279,10 +279,10 @@ export default ListTransitionExample;
     std::fs::write("target/vapor_outputs/spec17.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
     assert!(normalized.contains("_$compiledSetup(\"useSetup:0:0\""), "{normalized}");
-    assert!(normalized.contains("@rue-js/rue/internal/component"), "{normalized}");
-    assert!(normalized.contains("_$createComponent(TransitionGroup, ()=>({"), "{normalized}");
-    assert!(normalized.contains("_$compiledWithKey(_$compiledRoot("), "{normalized}");
-    assert!(normalized.contains("items.value.map((item)"), "{normalized}");
+    assert!(normalized.contains("@rue-js/rue/internal/transitiongroup"), "{normalized}");
+    assert!(normalized.contains("_$transitionGroup(()=>({"), "{normalized}");
+    assert!(normalized.contains("_$reconcileKeyed("), "{normalized}");
+    assert!(normalized.contains("_$mountCompiledKeyedRow("), "{normalized}");
     assert_eq!(
         normalized.matches(".addEventListener(").count(),
         normalized.matches(".removeEventListener(").count()

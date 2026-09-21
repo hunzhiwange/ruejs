@@ -243,6 +243,25 @@ describe('compiled native events and refs', () => {
     expect(calls).toEqual(['button', 'outer'])
   })
 
+  it('passes the native event to delegated handlers', () => {
+    const root = document.createElement('div')
+    const button = document.createElement('button')
+    root.appendChild(button)
+    document.body.appendChild(root)
+    let received: Event | undefined
+
+    _$compiledDelegateEvent(root, button, 'click', () => event => {
+      received = event
+      event.preventDefault()
+    })
+
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    button.dispatchEvent(event)
+
+    expect(received).toBe(event)
+    expect(event.defaultPrevented).toBe(true)
+  })
+
   it('executes real compiler output with latest handlers and root-owned ref cleanup', () => {
     const output = compile()
     expect(output).toContain('from "@rue-js/rue/internal/block"')

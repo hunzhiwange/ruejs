@@ -1,5 +1,6 @@
 import { type FC, setReactiveScheduling } from '@rue-js/rue'
 import { renderToString } from '@rue-js/server-renderer'
+import SiteLayout from './pages/site/components/Layout'
 import { readStaticRenderRoute } from './staticRenderContext'
 
 const staticDocHtmlByRouteKey = '__RUE_STATIC_DOC_HTML_BY_ROUTE__'
@@ -14,12 +15,12 @@ const readStaticDocHtml = () => {
 }
 
 const StaticDocument: FC = () => (
-  <main class="mx-auto min-h-screen w-full max-w-5xl px-5 py-10 sm:px-8">
+  <SiteLayout>
     <article
-      class="prose prose-slate max-w-none dark:prose-invert"
+      class="prose prose-slate mx-auto w-full max-w-5xl dark:prose-invert"
       dangerouslySetInnerHTML={{ __html: readStaticDocHtml() }}
     />
-  </main>
+  </SiteLayout>
 )
 
 // Static SSR only owns pre-generated document HTML. Interactive application routes are rendered

@@ -1,0 +1,98 @@
+{
+  "task": 4,
+  "status": "completed",
+  "focusedCommand": "pnpm exec vitest run --project unit-jsdom packages/runtime/__tests__/children.actual.spec.tsx packages/runtime/__tests__/component-props-reactivity.spec.tsx packages/runtime/__tests__/component.renderable.spec.tsx packages/runtime/__tests__/components.actual.spec.tsx packages/runtime/__tests__/contextPage.actual.spec.tsx packages/runtime/__tests__/layoutChildren.actual.spec.tsx packages/runtime/__tests__/slots.actual.spec.tsx packages/runtime/__tests__/spreadProps.actual.spec.tsx",
+  "result": {
+    "testFiles": 8,
+    "tests": 8,
+    "passed": 7,
+    "expectedFailures": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "knownRegressions": [
+    {
+      "evidencePath": "packages/runtime/__tests__/slots.actual.spec.tsx",
+      "behavior": "A component children slot updated from provided content to null should render its fallback body and later replay the provided child.",
+      "failure": "The title fallback renders, but the null children slot renders an empty body instead of fallback body."
+    }
+  ],
+  "entries": [
+    {
+      "originalPath": "packages/runtime/__tests__/basicChildrenBox.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/children.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/childToParentNotify.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/children.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/children.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/component-props-reactivity.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/component-props-reactivity.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/component.renderable.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/components.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/contextPage.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/contextPage.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/globalComponentRegistration.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/compiledComponentUpdate.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/layoutChildren.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/layoutChildren.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/nestedChildrenBox.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/children.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/parentChildCounterControl.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderAnchor.component-replacement.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderable-normalize.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderable-render-entry.spec.ts",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/routerView.renderable.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/contextPage.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rue-entry-slot-template.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/slots.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/simpleComponent.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/slots.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/slots.actual.spec.tsx"
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/spreadProps.actual.spec.tsx",
+      "evidencePath": "packages/runtime/__tests__/spreadProps.actual.spec.tsx"
+    }
+  ]
+}

@@ -122,6 +122,18 @@ describe('createCompiledProps prototype', () => {
     parentEffect.dispose()
   })
 
+  it('treats an empty compiled component result as an empty block', () => {
+    const host = document.createElement('div')
+    const first = _$mountCompiledComponent(
+      host,
+      () => null,
+      () => ({}),
+    )
+
+    expect(first).toBeNull()
+    expect(host.childNodes).toHaveLength(0)
+  })
+
   it('disposes children before parents and rolls back failed child mounts once', () => {
     setReactiveScheduling('sync')
     const host = document.createElement('div')

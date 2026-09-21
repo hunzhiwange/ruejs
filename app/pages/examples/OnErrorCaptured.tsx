@@ -83,18 +83,20 @@ const OnErrorCaptured: FC = () => {
     const message = error instanceof Error ? error.message : String(error)
     const nextCount = capturedCount.value + 1
 
-    // 先恢复会抛错的状态，再更新计数和日志，避免恢复过程中重复触发同一个错误。
-    shouldCrash.value = false
-    isTriggering.value = false
-    errorMessage.value = message
-    capturedCount.value = nextCount
-    statusText.value = '已捕获：父组件返回 false，错误不会继续向上冒泡。'
-    latestCapture.value = {
-      id: nextCount,
-      message,
-      source: 'BrokenPanel',
-      result: 'return false，停止冒泡',
-    }
+    // 等当前渲染 effect 完成后再恢复状态，避免渲染期间重新挂载同一错误分支。
+    queueMicrotask(() => {
+      shouldCrash.value = false
+      isTriggering.value = false
+      errorMessage.value = message
+      capturedCount.value = nextCount
+      statusText.value = '已捕获：父组件返回 false，错误不会继续向上冒泡。'
+      latestCapture.value = {
+        id: nextCount,
+        message,
+        source: 'BrokenPanel',
+        result: 'return false，停止冒泡',
+      }
+    })
     return false
   })
 

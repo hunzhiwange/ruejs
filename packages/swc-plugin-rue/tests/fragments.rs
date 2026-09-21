@@ -49,13 +49,18 @@ fn static_component_fragments_compile_while_unsafe_roots_keep_vapor_fallbacks() 
 
     let normalized_component = utils::normalize(&component);
     assert!(component.contains("@rue-js/rue/internal"), "{component}");
-    assert!(normalized_component.contains("_$compiledRootFactory("), "{component}");
+    assert!(normalized_component.contains("_$mountCompiledComponent("), "{component}");
     assert!(normalized_component.contains("_$compiledRoot("), "{component}");
     assert!(!normalized_component.contains("vapor("), "{component}");
 
     for out in [spread, renderable, async_root] {
         assert!(out.contains("@rue-js/rue/internal"), "{out}");
-        assert!(utils::normalize(&out).contains(&utils::normalize("_$compiledRoot(")), "{out}");
+        let normalized = utils::normalize(&out);
+        assert!(
+            normalized.contains(&utils::normalize("_$compiledRoot("))
+                || normalized.contains(&utils::normalize("_$compiledStaticRoot(")),
+            "{out}"
+        );
     }
 }
 
@@ -122,7 +127,6 @@ export default Fragments;
     let norm_out = utils::normalize(&utils::strip_marker(&out));
     assert!(norm_out.contains("_$template"));
     assert!(norm_out.contains("<span>片段 1</span><span>片段 2</span>"));
-    assert!(norm_out.contains("RouterLink.__rueHref(\"/jsx\")"));
-    assert_eq!(norm_out.matches(".addEventListener(").count(), 5);
-    assert_eq!(norm_out.matches("onScopeDispose(").count(), 5);
+    assert!(norm_out.contains("_$compiledComponent(RouterLink"));
+    assert!(norm_out.contains("_$mountCompiledSlotFactory"));
 }

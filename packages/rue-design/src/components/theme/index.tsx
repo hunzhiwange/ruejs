@@ -5,7 +5,7 @@ Theme 组件概述
 - Provider 通过 data-theme 与 CSS 变量做“作用域主题岛”，不依赖运行时 context，也能支持嵌套继承。
 */
 import { provideContext } from '@rue-js/rue/internal/app'
-import { computed, createContext, useContext, type FC } from '@rue-js/rue'
+import { computed, createContext, untrack, useContext, type FC } from '@rue-js/rue'
 
 type ThemeInputType = 'checkbox' | 'radio'
 type ThemeAppearance = 'light' | 'dark'
@@ -1195,16 +1195,61 @@ const ThemeScopedContent: FC<{
   runtime: () => ThemeTokenRuntime
   render?: (runtime: ThemeTokenRuntime) => any
   children?: any
-}> = ({ runtime, render, children }) => (
-  <>
-    {runtime().componentStyleText ? (
-      <style data-rue-theme-components={runtime().scopeId}>
-        {String(runtime().componentStyleText)}
-      </style>
-    ) : null}
-    {render ? render(runtime()) : children}
-  </>
-)
+}> = ({ runtime, render, children }) => {
+  // Render props receive one stable object whose fields always resolve against
+  // the latest computed runtime. This lets compiled descendants subscribe to
+  // token fields without replacing their whole DOM range on every token write.
+  const runtimeView: ThemeTokenRuntime = {
+    get theme() {
+      return runtime().theme
+    },
+    get resolvedTheme() {
+      return runtime().resolvedTheme
+    },
+    get token() {
+      return runtime().token
+    },
+    get cssVariables() {
+      return runtime().cssVariables
+    },
+    get cssVar() {
+      return runtime().cssVar
+    },
+    get components() {
+      return runtime().components
+    },
+    get componentCssVariables() {
+      return runtime().componentCssVariables
+    },
+    get componentStyleText() {
+      return runtime().componentStyleText
+    },
+    get scopeId() {
+      return runtime().scopeId
+    },
+    get hashId() {
+      return runtime().hashId
+    },
+    get hashed() {
+      return runtime().hashed
+    },
+    get zeroRuntime() {
+      return runtime().zeroRuntime
+    },
+  }
+  const content = render ? render(runtimeView) : children
+
+  return (
+    <>
+      {runtime().componentStyleText ? (
+        <style data-rue-theme-components={runtime().scopeId}>
+          {String(runtime().componentStyleText)}
+        </style>
+      ) : null}
+      {content}
+    </>
+  )
+}
 
 /** 作用域主题容器：通过 data-theme 与 CSS 变量把 token 限定在当前子树。 */
 const ThemeProvider: FC<ThemeProviderProps> = ({
@@ -1226,8 +1271,12 @@ const ThemeProvider: FC<ThemeProviderProps> = ({
   ...rest
 }) => {
   const inheritedRuntime = useContext(ThemeRuntimeContext)
-  const runtime = computed(() =>
-    createThemeRuntime(
+  // A provider's selector identity belongs to the provider instance, not to a
+  // particular token snapshot. Keeping it stable also prevents a reactive
+  // component rule from getting ahead of the host element's spread bindings.
+  let stableScopeId: string | undefined
+  const runtime = computed(() => {
+    const currentRuntime = createThemeRuntime(
       {
         theme,
         token,
@@ -1240,8 +1289,11 @@ const ThemeProvider: FC<ThemeProviderProps> = ({
         baseToken,
       },
       inheritedRuntime?.(),
-    ),
-  )
+      stableScopeId,
+    )
+    stableScopeId ??= currentRuntime.scopeId
+    return currentRuntime
+  })
   provideContext(ThemeRuntimeContext, () => () => runtime.get())
   const mergedStyle = () => {
     const currentRuntime = runtime.get()
@@ -1256,6 +1308,10 @@ const ThemeProvider: FC<ThemeProviderProps> = ({
   }
   const applyRef = (element: HTMLElement | null) => {
     assignForwardedRef(forwardedRef, element)
+  }
+  const renderScopedContent = (currentRuntime: ThemeTokenRuntime) => {
+    const currentRender = untrack(() => render)
+    return currentRender ? currentRender(currentRuntime) : untrack(() => children)
   }
 
   const commonProps = () => {
@@ -1283,28 +1339,28 @@ const ThemeProvider: FC<ThemeProviderProps> = ({
   if (as === 'section') {
     return (
       <section {...commonProps()}>
-        <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+        <ThemeScopedContent runtime={() => runtime.get()} render={renderScopedContent} />
       </section>
     )
   }
   if (as === 'article') {
     return (
       <article {...commonProps()}>
-        <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+        <ThemeScopedContent runtime={() => runtime.get()} render={renderScopedContent} />
       </article>
     )
   }
   if (as === 'span') {
     return (
       <span {...commonProps()}>
-        <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+        <ThemeScopedContent runtime={() => runtime.get()} render={renderScopedContent} />
       </span>
     )
   }
 
   return (
     <div {...commonProps()}>
-      <ThemeScopedContent runtime={() => runtime.get()} render={render} children={children} />
+      <ThemeScopedContent runtime={() => runtime.get()} render={renderScopedContent} />
     </div>
   )
 }

@@ -1334,7 +1334,7 @@ export const useNotification = (options: NotificationUseOptions = {}) => {
     },
   }
 
-  return [store.api!, contextHolder] as const
+  return [store.api!, <NotificationHolder state={contextHolder} />] as const
 }
 
 /** ensure Global Viewport 的内部工具函数。 */

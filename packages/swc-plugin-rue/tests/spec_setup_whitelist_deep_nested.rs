@@ -34,7 +34,7 @@ const Comp: FC = ()=>{
                             `t=${a.value}`
                         ]
                 }));
-            info.get();
+            untrack(()=>info.get());
             const __rue_phase2_info = info;
             watchEffect(()=>{
                     console.log('tick', __rue_phase2_info.get().x, __rue_phase2_info.get().arr[0]);

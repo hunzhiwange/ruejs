@@ -39,8 +39,8 @@ const componentInput = Object.freeze({
   imports: Object.freeze(['_$compiledComponent', '_$mountCompiledComponent']),
 })
 const listInput = Object.freeze({
-  entry: '@rue-js/rue/internal/compiler',
-  imports: Object.freeze(['signal', 'effect', '_$reconcileKeyed', '_$mountCompiledKeyedRow']),
+  entry: '@rue-js/rue/internal/list',
+  imports: Object.freeze(['_$reconcileKeyed', '_$mountCompiledKeyedRow']),
 })
 const builtinsInput = Object.freeze({
   entry: '@rue-js/rue/internal/builtins',

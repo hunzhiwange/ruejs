@@ -9,6 +9,7 @@ export {
   _$compiledPropsKeys,
   _$compiledPropsSnapshot,
   _$createComponent,
+  _$createDynamicElement,
   _$compiledComponent,
   useEmit,
   onErrorCaptured,

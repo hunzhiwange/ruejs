@@ -130,6 +130,31 @@ fn tracks_compiler_internal_reactive_factories() {
 }
 
 #[test]
+fn keeps_compiled_prop_signals_renderable() {
+    let module = parse_module(
+        r#"
+        import { _$compiledSignal } from "@rue-js/rue/internal/reactive";
+        import { _$compiledPropsGet } from "@rue-js/rue/internal/component";
+        const icon = _$compiledSignal(_$compiledPropsGet(__rue_props, "icon"));
+        "#,
+    );
+    let transform = transform_with_scope(collect_module_scope(&module, &[]));
+    assert_eq!(transform.reactive_kind("icon"), Some(ReactiveKind::RenderableRefLike));
+}
+
+#[test]
+fn keeps_computed_values_derived_from_compiled_props_renderable() {
+    let module = parse_module(
+        r#"
+        import { computed } from "@rue-js/rue/internal/reactive";
+        const option = computed(() => _$compiledPropsGet(__rue_props, "rowArg0"));
+        "#,
+    );
+    let transform = transform_with_scope(collect_module_scope(&module, &[]));
+    assert_eq!(transform.reactive_kind("option"), Some(ReactiveKind::RenderableRefLike));
+}
+
+#[test]
 fn invalidates_shadowed_reassigned_and_unknown_values() {
     let module = parse_module(
         r#"
@@ -203,6 +228,23 @@ fn marks_component_props_and_slots_parameters() {
 }
 
 #[test]
+fn marks_destructured_component_props_as_renderable_values() {
+    let module = parse_module("function component({ value }, { icon }) {}");
+    let function = module
+        .body
+        .iter()
+        .find_map(|item| match item {
+            ModuleItem::Stmt(Stmt::Decl(Decl::Fn(function))) => Some(&function.function),
+            _ => None,
+        })
+        .expect("component function");
+    let scope = collect_component_parameter_scope(function.params.iter().map(|param| &param.pat));
+    let transform = transform_with_scope(scope);
+    assert_eq!(transform.reactive_kind("value"), Some(ReactiveKind::RenderableRefLike));
+    assert_eq!(transform.reactive_kind("icon"), None);
+}
+
+#[test]
 fn computed_value_and_get_are_compiled_scalar_reads() {
     let module = parse_module(
         r#"
@@ -222,4 +264,56 @@ fn computed_value_and_get_are_compiled_scalar_reads() {
             ));
         }
     }
+}
+
+#[test]
+fn computed_callback_result_is_not_assumed_to_be_scalar() {
+    let module = parse_module(
+        r#"
+      import { computed } from '@rue-js/rue';
+      const content = computed(() => renderItem ? renderItem() : 'fallback');
+      content.value;
+      content.get();
+      content.get().label;
+    "#,
+    );
+    let vt = transform_with_scope(collect_module_scope(&module, &[]));
+    assert_eq!(vt.reactive_kind("content"), Some(ReactiveKind::ComputedValue));
+    let bare = Expr::Ident(Ident::new_no_ctxt("content".into(), Default::default()));
+    assert!(!crate::vapor::is_compiled_reactive_scalar_expr(&vt, &bare, &HashSet::new()));
+    let member = module
+        .body
+        .iter()
+        .rev()
+        .find_map(|item| match item {
+            ModuleItem::Stmt(Stmt::Expr(expression))
+                if matches!(expression.expr.as_ref(), Expr::Member(_)) =>
+            {
+                Some(&expression.expr)
+            }
+            _ => None,
+        })
+        .expect("computed member read");
+    assert!(crate::vapor::is_compiled_reactive_scalar_expr(&vt, member, &HashSet::new()));
+}
+
+#[test]
+fn reactive_object_accessor_members_are_not_assumed_to_be_scalar() {
+    let module = parse_module(
+        r#"
+      import { signal } from '@rue-js/rue';
+      const option = signal({ label: <b>ready</b> });
+      option.get().label;
+    "#,
+    );
+    let vt = transform_with_scope(collect_module_scope(&module, &[]));
+    let member = module
+        .body
+        .iter()
+        .find_map(|item| match item {
+            ModuleItem::Stmt(Stmt::Expr(expression)) => Some(&expression.expr),
+            _ => None,
+        })
+        .expect("signal member read");
+    assert!(!crate::vapor::is_compiled_reactive_scalar_expr(&vt, member, &HashSet::new()));
 }

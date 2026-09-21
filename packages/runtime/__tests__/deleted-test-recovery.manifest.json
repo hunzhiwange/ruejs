@@ -1,0 +1,1602 @@
+{
+  "source": {
+    "base": "c183df42",
+    "deletion": "a8745bec",
+    "pathspecs": ["packages/rue/__tests__", "packages/runtime/__tests__"]
+  },
+  "entries": [
+    {
+      "originalPath": "packages/rue/__tests__/rue.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/apiDocDetail.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/apiDocDetail.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/attributeBindings.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/attributeBindings.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/attributesAndProps.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/attributesAndProps.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/badge.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/badge.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/basicChildrenBox.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/children.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/basicElements.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/basicElements.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/basicTodoList.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/basicTodoList.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/button.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/button.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/calendar.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/calendar.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/carousel.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/carousel.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/checkbox.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/checkbox.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/childToParentNotify.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/children.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/children.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/color-picker.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/color-picker.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledControlFlowSetup.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/compiledControlFlowSetup.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledReactiveBranches.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/compiledReactiveBranches.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledSelector.codegen.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/compiledSelector.codegen.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledStatePath.codegen.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/compiledStatePath.codegen.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiledVaporFallback.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/compiler-runtime.compact-kernel.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiler-runtime.entrypoints.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/component-props-reactivity.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/component-props-reactivity.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/component.renderable.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/componentVModel.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/componentVModel.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/components.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/conditionalRendering.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/conditionalRendering.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/conditionalsAndLoops.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/conditionalsAndLoops.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/contextPage.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/contextPage.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/controlledInputs.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/controlledInputs.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/custom-elements.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 7,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/custom-elements.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/customRef.actual.spec.tsx",
+      "classification": "obsolete",
+      "targetTask": 9,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/customRef.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/reactive-kernel.watch-resource-log.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/docDetail.mdx.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/docDetail.mdx.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/dock.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/dock.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/drawer.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/drawer.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/dropdown.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/dropdown.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/dynamicComponent.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/dynamicComponent.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/editableUserProfile.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/editableUserProfile.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/effectScope.actual.spec.tsx",
+      "classification": "obsolete",
+      "targetTask": 9,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/errorCaptured.vapor.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/errorCaptured.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/event-directives.spec.ts",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/event-directives.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/events.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/events.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/expressions.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/expressions.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/fab.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/fab.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/fetchingData.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/fetchingData.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/fieldset.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/fieldset.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/file-input.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/file-input.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/filter.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/filter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/formBindings.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/formBindings.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/fragments.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/fragments.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/getCurrentScope.actual.spec.tsx",
+      "classification": "obsolete",
+      "targetTask": 9,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/getCurrentScope.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/reactive-kernel.scheduler-scope.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/globalComponentRegistration.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiledComponentUpdate.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/guideDocDetail.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/guideDocDetail.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/handlingInput.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/handlingInput.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/helloChildren.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/helloChildren.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/helloWorld.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/helloWorld.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/hero.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/hero.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/i18nLocaleSwitcher.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/i18nLocaleSwitcher.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/indicator.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/indicator.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/input.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/input.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/isRef.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/isRef.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/join.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/join.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/jsxIndex.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/jsxIndex.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/keepAliveDemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/keepAliveDemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 6,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/keyedRetention.full.spec.ts",
+      "classification": "migrate",
+      "targetTask": 6,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/keyedRetention.full.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/label.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/label.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/layout.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/layout.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/layoutChildren.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/layoutChildren.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/legacy-test-render.ts",
+      "classification": "obsolete",
+      "targetTask": null,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/list.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/list.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/listTransition.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiledKeyedList.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 6,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/loading.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/loading.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/localCounter.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/localCounter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/localTodoList.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/localTodoList.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/localTodoList.microtask.spec.tsx",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mapListRendering.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 6,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mapListRendering.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/markdownEditor.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/markdownEditor.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mask.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mask.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mentions.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mentions.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mentions.basic-preview.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mentions.basic-preview.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mentions.plain-options.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mentions.plain-options.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mockup-browser.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mockup-browser.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mockup-code.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mockup-code.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mockup-phone.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mockup-phone.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/mockup-window.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/mockup-window.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/modal-design.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/modal-design.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/modal.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/modal.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/namedVModel.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/namedVModel.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/navbar.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/navbar.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/nestedChildrenBox.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/children.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/nextTick.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/nextTick.examples.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/nextTickDemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/nextTickDemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/notification-shell.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/notification-shell.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/notification.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/notification.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/onDeactivated.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/onDeactivated.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/onErrorCaptured.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/onErrorCaptured.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/onScopeDispose.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/onScopeDispose.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/pageDocDetail.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/pageDocDetail.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/pagination.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/pagination.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/parentChildCounterControl.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/patchChildren.anchor.spec.ts",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiledKeyedList.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/persistentSidebarPlayground.actual.spec.tsx",
+      "classification": "obsolete",
+      "targetTask": 9,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/popconfirm-design.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/popconfirm-design.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/progress.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/progress.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/radial-progress.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/radial-progress.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/radio.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/radio.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/range.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/range.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rating.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/rating.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/reactStyleConditional.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/reactStyleConditional.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/reactiveScheduling.frame.spec.ts",
+      "classification": "migrate",
+      "targetTask": 7,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/reactiveScheduling.frame.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/refDisplay.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/refDisplay.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/refs.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/refs.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderAnchor.component-replacement.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderCounter.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/renderCounter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTracked.actual.spec.tsx",
+      "classification": "obsolete",
+      "targetTask": 9,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/deleted-test-recovery.task-9.json",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTracked.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTriggered.gating.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderTriggered.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/renderTriggered.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderable-normalize.spec.ts",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/renderable-render-entry.spec.ts",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/component.renderable.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/resource.min.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/resourceJSX.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/resourceDemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/resourceDemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/resourceJSX.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/resourceJSX.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/router.advanced.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/router/__tests__/router.navigation-lifecycle.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/routerDemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/routerDemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/routerView.renderable.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/contextPage.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rue-entry-slot-template.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/slots.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rue.event.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/rue.event.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/rue.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiler-runtime.entrypoints.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/runtime-architecture.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiler-runtime.entrypoints.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/scopedStyle.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/scopedStyle.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/select.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/select.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/server.ssr.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/server.lifecycle.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/shallowRef.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/shallowRef.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/signalPages.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/signalPages.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/simpleComponent.actual.spec.tsx",
+      "classification": "covered",
+      "targetTask": 4,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/components.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/skeleton.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/skeleton.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/slots.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/slots.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/sortFilterGrid.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 6,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/sortFilterGrid.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/splitHomeExampleTestUtils.tsx",
+      "classification": "obsolete",
+      "targetTask": null,
+      "status": "obsolete",
+      "evidencePath": "packages/runtime/__tests__/page-test-utils.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/splitter.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/splitter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/spreadProps.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 4,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/spreadProps.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/stack.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/stack.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/stat.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/stat.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/staticTemplate.spec.ts",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/staticTemplate.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/status.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/status.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/steps.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/steps.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/storeQuerySync.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/storeQuerySync.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/suspenseDemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/suspenseDemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/svgGraph.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/svgGraph.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/svgSharedNamespace.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 3,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/svgSharedNamespace.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/swap.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/swap.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/tabs.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/tabs.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/templateDemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 8,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/templateDemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/textarea.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/textarea.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/theme-controller.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/theme-controller.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/time-picker.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/time-picker.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/toast.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/toast.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/todoApp.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/todoApp.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/toggle.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/toggle.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/tooltip.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/tooltip.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/tour.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/tour.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/transition.renderable.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/transitionMode.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/transitionMode.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/transitionMode.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/treeView.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.app.spec.tsx",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.page.spec.tsx",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/listsAndKeys.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/treeView.plus.spec.tsx",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/keyedRetention.full.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useComponent.lazyHydration.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/island.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useComponent.loading.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/island.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useComponent.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/island.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useState.react-compat.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useStateArray.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/useStateArray.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useStateCounter.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/useStateCounter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useStateObject.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/useStateObject.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/useVaporApp.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/restored-test-harness.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vForAndRFor.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 6,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vForAndRFor.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vHtmlAndRHtml.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vHtmlAndRHtml.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vIfAndRIf.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vIfAndRIf.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vMemoAndRMemo.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vMemoAndRMemo.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vModelAndRModel.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vModelAndRModel.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vOnAndROn.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vOnAndROn.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vOnceAndROnce.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vOnceAndROnce.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vPreAndRPre.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vPreAndRPre.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vShowAndRShow.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vShowAndRShow.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vTextAndRText.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 5,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/vTextAndRText.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/validator.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/validator.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vaporEntry.interop.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/reactive-kernel.entry-interop.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vaporKeyedList.proxyDrift.spec.ts",
+      "classification": "covered",
+      "targetTask": 6,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/keyedList.external-state.regression.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/vaporReactivity.app.spec.tsx",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/reactiveCounter.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/watchPostEffect.spec.ts",
+      "classification": "covered",
+      "targetTask": 7,
+      "status": "covered",
+      "evidencePath": "packages/runtime/__tests__/compiled-watch.spec.ts",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/watermark.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 10,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/watermark.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/webComponentFeatureLab.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/webComponentFeatureLab.actual.spec.tsx",
+      "failingTests": []
+    },
+    {
+      "originalPath": "packages/runtime/__tests__/webComponents.actual.spec.tsx",
+      "classification": "migrate",
+      "targetTask": 9,
+      "status": "migrated-passing",
+      "evidencePath": "packages/runtime/__tests__/webComponents.actual.spec.tsx",
+      "failingTests": []
+    }
+  ],
+  "expectedFailures": []
+}

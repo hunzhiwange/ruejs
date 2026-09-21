@@ -3,7 +3,7 @@ Join 模块概述
 - 汇总组合容器组件的公开类型、渲染入口和局部工具逻辑。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
-import type { FC } from '@rue-js/rue'
+import { Component, type FC } from '@rue-js/rue'
 
 /** JoinDirection 位置或方向类型。 */
 export type JoinDirection = 'horizontal' | 'vertical'
@@ -273,8 +273,8 @@ const JoinRoot: FC<JoinProps> = ({
     className,
   )
 
-  return Tag === 'section' ? (
-    <section {...rest} className={mergedClassName}>
+  return (
+    <Component is={Tag} {...rest} className={mergedClassName}>
       {hasRenderableChildren(children) ? (
         children
       ) : items ? (
@@ -285,74 +285,7 @@ const JoinRoot: FC<JoinProps> = ({
           ))}{' '}
         </>
       ) : null}
-    </section>
-  ) : Tag === 'div' ? (
-    <div {...rest} className={mergedClassName}>
-      {hasRenderableChildren(children) ? (
-        children
-      ) : items ? (
-        <>
-          {' '}
-          {items.map((rowArg0: any, rowArg1: number) => (
-            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
-          ))}{' '}
-        </>
-      ) : null}
-    </div>
-  ) : Tag === 'span' ? (
-    <span {...rest} className={mergedClassName}>
-      {hasRenderableChildren(children) ? (
-        children
-      ) : items ? (
-        <>
-          {' '}
-          {items.map((rowArg0: any, rowArg1: number) => (
-            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
-          ))}{' '}
-        </>
-      ) : null}
-    </span>
-  ) : Tag === 'button' ? (
-    <button {...rest} className={mergedClassName}>
-      {hasRenderableChildren(children) ? (
-        children
-      ) : items ? (
-        <>
-          {' '}
-          {items.map((rowArg0: any, rowArg1: number) => (
-            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
-          ))}{' '}
-        </>
-      ) : null}
-    </button>
-  ) : Tag === 'fieldset' ? (
-    <fieldset {...rest} className={mergedClassName}>
-      {hasRenderableChildren(children) ? (
-        children
-      ) : items ? (
-        <>
-          {' '}
-          {items.map((rowArg0: any, rowArg1: number) => (
-            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
-          ))}{' '}
-        </>
-      ) : null}
-    </fieldset>
-  ) : Tag === 'a' ? (
-    <a {...rest} className={mergedClassName}>
-      {hasRenderableChildren(children) ? (
-        children
-      ) : items ? (
-        <>
-          {' '}
-          {items.map((rowArg0: any, rowArg1: number) => (
-            <Item key={rowArg0.key ?? rowArg1} {...readItemProps(rowArg0)} />
-          ))}{' '}
-        </>
-      ) : null}
-    </a>
-  ) : (
-    <></>
+    </Component>
   )
 }
 

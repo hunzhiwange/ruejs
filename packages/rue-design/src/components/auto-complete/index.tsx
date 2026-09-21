@@ -405,6 +405,11 @@ const normalizeOption = (
   }
 }
 
+const hasStructuredOptionLabel = (option: NormalizedOption) => {
+  const label = option.raw.label
+  return label !== null && (typeof label === 'object' || typeof label === 'function')
+}
+
 /** 归一化 Groups 的内部工具函数。 */
 const normalizeGroups = (options?: AutoCompleteOptionData[]) => {
   const source = createArrayView(options)
@@ -674,7 +679,7 @@ const AutoCompleteRoot: FC<AutoCompleteProps> = (
         >
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{option.label}</span>
-            {option.description !== undefined ? (
+            {option.description !== undefined && !hasStructuredOptionLabel(option) ? (
               <span className="mt-1 block truncate text-xs text-base-content/55">
                 {option.description}
               </span>

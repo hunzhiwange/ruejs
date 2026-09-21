@@ -45,7 +45,7 @@ const Page: FC<{ code: string }> = props => <Code code={props.code} />
     println!("DEBUG_OUT: {}", out);
 
     assert!(out.contains(&utils::normalize(
-        "_$createComponent(Code, ()=>({ code: _$compiledPropsGet(props, \"code\") }))"
+        "_$compiledComponent(Code, ()=>({ code: _$compiledPropsGet(props, \"code\") }))"
     )));
     assert!(!out.contains(&utils::normalize("rue:component:anchor")));
     assert!(!out.contains("renderBetween(__slot"));
@@ -70,13 +70,17 @@ const Page: FC<{ show: boolean }> = props => (
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
     println!("DEBUG_OUT: {}", out);
 
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(out.contains(&utils::normalize("_$compiledBranchAt(")));
+    assert!(out.contains(&utils::normalize("_$compiledComponent(Hello")));
     assert!(out.contains(&utils::normalize("rue:text-hole:0")));
     assert!(!out.contains("rue:static:component"));
     assert!(!out.contains("renderStatic"));
 }
 
 #[test]
+#[should_panic(
+    expected = "Rue member component must be rooted in a statically known function factory"
+)]
 fn treats_jsx_member_expression_as_component() {
     let src = r##"
 import { type FC } from '@rue-js/rue';
@@ -96,9 +100,9 @@ const Page: FC = () => (
     println!("DEBUG_OUT: {}", out);
 
     assert!(out.contains(&utils::normalize(
-        "_$createComponent(Collapse.Title, ()=>({ className: \"font-semibold\", children: \"Hello\" }))"
+        "_$compiledComponent(Collapse.Title, ()=>({ className: \"font-semibold\", children: \"Hello\" }))"
     )));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotFactory(")));
     assert!(out.contains(&utils::normalize("rue:opaque-hole:0")));
 }
 
@@ -122,12 +126,12 @@ const Page: FC<{ items: string[] }> = props => (
     println!("DEBUG_OUT: {}", out);
 
     assert!(out.contains(&utils::normalize(
-        "_$createComponent(TransitionGroup, ()=>({ children: _$compiledPropsGet(props, \"items\").map"
+        "_$compiledComponent(TransitionGroup, ()=>({ children: (target, slotProps, owner)=>"
     )));
-    assert!(out.contains("_$compiledPropsGet(props, \"items\").map"));
-    assert!(out.contains("_$compiledWithKey"));
+    assert!(out.contains("_$compiledPropsGet(props, \"items\") || []"));
+    assert!(out.contains("_$reconcileKeyed"));
     assert!(out.contains("_$template(\"<span>"));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotFactory(")));
     assert!(!out.contains("const __child1"));
     assert!(!out.contains("children={__child1}"));
 }
@@ -152,12 +156,12 @@ const Page: FC<{ items: string[] }> = props => (
     println!("DEBUG_OUT: {}", out);
 
     assert!(out.contains(&utils::normalize(
-        "_$createComponent(TransitionGroup, ()=>({ children: _$compiledPropsGet(props, \"items\").map"
+        "_$compiledComponent(TransitionGroup, ()=>({ children: (target, slotProps, owner)=>"
     )));
-    assert!(out.contains("_$compiledPropsGet(props, \"items\").map"));
-    assert!(out.contains("_$compiledWithKey"));
+    assert!(out.contains("_$compiledPropsGet(props, \"items\") || []"));
+    assert!(out.contains("_$reconcileKeyed"));
     assert!(out.contains("_$template(\"<span>"));
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotFactory(")));
     assert!(!out.contains("const __child1"));
     assert!(!out.contains("children={__child1}"));
 }
@@ -224,10 +228,8 @@ const Page: FC = () => (
     let out = utils::normalize(&utils::strip_marker(&utils::emit(program, cm)));
     println!("DEBUG_OUT: {}", out);
 
-    assert!(
-        out.contains(&utils::normalize("const __slot = options[0].label ?? options[0].value;"))
-    );
-    assert!(out.contains(&utils::normalize("renderAnchor(__slot")));
+    assert!(out.contains(&utils::normalize("_$mountCompiledSlotAt(")));
+    assert!(out.contains("options[0].label ?? options[0].value"));
     assert!(!out.contains(&utils::normalize(
         "_$settextContent(_el2, options[0].label ?? options[0].value);"
     )));

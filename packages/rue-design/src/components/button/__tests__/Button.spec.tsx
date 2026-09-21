@@ -225,6 +225,32 @@ describe('Button', () => {
     expect(el.querySelector('#loading-icon')).toBeTruthy()
   })
 
+  it('renders the icon prop and lets the icon slot override it', async () => {
+    const c = document.createElement('div')
+    mountTestApp(c, () =>
+      render(<Button icon={<span id={'prop-icon'}>{'P'}</span>} aria-label={'Prop icon'} />, c),
+    )
+    await waitButtonRender()
+    let el = c.querySelector('button') as HTMLButtonElement
+    expect(el.querySelector('#prop-icon')).toBeTruthy()
+    expect(el.children).toHaveLength(1)
+
+    mountTestApp(c, () =>
+      render(
+        <Button icon={<span id={'ignored-prop-icon'}>{'P'}</span>} aria-label={'Slot icon'}>
+          <Template slot="icon">
+            <span id={'slot-icon'}>{'S'}</span>
+          </Template>
+        </Button>,
+        c,
+      ),
+    )
+    await waitButtonRender()
+    el = c.querySelector('button') as HTMLButtonElement
+    expect(el.querySelector('#slot-icon')).toBeTruthy()
+    expect(el.querySelector('#ignored-prop-icon')).toBeFalsy()
+  })
+
   it('renders Button.Group and syncs group size and shape to child buttons', async () => {
     const c = document.createElement('div')
     mountTestApp(c, () =>

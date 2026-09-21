@@ -4,6 +4,7 @@ import { _$compiledSpreadAttributes, spreadAttributes } from '../src/compiled-do
 import {
   applyDOMRef,
   patchDOMProps,
+  normalizeHTMLPattern,
   setDOMAttribute,
   setDOMClassName,
   setDOMInnerHTML,
@@ -25,6 +26,40 @@ const readElementState = (element: HTMLElement) => ({
 })
 
 describe('spreadAttributes', () => {
+  it('normalizes legacy literal hyphens for HTML pattern v-mode character classes', () => {
+    expect(normalizeHTMLPattern('[A-Za-z0-9-]+')).toBe('[A-Za-z0-9\\-]+')
+    expect(normalizeHTMLPattern('[-A-Z]+')).toBe('[\\-A-Z]+')
+    expect(normalizeHTMLPattern('[^A-Z-]+')).toBe('[^A-Z\\-]+')
+    expect(normalizeHTMLPattern('[A-Z]+')).toBe('[A-Z]+')
+    expect(normalizeHTMLPattern('[A-Z\\-]+')).toBe('[A-Z\\-]+')
+
+    const input = document.createElement('input')
+    setDOMAttribute(input, 'pattern', '[A-Za-z0-9-]+')
+    expect(input.getAttribute('pattern')).toBe('[A-Za-z0-9\\-]+')
+
+    patchDOMProps(input, { pattern: '[A-Za-z0-9-]+' })
+    expect(input.pattern).toBe('[A-Za-z0-9\\-]+')
+
+    _$compiledSpreadAttributes(input, { pattern: '[-A-Z]+' })
+    expect(input.pattern).toBe('[\\-A-Z]+')
+  })
+
+  it.each([
+    ['onFocus', 'focusin'],
+    ['onBlur', 'focusout'],
+  ] as const)('maps %s to a bubbling native event', (prop, nativeEvent) => {
+    const wrapper = document.createElement('label')
+    const input = document.createElement('input')
+    const handler = vi.fn()
+    wrapper.appendChild(input)
+
+    patchDOMProps(wrapper, { [prop]: handler })
+    input.dispatchEvent(new FocusEvent(nativeEvent, { bubbles: true }))
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ type: nativeEvent }))
+  })
+
   it.each([
     [
       'static setters',

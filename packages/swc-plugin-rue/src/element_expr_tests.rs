@@ -420,7 +420,8 @@ fn keeps_jsx_returning_helpers_on_the_renderable_slot_path() {
         "#,
     ));
 
-    assert!(out.contains("renderRow(_$rowItem"), "{out}");
+    assert!(out.contains("renderRow(__slot"), "{out}");
+    assert!(out.contains("(_$rowItem1.get())"), "{out}");
     assert!(out.contains("_$mountCompiledSlotAt"), "{out}");
     assert!(!out.contains("_$compiledScalarText(_el3,()=>renderRow"), "{out}");
 }
@@ -701,6 +702,22 @@ fn detects_nested_opaque_renderables_and_svg_ref_exceptions() {
         &vt,
         &parse_expr("getRenderedSectionItemCount(row.get())", false),
     ));
+
+    let mut plain_local_vt = new_vt();
+    plain_local_vt.push_plain_local_scope(HashSet::from(["item".to_string()]));
+    assert!(contains_opaque_renderable_expr(&plain_local_vt, &parse_expr("item.label", false),));
+
+    plain_local_vt.el_tag_by_ident.insert("root".to_string(), "span".to_string());
+    let mut member_stmts = Vec::new();
+    emit_element_expr_container_child(
+        &mut plain_local_vt,
+        &ident("root"),
+        &expr_container("item.label", false),
+        &mut member_stmts,
+    );
+    let member_out = compact(&emit_stmts(member_stmts));
+    assert!(member_out.contains("_$mountCompiledSlotAt("), "{member_out}");
+    assert!(!member_out.contains("_$settextContent"), "{member_out}");
 
     let mut svg_vt = new_vt();
     svg_vt.el_tag_by_ident.insert("svgRoot".to_string(), "circle".to_string());
@@ -1047,6 +1064,189 @@ fn builds_compiled_branch_factories_only_for_closed_result_sets() {
         )
         .is_none()
     );
+}
+
+#[test]
+fn mounts_renderable_component_props_in_compiled_branch_results() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Preview: FC<{ active: boolean; content: any }> = ({ active, content }) => (
+  <section>{active ? content : <span>fallback</span>}</section>
+);
+export const View = () => <Preview active content={<strong>visible</strong>} />;
+"#,
+    ));
+
+    assert!(
+        output.contains("_$compiledValueFactory(_$compiledPropsGet(__rue_props,\"content\"))"),
+        "{output}"
+    );
+    assert!(output.contains("_$mountCompiledSlotAt("), "{output}");
+    assert!(output.contains("content:(target,slotProps,owner)=>"), "{output}");
+    assert!(
+        !output
+            .contains("_$compiledCreateTextNode(typeof_$compiledPropsGet(__rue_props,\"content\")"),
+        "{output}"
+    );
+}
+
+#[test]
+fn preserves_jsx_component_props_through_defensive_string_children() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Footer: FC<{ value: any }> = ({ value }) => <footer>{String(value ?? '')}</footer>;
+export const View = () => <Footer value={<span className="muted">ready</span>} />;
+"#,
+    ));
+
+    assert!(output.contains("value:(target,slotProps,owner)=>"), "{output}");
+    assert!(
+        output.contains("_$compiledValueFactory(_$compiledPropsGet(__rue_props,\"value\")??"),
+        "{output}"
+    );
+    assert!(!output.contains("String(_$compiledPropsGet(__rue_props,\"value\")"), "{output}");
+}
+
+#[test]
+fn preserves_aliased_member_component_props_through_defensive_string_children() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Icon: FC = () => <svg data-icon="true" />;
+const Row: FC<{ rowArg0: any }> = ({ rowArg0 }) => {
+  const option = rowArg0;
+  return <span>{String(option.icon ?? 'fallback')}</span>;
+};
+export const View = () => <Row rowArg0={{ icon: <Icon /> }} />;
+"#,
+    ));
+
+    assert!(output.contains("_$compiledValueFactory("), "{output}");
+    assert!(!output.contains("String(option.icon"), "{output}");
+}
+
+#[test]
+fn preserves_aliased_member_component_props_in_compiled_list_row_updates() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Icon: FC = () => <svg data-icon="true" />;
+const Root: FC<{ options: any[] }> = ({ options }) => (
+  <div>
+    {options.map((option, index) => (
+      <button key={index}>
+        <span>{String(option.icon)}</span>
+      </button>
+    ))}
+  </div>
+);
+export const View = () => <Root options={[{ icon: <Icon /> }]} />;
+"#,
+    ));
+
+    assert!(output.contains("_$compiledValueFactory("), "{output}");
+    assert!(!output.contains("String(option.icon)"), "{output}");
+    assert!(!output.contains("String(_$rowItem"), "{output}");
+}
+
+#[test]
+fn preserves_aliased_member_component_props_in_nested_compiled_row_updates() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Icon: FC = () => <svg data-icon="true" />;
+const Root: FC<{ options: any[] }> = ({ options }) => {
+  const Row: FC<{ rowArg0: any; rowArg1: number }> = ({ rowArg0, rowArg1 }) => {
+    const option = rowArg0;
+    return <button key={rowArg1}><span>{String(option.icon)}</span></button>;
+  };
+  return <div>{options.map((rowArg0, rowArg1) => <Row rowArg0={rowArg0} rowArg1={rowArg1} />)}</div>;
+};
+export const View = () => <Root options={[{ icon: <Icon /> }]} />;
+"#,
+    ));
+
+    assert!(output.contains("_$compiledValueFactory("), "{output}");
+    assert!(
+        !output.contains("String(_$compiledPropsGet(__rue_props,\"rowArg0\").icon)"),
+        "{output}"
+    );
+    assert!(!output.contains("_$compiledScalarText"), "{output}");
+}
+
+#[test]
+fn preserves_aliased_member_component_props_in_direct_children() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Icon: FC = () => <svg data-icon="true" />;
+const Root: FC = () => {
+  const Group: FC<{ rowArg0: any }> = ({ rowArg0 }) => {
+    const Row: FC<{ rowArg0: any }> = ({ rowArg0 }) => {
+      const option = rowArg0;
+      return (
+        <button>
+          <span>
+            <span className="label">{option.label}</span>
+            {option.description !== undefined ? <span>{option.description}</span> : null}
+          </span>
+        </button>
+      );
+    };
+    const group = rowArg0;
+    return <div>{group.options.map((rowArg0: any) => <Row rowArg0={rowArg0} />)}</div>;
+  };
+  return <Group rowArg0={{ options: [{ label: <Icon /> }] }} />;
+};
+export const View = () => <Root />;
+"#,
+    ));
+
+    assert!(output.contains("_$compiledValueFactory("), "{output}");
+    assert!(!output.contains("_$compiledText("), "{output}");
+}
+
+#[test]
+fn preserves_jsx_props_through_defensive_string_children_with_slots_parameter() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Panel: FC<{ extra: any }> = ({ extra }, slots = {}) => (
+  <section>
+    {extra != null || slots.extra != null ? (
+      <div>{slots.extra ? <>{slots.extra}</> : <>{String(extra ?? '')}</>}</div>
+    ) : null}
+  </section>
+);
+export const View = () => <Panel extra={<button>open</button>} />;
+"#,
+    ));
+
+    assert!(output.contains("extra:(target,slotProps,owner)=>"), "{output}");
+    assert!(
+        output.contains("_$compiledValueFactory(_$compiledPropsGet(__rue_props,\"extra\")??"),
+        "{output}"
+    );
+    assert!(!output.contains("String(_$compiledPropsGet(__rue_props,\"extra\")"), "{output}");
+}
+
+#[test]
+fn mounts_nullish_renderable_component_props_as_slots() {
+    let output = compact(&transform_module(
+        r#"
+import type { FC } from '@rue-js/rue';
+const Icon: FC = () => <svg data-icon="true" />;
+const Preview: FC<{ icon?: any }> = ({ icon }) => <span>{icon ?? ''}</span>;
+export const View = () => <Preview icon={<Icon />} />;
+"#,
+    ));
+    assert!(
+        output.contains("_$compiledValueFactory(_$compiledPropsGet(__rue_props,\"icon\")??'')"),
+        "{output}"
+    );
+    assert!(!output.contains("_$settextContent"), "{output}");
 }
 
 #[test]

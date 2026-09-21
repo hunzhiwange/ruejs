@@ -3,7 +3,7 @@ Hero 模块概述
 - 汇总首屏展示组件的公开类型、渲染入口和局部工具逻辑。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
-import type { FC } from '@rue-js/rue'
+import { Component, type FC } from '@rue-js/rue'
 
 /** HeroTone 语义色类型。 */
 export type HeroTone =
@@ -326,7 +326,6 @@ const Hero: FC<HeroProps> = ({
   overlay,
   ...rest
 }) => {
-  const Component = as as any
   const backgroundStyle = resolveHeroBackgroundStyle({
     backgroundImage,
     backgroundPosition,
@@ -335,8 +334,9 @@ const Hero: FC<HeroProps> = ({
   })
   const overlayProps = resolveOverlayProps(overlay)
 
-  return Component === 'div' ? (
-    <div
+  return (
+    <Component
+      is={as}
       {...rest}
       style={mergeStyle(style, backgroundStyle)}
       className={joinClassName(
@@ -348,51 +348,7 @@ const Hero: FC<HeroProps> = ({
     >
       {overlayProps ? <Overlay {...overlayProps} /> : null}
       {children}
-    </div>
-  ) : Component === 'span' ? (
-    <span
-      {...rest}
-      style={mergeStyle(style, backgroundStyle)}
-      className={joinClassName(
-        'hero',
-        tone !== 'default' ? heroToneClassMap[tone] : undefined,
-        fullHeight ? heroSizeClassMap.screen : size ? heroSizeClassMap[size] : undefined,
-        className,
-      )}
-    >
-      {overlayProps ? <Overlay {...overlayProps} /> : null}
-      {children}
-    </span>
-  ) : Component === 'h1' ? (
-    <h1
-      {...rest}
-      style={mergeStyle(style, backgroundStyle)}
-      className={joinClassName(
-        'hero',
-        tone !== 'default' ? heroToneClassMap[tone] : undefined,
-        fullHeight ? heroSizeClassMap.screen : size ? heroSizeClassMap[size] : undefined,
-        className,
-      )}
-    >
-      {overlayProps ? <Overlay {...overlayProps} /> : null}
-      {children}
-    </h1>
-  ) : Component === 'p' ? (
-    <p
-      {...rest}
-      style={mergeStyle(style, backgroundStyle)}
-      className={joinClassName(
-        'hero',
-        tone !== 'default' ? heroToneClassMap[tone] : undefined,
-        fullHeight ? heroSizeClassMap.screen : size ? heroSizeClassMap[size] : undefined,
-        className,
-      )}
-    >
-      {overlayProps ? <Overlay {...overlayProps} /> : null}
-      {children}
-    </p>
-  ) : (
-    <></>
+    </Component>
   )
 }
 

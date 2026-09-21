@@ -4,7 +4,7 @@ Space 模块概述
 - 汇总间距组件的公开类型、渲染入口和局部工具逻辑。
 - 导出注释用于 API 文档生成，内部注释标明状态归一化、样式映射与 DOM 交互边界。
 */
-import { createContext, useContext, type FC } from '@rue-js/rue'
+import { createContext, onMounted, useContext, type FC } from '@rue-js/rue'
 
 /** SpaceDirection 位置或方向类型。 */
 export type SpaceDirection = 'horizontal' | 'vertical'
@@ -31,6 +31,10 @@ export interface SpaceProps {
   wrap?: boolean
   /** block 配置项。 */
   block?: boolean
+  /** 在相邻子项之间插入的分隔内容。 */
+  separator?: any | (() => any)
+  /** separator 的兼容别名。 */
+  split?: any | (() => any)
   /** 根节点附加类名。 */
   className?: string
   /** 根节点内联样式。 */
@@ -76,7 +80,7 @@ export interface SpaceItemProps {
   itemClassName?: string
   itemStyle?: Record<string, any>
   showSeparator?: boolean
-  separator?: string | number
+  separator?: any | (() => any)
   separatorGap?: string
 }
 
@@ -210,9 +214,11 @@ const RenderSpaceSeparator = ({
   arg0: separator,
   arg1: direction,
 }: {
-  arg0: string | number
+  arg0: any | (() => any)
   arg1: SpaceDirection
 }) => {
+  const content = typeof separator === 'function' ? separator() : separator
+
   return (
     <span
       aria-hidden="true"
@@ -221,10 +227,19 @@ const RenderSpaceSeparator = ({
         direction === 'vertical' && 'leading-none',
       )}
     >
-      {String(separator)}
+      {typeof content === 'string' || typeof content === 'number' ? String(content) : content}
     </span>
   )
 }
+
+const SpaceSeparatorTemplate: FC<{ separator: any | (() => any); direction: SpaceDirection }> = ({
+  separator,
+  direction,
+}) => (
+  <span data-rue-space-separator-template="" style={{ display: 'none' }}>
+    <RenderSpaceSeparator arg0={separator} arg1={direction} />
+  </span>
+)
 
 /** Space Item 的内部工具函数。 */
 export const SpaceItem: FC<SpaceItemProps> = ({
@@ -314,6 +329,8 @@ const SpaceRoot: FC<SpaceProps> = ({
   align,
   wrap = false,
   block = false,
+  separator,
+  split,
   className,
   style,
   itemClassName,
@@ -325,10 +342,28 @@ const SpaceRoot: FC<SpaceProps> = ({
   const resolvedDirection = resolveDirection(orientation, direction, vertical)
   const resolvedAlign = align ?? (resolvedDirection === 'horizontal' ? 'center' : undefined)
   const gap = resolveGap(size)
+  const resolvedSeparator = separator ?? split
+  let rootElement: HTMLElement | null = null
+
+  onMounted(() => {
+    if (!rootElement || resolvedSeparator == null) return
+    const template = rootElement.querySelector(':scope > [data-rue-space-separator-template]')
+    const separatorNode = template?.firstElementChild
+    if (!template || !separatorNode) return
+
+    const items = Array.from(rootElement.children).filter(child => child !== template)
+    items.slice(1).forEach(item => {
+      rootElement?.insertBefore(separatorNode.cloneNode(true), item)
+    })
+    template.remove()
+  })
 
   return Component === 'div' ? (
     <div
       {...rest}
+      ref={(element: HTMLDivElement | null) => {
+        rootElement = element
+      }}
       className={mergeClassNames('rue-space min-w-0 max-w-full', className)}
       style={mergeStyle(
         {
@@ -348,10 +383,16 @@ const SpaceRoot: FC<SpaceProps> = ({
       aria-orientation={resolvedDirection}
     >
       {children}
+      {resolvedSeparator != null ? (
+        <SpaceSeparatorTemplate separator={resolvedSeparator} direction={resolvedDirection} />
+      ) : null}
     </div>
   ) : Component === 'span' ? (
     <span
       {...rest}
+      ref={(element: HTMLSpanElement | null) => {
+        rootElement = element
+      }}
       className={mergeClassNames('rue-space min-w-0 max-w-full', className)}
       style={mergeStyle(
         {
@@ -371,10 +412,16 @@ const SpaceRoot: FC<SpaceProps> = ({
       aria-orientation={resolvedDirection}
     >
       {children}
+      {resolvedSeparator != null ? (
+        <SpaceSeparatorTemplate separator={resolvedSeparator} direction={resolvedDirection} />
+      ) : null}
     </span>
   ) : Component === 'section' ? (
     <section
       {...rest}
+      ref={(element: HTMLElement | null) => {
+        rootElement = element
+      }}
       className={mergeClassNames('rue-space min-w-0 max-w-full', className)}
       style={mergeStyle(
         {
@@ -394,6 +441,9 @@ const SpaceRoot: FC<SpaceProps> = ({
       aria-orientation={resolvedDirection}
     >
       {children}
+      {resolvedSeparator != null ? (
+        <SpaceSeparatorTemplate separator={resolvedSeparator} direction={resolvedDirection} />
+      ) : null}
     </section>
   ) : (
     <></>

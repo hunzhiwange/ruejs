@@ -47,7 +47,13 @@ export default Children;
     assert_eq!(normalized.matches("_$template(").count(), 4, "{out}");
     assert_eq!(normalized.matches(".content.cloneNode(true)").count(), 4, "{out}");
     assert_eq!(normalized.matches("vapor(").count(), 0, "{out}");
-    assert_eq!(normalized.matches("_$compiledText(").count(), 1, "{out}");
+    assert_eq!(
+        normalized
+            .matches("()=>_$compiledValueFactory(_$compiledPropsGet(props, \"title\"))")
+            .count(),
+        1,
+        "{out}"
+    );
     assert_eq!(
         normalized.matches("_$compiledRoot(").count()
             + normalized.matches("_$compiledStaticRoot(").count(),

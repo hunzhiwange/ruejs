@@ -75,6 +75,7 @@ describe('Fieldset', () => {
       expect(root.hasAttribute('aria-invalid')).toBe(false)
       expect(hint.tagName.toLowerCase()).toBe('p')
       expect(hint.classList.contains('label')).toBe(true)
+      expect(hint.classList.contains('block')).toBe(true)
       expect(hint.classList.contains('whitespace-normal')).toBe(true)
       expect(hint.classList.contains('text-xs')).toBe(true)
     })
@@ -159,6 +160,35 @@ describe('Fieldset', () => {
       expect(item.textContent).toContain('Please verify first')
       expect(item.querySelector('.text-error')).toBeTruthy()
       expect(input).toBeTruthy()
+    })
+  })
+
+  it('mounts JSX values passed through structured control and actions props', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+
+    mountTestApp(container, () =>
+      render(
+        <Fieldset
+          legend={<span data-testid="legend-content">Project details</span>}
+          items={[
+            {
+              key: 'name',
+              label: 'Project name',
+              control: <input data-testid="structured-input" placeholder="Project name" />,
+            },
+          ]}
+          actions={<button data-testid="structured-action">Save</button>}
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(container.querySelector('[data-testid="legend-content"]')).toBeTruthy()
+      expect(container.querySelector('[data-testid="structured-input"]')).toBeTruthy()
+      expect(container.querySelector('[data-testid="structured-action"]')).toBeTruthy()
+      expect(container.querySelector('fieldset')?.hasAttribute('actions')).toBe(false)
     })
   })
 })

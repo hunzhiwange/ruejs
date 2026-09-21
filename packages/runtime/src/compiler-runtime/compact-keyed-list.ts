@@ -82,7 +82,7 @@ export interface CompactCompiledKeyedRow<T, K = unknown> {
   node: Node
   last?: Node
   memo?: CompactListMemo
-  patch(item: T, index: number): void
+  patch(item: T, index: number, memoChanged?: boolean): void
   dispose(): void
 }
 
@@ -93,7 +93,7 @@ export interface CompactCompiledKeyedSingleRow<T, K = unknown> {
   index: number
   node: Node
   memo?: CompactListMemo
-  patch(item: T, index: number): void
+  patch(item: T, index: number, memoChanged?: boolean): void
   dispose(): void
 }
 
@@ -119,6 +119,7 @@ export type CompactCompiledKeyedSingleMount<T> = (
 // Keep the capability out of the exported mount result type.
 const batchPlacement = Symbol('rue.batchPlacement')
 const directCleanups = Symbol('rue.directCleanups')
+const directPatch = Symbol('rue.directPatch')
 const ownerlessRowOwner = 0
 let initializingRowOwner: ReturnType<typeof createOwner> | undefined
 
@@ -228,12 +229,33 @@ const moveRange = (
   if (row.node.parentNode === parent && last.parentNode === parent && last.nextSibling === before) {
     return
   }
+  const active = row.node.ownerDocument?.activeElement
+  let containsActive = false
+  let activeCursor: Node | null = row.node
+  while (active != null && activeCursor != null) {
+    if (activeCursor === active || activeCursor.contains(active)) {
+      containsActive = true
+      break
+    }
+    if (activeCursor === last) break
+    activeCursor = activeCursor.nextSibling
+  }
+  const input = containsActive ? (active as HTMLInputElement) : undefined
+  const selectionStart = input?.selectionStart ?? null
+  const selectionEnd = input?.selectionEnd ?? null
+  const selectionDirection = input?.selectionDirection ?? null
   const after = last.nextSibling
   let cursor: Node | null = row.node
   while (cursor !== after) {
     const next: Node | null = cursor!.nextSibling
     insertBefore(parent, cursor!, before)
     cursor = next
+  }
+  if (input instanceof HTMLElement && input.ownerDocument.activeElement !== input) {
+    input.focus()
+    if (selectionStart != null && selectionEnd != null && 'setSelectionRange' in input) {
+      input.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? undefined)
+    }
   }
 }
 
@@ -295,15 +317,16 @@ const refreshReusedRow = <T, K>(
   const itemChanged = !Object.is(row.item, item)
   const indexChanged = row.index !== index
   if (itemChanged || (rowUsesIndex && indexChanged)) {
-    row.patch(item, index)
-    row.memo?.refresh()
+    row.patch(item, index, false)
+    if (!(row as CompactCompiledKeyedRow<T, K> & { [directPatch]?: true })[directPatch])
+      row.memo?.refresh()
     row.item = item
     row.index = index
     return
   }
   row.item = item
   row.index = index
-  if (row.memo?.refresh()) row.patch(item, index)
+  if (row.memo?.refresh()) row.patch(item, index, true)
 }
 
 const hasContiguousRowsBefore = <T, K>(
@@ -813,6 +836,7 @@ export const _$mountCompiledKeyedSingleRowDirect = <T>(
           throwCollectedErrors(errors)
         },
         [directCleanups]: cleanups,
+        [directPatch]: true,
         [batchPlacement]: target?.batch ? parent : undefined,
       }
     } catch (error) {
@@ -886,6 +910,7 @@ export const _$mountCompiledKeyedSingleRowDirect = <T>(
         if (errors !== undefined) throwCollectedErrors(errors)
       },
       [directCleanups]: cleanups,
+      [directPatch]: true,
       [batchPlacement]: target?.batch ? parent : undefined,
     }
   } catch (error) {

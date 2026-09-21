@@ -2,7 +2,7 @@ import { useThemeRuntime } from '../index'
 import { ThemeProvider } from '../index'
 import { mountTestApp } from '../../__tests__/app-lifecycle'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ref, render, setReactiveScheduling } from '@rue-js/rue'
+import { computed, ref, render, setReactiveScheduling } from '@rue-js/rue'
 import ThemeController, { ConfigProvider, theme as rueTheme, type ThemeDesignToken } from '../index'
 import { mountContainer, waitForContent } from '../../../../../runtime/__tests__/page-test-utils'
 
@@ -259,6 +259,153 @@ describe('ThemeController', () => {
       expect(style?.textContent).toContain('--radius-box: 2rem')
       expect(button?.textContent).toBe('#ff8800')
       expect(card?.textContent).toBe('2rem')
+    })
+  })
+
+  it('updates scoped component token CSS when a nested token changes', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const radius = ref('1.25rem')
+
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider
+          data-testid="reactive-component-token-scope"
+          components={{
+            Card: {
+              selector: '.demo-card',
+              radius: { box: radius.value },
+            },
+          }}
+        >
+          <div className="demo-card" />
+        </ThemeProvider>,
+        container,
+      ),
+    )
+
+    const componentStyle = () =>
+      container.querySelector(
+        '[data-testid="reactive-component-token-scope"] style[data-rue-theme-components]',
+      ) as HTMLStyleElement
+
+    await waitForContent(() => {
+      expect(componentStyle()?.textContent).toContain('--radius-box: 1.25rem')
+    })
+
+    radius.value = '2.5rem'
+
+    await waitForContent(() => {
+      expect(componentStyle()?.textContent).toContain('--radius-box: 2.5rem')
+      expect(componentStyle()?.textContent).not.toContain('--radius-box: 1.25rem')
+      const scope = container.querySelector(
+        '[data-testid="reactive-component-token-scope"]',
+      ) as HTMLElement
+      expect(componentStyle()?.getAttribute('data-rue-theme-components')).toBe(
+        scope.dataset.rueThemeScope,
+      )
+      expect(componentStyle()?.textContent).toContain(
+        `[data-rue-theme-scope="${scope.dataset.rueThemeScope}"]`,
+      )
+    })
+
+    radius.value = '1.2rem'
+
+    await waitForContent(() => {
+      const scope = container.querySelector(
+        '[data-testid="reactive-component-token-scope"]',
+      ) as HTMLElement
+      expect(componentStyle()?.getAttribute('data-rue-theme-components')).toBe(
+        scope.dataset.rueThemeScope,
+      )
+      expect(componentStyle()?.textContent).toContain('--radius-box: 1.2rem')
+      expect(componentStyle()?.textContent).toContain(
+        `[data-rue-theme-scope="${scope.dataset.rueThemeScope}"]`,
+      )
+    })
+  })
+
+  it('keeps the provider scope stable when a computed component config changes', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const radius = ref('1.25rem')
+
+    const ComputedComponentTokens = () => {
+      const components = computed(() => ({
+        Card: {
+          selector: '.demo-card',
+          radius: { box: radius.value },
+        },
+      }))
+
+      return (
+        <ThemeProvider data-testid="computed-component-token-scope" components={components.get()}>
+          <div className="demo-card" data-testid="computed-component-token-card" />
+        </ThemeProvider>
+      )
+    }
+
+    mountTestApp(container, () => render(<ComputedComponentTokens />, container))
+
+    const scope = container.querySelector(
+      '[data-testid="computed-component-token-scope"]',
+    ) as HTMLElement
+    const card = container.querySelector(
+      '[data-testid="computed-component-token-card"]',
+    ) as HTMLElement
+    const initialScopeId = scope.dataset.rueThemeScope
+
+    await waitForContent(() => {
+      expect(getComputedStyle(card).getPropertyValue('--radius-box')).toBe('1.25rem')
+    })
+
+    radius.value = '2.5rem'
+
+    await waitForContent(() => {
+      const style = scope.querySelector('style[data-rue-theme-components]') as HTMLStyleElement
+      expect(scope.dataset.rueThemeScope).toBe(initialScopeId)
+      expect(style.getAttribute('data-rue-theme-components')).toBe(initialScopeId)
+      expect(style.textContent).toContain(
+        `[data-rue-theme-scope="${initialScopeId}"] :where(.demo-card)`,
+      )
+      expect(getComputedStyle(card).getPropertyValue('--radius-box')).toBe('2.5rem')
+    })
+  })
+
+  it('preserves render-prop content while scoped component tokens update', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    const radius = ref('1.25rem')
+
+    mountTestApp(container, () =>
+      render(
+        <ThemeProvider
+          data-testid="stable-themed-scope"
+          components={{ Card: { selector: '.demo-card', radius: { box: radius.value } } }}
+          render={runtime => (
+            <div data-testid="stable-themed-content">{runtime.components.Card.radius.box}</div>
+          )}
+        />,
+        container,
+      ),
+    )
+
+    await waitForContent(() => {
+      expect(container.querySelector('[data-testid="stable-themed-content"]')?.textContent).toBe(
+        '1.25rem',
+      )
+    })
+    const initialContent = container.querySelector('[data-testid="stable-themed-content"]')
+    const initialScope = container.querySelector('[data-testid="stable-themed-scope"]')
+
+    radius.value = '2.5rem'
+
+    await waitForContent(() => {
+      const currentContent = container.querySelector('[data-testid="stable-themed-content"]')
+      const currentScope = container.querySelector('[data-testid="stable-themed-scope"]')
+      expect(currentScope).toBe(initialScope)
+      expect(currentContent).toBe(initialContent)
+      expect(currentContent?.textContent).toBe('2.5rem')
     })
   })
 

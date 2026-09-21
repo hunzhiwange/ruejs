@@ -137,6 +137,7 @@ describe('Range', () => {
 
     input.dispatchEvent(new Event('change', { bubbles: true }))
 
+    expect(input.value).toBe('70')
     expect(handleValueChange).toHaveBeenCalledTimes(1)
     expect(handleValueChange.mock.calls[0][0]).toBe(70)
     expect(handleValueCommit).toHaveBeenCalledTimes(1)

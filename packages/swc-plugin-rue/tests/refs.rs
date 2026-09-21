@@ -104,7 +104,8 @@ export default Refs;
     assert!(normalized.contains("__ref1.current = _el1"), "{normalized}");
     assert!(normalized.contains("__ref1.current = null"), "{normalized}");
     assert!(normalized.contains("_$compiledRoot"), "{normalized}");
-    assert_eq!(normalized.matches(".addEventListener(").count(), 6);
-    assert_eq!(normalized.matches(".removeEventListener(").count(), 6);
+    assert_eq!(normalized.matches(".addEventListener(").count(), 1);
+    assert_eq!(normalized.matches(".removeEventListener(").count(), 1);
+    assert!(normalized.contains("onOwnerCleanup"), "{normalized}");
     assert!(!normalized.contains("vapor("), "{normalized}");
 }

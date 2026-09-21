@@ -106,6 +106,7 @@ describe('Filter', () => {
       expect(open.type).toBe('radio')
       expect(open.name).toMatch(/^rue-filter-/)
       expect(open.className.includes('undefined')).toBe(false)
+      expect(root.classList.contains('filter')).toBe(true)
       expect(open.classList.contains('btn-active')).toBe(true)
       expect(root.tagName.toLowerCase()).toBe('div')
       expect(open.checked).toBe(true)
@@ -171,6 +172,52 @@ describe('Filter', () => {
       expect(open.checked).toBe(false)
       expect(open.classList.contains('btn-active')).toBe(false)
       expect(changes[changes.length - 1]).toBe(undefined)
+    })
+  })
+
+  it('syncs a controlled radio selection cleared by its parent', async () => {
+    const container = mountContainer()
+    resetActiveRuntime()
+    let clearActive = () => {}
+    let readActive = (): string | undefined => undefined
+
+    const ControlledFilter = () => {
+      const active = ref<string | undefined>('open')
+      clearActive = () => (active.value = undefined)
+      readActive = () => active.value
+
+      return (
+        <Filter
+          as="div"
+          items={[
+            { label: 'Open', value: 'open' },
+            { label: 'Closed', value: 'closed' },
+          ]}
+          value={active.value}
+          onChange={value => {
+            active.value = Array.isArray(value)
+              ? String(value[0] ?? '') || undefined
+              : (value as string | undefined)
+          }}
+        />
+      )
+    }
+
+    mountTestApp(container, () => render(<ControlledFilter />, container))
+
+    const open = container.querySelector('[aria-label="Open"]') as HTMLInputElement
+
+    await waitForContent(() => {
+      expect(open.checked).toBe(true)
+      expect(open.classList.contains('btn-active')).toBe(true)
+      expect(readActive()).toBe('open')
+    })
+
+    clearActive()
+
+    await waitForContent(() => {
+      expect(open.checked).toBe(false)
+      expect(open.classList.contains('btn-active')).toBe(false)
     })
   })
 

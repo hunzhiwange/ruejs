@@ -308,13 +308,12 @@ export default HelloWorld;
     std::fs::create_dir_all("target/vapor_outputs").ok();
     std::fs::write("target/vapor_outputs/spec33.out.js", strip_marker(&out)).ok();
     let normalized = normalize(&strip_marker(&out));
-    assert!(normalized.contains("themes.map((name)=>_$compiledRoot("));
+    assert!(normalized.contains("_$reconcileKeyed("));
+    assert!(normalized.contains("_$mountCompiledKeyedRow("));
     assert!(normalized.contains("_$createDocumentFragment()"));
     assert!(!normalized.contains(concat!("direct", "Root:")));
-    assert!(normalized.contains("_$setValue(_el4, name)"));
-    assert!(
-        normalized.contains("const __slot = labels[name] ? `${labels[name]} (${name})` : name")
-    );
-    assert!(normalized.contains("renderAnchor(__slot, _el4, _list1)"));
-    assert!(normalized.contains("_$createComponent(ThemePicker, ()=>({"));
+    assert!(normalized.contains("_$setValue(_el4, _$rowItem1.get())"));
+    assert!(normalized.contains("()=>labels[_$rowItem1.get()] ? _$compiledValueFactory("));
+    assert!(normalized.contains("_$mountCompiledSlotAt"));
+    assert!(normalized.contains("_$compiledComponent(ThemePicker, ()=>({"));
 }

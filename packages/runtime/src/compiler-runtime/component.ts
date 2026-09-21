@@ -37,7 +37,7 @@ export type CompiledComponentFactory<Props = Record<string, unknown>> = (
   props: Props,
   slots: CompiledSlots,
   owner: CompiledOwner,
-) => BlockRecord
+) => BlockRecord | null | undefined
 
 /** Setup runs once; explicit props operations subscribe at the key level. */
 export const _$mountCompiledComponent = <Props extends object>(
@@ -87,7 +87,9 @@ export const _$mountCompiledComponent = <Props extends object>(
           const slots = createCompiledProps(untrack(readSlots))
           onOwnerCleanup(slots.dispose)
           try {
-            block = factory(props.props as Props, slots.props, owner)
+            block =
+              factory(props.props as Props, slots.props, owner) ??
+              _$compiledRoot(() => [null, null])
             runOwnerLifecycle(owner, 'beforeMount')
             block.__rue_compiled_mount(parent)
             runOwnerLifecycle(owner, 'mounted')
