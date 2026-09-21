@@ -1,6 +1,6 @@
 {
   "name": "@rue-js/server-renderer",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "description": "Server renderer for Rue SSR and static generation.",
   "keywords": [
     "rue",
