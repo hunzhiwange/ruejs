@@ -228,6 +228,13 @@ impl VisitMut for ScalarListEffectLowerer {
 /// single node. Applying this lowering at module scope turns unrelated fragment
 /// roots into scalar roots and silently drops every node after the first one.
 struct ScalarListRootPass;
+#[derive(Default)]
+struct PathReadDetector(bool);
+impl Visit for PathReadDetector {
+    fn visit_ident(&mut self, ident: &Ident) {
+        self.0 |= ident.sym.as_ref() == "_$compiledReadPath";
+    }
+}
 impl VisitMut for ScalarListRootPass {
     fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
         call.visit_mut_children_with(self);
@@ -243,6 +250,14 @@ impl VisitMut for ScalarListRootPass {
         }
 
         if range != crate::compiled_invariants::CompiledRootRangeProof::Single {
+            return;
+        }
+
+        // Path signals notify the general reactive runtime, not scalar
+        // subscriptions. Keep their list effects on the general path.
+        let mut path_read = PathReadDetector::default();
+        call.args.visit_with(&mut path_read);
+        if path_read.0 {
             return;
         }
 

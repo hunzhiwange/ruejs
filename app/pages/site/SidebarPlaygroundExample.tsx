@@ -377,6 +377,11 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/use-state-counter',
         },
         {
+          id: 'use-state-react-compatibility',
+          title: 'React useState 兼容性验证',
+          href: '/examples/use-state-react-compatibility',
+        },
+        {
           id: 'react-style-conditional',
           title: '条件渲染',
           href: '/examples/react-style-conditional',

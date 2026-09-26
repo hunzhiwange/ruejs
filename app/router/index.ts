@@ -242,6 +242,10 @@ const flatRoutes: RouteRecordRaw[] = [
     component: routeComponent(() => import('../pages/examples/UseStateCounter')),
   },
   {
+    path: '/examples/use-state-react-compatibility',
+    component: routeComponent(() => import('../pages/examples/UseStateReactCompatibility')),
+  },
+  {
     path: '/examples/basic-todo-list',
     component: routeComponent(() => import('../pages/examples/BasicTodoList')),
   },
