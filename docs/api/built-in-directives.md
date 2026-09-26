@@ -292,18 +292,6 @@ JSX 等价写法：
 
 完整交互示例见 [`v-on / r-on` 指令页面](/jsx/v-on-r-on)。
 
-## `v-bind` {#v-bind}
-
-在 Rue TSX 中，动态属性通常直接使用 JSX 表达式或展开语法，不需要额外的 `v-bind`。
-
-```tsx
-<a href={linkHref.value}>查看详情</a>
-<button {...{ [dynamicKey.value]: dynamicValue.value }}>点击</button>
-<div className={isActive.value ? 'active' : ''} />
-<div style={{ color: 'red', fontSize: `${size.value}px` }} />
-<ChildComponent {...props} />
-```
-
 ## `v-model` / `r-model` {#v-model}
 
 在原生表单元素或组件上创建双向绑定。原生输入会被编译为对应的 `value` / `checked` 与输入事件；组件会被编译为 `modelValue` / `onUpdateModelValue` 或带参数的 prop 组合。
@@ -492,7 +480,6 @@ Rue 使用编译后的 JSX/TSX 运行，通常不需要 `v-cloak`。如果应用
 | `v-else` / `r-else`       | `<div v-else>Fallback</div>`                       | 三元表达式的兜底分支                                              |
 | `v-for` / `r-for`         | `<li v-for="item in items.value" key={item.id} />` | `items.value.map(item => <li key={item.id} />)`                   |
 | `v-on` / `r-on`           | `<button v-on:click="save" />`                     | `<button onClick={save} />`                                       |
-| `v-bind`                  | 直接使用 JSX 表达式                                | `<a href={url.value} />`                                          |
 | `v-model` / `r-model`     | `<input v-model={text.value} />`                   | `value` + `onInput`                                               |
 | `v-slot`                  | 使用 JSX children / render props                   | `<Panel><div slot="header" /></Panel>`                            |
 | `v-pre` / `r-pre`         | `<div v-pre><span v-if={raw} /></div>`             | 不参与 Rue 指令改写                                               |

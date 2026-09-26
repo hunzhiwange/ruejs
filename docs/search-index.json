@@ -3373,39 +3373,6 @@
       "id": "api/built-in-directives:48",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
-      "href": "/api/api/built-in-directives#v-bind",
-      "title": "内置指令",
-      "sectionTitle": "v-bind",
-      "type": "heading",
-      "text": "v-bind",
-      "searchText": "内置指令 v-bind v-bind api/built-in-directives"
-    },
-    {
-      "id": "api/built-in-directives:49",
-      "docId": "api/built-in-directives",
-      "route": "/api/api/built-in-directives",
-      "href": "/api/api/built-in-directives#v-bind",
-      "title": "内置指令",
-      "sectionTitle": "v-bind",
-      "type": "paragraph",
-      "text": "在 Rue TSX 中，动态属性通常直接使用 JSX 表达式或展开语法，不需要额外的 v-bind。",
-      "searchText": "内置指令 v-bind 在 rue tsx 中，动态属性通常直接使用 jsx 表达式或展开语法，不需要额外的 v-bind。 api/built-in-directives"
-    },
-    {
-      "id": "api/built-in-directives:50",
-      "docId": "api/built-in-directives",
-      "route": "/api/api/built-in-directives",
-      "href": "/api/api/built-in-directives#v-bind",
-      "title": "内置指令",
-      "sectionTitle": "v-bind",
-      "type": "code",
-      "text": "<a href={linkHref.value}>查看详情</a> <button {...{ [dynamicKey.value]: dynamicValue.value }}>点击</button> <div className={isActive.value ? 'active' : ''} /> <div style={{ color: 'red', fontSize: `${size.value}px` }} /> <ChildComponent {...props} />",
-      "searchText": "内置指令 v-bind <a href={linkhref.value}>查看详情</a> <button {...{ [dynamickey.value]: dynamicvalue.value }}>点击</button> <div classname={isactive.value ? 'active' : ''} /> <div style={{ color: 'red', fontsize: `${size.value}px` }} /> <childcomponent {...props} /> api/built-in-directives"
-    },
-    {
-      "id": "api/built-in-directives:51",
-      "docId": "api/built-in-directives",
-      "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
       "title": "内置指令",
       "sectionTitle": "v-model / r-model",
@@ -3414,7 +3381,7 @@
       "searchText": "内置指令 v-model / r-model v-model / r-model api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:52",
+      "id": "api/built-in-directives:49",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3425,7 +3392,7 @@
       "searchText": "内置指令 v-model / r-model 在原生表单元素或组件上创建双向绑定。原生输入会被编译为对应的 value / checked 与输入事件；组件会被编译为 modelvalue / onupdatemodelvalue 或带参数的 prop 组合。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:53",
+      "id": "api/built-in-directives:50",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3436,7 +3403,7 @@
       "searchText": "内置指令 v-model / r-model import { ref } from '@rue-js/rue' const message = ref('rue model') const trimmed = ref(' keep edges tidy ') const age = ref<string | number>('18') const accepted = ref(false) const title = ref('guide draft') export default function demo() { return ( <section> <input v-model={message.value} /> <input v-model:trim={trimmed.value} /> <input type=\"number\" r-model:number={age.value} /> <input type=\"checkbox\" v-model={accepted.value} /> <modelfield v-model={title.value} /> </section> ) } api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:54",
+      "id": "api/built-in-directives:51",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3447,7 +3414,7 @@
       "searchText": "内置指令 v-model / r-model 带参数和多个 model： api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:55",
+      "id": "api/built-in-directives:52",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3458,7 +3425,7 @@
       "searchText": "内置指令 v-model / r-model <titlefield v-model:trim-title={articletitle.value} /> <usernameeditor v-model:trim-first-name={firstname.value} v-model:lazy-last-name={lastname.value} /> api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:56",
+      "id": "api/built-in-directives:53",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3469,7 +3436,7 @@
       "searchText": "内置指令 v-model / r-model jsx 等价写法： api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:57",
+      "id": "api/built-in-directives:54",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3480,7 +3447,7 @@
       "searchText": "内置指令 v-model / r-model <input value={message.value} oninput={event => { message.value = (event.target as htmlinputelement).value }} /> <modelfield modelvalue={title.value} onupdatemodelvalue={value => { title.value = value }} /> api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:58",
+      "id": "api/built-in-directives:55",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-model",
@@ -3491,7 +3458,7 @@
       "searchText": "内置指令 v-model / r-model 完整交互示例见 v-model / r-model 指令页面。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:59",
+      "id": "api/built-in-directives:56",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-slot",
@@ -3502,7 +3469,7 @@
       "searchText": "内置指令 v-slot v-slot api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:60",
+      "id": "api/built-in-directives:57",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-slot",
@@ -3513,7 +3480,7 @@
       "searchText": "内置指令 v-slot rue 组件通常通过 jsx 子元素、render props 或显式的 slot 属性表达插槽内容。对于 tsx，优先使用组件约定，而不是 v-slot。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:61",
+      "id": "api/built-in-directives:58",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-slot",
@@ -3524,7 +3491,7 @@
       "searchText": "内置指令 v-slot <panel> <h2 slot=\"header\">标题</h2> <p>默认内容</p> <button slot=\"footer\">确认</button> </panel> api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:62",
+      "id": "api/built-in-directives:59",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-slot",
@@ -3535,7 +3502,7 @@
       "searchText": "内置指令 v-slot 使用 render props 时： api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:63",
+      "id": "api/built-in-directives:60",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-slot",
@@ -3546,7 +3513,7 @@
       "searchText": "内置指令 v-slot <dataprovider>{({ data }) => <pre>{json.stringify(data, null, 2)}</pre>}</dataprovider> api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:64",
+      "id": "api/built-in-directives:61",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-pre",
@@ -3557,29 +3524,29 @@
       "searchText": "内置指令 v-pre / r-pre v-pre / r-pre api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:65",
+      "id": "api/built-in-directives:62",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-pre",
       "title": "内置指令",
       "sectionTitle": "v-pre / r-pre",
       "type": "paragraph",
-      "text": "跳过当前元素及其子树中的 Rue 指令改写，用于展示原始指令片段或保留一段不会参与指令编译的 JSX。",
-      "searchText": "内置指令 v-pre / r-pre 跳过当前元素及其子树中的 rue 指令改写，用于展示原始指令片段或保留一段不会参与指令编译的 jsx。 api/built-in-directives"
+      "text": "跳过当前元素及其子树中的 Rue 指令改写，并将 JSX 插值表达式按原始文本显示。例如 {phase.value} 显示为字面文本，不会读取变量或响应更新；HTML 元素仍正常渲染。表达式属性保留为文本，展开属性不会执行。",
+      "searchText": "内置指令 v-pre / r-pre 跳过当前元素及其子树中的 rue 指令改写，并将 jsx 插值表达式按原始文本显示。例如 {phase.value} 显示为字面文本，不会读取变量或响应更新；html 元素仍正常渲染。表达式属性保留为文本，展开属性不会执行。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:66",
+      "id": "api/built-in-directives:63",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-pre",
       "title": "内置指令",
       "sectionTitle": "v-pre / r-pre",
       "type": "code",
-      "text": "import { ref } from '@rue-js/rue' const phase = ref<'draft' | 'published'>('draft') const plan = ref<'pro' | 'basic'>('pro') export default function Demo() { return ( <section> <div v-pre> <span v-if={phase.value === 'draft'}>{'{{ phase.value }}'}</span> </div> <div r-pre> <span r-if={plan.value === 'pro'}>{'{{ plan.value }}'}</span> </div> </section> ) }",
-      "searchText": "内置指令 v-pre / r-pre import { ref } from '@rue-js/rue' const phase = ref<'draft' | 'published'>('draft') const plan = ref<'pro' | 'basic'>('pro') export default function demo() { return ( <section> <div v-pre> <span v-if={phase.value === 'draft'}>{'{{ phase.value }}'}</span> </div> <div r-pre> <span r-if={plan.value === 'pro'}>{'{{ plan.value }}'}</span> </div> </section> ) } api/built-in-directives"
+      "text": "import { ref } from '@rue-js/rue' const phase = ref<'draft' | 'published'>('draft') const plan = ref<'pro' | 'basic'>('pro') export default function Demo() { return ( <section> <div v-pre> <span v-if={phase.value === 'draft'}>{phase.value}</span> </div> <div r-pre> <span r-if={plan.value === 'pro'}>{plan.value}</span> </div> </section> ) }",
+      "searchText": "内置指令 v-pre / r-pre import { ref } from '@rue-js/rue' const phase = ref<'draft' | 'published'>('draft') const plan = ref<'pro' | 'basic'>('pro') export default function demo() { return ( <section> <div v-pre> <span v-if={phase.value === 'draft'}>{phase.value}</span> </div> <div r-pre> <span r-if={plan.value === 'pro'}>{plan.value}</span> </div> </section> ) } api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:67",
+      "id": "api/built-in-directives:64",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-pre",
@@ -3590,7 +3557,7 @@
       "searchText": "内置指令 v-pre / r-pre 完整交互示例见 v-pre / r-pre 指令页面。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:68",
+      "id": "api/built-in-directives:65",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-once",
@@ -3601,7 +3568,7 @@
       "searchText": "内置指令 v-once / r-once v-once / r-once api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:69",
+      "id": "api/built-in-directives:66",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-once",
@@ -3612,7 +3579,7 @@
       "searchText": "内置指令 v-once / r-once 只渲染一次当前元素内容，后续响应式更新不会重新计算这段子树。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:70",
+      "id": "api/built-in-directives:67",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-once",
@@ -3623,7 +3590,7 @@
       "searchText": "内置指令 v-once / r-once import { ref } from '@rue-js/rue' const message = ref('首次渲染') const count = ref(0) export default function demo() { return ( <section> <span v-once>{message.value}</span> <strong r-once>count: {count.value}</strong> </section> ) } api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:71",
+      "id": "api/built-in-directives:68",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-once",
@@ -3634,7 +3601,7 @@
       "searchText": "内置指令 v-once / r-once jsx 等价写法通常是把静态内容提升到组件外部，或根据场景使用缓存： api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:72",
+      "id": "api/built-in-directives:69",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-once",
@@ -3645,7 +3612,7 @@
       "searchText": "内置指令 v-once / r-once const staticmessage = <span>this will never change</span> api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:73",
+      "id": "api/built-in-directives:70",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-once",
@@ -3656,7 +3623,7 @@
       "searchText": "内置指令 v-once / r-once 完整交互示例见 v-once / r-once 指令页面。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:74",
+      "id": "api/built-in-directives:71",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-memo",
@@ -3667,7 +3634,7 @@
       "searchText": "内置指令 v-memo / r-memo v-memo / r-memo api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:75",
+      "id": "api/built-in-directives:72",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-memo",
@@ -3678,7 +3645,7 @@
       "searchText": "内置指令 v-memo / r-memo 根据依赖数组缓存一段子树。只有依赖变化时，这段子树才会重新计算。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:76",
+      "id": "api/built-in-directives:73",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-memo",
@@ -3689,7 +3656,7 @@
       "searchText": "内置指令 v-memo / r-memo import { ref } from '@rue-js/rue' const selectedid = ref(1) const refreshcount = ref(0) const rows = [ { id: 1, name: 'alpha' }, { id: 2, name: 'beta' }, ] export default function demo() { return ( <section> {rows.map(row => ( <div key={row.id} v-memo={[row.id === selectedid.value]}> <span>{row.name}</span> <span>selected: {row.id === selectedid.value ? 'yes' : 'no'}</span> <span>refresh: {refreshcount.value}</span> </div> ))} <p r-memo={[selectedid.value]}>selected id: {selectedid.value}</p> </section> ) } api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:77",
+      "id": "api/built-in-directives:74",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-memo",
@@ -3700,7 +3667,7 @@
       "searchText": "内置指令 v-memo / r-memo 在 keyed 列表中，将 key 与 memo 放在同一个行根元素上。缓存按 key 随行保留：换位只移动原 dom，依赖数组中的值通过 object.is 逐项比较，未变化时跳过行内更新。key 不需要重复放入 memo 依赖数组；更换 key 会创建新行。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:78",
+      "id": "api/built-in-directives:75",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-memo",
@@ -3711,7 +3678,7 @@
       "searchText": "内置指令 v-memo / r-memo 两种指令均支持 map 列表及 v-for / r-for 列表。应将需要触发行内容更新的值（例如 row.label、row.id === selectedid.value）放入依赖数组；空数组会固定该行内容，直到对应的 key 被移除。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:79",
+      "id": "api/built-in-directives:76",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-memo",
@@ -3722,7 +3689,7 @@
       "searchText": "内置指令 v-memo / r-memo 完整交互示例见 v-memo / r-memo 指令页面。 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:80",
+      "id": "api/built-in-directives:77",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-cloak",
@@ -3733,7 +3700,7 @@
       "searchText": "内置指令 v-cloak v-cloak api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:81",
+      "id": "api/built-in-directives:78",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-cloak",
@@ -3744,7 +3711,7 @@
       "searchText": "内置指令 v-cloak rue 使用编译后的 jsx/tsx 运行，通常不需要 v-cloak。如果应用有自定义的首屏隐藏需求，可以用普通属性和 css 自行控制： api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:82",
+      "id": "api/built-in-directives:79",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#v-cloak",
@@ -3755,7 +3722,7 @@
       "searchText": "内置指令 v-cloak <div data-cloak={hydrated.value ? undefined : ''}>{content.value}</div> api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:83",
+      "id": "api/built-in-directives:80",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#directive-reference",
@@ -3766,15 +3733,15 @@
       "searchText": "内置指令 指令速查 指令速查 api/built-in-directives"
     },
     {
-      "id": "api/built-in-directives:84",
+      "id": "api/built-in-directives:81",
       "docId": "api/built-in-directives",
       "route": "/api/api/built-in-directives",
       "href": "/api/api/built-in-directives#directive-reference",
       "title": "内置指令",
       "sectionTitle": "指令速查",
       "type": "table",
-      "text": "| 指令 | Rue TSX 写法 | JSX 等价写法 | | ------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- | | v-text / r-text | | {msg.value} | | v-html / r-html | | | | v-show / r-show | | | | v-if / r-if | OK | {ok.value ? OK : null} | | v-else-if / r-else-if | Pending | 三元表达式的中间分支 | | v-else / r-else | Fallback | 三元表达式的兜底分支 | | v-for / r-for | | items.value.map(item => ) | | v-on / r-on | | | | v-bind | 直接使用 JSX 表达式 | | | v-model / r-model | | value + onInput | | v-slot | 使用 JSX children / render props | | | v-pre / r-pre | | 不参与 Rue 指令改写 | | v-once / r-once | {msg.value} | 静态提升或缓存 | | v-memo / r-memo | | 根据依赖缓存子树 | | v-cloak | 通常不需要 | 自定义属性 + CSS |",
-      "searchText": "内置指令 指令速查 | 指令 | rue tsx 写法 | jsx 等价写法 | | ------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- | | v-text / r-text | | {msg.value} | | v-html / r-html | | | | v-show / r-show | | | | v-if / r-if | ok | {ok.value ? ok : null} | | v-else-if / r-else-if | pending | 三元表达式的中间分支 | | v-else / r-else | fallback | 三元表达式的兜底分支 | | v-for / r-for | | items.value.map(item => ) | | v-on / r-on | | | | v-bind | 直接使用 jsx 表达式 | | | v-model / r-model | | value + oninput | | v-slot | 使用 jsx children / render props | | | v-pre / r-pre | | 不参与 rue 指令改写 | | v-once / r-once | {msg.value} | 静态提升或缓存 | | v-memo / r-memo | | 根据依赖缓存子树 | | v-cloak | 通常不需要 | 自定义属性 + css | api/built-in-directives"
+      "text": "| 指令 | Rue TSX 写法 | JSX 等价写法 | | ------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- | | v-text / r-text | | {msg.value} | | v-html / r-html | | | | v-show / r-show | | | | v-if / r-if | OK | {ok.value ? OK : null} | | v-else-if / r-else-if | Pending | 三元表达式的中间分支 | | v-else / r-else | Fallback | 三元表达式的兜底分支 | | v-for / r-for | | items.value.map(item => ) | | v-on / r-on | | | | v-model / r-model | | value + onInput | | v-slot | 使用 JSX children / render props | | | v-pre / r-pre | | 不参与 Rue 指令改写 | | v-once / r-once | {msg.value} | 静态提升或缓存 | | v-memo / r-memo | | 根据依赖缓存子树 | | v-cloak | 通常不需要 | 自定义属性 + CSS |",
+      "searchText": "内置指令 指令速查 | 指令 | rue tsx 写法 | jsx 等价写法 | | ------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- | | v-text / r-text | | {msg.value} | | v-html / r-html | | | | v-show / r-show | | | | v-if / r-if | ok | {ok.value ? ok : null} | | v-else-if / r-else-if | pending | 三元表达式的中间分支 | | v-else / r-else | fallback | 三元表达式的兜底分支 | | v-for / r-for | | items.value.map(item => ) | | v-on / r-on | | | | v-model / r-model | | value + oninput | | v-slot | 使用 jsx children / render props | | | v-pre / r-pre | | 不参与 rue 指令改写 | | v-once / r-once | {msg.value} | 静态提升或缓存 | | v-memo / r-memo | | 根据依赖缓存子树 | | v-cloak | 通常不需要 | 自定义属性 + css | api/built-in-directives"
     },
     {
       "id": "api/built-in-special-attributes:0",
