@@ -2302,6 +2302,17 @@ impl VisitMut for ReactStateUsageRewriter<'_> {
 
     fn visit_mut_call_expr(&mut self, call: &mut CallExpr) {
         // Keep the original receiver for method calls; mutator lowering is a later pass.
+        // Read-only collection methods used by JSX lists must subscribe to the
+        // state path. Reading only the root signal misses in-place mutations.
+        if let Callee::Expr(callee) = &mut call.callee
+            && let Expr::Member(member) = callee.as_mut()
+            && matches!(&member.prop, MemberProp::Ident(name) if matches!(name.sym.as_ref(), "map" | "filter" | "flatMap"))
+            && let Some(read) = crate::state_path::lower_read(member.obj.as_ref(), |name| {
+                if self.is_shadowed(name) { None } else { self.bindings.get(name).cloned() }
+            })
+        {
+            member.obj = Box::new(read);
+        }
         let saved = self.suspend_path;
         self.suspend_path = true;
         call.callee.visit_mut_with(self);

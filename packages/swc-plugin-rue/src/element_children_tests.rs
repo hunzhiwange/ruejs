@@ -108,6 +108,20 @@ fn emits_inline_space_and_trims_block_text_children() {
 }
 
 #[test]
+fn expands_literal_jsx_child_arrays_in_source_order() {
+    let mut vt = new_vt();
+    let el = parse_jsx_element("<div>{[<span>A</span>, [null, <span>B</span>], label, , 0]}</div>");
+    let mut stmts = Vec::new();
+    emit_element_children(&mut vt, &crate::emit::ident("root"), &el.children, &mut stmts);
+
+    let out = compact(&emit_stmts(stmts));
+    assert!(out.find("\"A\"").unwrap() < out.find("\"B\"").unwrap(), "{out}");
+    assert!(out.contains("label"), "{out}");
+    assert!(out.contains("\"0\""), "{out}");
+    assert!(!out.contains("[null"), "{out}");
+}
+
+#[test]
 fn preserves_text_spacing_around_nested_elements() {
     let mut vt = new_vt();
     let el = parse_jsx_element(

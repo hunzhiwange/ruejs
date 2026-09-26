@@ -184,6 +184,9 @@ fn jsx_expr_to_slot_expr(vt: &mut VaporTransform, inner: &Expr) -> Option<Expr> 
     match inner {
         Expr::JSXElement(jsx_el) => Some(jsx_element_to_slot_expr(vt, jsx_el)),
         Expr::JSXFragment(frag) => Some(jsx_fragment_to_slot_expr(vt, frag)),
+        Expr::Array(array) => {
+            literal_array_fragment(array).map(|fragment| jsx_fragment_to_slot_expr(vt, &fragment))
+        }
         _ => None,
     }
 }
@@ -842,6 +845,7 @@ fn expr_returns_jsx_renderable(expr: &Expr) -> bool {
     let inner = crate::utils::unwrap_expr(expr);
     match inner {
         Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+        Expr::Array(array) => literal_array_is_closed(array),
         Expr::Cond(CondExpr { cons, alt, .. }) => {
             expr_returns_jsx_renderable(cons.as_ref()) || expr_returns_jsx_renderable(alt.as_ref())
         }
@@ -1485,6 +1489,9 @@ pub fn make_expr_for_slot(vt: &mut VaporTransform, inner: &Expr) -> Expr {
             log::debug("element_expr: slot JSXFragment");
             jsx_fragment_to_slot_expr(vt, frag)
         }
+        Expr::Array(array) => literal_array_fragment(array)
+            .map(|fragment| jsx_fragment_to_slot_expr(vt, &fragment))
+            .unwrap_or_else(|| inner.clone()),
         Expr::Cond(CondExpr { test, cons, alt, .. }) => {
             log::debug("element_expr: slot CondExpr");
             // 条件表达式：分支中若含 JSX，分别编译为 _$compiledRoot 片段
@@ -1589,6 +1596,7 @@ pub fn contains_jsx_in_expr(inner_top: &Expr) -> bool {
     // - 外层括号包裹的这些情况
     match inner_top {
         Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+        Expr::Array(array) => literal_array_is_closed(array),
         Expr::Cond(CondExpr { cons, alt, .. }) => {
             let cons_inner = crate::utils::unwrap_expr(cons.as_ref());
             let alt_inner = crate::utils::unwrap_expr(alt.as_ref());
@@ -1613,6 +1621,7 @@ pub fn contains_jsx_in_expr(inner_top: &Expr) -> bool {
             let inner = crate::utils::unwrap_expr(expr.as_ref());
             match inner {
                 Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+                Expr::Array(array) => literal_array_is_closed(array),
                 Expr::Cond(CondExpr { cons, alt, .. }) => {
                     let cons_inner = crate::utils::unwrap_expr(cons.as_ref());
                     let alt_inner = crate::utils::unwrap_expr(alt.as_ref());
@@ -1642,8 +1651,48 @@ pub fn contains_jsx_in_expr(inner_top: &Expr) -> bool {
     }
 }
 
-// Objects and arrays are not closed child capabilities. A map that reaches
-// this fallback has already failed the compiled list lowering contract.
+// Only fixed-shape array literals can be expanded into JSX siblings. Dynamic
+// arrays and spread entries still require a separate child capability.
+fn literal_array_is_closed(array: &ArrayLit) -> bool {
+    array.elems.iter().flatten().all(|entry| {
+        entry.spread.is_none()
+            && match crate::utils::unwrap_expr(entry.expr.as_ref()) {
+                Expr::Array(nested) => literal_array_is_closed(nested),
+                Expr::Object(_) => false,
+                _ => true,
+            }
+    })
+}
+
+fn literal_array_fragment(array: &ArrayLit) -> Option<JSXFragment> {
+    if !literal_array_is_closed(array) {
+        return None;
+    }
+    fn append(array: &ArrayLit, children: &mut Vec<JSXElementChild>) {
+        for entry in array.elems.iter().flatten() {
+            let expr = crate::utils::unwrap_expr(entry.expr.as_ref());
+            if let Expr::Array(nested) = expr {
+                append(nested, children);
+            } else {
+                children.push(JSXElementChild::JSXExprContainer(JSXExprContainer {
+                    span: DUMMY_SP,
+                    expr: JSXExpr::Expr(Box::new(expr.clone())),
+                }));
+            }
+        }
+    }
+    let mut children = Vec::new();
+    append(array, &mut children);
+    Some(JSXFragment {
+        span: DUMMY_SP,
+        opening: JSXOpeningFragment { span: DUMMY_SP },
+        children,
+        closing: JSXClosingFragment { span: DUMMY_SP },
+    })
+}
+
+// A map that reaches this fallback has already failed the compiled list
+// lowering contract.
 fn reject_unsupported_child_value(inner: &Expr) -> bool {
     let unsupported = match crate::utils::unwrap_expr(inner) {
         Expr::Object(_) | Expr::Array(_) => true,
@@ -1690,6 +1739,19 @@ pub fn emit_element_expr_container_child(
         JSXExpr::JSXEmptyExpr(_) => {}
         JSXExpr::Expr(expr) => {
             let inner = crate::utils::unwrap_expr(expr.as_ref());
+            // A literal JSX child array has a fixed shape. Emit its entries as
+            // ordinary siblings so each reactive entry keeps its own binding.
+            if let Expr::Array(array) = inner
+                && let Some(fragment) = literal_array_fragment(array)
+            {
+                crate::element_children::emit_element_children(
+                    vt,
+                    el_ident,
+                    &fragment.children,
+                    stmts,
+                );
+                return;
+            }
             let list_stmt_start = stmts.len();
             if let Expr::Call(call) = inner.clone()
                 && crate::element_list::try_build_list_from_map(vt, el_ident, &call, stmts)
@@ -1897,6 +1959,13 @@ pub(crate) fn emit_element_expr_container_child_at(
     let source_inner = crate::utils::unwrap_expr(expr.as_ref());
     let renderable_string = renderable_string_operand(vt, source_inner);
     let inner = renderable_string.as_ref().unwrap_or(source_inner);
+    if let Expr::Array(array) = inner
+        && let Some(fragment) = literal_array_fragment(array)
+    {
+        let slot = jsx_fragment_to_slot_expr(vt, &fragment);
+        crate::element_slot::render_between_for_slot_at(vt, parent, anchor, &slot, stmts);
+        return;
+    }
     if renderable_string.is_none() && crate::vapor::is_compiled_text_container(vt, ec) {
         let text = vt.next_el_ident();
         stmts.push(const_decl(

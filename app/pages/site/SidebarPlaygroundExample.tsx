@@ -387,6 +387,11 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/map-list-rendering',
         },
         {
+          id: 'jsx-array-children',
+          title: 'JSX 数组子节点',
+          href: '/examples/jsx-array-children',
+        },
+        {
           id: 'todo-app',
           title: 'Todo 应用',
           href: '/examples/todo-app',

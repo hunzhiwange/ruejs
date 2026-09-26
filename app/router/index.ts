@@ -254,6 +254,10 @@ const flatRoutes: RouteRecordRaw[] = [
     component: routeComponent(() => import('../pages/examples/MapListRendering')),
   },
   {
+    path: '/examples/jsx-array-children',
+    component: routeComponent(() => import('../pages/examples/JSXArrayChildren')),
+  },
+  {
     path: '/examples/react-style-conditional',
     component: routeComponent(() => import('../pages/examples/ReactStyleConditional')),
   },
