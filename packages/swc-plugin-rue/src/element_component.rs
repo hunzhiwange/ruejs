@@ -253,6 +253,22 @@ fn is_substantive_slot_child(child: &JSXElementChild) -> bool {
 
 fn lower_expr_slot_value(vt: &mut VaporTransform, expr: &Expr) -> Option<LoweredSlotValue> {
     match crate::utils::unwrap_expr(expr) {
+        Expr::Array(array)
+            if array.elems.iter().flatten().any(|element| {
+                crate::element_expr::contains_jsx_in_expr(element.expr.as_ref())
+            }) =>
+        {
+            let mut lowered = array.clone();
+            for element in lowered.elems.iter_mut().flatten() {
+                if crate::element_expr::contains_jsx_in_expr(element.expr.as_ref()) {
+                    element.expr = Box::new(crate::element_expr::make_expr_for_slot(
+                        vt,
+                        element.expr.as_ref(),
+                    ));
+                }
+            }
+            Some(LoweredSlotValue { stmts: vec![], expr: Expr::Array(lowered), is_function: false })
+        }
         Expr::JSXElement(jsx_el) => {
             if crate::element_children::is_compiled_safe_element(vt, jsx_el) {
                 let block = crate::element_children::compiled_scalar_element_to_block(vt, jsx_el);

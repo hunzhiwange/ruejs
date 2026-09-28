@@ -1253,7 +1253,8 @@ fn hardens_slot_empty_alt_array_fallback_and_empty_named_slots() {
     let array_lowered = lower_slot_value(&mut array_vt, &array_child.children).expect("array slot");
     let array_expr = compact(&emit_expr(array_lowered.expr));
     assert!(array_lowered.stmts.is_empty());
-    assert!(array_expr.contains("[<spankey=\"a\"/>]"));
+    assert!(array_expr.contains("_$compiledRoot("), "{array_expr}");
+    assert!(!array_expr.contains("<span"), "{array_expr}");
 
     let mut logical_or_vt = new_vt();
     let logical_or_child = parse_jsx_element("<Box>{ok || <span key=\"a\" />}</Box>");

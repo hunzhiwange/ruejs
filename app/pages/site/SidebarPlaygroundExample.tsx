@@ -397,6 +397,11 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/jsx-array-children',
         },
         {
+          id: 'component-slot-array',
+          title: '组件插槽中的 JSX 数组',
+          href: '/examples/component-slot-array',
+        },
+        {
           id: 'todo-app',
           title: 'Todo 应用',
           href: '/examples/todo-app',

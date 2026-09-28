@@ -262,6 +262,10 @@ const flatRoutes: RouteRecordRaw[] = [
     component: routeComponent(() => import('../pages/examples/JSXArrayChildren')),
   },
   {
+    path: '/examples/component-slot-array',
+    component: routeComponent(() => import('../pages/examples/ComponentSlotArray')),
+  },
+  {
     path: '/examples/react-style-conditional',
     component: routeComponent(() => import('../pages/examples/ReactStyleConditional')),
   },
