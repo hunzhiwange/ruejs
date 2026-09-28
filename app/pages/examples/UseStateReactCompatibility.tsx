@@ -3,7 +3,7 @@ import UseStateReactCompatibilityDemo from './home-demos/UseStateReactCompatibil
 import source from './home-demos/UseStateReactCompatibilityDemo.tsx?raw'
 
 const UseStateReactCompatibility = () => (
-  <HomeSplitExamplePage options={{ title: 'React useState 兼容性验证', source }}>
+  <HomeSplitExamplePage options={{ title: 'useState 与局部快照', source }}>
     <UseStateReactCompatibilityDemo />
   </HomeSplitExamplePage>
 )

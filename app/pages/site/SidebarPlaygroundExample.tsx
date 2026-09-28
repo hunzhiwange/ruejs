@@ -378,7 +378,7 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
         },
         {
           id: 'use-state-react-compatibility',
-          title: 'React useState 兼容性验证',
+          title: 'useState 与局部快照',
           href: '/examples/use-state-react-compatibility',
         },
         {
