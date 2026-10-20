@@ -708,7 +708,9 @@ const items = [
 
 <Timeline mode="alternate" reverse pending="质量复核中" items={items} />`
 
-const bothSidesCode = `import { Timeline } from '@rue-js/design'<Timeline>
+const bothSidesCode = `import { Timeline } from '@rue-js/design'
+
+<Timeline>
   <li>
     <Timeline.Start className="text-xs font-semibold uppercase tracking-[0.26em] opacity-60">
       1984
@@ -721,7 +723,9 @@ const bothSidesCode = `import { Timeline } from '@rue-js/design'<Timeline>
   </li>
 </Timeline>`
 
-const bottomOnlyCode = `import { Timeline } from '@rue-js/design'<Timeline>
+const bottomOnlyCode = `import { Timeline } from '@rue-js/design'
+
+<Timeline>
   <li>
     <Timeline.Middle>
       <span className="inline-flex size-5 items-center justify-center rounded-full border border-secondary text-secondary bg-secondary/10">2</span>
@@ -751,7 +755,9 @@ const items = [
   <Timeline items={items} className="min-w-[860px]" />
 </div>`
 
-const noIconsCode = `import { Timeline } from '@rue-js/design'<Timeline>
+const noIconsCode = `import { Timeline } from '@rue-js/design'
+
+<Timeline>
   <li>
     <Timeline.Start className="text-xs font-semibold uppercase tracking-[0.26em] opacity-60">
       1984
@@ -761,7 +767,9 @@ const noIconsCode = `import { Timeline } from '@rue-js/design'<Timeline>
   </li>
 </Timeline>`
 
-const verticalBothSidesCode = `import { Timeline } from '@rue-js/design'<Timeline orientation="vertical">
+const verticalBothSidesCode = `import { Timeline } from '@rue-js/design'
+
+<Timeline orientation="vertical">
   <li>
     <Timeline.Start className="text-xs font-semibold uppercase tracking-[0.26em] opacity-60">
       1984
@@ -774,7 +782,9 @@ const verticalBothSidesCode = `import { Timeline } from '@rue-js/design'<Timelin
   </li>
 </Timeline>`
 
-const verticalRightOnlyCode = `import { Timeline } from '@rue-js/design'<Timeline orientation="vertical">
+const verticalRightOnlyCode = `import { Timeline } from '@rue-js/design'
+
+<Timeline orientation="vertical">
   <li>
     <Timeline.Middle>
       <span className="inline-flex size-5 items-center justify-center rounded-full border border-secondary text-secondary bg-secondary/10">2</span>

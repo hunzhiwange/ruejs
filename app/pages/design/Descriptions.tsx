@@ -197,7 +197,9 @@ const items = [
   column={3}
 />`
 
-const borderedCode = `import { Descriptions } from '@rue-js/design'<Descriptions
+const borderedCode = `import { Descriptions } from '@rue-js/design'
+
+<Descriptions
   title="Release Shipping Board"
   bordered
   size="small"
@@ -220,7 +222,9 @@ const borderedCode = `import { Descriptions } from '@rue-js/design'<Descriptions
   ]}
 />`
 
-const verticalCode = `import { Descriptions } from '@rue-js/design'<Descriptions title="Campaign Frame" layout="vertical" bordered column={2}>
+const verticalCode = `import { Descriptions } from '@rue-js/design'
+
+<Descriptions title="Campaign Frame" layout="vertical" bordered column={2}>
   <Descriptions.Item label="Headline">Orbit launch week</Descriptions.Item>
   <Descriptions.Item label="Owner">Growth Studio</Descriptions.Item>
   <Descriptions.Item label="Narrative">
@@ -235,7 +239,9 @@ const verticalCode = `import { Descriptions } from '@rue-js/design'<Descriptions
   </Descriptions.Item>
 </Descriptions>`
 
-const responsiveCode = `import { Descriptions } from '@rue-js/design'<Descriptions
+const responsiveCode = `import { Descriptions } from '@rue-js/design'
+
+<Descriptions
   title="Signal Board"
   size="large"
   colon={false}

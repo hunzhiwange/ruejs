@@ -359,7 +359,9 @@ const AvatarDemo: FC = () => {
               </Avatar>
             </div>
           )}
-          code={`import { Avatar } from '@rue-js/design'<div className="flex flex-wrap items-end gap-4">
+          code={`import { Avatar } from '@rue-js/design'
+
+<div className="flex flex-wrap items-end gap-4">
   <Avatar src="${photos.batperson}" alt="Bat Person" size={72} />
   <Avatar size="lg" color="primary" icon={<UserIcon />} />
   <Avatar size="lg" color="secondary">JS</Avatar>

@@ -201,7 +201,9 @@ const cssText = ref('rgb(22, 119, 255)')
   }}
 />`
 
-const sizeCode = `import { ColorPicker } from '@rue-js/design'<div className="flex flex-col gap-4">
+const sizeCode = `import { ColorPicker } from '@rue-js/design'
+
+<div className="flex flex-col gap-4">
   <ColorPicker size="xs" defaultValue="#06b6d4" showText />
   <ColorPicker size="sm" defaultValue="#22c55e" showText />
   <ColorPicker size="md" defaultValue="#1677ff" showText />

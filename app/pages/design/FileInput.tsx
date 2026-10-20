@@ -406,7 +406,9 @@ const fileList = ref([
               }}
             />
           }
-          code={`import { FileInput } from '@rue-js/design'<FileInput.Dragger
+          code={`import { FileInput } from '@rue-js/design'
+
+<FileInput.Dragger
   multiple
   variant="secondary"
   title="拖拽附件、截图或压缩包到这里"
@@ -533,7 +535,9 @@ const fileList = ref([])
           title="File input"
           tab={tabs.basic}
           preview={<FileInput />}
-          code={`import { FileInput } from '@rue-js/design'<FileInput />`}
+          code={`import { FileInput } from '@rue-js/design'
+
+<FileInput />`}
         />
 
         <PreviewBlock

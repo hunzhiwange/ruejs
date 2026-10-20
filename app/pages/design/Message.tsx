@@ -179,7 +179,9 @@ const instanceApiRows: ApiRow[] = [
   },
 ]
 
-const declarativeCode = `import { Message } from '@rue-js/design'<div className="relative min-h-72 overflow-hidden rounded-[1.25rem] border border-base-300">
+const declarativeCode = `import { Message } from '@rue-js/design'
+
+<div className="relative min-h-72 overflow-hidden rounded-[1.25rem] border border-base-300">
   <Message className="absolute" placement="top" top={16} gap={12}>
     <Message.Item type="success" content="发布完成，静态资源已刷新。" />
     <Message.Item type="info" content="设计规范已同步到内容工作台。" />
@@ -187,7 +189,9 @@ const declarativeCode = `import { Message } from '@rue-js/design'<div className=
   </Message>
 </div>`
 
-const richCode = `import { Message } from '@rue-js/design'<div className="grid gap-4">
+const richCode = `import { Message } from '@rue-js/design'
+
+<div className="grid gap-4">
   <Message.Item
     type="success"
     content={

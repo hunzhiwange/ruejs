@@ -95,7 +95,9 @@ const apiRows: ApiRow[] = [
   },
 ]
 
-const basicCode = `import { Popconfirm } from '@rue-js/design'<div className="grid gap-4 lg:grid-cols-3">
+const basicCode = `import { Popconfirm } from '@rue-js/design'
+
+<div className="grid gap-4 lg:grid-cols-3">
   <Popconfirm
     title="确认归档这条记录？"
     description="归档后仍可在历史列表中恢复。"
@@ -182,7 +184,9 @@ const publishStatus = ref('等待发布')
   <button className="btn btn-primary">Publish build</button>
 </Popconfirm>`
 
-const triggerCode = `import { Popconfirm } from '@rue-js/design'<div className="grid gap-4 xl:grid-cols-3">
+const triggerCode = `import { Popconfirm } from '@rue-js/design'
+
+<div className="grid gap-4 xl:grid-cols-3">
   <Popconfirm trigger="focus" title="离开输入框前确认？" description="适合补充最后一步确认。">
     <input className="input input-bordered w-full" placeholder="Focus trigger" />
   </Popconfirm>
@@ -196,7 +200,9 @@ const triggerCode = `import { Popconfirm } from '@rue-js/design'<div className="
   </Popconfirm>
 </div>`
 
-const placementCode = `import { Popconfirm } from '@rue-js/design'<div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+const placementCode = `import { Popconfirm } from '@rue-js/design'
+
+<div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
   <Popconfirm open={true} placement="topLeft" title="Top left" description="贴合起始边。" className="justify-self-start">
     <button className="btn">Top left</button>
   </Popconfirm>
