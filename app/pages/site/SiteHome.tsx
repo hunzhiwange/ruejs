@@ -535,7 +535,7 @@ const SiteHome: FC = () => {
         />
         <FeatureCard
           title="编译驱动的原生 DOM 渲染"
-          desc="静态 JSX 直接生成 DOM；Signal 交互加载 compiled core，复杂组件与结构按需回退 Vapor。"
+          desc="JSX 编译为原生 DOM 操作，Signal 细粒度追踪依赖，按需加载交互所需的运行时能力。"
           icon="🦀"
         />
         <FeatureCard
@@ -678,8 +678,7 @@ export default HelloWorld`}
           Rue 的组件、状态和渲染路径都建立在细粒度响应式系统之上，依赖变化后只接管受影响的更新边界。
         </p>
         <p className="text-gray-600">
-          编译器会把 JSX 路由为静态 DOM、Signal compiled core 或 Vapor
-          fallback，只加载保持当前语义所需的最小能力。
+          编译器将 JSX 转换为原生 DOM 操作，并为动态内容建立响应式更新逻辑，按需加载所需能力。
         </p>
         <div className="mt-6 grid md:grid-cols-2 gap-6 items-start">
           {/* 左栏：原始 JSX */}
@@ -883,9 +882,9 @@ export default HelloWorld;`}
         </div>
         <div className="mt-6 space-y-3 text-gray-700">
           <p>
-            纯静态 JSX 可以没有 Rue 值运行时；Signal 页面使用最小 compiled
-            core。组件、Hydration、Teleport、Transition 等复杂能力仍会按需进入
-            Vapor，因此这不是“所有应用绝对零运行时”的承诺。
+            静态内容由编译器直接生成
+            DOM；交互页面按需引入响应式、组件、Hydration、Teleport、Transition
+            等运行时能力，减少不必要的加载与更新开销。
           </p>
         </div>
       </section>
