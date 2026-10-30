@@ -79,6 +79,11 @@ export const SECTIONS_BY_TYPE: Record<'examples', SidebarSection[]> = {
           href: '/examples/form-bindings',
         },
         {
+          id: 'inline-select-list',
+          title: '内联列表下拉框',
+          href: '/examples/inline-select-list',
+        },
+        {
           id: 'simple-component',
           title: '简单组件',
           href: '/examples/simple-component',

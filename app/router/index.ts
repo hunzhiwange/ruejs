@@ -340,6 +340,10 @@ const flatRoutes: RouteRecordRaw[] = [
     component: routeComponent(() => import('../pages/examples/ConditionalsAndLoops')),
   },
   {
+    path: '/examples/inline-select-list',
+    component: routeComponent(() => import('../pages/examples/InlineSelectList')),
+  },
+  {
     path: '/examples/form-bindings',
     component: routeComponent(() => import('../pages/examples/FormBindings')),
   },
