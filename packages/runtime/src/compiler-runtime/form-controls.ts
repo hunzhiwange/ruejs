@@ -248,7 +248,7 @@ const getSelectOwner = (node: any): HTMLSelectElement | null => {
   if (!parent || typeof parent.tagName !== 'string') return null
   const parentTag = parent.tagName.toUpperCase()
   if (parentTag === 'SELECT') return parent as HTMLSelectElement
-  if (parentTag === 'OPTGROUP') {
+  if (parentTag === 'OPTGROUP' || parentTag === 'OPTION') {
     const select = parent.parentElement
     if (select?.tagName?.toUpperCase() === 'SELECT') return select as HTMLSelectElement
   }
@@ -331,7 +331,7 @@ export const syncFormControlForMutationParent = (parent: any) => {
       syncPendingSelectValue(parent)
       return true
     }
-    if (parentTag === 'OPTGROUP') {
+    if (parentTag === 'OPTGROUP' || parentTag === 'OPTION') {
       const owner = getSelectOwner(parent)
       if (owner) syncPendingSelectValue(owner)
       return true

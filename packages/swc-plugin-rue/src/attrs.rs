@@ -1823,7 +1823,7 @@ pub fn emit_attrs_for(stmts: &mut Vec<Stmt>, target: &Ident, opening: &JSXOpenin
                                 span: DUMMY_SP,
                                 expr: Box::new(watch),
                             }));
-                        } else if name == "multiple" || name == "open" {
+                        } else if name == "multiple" || name == "open" || name == "selected" {
                             // 对任意值进行“布尔保护”，`!!expr` 将其转换为严格的 boolean
                             let paren_inner = Expr::Paren(ParenExpr {
                                 span: DUMMY_SP,
@@ -1839,8 +1839,7 @@ pub fn emit_attrs_for(stmts: &mut Vec<Stmt>, target: &Ident, opening: &JSXOpenin
                                 })),
                             });
                             // 直接写回到对应的 DOM 布尔属性；赋值 false 会同步移除其激活状态。
-                            let boolean_property =
-                                if name == "multiple" { "multiple" } else { "open" };
+                            let boolean_property = name.as_str();
                             let assign = Stmt::Expr(ExprStmt {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Assign(AssignExpr {

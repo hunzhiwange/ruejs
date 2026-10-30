@@ -3,9 +3,26 @@ import { describe, expect, it } from 'vitest'
 import { appendChild } from '../src/compiler-runtime/dom.browser'
 import { _$compiledStaticRoot } from '../src/compiler-runtime/compact-root'
 import { _$compiledSelectValue } from '../src/compiler-runtime/select-value'
-import { setDOMProperty, setDOMValue } from '../src/dom/props'
+import { setDOMAttribute, setDOMProperty, setDOMValue } from '../src/dom/props'
 
 describe('DOM select value sync', () => {
+  it.each([false, true])('replays the last option value attribute (multiple=%s)', multiple => {
+    const select = document.createElement('select')
+    select.multiple = multiple
+    setDOMValue(select, multiple ? ['MYSQL'] : 'MYSQL')
+    const group = document.createElement('optgroup')
+    appendChild(select, group)
+    for (const value of ['POSTGRESQL', 'MYSQL']) {
+      const option = document.createElement('option')
+      appendChild(group, option)
+      setDOMAttribute(option, 'value', value)
+      appendChild(option, document.createTextNode(value))
+    }
+    expect(Array.from(select.selectedOptions, option => option.value)).toEqual(['MYSQL'])
+    setDOMValue(select, multiple ? ['POSTGRESQL'] : 'POSTGRESQL')
+    expect(select.value).toBe('POSTGRESQL')
+  })
+
   it('keeps a controlled value when static option blocks move into the select', () => {
     const select = document.createElement('select')
     setDOMValue(select, 'crimson')

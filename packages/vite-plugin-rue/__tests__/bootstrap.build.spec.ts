@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises'
+import { mkdtemp, writeFile, readFile, rm, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { afterEach, expect, it } from 'vitest'
@@ -272,4 +272,31 @@ it('honors disposal requested by an onMounted callback', async () => {
   app.mount('#app')
   expect(document.querySelector('#app')!.childNodes).toHaveLength(0)
   delete (globalThis as any).task10app
+}, 60000)
+
+it('preserves inline list select bindings in a minified production build', async () => {
+  const root = 'packages/runtime/__tests__/fixtures/select-list/'
+  const chunk = await fixture(await readFile(root + 'entry.tsx', 'utf8'), true, 'tsx', {
+    'styles.ts': await readFile(root + 'styles.ts', 'utf8'),
+  })
+  document.body.innerHTML = '<div id="app"></div>'
+  new Function(chunk.code)()
+  const values = () => Array.from(document.querySelectorAll('select'), select => select.value)
+  const api = (globalThis as any).selectList
+  try {
+    expect(values()).toEqual(['MYSQL', 'MYSQL', 'POSTGRESQL', 'POSTGRESQL'])
+    const select = document.querySelector('select')!
+    select.value = 'POSTGRESQL'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    await expect.poll(values).toEqual(['POSTGRESQL', 'POSTGRESQL', 'POSTGRESQL', 'POSTGRESQL'])
+    api.replace(['MYSQL', 'POSTGRESQL', 'MYSQL'])
+    await expect
+      .poll(values)
+      .toEqual(['MYSQL', 'MYSQL', 'POSTGRESQL', 'POSTGRESQL', 'MYSQL', 'MYSQL'])
+    api.replace(['POSTGRESQL'])
+    await expect.poll(values).toEqual(['POSTGRESQL', 'POSTGRESQL'])
+  } finally {
+    api.app.dispose()
+    delete (globalThis as any).selectList
+  }
 }, 60000)

@@ -103,6 +103,10 @@ export const normalizeHTMLPattern = (value: string): string => {
 export const setDOMAttribute = (element: Element, name: string, value: unknown): void => {
   const stringValue = String(value)
   element.setAttribute(name, name === 'pattern' ? normalizeHTMLPattern(stringValue) : stringValue)
+  // Inline list rows assign static option attributes after inserting the option.
+  if (name === 'value' && element.tagName === 'OPTION') {
+    syncFormControlAfterMutation(element.parentElement, element)
+  }
 }
 
 export const setDOMClassName = (element: Element, value: unknown): void => {

@@ -710,3 +710,14 @@ fn rejects_component_native_events_without_a_dom_boundary() {
         "import Panel from './Panel'; export const View = () => <Panel r-on:click-native={handleClick} />;",
     );
 }
+
+#[test]
+fn emits_dynamic_selected_as_a_boolean_dom_property() {
+    let target = ident("el");
+    let opening = parse_jsx_opening("<option selected={source.type === 'MYSQL'} />");
+    let mut stmts = Vec::new();
+    emit_attrs_for(&mut stmts, &target, &opening);
+    let out = normalize(&emit_stmts(stmts));
+    assert!(out.contains("el.selected = !!"), "{out}");
+    assert!(!out.contains("_$setAttribute"), "{out}");
+}
