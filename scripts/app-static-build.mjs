@@ -43,8 +43,6 @@ const codeBlockRe = /<pre><code class="language-([^"]*)">([\s\S]*?)<\/code><\/pr
 const containerDirectiveMarkerRe = /^([ ]{0,3}:{3,})[ \t]+(tip|info|warning|danger)(?=\s|$)/gm
 const allowedLangs = new Set(['html', 'css', 'ts', 'tsx', 'rust', 'js', 'javascript', 'typescript'])
 const docContainerDirectives = new Set(['tip', 'info', 'warning', 'danger'])
-const staticDocHtmlByRouteKey = '__RUE_STATIC_DOC_HTML_BY_ROUTE__'
-const staticRenderRouteKey = '__RUE_STATIC_RENDER_ROUTE__'
 let highlightContext = null
 let highlightContextPromise = null
 
@@ -252,37 +250,45 @@ export const classifyDocRoute = (route, docSourcesByDocId) => {
     return null
   }
 
-  if (source.extension === '.md') {
-    return {
-      ...source,
-      renderKind: 'static-doc',
-    }
-  }
-
-  if (source.extension === '.mdx') {
-    return {
-      ...source,
-      renderKind: 'ssr-prerender',
-    }
+  if (source.extension === '.md' || source.extension === '.mdx') {
+    // The document's format says nothing about interactions in its route layout.
+    // Render the complete page before selecting its client runtime.
+    return { ...source, renderKind: 'static-snapshot' }
   }
 
   return null
 }
 
-const renderStaticDocRoute = async (route, routeIndex, docSourcesByDocId, renderStaticDoc) => {
-  const classification = classifyDocRoute(route, docSourcesByDocId)
-
-  if (!classification || classification.renderKind !== 'static-doc') {
+export const prerenderAppRoute = async ({
+  route,
+  routeIndex,
+  appClientRoutes,
+  docSourcesByDocId,
+  renderers,
+}) => {
+  const document = classifyDocRoute(route, docSourcesByDocId)
+  if (!appClientRoutes.has(normalizeRoute(route)) && !document) {
     return null
   }
 
-  try {
-    const markdown = await readFile(classification.filePath, 'utf-8')
-    const docHtml = await mdToHtml(markdown)
-    return await renderStaticDoc(route, routeIndex, docHtml)
-  } catch {
+  // Precompile Markdown in Node rather than loading the browser Markdown parser
+  // in the snapshot DOM. The route still renders its complete interactive layout.
+  const docHtml =
+    document?.extension === '.md'
+      ? await mdToHtml(await readFile(document.filePath, 'utf-8'))
+      : undefined
+
+  // Documents must not fall back to a shell which omits the interactive layout.
+  // Other application routes retain their existing empty-snapshot fallback.
+  const html =
+    docHtml === undefined
+      ? await renderers.snapshotRoute(route, routeIndex)
+      : await renderers.snapshotRoute(route, routeIndex, docHtml)
+  if (!html) {
+    if (document) throw new Error(`Static page snapshot was empty for ${route}.`)
     return null
   }
+  return { html, renderKind: 'static-snapshot' }
 }
 
 const staticRoutePathRe = /\bpath\s*:\s*(['"])(\/[^'"\r\n]*)\1/g
@@ -298,8 +304,8 @@ export const extractStaticAppRouteInfo = source => {
 
   return {
     staticRoutes: [...staticRoutes].sort(),
-    // Concrete application pages use the client compiler's snapshot path. Markdown document routes
-    // are added separately and continue through the zero-JS static document renderer.
+    // Document routes are discovered separately. Both use the client compiler's
+    // snapshot path to retain the entire route layout.
     appClientRoutes: new Set(staticRoutes),
   }
 }
@@ -589,6 +595,9 @@ const resolveRouteClientModes = (appHtml, route, appClientRoutes) => {
   if (clientRuntimeMode === 'always') return ['app']
   if (clientRuntimeMode === 'never') return []
   if (appClientRoutes.has(normalizeRoute(route))) return ['app']
+  // Requirements can come from any rendered ancestor or descendant, including
+  // shared navigation and sidebars around otherwise static document content.
+  if (/\sdata-rue-client-mode\s*=\s*(?:"app"|'app'|app(?=[\s>]))/i.test(appHtml)) return ['app']
 
   const modes = []
   if (/<rue-island(?:\s|>)/i.test(appHtml)) modes.push('islands')
@@ -608,7 +617,9 @@ export const createRouteHtml = (
   return createStaticRouteHtml(template, appHtml, { clientModes, clientEntries })
 }
 
-const snapshotRouteInChild = (route, routeIndex) => {
+const snapshotRouteInChild = async (route, routeIndex, docHtml) => {
+  const docHtmlFile = path.join(routeSnapshotOutDir, `${routeIndex}.doc.html`)
+  if (docHtml !== undefined) await writeFile(docHtmlFile, docHtml)
   const outputFile = path.join(routeSnapshotOutDir, `${routeIndex}.html`)
   return renderStaticRouteInChild({
     scriptFile: routeSnapshotFile,
@@ -620,6 +631,7 @@ const snapshotRouteInChild = (route, routeIndex) => {
     cwd: root,
     env: {
       APP_STATIC_CLIENT_TEMPLATE_FILE: clientTemplateFile,
+      ...(docHtml !== undefined ? { APP_STATIC_DOC_HTML_FILE: docHtmlFile } : {}),
     },
   })
 }
@@ -643,21 +655,6 @@ export const createAppStaticRouteRenderers = ({
         route,
         timeoutMs: routeRenderTimeoutMs,
         label: 'SSR',
-      })
-    },
-
-    renderStaticDoc(route, routeIndex, docHtml) {
-      return pool.render({
-        extraGlobals: {
-          [staticRenderRouteKey]: normalizeRoute(route),
-          [staticDocHtmlByRouteKey]: {
-            [normalizeRoute(route)]: docHtml,
-          },
-        },
-        outputFile: path.join(renderOutDir, `${routeIndex}.html`),
-        route,
-        timeoutMs: routeRenderTimeoutMs,
-        label: 'Static document SSR',
       })
     },
 
@@ -757,22 +754,14 @@ const renderRoutes = async (
     outDir,
     concurrency: routeRenderConcurrency,
     resolveOutputFile: ({ route }) => staticRouteToOutputFile(route, outDir),
-    preRenderRoute: async ({ route, routeIndex }) => {
-      const html = await renderStaticDocRoute(
+    preRenderRoute: ({ route, routeIndex }) =>
+      prerenderAppRoute({
         route,
         routeIndex,
+        appClientRoutes,
         docSourcesByDocId,
-        routeRenderers.renderStaticDoc,
-      )
-      if (html) return { html, renderKind: 'static-doc' }
-
-      if (appClientRoutes.has(normalizeRoute(route))) {
-        const snapshot = await routeRenderers.snapshotRoute(route, routeIndex)
-        return snapshot ? { html: snapshot, renderKind: 'static-snapshot' } : null
-      }
-
-      return null
-    },
+        renderers: routeRenderers,
+      }),
     shouldPrerenderRoute: ({ route }) => shouldPrerenderRoute(route),
     renderRoute: ({ route, routeIndex }) => routeRenderers.renderRoute(route, routeIndex),
     snapshotRoute: ({ route, routeIndex }) => routeRenderers.snapshotRoute(route, routeIndex),

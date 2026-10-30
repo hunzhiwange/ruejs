@@ -121,7 +121,7 @@ const PageDocDetail: FC<PageDocDetailProps> = props => {
 
   return (
     <SidebarPlayground currentPath={currentPath.get()}>
-      <div>
+      <div data-rue-client-mode="app">
         {readMdxComponent() ? (
           <div className="max-w-none prose prose-sm md:prose-base" id="doc-body">
             <Component is="mdx" registry={{ mdx: readMdxComponent() }} />

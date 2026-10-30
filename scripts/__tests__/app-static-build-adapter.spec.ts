@@ -16,6 +16,7 @@ import {
   cleanupAppStaticBuildTempDirs,
   extractStaticAppRouteInfo,
   isProcessAlive,
+  prerenderAppRoute,
   runAppStaticRouteStage,
 } from '../app-static-build.mjs'
 import { findDocSources } from '../doc-source-utils.mjs'
@@ -75,7 +76,7 @@ describe('app static build adapter', () => {
     ])
   })
 
-  it('uses one pool for SSR and static docs while keeping snapshots one-shot', async () => {
+  it('uses the SSR pool for server rendering while keeping client snapshots one-shot', async () => {
     const renderOutDir = await createTempDir('rue-app-static-renderers-')
     const pool = {
       render: vi.fn(async ({ route }: { route: string }) => `<main>${route}</main>`),
@@ -84,32 +85,13 @@ describe('app static build adapter', () => {
     const renderers = createAppStaticRouteRenderers({ pool, renderOutDir, snapshotRoute })
 
     await expect(renderers.renderRoute('/ssr', 1)).resolves.toBe('<main>/ssr</main>')
-    await expect(renderers.renderStaticDoc('/docs', 2, '<article>docs</article>')).resolves.toBe(
-      '<main>/docs</main>',
-    )
     await expect(renderers.snapshotRoute('/fallback', 3)).resolves.toBe('<main>snapshot</main>')
 
-    expect(pool.render).toHaveBeenCalledTimes(2)
+    expect(pool.render).toHaveBeenCalledTimes(1)
     expect(pool.render).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({ label: 'SSR', route: '/ssr' }),
     )
-    expect(pool.render).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        extraGlobals: {
-          __RUE_STATIC_RENDER_ROUTE__: '/docs',
-          __RUE_STATIC_DOC_HTML_BY_ROUTE__: {
-            '/docs': '<article>docs</article>',
-          },
-        },
-        label: 'Static document SSR',
-        route: '/docs',
-      }),
-    )
-    await expect(stat(path.join(renderOutDir, '2.doc.html'))).rejects.toMatchObject({
-      code: 'ENOENT',
-    })
     expect(snapshotRoute).toHaveBeenCalledOnce()
     expect(snapshotRoute).toHaveBeenCalledWith('/fallback', 3)
   })
@@ -263,19 +245,101 @@ describe('app static build adapter', () => {
       expect.objectContaining({
         docId: 'guide/static-doc',
         extension: '.md',
-        renderKind: 'static-doc',
+        renderKind: 'static-snapshot',
       }),
     )
     expect(classifyDocRoute('/guide/guide/interactive-doc', sourceMap)).toEqual(
       expect.objectContaining({
         docId: 'guide/interactive-doc',
         extension: '.mdx',
-        renderKind: 'ssr-prerender',
+        renderKind: 'static-snapshot',
       }),
     )
     expect(classifyDocRoute('/guide/guide/missing-doc', sourceMap)).toBeNull()
     expect(classifyDocRoute('/guide/%2Fescaped', sourceMap)).toBeNull()
     expect(classifyDocRoute('/guide/bad%00doc', sourceMap)).toBeNull()
+  })
+
+  it('preserves the existing fallback for an empty application snapshot', async () => {
+    await expect(
+      prerenderAppRoute({
+        route: '/settings',
+        routeIndex: 0,
+        appClientRoutes: new Set(['/settings']),
+        docSourcesByDocId: new Map(),
+        renderers: { snapshotRoute: async () => '' },
+      }),
+    ).resolves.toBeNull()
+  })
+
+  it('renders the complete route for markdown and MDX documents, including their layouts', async () => {
+    const docsDir = await createTempDir('rue-app-static-doc-layout-')
+    await writeTempFile(
+      docsDir,
+      'guide/plain.md',
+      '# Plain document\n\n```ts\nconst answer = 42\n```',
+    )
+    await writeTempFile(docsDir, 'guide/components.mdx', '# MDX document')
+    const docSourcesByDocId = createDocRouteSourceMap(await findDocSources(docsDir))
+    const html = '<aside data-rue-client-mode="app">Search</aside><article>Document</article>'
+    const renderers = {
+      snapshotRoute: vi.fn(async (_route: string, _routeIndex: number, _docHtml?: string) => html),
+    }
+
+    for (const [routeIndex, route] of ['/guide/guide/plain', '/guide/guide/components'].entries()) {
+      await expect(
+        prerenderAppRoute({
+          route,
+          routeIndex,
+          docSourcesByDocId,
+          appClientRoutes: new Set(),
+          renderers,
+        }),
+      ).resolves.toEqual({ html, renderKind: 'static-snapshot' })
+      if (route.endsWith('/plain')) {
+        expect(renderers.snapshotRoute).toHaveBeenLastCalledWith(
+          route,
+          routeIndex,
+          expect.stringContaining('Plain document'),
+        )
+        const docHtml = renderers.snapshotRoute.mock.calls.at(-1)![2]
+        expect(docHtml).toContain('copy-code-btn')
+        expect(docHtml).toContain('pre class="shiki')
+      } else {
+        expect(renderers.snapshotRoute).toHaveBeenLastCalledWith(route, routeIndex)
+      }
+    }
+    await expect(
+      prerenderAppRoute({
+        route: '/unmatched',
+        routeIndex: 2,
+        docSourcesByDocId,
+        appClientRoutes: new Set(),
+        renderers,
+      }),
+    ).resolves.toBeNull()
+
+    renderers.snapshotRoute.mockRejectedValueOnce(new Error('layout failed'))
+    await expect(
+      prerenderAppRoute({
+        route: '/guide/guide/plain',
+        routeIndex: 3,
+        docSourcesByDocId,
+        appClientRoutes: new Set(),
+        renderers,
+      }),
+    ).rejects.toThrow('layout failed')
+
+    renderers.snapshotRoute.mockResolvedValueOnce('')
+    await expect(
+      prerenderAppRoute({
+        route: '/guide/guide/plain',
+        routeIndex: 4,
+        docSourcesByDocId,
+        appClientRoutes: new Set(),
+        renderers,
+      }),
+    ).rejects.toThrow('snapshot was empty')
   })
 
   it('injects exact none/islands/docs/app graphs while preserving user-owned head assets', () => {
@@ -396,6 +460,28 @@ describe('app static build adapter', () => {
     expect(appHtml).not.toContain('/assets/island-runtime.js')
     expect(appHtml).not.toContain('/assets/docs.js')
     expect(appHtml).not.toContain('/assets/docs-runtime.js')
+
+    // An interactive ancestor, sidebar, or document body needs the app runtime even
+    // when the route is not a concrete path in the router source.
+    for (const appHtml of [
+      '<header data-rue-client-mode="app"><button>Search</button></header><article>Static</article>',
+      '<aside data-rue-client-mode="app"><input><button>Collapse</button></aside><article>Static</article>',
+      '<article data-rue-client-mode="app"><button class="copy-code-btn">Copy</button></article>',
+      '<main data-rue-client-mode="app"><rue-island></rue-island><div data-rue-doc-code-tabs></div></main>',
+    ]) {
+      const html = createRouteHtml(
+        template,
+        appHtml,
+        'static-snapshot',
+        '/guide/guide/plain',
+        new Set(),
+        clientEntries,
+      )
+      expect(html).toContain('/assets/app.js')
+      expect(html).toContain('/assets/runtime.js')
+      expect(html).not.toContain('/assets/islands.js')
+      expect(html).not.toContain('/assets/docs.js')
+    }
   })
 
   it('resolves preview files without escaping the static output directory', async () => {

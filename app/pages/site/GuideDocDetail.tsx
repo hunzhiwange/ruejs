@@ -150,7 +150,7 @@ const GuideDocDetail: FC<GuideDocDetailProps> = props => {
   const readMdxComponent = () => (docContentType === 'mdx' ? mdxComponentRef.current : null)
 
   return (
-    <div>
+    <div data-rue-client-mode="app">
       {readMdxComponent() ? (
         <div className="max-w-none prose prose-sm md:prose-base" id="doc-body">
           <Component is={readMdxComponent()} />

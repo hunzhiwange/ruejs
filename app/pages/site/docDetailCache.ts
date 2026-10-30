@@ -45,7 +45,7 @@ export const readStaticDocHtmlByRoute = (route: string) => {
     | Record<string, unknown>
     | undefined
   const html = staticDocHtmlByRoute?.[normalizeStaticDocRoute(route)]
-  return typeof html === 'string' ? html : ''
+  return typeof html === 'string' ? html : undefined
 }
 
 export const readStaticDocContentByRoute = (route: string): DocDetailContent => {
@@ -53,7 +53,7 @@ export const readStaticDocContentByRoute = (route: string): DocDetailContent => 
   if (MdxComponent) return createMdxDocContent(MdxComponent)
 
   const html = readStaticDocHtmlByRoute(route)
-  return html ? createHtmlDocContent(html) : emptyDocContent
+  return html !== undefined ? createHtmlDocContent(html) : emptyDocContent
 }
 
 export const createDocDetailUrl = (base: string, seg: string) => {
@@ -72,6 +72,15 @@ export const loadCachedDocContent = async (
 
   if (cachedContent) {
     return cachedContent
+  }
+
+  // Build-time snapshots already have precompiled Markdown. Reuse it for the
+  // initial effect as well, so the browser parser cannot replace it while rendering.
+  const staticHtml = readStaticDocHtmlByRoute(`/${scope}/${seg}`)
+  if (staticHtml !== undefined) {
+    const content = createHtmlDocContent(staticHtml)
+    docContentCache.set(cacheKey, content)
+    return content
   }
 
   const pendingContent = docPendingCache.get(cacheKey)

@@ -453,7 +453,7 @@ export const PersistentSidebarPlayground: FC<
     .join(' ')
 
   return (
-    <div className={rootClassName}>
+    <div className={rootClassName} data-rue-client-mode="app">
       <div className="md:w-45 shrink-0">
         <SidebarPlaygroundNavigation currentPath={currentPath} />
       </div>

@@ -1,4 +1,5 @@
 import { formatStaticError, snapshotClientRoute } from '@rue-js/server-renderer/static'
+import { readFile } from 'node:fs/promises'
 
 const [outDir, route, outputFile] = process.argv.slice(2)
 const clientTemplateFile = process.env.APP_STATIC_CLIENT_TEMPLATE_FILE
@@ -11,6 +12,7 @@ if (!outDir || !route || !outputFile) {
 }
 
 try {
+  const docHtmlFile = process.env.APP_STATIC_DOC_HTML_FILE
   await snapshotClientRoute({
     outDir,
     route,
@@ -18,6 +20,15 @@ try {
     templateFile: clientTemplateFile,
     settleMs: snapshotSettleMs,
     waitMs: snapshotWaitMs,
+    ...(docHtmlFile
+      ? {
+          extraGlobals: {
+            __RUE_STATIC_DOC_HTML_BY_ROUTE__: {
+              [route]: await readFile(docHtmlFile, 'utf-8'),
+            },
+          },
+        }
+      : {}),
   })
 } catch (error) {
   console.error(formatStaticError(error))

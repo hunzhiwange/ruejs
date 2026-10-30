@@ -213,6 +213,7 @@ const DocSearch: FC = () => {
     <>
       <button
         type="button"
+        data-rue-client-mode="app"
         className="hidden h-10 w-48 items-center gap-3 rounded border border-base-300/80 bg-base-100/80 px-3 text-left text-base-content/65 shadow-sm transition hover:border-emerald-400 hover:text-base-content md:inline-flex"
         aria-label="打开文档搜索"
         onClick={openSearch}
